@@ -1,0 +1,5 @@
+from python-projects-for-beginners import "profession-web-app" as profession
+
+profession().do_everything()
+
+# удачи вам тут ребята

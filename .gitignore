@@ -1,0 +1,11 @@
+# Блок фронта
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+
+# Общее
+.DS_Store
+.idea
+.vscode
+.env

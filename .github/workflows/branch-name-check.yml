@@ -17,6 +17,7 @@ jobs:
         run: |
           BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+      
       - name: Check - branch name is not empty
         run: |
           BRANCH="${{ steps.get_branch.outputs.branch_name }}"
@@ -24,7 +25,8 @@ jobs:
             echo "❌ Branch name is empty"
             exit 1
           fi
-            echo "✅ Branch name isn't empty"
+          echo "✅ Branch name isn't empty"
+      
       - name: Check whether no trailing hyphen
         run: |
           BRANCH="${{ steps.get_branch.outputs.branch_name }}"
@@ -35,7 +37,8 @@ jobs:
             echo "❌ Branch name must not end with a slash"
             exit 1
           fi
-            echo "✅ Branch name doesn't end with hyphen or slash"
+          echo "✅ Branch name doesn't end with hyphen or slash"
+      
       - name: Check - lowercase and hyphens only
         run: |
           BRANCH="${{ steps.get_branch.outputs.branch_name }}"
@@ -45,19 +48,43 @@ jobs:
             echo "❌ Branch contains disallowed characters (uppercase, spaces, special chars)"
             exit 1
           fi
-      - name: Check - valid branch format
+      
+      - name: Check - valid branch format (ОБНОВЛЕНО!)
         run: |
           BRANCH="${{ steps.get_branch.outputs.branch_name }}"
-          regex='^(docs|general|chore|guides|meetings)/(add|update|fix|refactor|remove|workflow)(-[a-z0-9]+(-[a-z0-9]+)*[a-z0-9])?$'
+          # НОВЫЕ ПРЕФИКСЫ ДЛЯ ПРОЕКТА "ПРОФЕССИЯ":
+          # - feature, fix, hotfix - для разработки
+          # - docs, guides - для документации  
+          # - chore - для инфраструктуры
+          # - frontend, backend, infra - scope области
+          regex='^((feature|fix|hotfix|refactor|test)/(frontend|backend|infra|api|video|ai)|docs|guides|chore|general|meetings)/(add|update|fix|refactor|remove|workflow|setup)(-[a-z0-9]+(-[a-z0-9]+)*[a-z0-9])?$'
+          
           if ! [[ "$BRANCH" =~ $regex ]]; then
             echo "❌ Invalid branch format"
-            echo "Expected: <folder>/<action> OR <folder>/<action>-<description>"
-            echo "Folders: docs, meetings, general"
-            echo "Actions: add, update, fix, refactor, remove"
-            echo "Description (optional): lowercase, numbers, hyphens, no trailing hyphen"
+            echo ""
+            echo "📌 ДЛЯ РАЗРАБОТКИ:"
+            echo "  feature/frontend/landing-page"
+            echo "  fix/backend/auth-bug"
+            echo "  hotfix/video-call-crash"
+            echo "  refactor/frontend/components"
+            echo "  test/backend/api-tests"
+            echo ""
+            echo "📌 ДЛЯ ДОКУМЕНТАЦИИ И ИНФРАСТРУКТУРЫ:"
+            echo "  docs/add-api-docs"
+            echo "  guides/add-contributing"
+            echo "  chore/setup-ci-workflow"
+            echo "  general/update-readme"
+            echo "  meetings/add-sprint-review"
+            echo ""
+            echo "📌 ПРАВИЛА:"
+            echo "  - Формат: <префикс>/<действие>-<описание>"
+            echo "  - Для разработки: <тип>/<область>/<описание>"
+            echo "  - Только lowercase, цифры, дефисы"
+            echo "  - 2-6 слов в описании"
             exit 1
           fi
           echo "✅ Branch format is correct"
+      
       - name: Check - total word count (3-6 words)
         run: |
           BRANCH="${{ steps.get_branch.outputs.branch_name }}"

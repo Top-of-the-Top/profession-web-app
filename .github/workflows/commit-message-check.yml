@@ -1,0 +1,62 @@
+name: Commit Message Check
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-commit-message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get all commits in PR
+        id: get_commits
+        run: |
+          # Получаем все коммиты в PR
+          COMMITS=$(git log --oneline origin/${{ github.base_ref }}..HEAD | wc -l)
+          echo "total_commits=$COMMITS" >> $GITHUB_OUTPUT
+          echo "Checking $COMMITS commits in this PR"
+      
+      - name: Check each commit
+        run: |
+          # Проверяем каждый коммит в PR
+          git log --format="%H %s" origin/${{ github.base_ref }}..HEAD | while read hash message; do
+            echo ""
+            echo "🔍 Checking commit: $message"
+            
+            # 1. Не пустой
+            if [[ -z "$message" ]]; then
+              echo "❌ Commit message is empty"
+              exit 1
+            fi
+            
+            # 2. Макс 72 символа для заголовка
+            if [[ ${#message} -gt 72 ]]; then
+              echo "❌ Commit header too long: ${#message} chars (max 72)"
+              exit 1
+            fi
+            
+            # 3. Не заканчивается точкой
+            if [[ "$message" == *"." ]]; then
+              echo "❌ Commit must not end with a period"
+              exit 1
+            fi
+            
+            # 4. Conventional Commits для нашего проекта
+            if [[ ! "$message" =~ ^(feat|fix|docs|style|refactor|test|chore|build|ci|perf)(\([a-z-]+\))?:[[:space:]].+$ ]]; then
+              echo "❌ Invalid commit format"
+              echo "   Expected: type(scope): description"
+              echo "   Types: feat|fix|docs|style|refactor|test|chore|build|ci|perf"
+              echo "   Scope (optional): frontend, backend, auth, video, etc."
+              echo "   Example: feat(frontend): add landing page"
+              exit 1
+            fi
+            
+            echo "✅ Valid commit"
+          done
+          
+          echo ""
+          echo "🎉 All commits are valid!"

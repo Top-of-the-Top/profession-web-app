@@ -1,0 +1,31 @@
+.header {
+	width: 100vw;
+	height: 50px;
+	background-color: rgb(123, 184, 236);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 10px 0 10px;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 10;
+}
+
+.title {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+}
+.panel {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.inlineIcon {
+  display: inline-block; /* или inline-flex */
+  vertical-align: middle; /* чтобы выровнять по тексту */
+  width: 1em; /* размер как буква */
+  height: 1em;
+  margin-right: 2px; /* немного пространства после иконки */
+}

@@ -1,0 +1,101 @@
+name: Branch Name Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-branch-name:
+    runs-on: ubuntu-latest
+    # Пропускаем всю проверку для ветки develop
+    if: github.head_ref != 'develop'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract branch name
+        id: get_branch
+        run: |
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Check - branch name is not empty
+        run: |
+          BRANCH="${{ steps.get_branch.outputs.branch_name }}"
+          if [[ -z "$BRANCH" ]]; then
+            echo "❌ Branch name is empty"
+            exit 1
+          fi
+          echo "✅ Branch name isn't empty"
+
+      - name: Check whether no trailing hyphen or slash
+        run: |
+          BRANCH="${{ steps.get_branch.outputs.branch_name }}"
+          if [[ "$BRANCH" == *"-" ]]; then
+            echo "❌ Branch name must not end with a hyphen"
+            exit 1
+          elif [[ "$BRANCH" == *"/" ]]; then
+            echo "❌ Branch name must not end with a slash"
+            exit 1
+          fi
+          echo "✅ Branch name doesn't end with hyphen or slash"
+
+      - name: Check - lowercase and allowed characters only
+        run: |
+          BRANCH="${{ steps.get_branch.outputs.branch_name }}"
+          if [[ "$BRANCH" =~ ^[a-z0-9/-]+$ ]]; then
+            echo "✅ Only allowed characters used"
+          else
+            echo "❌ Branch contains disallowed characters (uppercase, spaces, special chars)"
+            exit 1
+          fi
+
+      - name: Check - valid branch format
+        run: |
+          BRANCH="${{ steps.get_branch.outputs.branch_name }}"
+          regex='^((feature|fix|hotfix|refactor|test)/(frontend|backend|infra|api|video|ai)|docs|guides|chore|general|meetings)/(add|update|fix|refactor|remove|workflow|setup)(-[a-z0-9]+(-[a-z0-9]+)*[a-z0-9])?$'
+
+          if ! [[ "$BRANCH" =~ $regex ]]; then
+            echo "❌ Invalid branch format"
+            echo ""
+            echo "📌 Examples for development:"
+            echo "  feature/frontend/landing-page"
+            echo "  fix/backend/auth-bug"
+            echo "  hotfix/video-call-crash"
+            echo "  refactor/frontend/components"
+            echo "  test/backend/api-tests"
+            echo ""
+            echo "📌 Examples for docs and infra:"
+            echo "  docs/add-api-docs"
+            echo "  guides/add-contributing"
+            echo "  chore/setup-ci-workflow"
+            echo "  general/update-readme"
+            echo "  meetings/add-sprint-review"
+            echo ""
+            echo "📌 Rules:"
+            echo "  - Format: <prefix>/<action>-<description>"
+            echo "  - For dev: <type>/<scope>/<description>"
+            echo "  - Only lowercase, digits, hyphens"
+            echo "  - 2-6 words in description"
+            exit 1
+          fi
+          echo "✅ Branch format is correct"
+
+      - name: Check - total word count (2-6 words)
+        run: |
+          BRANCH="${{ steps.get_branch.outputs.branch_name }}"
+          WORD_COUNT=$(echo "$BRANCH" | tr '/-' ' ' | wc -w)
+
+          if [[ $WORD_COUNT -lt 2 ]]; then
+            echo "❌ Branch name too short: $WORD_COUNT words (min 2 words)"
+            echo "   Example: docs/add-meeting-guide (4 words)"
+            exit 1
+          fi
+          if [[ $WORD_COUNT -gt 6 ]]; then
+            echo "❌ Branch name too long: $WORD_COUNT words (max 6 words)"
+            exit 1
+          fi
+          echo "✅ Total word count: $WORD_COUNT words"

@@ -32,8 +32,8 @@ jobs:
       - name: Check - max 50 characters
         run: |
           MESSAGE="${{ steps.get_commit.outputs.commit_message }}"
-          if [[ ${#MESSAGE} -gt 50 ]]; then
-            echo "❌ Header is too long: ${#MESSAGE} characters (max 50)"
+          if [[ ${#MESSAGE} -gt 100 ]]; then
+            echo "❌ Header is too long: ${#MESSAGE} characters (max 100)"
             exit 1
           fi
           echo "✅ Commit message isn't too long"

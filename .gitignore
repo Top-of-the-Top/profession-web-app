@@ -9,3 +9,23 @@ frontend/.vite
 .idea
 .vscode
 .env
+
+# Виртуальное окружение
+venv/
+venv_*/
+
+# Файлы IDE
+.idea/
+.vscode/
+*.swp
+
+# Python кэш
+__pycache__/
+*.py[cod]
+
+# Базы данных
+*.sqlite3
+*.db
+
+# Логи
+*.log

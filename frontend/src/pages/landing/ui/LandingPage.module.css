@@ -1,0 +1,506 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Onest:wght@100..900&display=swap');
+
+.page {
+  min-height: 100vh;
+  background-color: #ffffff;
+  color: #111827;
+  /* font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; */
+  font-family: 'Inter', sans-serif;
+}
+
+#tracks {
+  scroll-margin-top: 200px;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 16px 24px 64px;
+  z-index: 1;
+  box-sizing: content-box;
+}
+
+.header {
+  /* margin-top: 30px; */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 90px;
+  position: fixed;
+  background-image: linear-gradient(
+    to bottom,
+    #ffffff,
+    #ffffffe2,
+    #ffffffb2,
+    #ffffff48,
+    #ffffff08
+  );
+  width: 100vw;
+  height: 100px;
+  z-index: 10;
+  max-width: 100vw;
+}
+
+.logo img {
+  width: 22vw;
+  min-width: 400px;
+  transform: translateY(5px);
+}
+
+.logoAccent {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: #111827;
+  color: #ffffff;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  font-size: 80px;
+}
+
+/* .navLink {
+  border: none;
+  padding: 0;
+  background: none;
+  color: #111827;
+  cursor: pointer;
+  font-size: 14px;
+} */
+
+.authActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  gap: 40px;
+  padding-top: 30px;
+  margin-top: 220px;
+  height: fit-content;
+  padding-bottom: 260px; /* запас под картинку фона */
+  background-image: url('landing/landing-circles.svg');
+  background-repeat: no-repeat;
+
+  background-position: 20% -30px;
+  background-size: 550px auto;
+  background-origin: content-box;
+}
+
+.children {
+  width: 50%;
+	min-width: 400px;
+  height: auto;
+  background-repeat: no-repeat;
+  background-position: -1px -10px;
+  background-size: contain;
+
+  background-image: url('landing/landing-children.svg');
+}
+
+.heroTitle {
+  font-size: 48px;
+  line-height: 1.1;
+  font-weight: 800;
+  margin-bottom: 24px;
+  z-index: 10;
+}
+
+.heroText {
+  max-width: 500px;
+  margin: 0 0 200px 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #4b5563;
+  z-index: 10;
+}
+.heroHighlight {
+  color: #191970;
+}
+
+.section {
+  margin-top: 90px;
+}
+
+.sectionHeader {
+  display: flex;
+  flex-direction: row;
+  /* justify-content: space-between; */
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sectionLabel {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background-color: #111827;
+  color: #f9fafb;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sectionTitle {
+  font-size: 24px;
+  background-color: black;
+  color: #e5e7eb;
+  padding: 5px;
+  border-radius: 8px;
+  font-weight: 700;
+  margin-right: 50px;
+}
+
+.sectionDescription {
+  max-width: 660px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.tracksGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 30px;
+  box-sizing: border-box;
+}
+
+.trackCard {
+  height: 100%;
+  gap: 15px !important;
+  border: 1px solid black !important;
+  box-shadow: 1px 3px 0 0 black !important;
+  border-radius: 40px !important;
+  padding: 30px 20px 20px 10px !important;
+}
+
+.trackHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 1px !important;
+}
+.trackPrice {
+  font-size: 30px;
+}
+
+.trackTitle {
+  font-size: 25px;
+  font-weight: 700;
+  padding: 5px;
+  border-radius: 8px;
+  width: fit-content;
+}
+
+.trackFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  position: relative;
+}
+
+.trackImage {
+  width: 150px;
+  border-radius: 12px;
+  position: absolute;
+  right: 0;
+  bottom: 0px;
+}
+
+.trackButton {
+  border-radius: 50%;
+}
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero {
+    margin-top: 40px;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .heroTitle,
+  .heroHighlight {
+    font-size: 32px;
+  }
+
+  .heroCta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.learningSection {
+  padding: 80px 0;
+  background-color: var(--color-background);
+}
+
+.sectionHeaderCenter {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto 60px;
+}
+
+.sectionTitleCenter {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--color-text-primary);
+}
+
+.sectionDescriptionCenter {
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.collapsibleContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.collapsibleItem {
+  background: #f3f3f3;
+  border-radius: 20px;
+  /* border: 1px solid var(--color-border); */
+  overflow: hidden;
+  transition: all 0.3s ease;
+  width: 100%;
+  box-shadow:
+    0 2px 0 0 rgba(0, 0, 0, 0.8),
+    0 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+.collapsibleItem[data-state='open'] {
+  background-color: #191970;
+  color: white;
+}
+
+.collapsibleTrigger {
+  width: 100%;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.collapsibleTrigger:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.collapsibleTriggerContent {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 30px;
+}
+
+.collapsibleNumber {
+  font-size: 38px;
+  font-weight: 700;
+  color: var(--color-primary);
+  min-width: 40px;
+}
+
+.collapsibleTitleWrapper {
+  flex: 1;
+  text-align: left;
+}
+
+.collapsibleTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.collapsibleIcon {
+  color: var(--color-text-secondary);
+  transition: transform 0.3s ease;
+  min-width: 24px;
+}
+
+.collapsibleItem[data-state='open'] .collapsibleIcon {
+  transform: rotate(180deg);
+}
+
+/* Content */
+.collapsibleContent {
+  padding: 0 30px 30px;
+}
+
+.collapsibleContentWrapper {
+  align-items: center;
+  border-top: 1px solid white;
+  padding-top: 20px;
+}
+
+.collapsibleDescription {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.collapsibleDescription p {
+  margin: 0;
+}
+
+.collapsibleImage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.imagePlaceholder {
+  width: 300px;
+  height: 200px;
+  background: var(--color-primary-light);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 18px;
+}
+
+@media (max-width: 768px) {
+  .sectionTitleCenter {
+    font-size: 36px;
+  }
+
+  .sectionDescriptionCenter {
+    font-size: 16px;
+  }
+
+  .collapsibleContentWrapper {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .collapsibleTrigger {
+    padding: 20px;
+  }
+
+  .collapsibleNumber {
+    font-size: 30px;
+    min-width: 35px;
+  }
+
+  .collapsibleTitle {
+    font-size: 20px;
+  }
+
+  .collapsibleContent {
+    padding: 0 20px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .collapsibleTriggerContent {
+    gap: 15px;
+  }
+
+  .collapsibleTitle {
+    font-size: 18px;
+  }
+}
+
+.collapsibleItem[data-state='open'] {
+  background-color: #191970;
+  color: white;
+}
+
+.collapsibleItem[data-state='open'] .collapsibleTitle {
+  color: white !important;
+}
+
+.collapsibleItem[data-state='open'] .collapsibleNumber {
+  color: white !important;
+}
+
+.collapsibleItem[data-state='open'] .collapsibleIcon {
+  color: white !important;
+}
+
+.collapsibleItem[data-state='open'] .collapsibleDescription {
+  color: white !important;
+}
+
+.collapsibleItem[data-state='open'] .imagePlaceholder {
+  color: white !important;
+}
+.plusMinusIcon {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.plusMinusIconContainer {
+  border-radius: 50%;
+  position: relative;
+  background-color: #f3f3f3;
+  border: 1px solid black;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.plusMinusIconHorizontal,
+.plusMinusIconVertical {
+  position: absolute;
+  background-color: black;
+  transition: all 0.3s ease;
+}
+
+.plusMinusIconHorizontal {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  transform: translateY(-50%);
+}
+
+.plusMinusIconVertical {
+  top: 0;
+  left: 50%;
+  width: 3px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+.collapsibleItem[data-state='open'] .plusMinusIconVertical {
+  opacity: 0;
+  transform: translateX(-50%) scale(0);
+}

@@ -24,8 +24,6 @@
   --code-foreground: var(--surface-foreground);
   --code-highlight: oklch(96% 0 0deg);
   --code-number: oklch(56% 0 0deg);
-	--font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
   --color-red-50: oklch(97.1% 0.013 17.38deg);
   --color-red-100: oklch(93.6% 0.032 17.717deg);
   --color-red-200: oklch(88.5% 0.062 18.334deg);
@@ -465,7 +463,6 @@
   --code-foreground: var(--surface-foreground);
   --code-highlight: oklch(27% 0 0deg);
   --code-number: oklch(72% 0 0deg);
-	--font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-serif: Georgia, 'Times New Roman', Times, serif;
   --font-mono: 'SF Mono', Monaco, 'Courier New', monospace;
   --color-red-50: oklch(97.1% 0.013 17.38deg);

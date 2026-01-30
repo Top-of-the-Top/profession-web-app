@@ -1,4 +1,5 @@
 import styles from './LandingPage.module.css';
+import { useEffect } from 'react';
 import {
   Button,
   Card,
@@ -6,52 +7,12 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger
 } from '../../../shared/ui';
-import { ArrowUpRight, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowUpRight } from 'lucide-react';
 import CollapsibleSection from './CollapsibleSection';
+import Footer from './Footer';
 
-const learningProcess = [
-  {
-    id: '01',
-    title: 'Выбор курса',
-    description: 'Изучите каталог профессий. Здесь каждый курс содержит подробное описание, программу и информацию о преподавателе. Ребёнок может выбрать направление, которое ему интересно',
-    imagePlaceholder: 'Курсы'
-  },
-  {
-    id: '02',
-    title: 'Онлайн-занятия с преподавателем',
-    description: 'Живые интерактивные занятия с опытными преподавателями в формате видеоконференций. Дети могут задавать вопросы и участвовать в обсуждениях в реальном времени.',
-    imagePlaceholder: 'Онлайн урок'
-  },
-  {
-    id: '03',
-    title: 'Интерактивная онлайн-доска',
-    description: 'Современная цифровая доска для совместной работы, где преподаватель и ученики могут рисовать, писать, решать задачи и визуализировать сложные концепции.',
-    imagePlaceholder: 'Доска'
-  },
-  {
-    id: '04',
-    title: 'Практические задания',
-    description: 'Реальные проекты и задачи, которые помогают закрепить теорию на практике. Каждое задание приближает к получению профессионального навыка.',
-    imagePlaceholder: 'Задания'
-  },
-  {
-    id: '05',
-    title: 'Поддержка ИИ-помощника',
-    description: 'Умный помощник доступен 24/7 для ответов на вопросы, проверки заданий и персональных рекомендаций по обучению.',
-    imagePlaceholder: 'ИИ Помощник'
-  },
-  {
-    id: '06',
-    title: 'Прогресс, доступ к материалам',
-    description: 'Личный кабинет с трекером прогресса, записями всех занятий и библиотекой материалов для повторения в любое время.',
-    imagePlaceholder: 'Прогресс'
-  },
-];
+
 const tracks = [
   {
     id: 'medicine',
@@ -133,24 +94,46 @@ const tracks = [
   },
 ];
 
+
+
+
 export default function LandingPage() {
+
+useEffect(() => {
+  const links = document.querySelectorAll('nav a[href^="#"]');
+  links.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = (link as HTMLAnchorElement).getAttribute('href')?.slice(1);
+      if (id) {
+        const el = document.getElementById(id);
+        if (el) {
+          const offset = 100;
+          const top = el.getBoundingClientRect().top + window.scrollY - offset;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }
+      }
+    });
+  });
+}, []);
+
   return (
     <div className={styles.page}>
       <header  className={styles.header}>
         <div>
           <div className={styles.logo}>
-            <img src="profession-logo.svg" alt="" />
+            <img src="landing/profession-logo.svg" alt="" />
           </div>
         </div>
 
         <nav className={styles.nav} aria-label="Основная навигация">
-          <Button variant="ghost" size="lg" className={styles.navLink}>
+          <Button variant="ghost" size="lg" className={styles.navLink} asChild>
             <a href="#intro">О нас</a>
           </Button>
-          <Button variant="ghost" size="lg" className={styles.navLink}>
+          <Button variant="ghost" size="lg" className={styles.navLink} asChild>
             <a href="#tracks">Направления</a>
           </Button>
-          <Button variant="ghost" size="lg" className={styles.navLink}>
+          <Button variant="ghost" size="lg" className={styles.navLink} asChild>
             <a href="#ways">Процесс обучения</a>
           </Button>
         </nav>
@@ -167,7 +150,7 @@ export default function LandingPage() {
       <div id='intro' className={styles.container}>
         <main>
           <section className={styles.hero}>
-            <div>
+            <div className={styles.heroDescription}>
               <h1 className={styles.heroTitle}>
                 Онлайн школа <br />
                 <span className={styles.heroHighlight}>Профессия</span>
@@ -183,12 +166,15 @@ export default function LandingPage() {
                 <Button size="lg">Присоединиться</Button>
               </div>
             </div>
+						<div className={styles.children}>
+							
+						</div>
           </section>
 
-          <section  className={styles.section} id="tracks">
+          <section  className={styles.section} >
             <div className={styles.sectionHeader}>
               <div className={styles.sectionTitleRow}>
-                <h2 className={styles.sectionTitle}>Направления</h2>
+                <h2 id="tracks" className={styles.sectionTitle}>Направления</h2>
               </div>
               <p className={styles.sectionDescription}>
                 Не бойтесь пробовать себя в разных сферах. Мы собрали программы
@@ -252,7 +238,8 @@ export default function LandingPage() {
               ))}
             </div>
           </section>
-					<section style={{width: '100%', height: '100vh'}} id='ways'><CollapsibleSection /></section>
+					<section style={{width: '100%', height: '100vh'}} id='ways'><CollapsibleSection /></section>	
+					<section><Footer /></section>
         </main>
       </div>
     </div>

@@ -5,36 +5,46 @@
   background-color: #ffffff;
   color: #111827;
   /* font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; */
-	font-family: 'Inter', sans-serif;
+  font-family: 'Inter', sans-serif;
+}
+
+#tracks {
+  scroll-margin-top: 200px;
 }
 
 .container {
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px 16px 24px 64px;
-	z-index: 1;
-	box-sizing: content-box;
+  z-index: 1;
+  box-sizing: content-box;
 }
 
 .header {
-	/* margin-top: 30px; */
+  /* margin-top: 30px; */
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 90px;
-	position: fixed;
-	background-image: linear-gradient(to bottom, #ffffff, #ffffffe2, #ffffffb2, #ffffff48, #ffffff08);
-	width: 100vw;
-	height: 100px;
-	z-index: 10;
-	max-width: 100vw;
+  position: fixed;
+  background-image: linear-gradient(
+    to bottom,
+    #ffffff,
+    #ffffffe2,
+    #ffffffb2,
+    #ffffff48,
+    #ffffff08
+  );
+  width: 100vw;
+  height: 100px;
+  z-index: 10;
+  max-width: 100vw;
 }
 
-
 .logo img {
-	width: 22vw;
-	min-width: 400px;
-	transform: translateY(5px);
+  width: 22vw;
+  min-width: 400px;
+  transform: translateY(5px);
 }
 
 .logoAccent {
@@ -70,19 +80,33 @@
   gap: 12px;
 }
 
-/* Убираем grid-template-columns и делаем обычный flex колонку */
 .hero {
   position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  justify-content: space-around;
   gap: 40px;
+  padding-top: 30px;
   margin-top: 220px;
+  height: fit-content;
   padding-bottom: 260px; /* запас под картинку фона */
-  background-image: url("/landing-circles.svg");
+  background-image: url('landing/landing-circles.svg');
   background-repeat: no-repeat;
-  background-position: 20% center;
+
+  background-position: 20% -30px;
+  background-size: 550px auto;
+  background-origin: content-box;
+}
+
+.children {
+  width: 50%;
+	min-width: 400px;
+  height: auto;
+  background-repeat: no-repeat;
+  background-position: -1px -10px;
   background-size: contain;
-	 background-origin: content-box;
+
+  background-image: url('landing/landing-children.svg');
 }
 
 .heroTitle {
@@ -90,7 +114,7 @@
   line-height: 1.1;
   font-weight: 800;
   margin-bottom: 24px;
-	z-index: 10;
+  z-index: 10;
 }
 
 .heroText {
@@ -99,28 +123,22 @@
   font-size: 16px;
   line-height: 1.6;
   color: #4b5563;
-	z-index: 10;
+  z-index: 10;
 }
 .heroHighlight {
-	color: #191970;
+  color: #191970;
 }
-
 
 .section {
   margin-top: 90px;
-	
-}
-#tracks {
-	
 }
 
 .sectionHeader {
   display: flex;
   flex-direction: row;
-	/* justify-content: space-between; */
+  /* justify-content: space-between; */
   gap: 8px;
-  margin-bottom: 32px;	
-	
+  margin-bottom: 32px;
 }
 
 .sectionTitleRow {
@@ -140,12 +158,12 @@
 
 .sectionTitle {
   font-size: 24px;
-	background-color: black;
-	color: #E5E7EB;
-	padding: 5px;
-	border-radius: 8px;
+  background-color: black;
+  color: #e5e7eb;
+  padding: 5px;
+  border-radius: 8px;
   font-weight: 700;
-	margin-right: 50px;
+  margin-right: 50px;
 }
 
 .sectionDescription {
@@ -159,16 +177,16 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(240px, 1fr));
   gap: 30px;
-	box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 .trackCard {
   height: 100%;
-	gap: 15px !important;
-	border: 1px solid black !important;
-	box-shadow: 1px 3px 0 0 black !important;
-	border-radius: 40px !important;
-	padding: 30px 20px 20px 10px!important;
+  gap: 15px !important;
+  border: 1px solid black !important;
+  box-shadow: 1px 3px 0 0 black !important;
+  border-radius: 40px !important;
+  padding: 30px 20px 20px 10px !important;
 }
 
 .trackHeader {
@@ -178,36 +196,35 @@
   margin-bottom: 1px !important;
 }
 .trackPrice {
-	font-size: 30px;
+  font-size: 30px;
 }
 
 .trackTitle {
   font-size: 25px;
   font-weight: 700;
-	padding: 5px;
-	border-radius: 8px;
-	width: fit-content;
+  padding: 5px;
+  border-radius: 8px;
+  width: fit-content;
 }
-
 
 .trackFooter {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-top: 16px;
-	position: relative;
+  position: relative;
 }
 
 .trackImage {
   width: 150px;
   border-radius: 12px;
-	position: absolute;
-	right: 0;
-	bottom: 0px;
+  position: absolute;
+  right: 0;
+  bottom: 0px;
 }
 
 .trackButton {
-	border-radius: 50%;
+  border-radius: 50%;
 }
 
 @media (max-width: 900px) {
@@ -237,13 +254,10 @@
   }
 }
 
-
-
 .learningSection {
   padding: 80px 0;
   background-color: var(--color-background);
 }
-
 
 .sectionHeaderCenter {
   text-align: center;
@@ -265,27 +279,29 @@
 }
 
 .collapsibleContainer {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 20px;
 }
 
 .collapsibleItem {
-  background: #F3F3F3;
+  background: #f3f3f3;
   border-radius: 20px;
   /* border: 1px solid var(--color-border); */
   overflow: hidden;
   transition: all 0.3s ease;
-	box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.8), 0 0 1px 0 rgba(0, 0, 0, 0.3);
+  width: 100%;
+  box-shadow:
+    0 2px 0 0 rgba(0, 0, 0, 0.8),
+    0 0 1px 0 rgba(0, 0, 0, 0.3);
 }
-.collapsibleItem[data-state="open"] {
-	background-color: #191970;
-	color: white;
-	
+.collapsibleItem[data-state='open'] {
+  background-color: #191970;
+  color: white;
 }
-
 
 .collapsibleTrigger {
   width: 100%;
@@ -297,7 +313,6 @@
   border: none;
   cursor: pointer;
   transition: background-color 0.3s ease;
-	
 }
 
 .collapsibleTrigger:hover {
@@ -335,7 +350,7 @@
   min-width: 24px;
 }
 
-.collapsibleItem[data-state="open"] .collapsibleIcon {
+.collapsibleItem[data-state='open'] .collapsibleIcon {
   transform: rotate(180deg);
 }
 
@@ -346,8 +361,8 @@
 
 .collapsibleContentWrapper {
   align-items: center;
-	border-top: 1px solid white;
-	padding-top: 20px;
+  border-top: 1px solid white;
+  padding-top: 20px;
 }
 
 .collapsibleDescription {
@@ -383,29 +398,29 @@
   .sectionTitleCenter {
     font-size: 36px;
   }
-  
+
   .sectionDescriptionCenter {
     font-size: 16px;
   }
-  
+
   .collapsibleContentWrapper {
     grid-template-columns: 1fr;
     gap: 30px;
   }
-  
+
   .collapsibleTrigger {
     padding: 20px;
   }
-  
+
   .collapsibleNumber {
     font-size: 30px;
     min-width: 35px;
   }
-  
+
   .collapsibleTitle {
     font-size: 20px;
   }
-  
+
   .collapsibleContent {
     padding: 0 20px 20px;
   }
@@ -415,34 +430,34 @@
   .collapsibleTriggerContent {
     gap: 15px;
   }
-  
+
   .collapsibleTitle {
     font-size: 18px;
   }
 }
 
-.collapsibleItem[data-state="open"] {
+.collapsibleItem[data-state='open'] {
   background-color: #191970;
   color: white;
 }
 
-.collapsibleItem[data-state="open"] .collapsibleTitle {
+.collapsibleItem[data-state='open'] .collapsibleTitle {
   color: white !important;
 }
 
-.collapsibleItem[data-state="open"] .collapsibleNumber {
+.collapsibleItem[data-state='open'] .collapsibleNumber {
   color: white !important;
 }
 
-.collapsibleItem[data-state="open"] .collapsibleIcon {
+.collapsibleItem[data-state='open'] .collapsibleIcon {
   color: white !important;
 }
 
-.collapsibleItem[data-state="open"] .collapsibleDescription {
+.collapsibleItem[data-state='open'] .collapsibleDescription {
   color: white !important;
 }
 
-.collapsibleItem[data-state="open"] .imagePlaceholder {
+.collapsibleItem[data-state='open'] .imagePlaceholder {
   color: white !important;
 }
 .plusMinusIcon {
@@ -450,18 +465,16 @@
   width: 24px;
   height: 24px;
   flex-shrink: 0;
-	
-	
 }
 .plusMinusIconContainer {
-	border-radius: 50%;
-	position: relative;
-	background-color: #F3F3F3;
-	border: 1px solid black;
-	padding: 10px;
-	display: flex;
-	justify-content: center;
-	align-items: center;
+  border-radius: 50%;
+  position: relative;
+  background-color: #f3f3f3;
+  border: 1px solid black;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .plusMinusIconHorizontal,
@@ -477,8 +490,6 @@
   width: 100%;
   height: 3px;
   transform: translateY(-50%);
-	
-	
 }
 
 .plusMinusIconVertical {
@@ -487,10 +498,9 @@
   width: 3px;
   height: 100%;
   transform: translateX(-50%);
-	
 }
 
-.collapsibleItem[data-state="open"] .plusMinusIconVertical {
+.collapsibleItem[data-state='open'] .plusMinusIconVertical {
   opacity: 0;
   transform: translateX(-50%) scale(0);
 }

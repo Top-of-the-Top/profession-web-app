@@ -54,13 +54,17 @@ const learningProcess = [
 export default function CollapsibleSection() {
   return (
     <section className={styles.learningSection} id="ways">
-      <div className={styles.sectionHeaderCenter}>
-        <h2 className={styles.sectionTitleCenter}>Процесс обучения</h2>
-        <p className={styles.sectionDescriptionCenter}>
-          Учебный процесс - это гибрид живых занятий с преподавателем и
-          практических домашних заданий, которые вместе переводят теорию в навык
-        </p>
+      <div className={styles.sectionHeader}>
+				<div className={styles.sectionTitleRow}>
+        <h2 id="tracks" className={styles.sectionTitle}>
+          Процесс обучения
+        </h2>
       </div>
+      <p className={styles.sectionDescription}>
+        Учебный процесс - это гибрид живых занятий с преподавателем и
+        практических домашних заданий, которые вместе переводят теорию в навык
+      </p>
+			</div>
 
       <div className={styles.collapsibleContainer}>
         {learningProcess.map((item) => (
@@ -72,11 +76,11 @@ export default function CollapsibleSection() {
                   <span className={styles.collapsibleTitle}>{item.title}</span>
                 </div>
                 <div className={styles.plusMinusIconContainer}>
-									<div className={styles.plusMinusIcon}>
-                  <div className={styles.plusMinusIconHorizontal}></div>
-                  <div className={styles.plusMinusIconVertical}></div>
+                  <div className={styles.plusMinusIcon}>
+                    <div className={styles.plusMinusIconHorizontal}></div>
+                    <div className={styles.plusMinusIconVertical}></div>
+                  </div>
                 </div>
-								</div>
               </div>
             </CollapsibleTrigger>
 

@@ -100,7 +100,7 @@ const tracks = [
 export default function LandingPage() {
 
 useEffect(() => {
-  const links = document.querySelectorAll('nav a[href^="#"]');
+  const links = document.querySelectorAll('a[href^="#"]');
   links.forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();

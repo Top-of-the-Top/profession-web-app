@@ -13,7 +13,7 @@
 }
 
 .container {
-  max-width: 1400px;
+  max-width: 90vw;
   margin: 0 auto;
   padding: 24px 16px 24px 64px;
   z-index: 1;
@@ -259,27 +259,9 @@
   background-color: var(--color-background);
 }
 
-.sectionHeaderCenter {
-  text-align: center;
-  max-width: 800px;
-  margin: 0 auto 60px;
-}
-
-.sectionTitleCenter {
-  font-size: 48px;
-  font-weight: 700;
-  margin-bottom: 20px;
-  color: var(--color-text-primary);
-}
-
-.sectionDescriptionCenter {
-  font-size: 18px;
-  line-height: 1.6;
-  color: var(--color-text-secondary);
-}
 
 .collapsibleContainer {
-  max-width: 1400px;
+  max-width: 90vw;
   margin: 0 auto;
   display: flex;
   flex-direction: column;

@@ -1,4 +1,3 @@
-import { Phone, Mail } from 'lucide-react';
 import styles from './Footer.module.css';
 
 interface FooterProps {}

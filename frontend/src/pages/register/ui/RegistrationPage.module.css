@@ -1,0 +1,221 @@
+.loginPage {
+  display: flex;
+  min-height: 100svh;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  background-color: #f9fafb;
+  box-sizing: border-box;
+  font-family: Onest, sans-serif;
+}
+
+@media (min-width: 768px) {
+  .loginPage {
+    padding: 40px;
+  }
+}
+.logo {
+	width: 260px;
+	margin: 25px auto;
+}
+
+
+.loginWrapper {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.card {
+  border-radius: 0px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 32px;
+}	
+
+.cardHeader {
+  /* text-align: left; */
+  padding-bottom: 5px;
+	padding-left: 0 !important;
+}
+
+.cardContent {
+  padding: 0;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.field {
+	gap: 5px !important;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.passwordHeader {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.submitButton {
+  width: 100%;
+  padding: 12px;
+  background-color: #191970 !important;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 0px;
+  transition: background-color 0.2s;
+}
+
+.submitButton:hover {
+	transform: scale(1.01);
+	background-color: #191970 !important;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 24px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.divider::before {
+  margin-right: 16px;
+}
+
+.divider::after {
+  margin-left: 16px;
+}
+
+.socialButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.socialButton {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  /* background-color: white; */
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+	color: white !important;
+  transition:  0.1s;
+}
+.socialButton.loginYa {
+  background-color: black;
+}
+
+.socialButton.loginVk {
+  background-color: #0077FF;
+}
+.socialButton.loginYa:hover {
+  background-color: black !important;
+  transform: scale(1.02) !important;
+}
+
+.socialButton.loginVk:hover {
+  background-color: #0077FF !important;
+  transform: scale(1.02) !important;
+}
+
+.socialIcon {
+  width: 24px;
+  height: 24px;
+  /* background-color: #000000; */
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+.socialIcon img {
+	width: 100%;
+
+}
+
+.linksContainer {
+  display: flex;
+  flex-direction: column;
+	align-items: flex-start;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.linkRow {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.link {
+	cursor: pointer;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+
+.footer {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.footerLogo {
+  margin-bottom: 8px;
+}
+
+.footerLogoText {
+  font-size: 14px;
+  color: #6b7280;
+  letter-spacing: 0.5px;
+}
+
+.footerCopyright {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.copyright {
+	font-size: 15px;
+	color: #62748E;
+	text-align: center;
+	margin-top: 25px;
+}

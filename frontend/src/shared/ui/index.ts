@@ -22,5 +22,8 @@ export * from "./Pagination";
 export * from "./Item";
 export * from './Collapsible'
 
+export * from './Input'
+
 // Separator
-export { default as Separator } from "./separator";
+export { default as Separator } from "./Separator";
+export * from './Field'

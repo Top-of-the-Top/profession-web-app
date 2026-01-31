@@ -1,7 +1,7 @@
 import styles from "./styles.module.css";
 import type { ComponentProps } from "react";
 import { Slot } from "@radix-ui/react-slot";
-import Separator from "../separator";
+import Separator from "../Separator";
 
 function ItemGroup({ className, ...props }: ComponentProps<"div">) {
   return (

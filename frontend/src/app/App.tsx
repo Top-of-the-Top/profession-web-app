@@ -1,12 +1,7 @@
-// import { useState } from 'react'
-import styles from './App.module.css'
-import { LandingPage, LoginPage, RegistrationPage, RecoverPage, ResetPage } from '../pages';
-
-
+import { AppRouter } from '../router';
+import './App.module.css';
 
 export default function App() {
-  return (
-		// <LandingPage />
-		<ResetPage />
-  );
+  return <AppRouter />;
 }
+

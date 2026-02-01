@@ -1,6 +1,7 @@
 // context/AuthContext.tsx
 import { createContext, useState, useEffect, type ReactNode } from 'react';
 import { jwtDecode } from 'jwt-decode';
+import { authEvents } from '../shared/events/authEvents';
 
 export interface User {
   id: number;
@@ -31,6 +32,16 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+
+	useEffect(() => {
+  const handler = () => logout();
+  authEvents.addEventListener('logout', handler);
+
+  return () => {
+    authEvents.removeEventListener('logout', handler);
+  };
+}, []);
 
   // Инициализация и проверка токена
   useEffect(() => {

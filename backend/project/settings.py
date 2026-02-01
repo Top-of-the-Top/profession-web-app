@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders', # для CORS. Разрешает браузерам делать запросы к API с других доменов
+    'apps.courses.apps.CoursesConfig',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True # Для разработки, потом поменяем. В проде нужен будет явный список

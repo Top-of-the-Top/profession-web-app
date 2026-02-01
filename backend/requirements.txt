@@ -7,3 +7,4 @@ typing_extensions==4.15.0
 djangorestframework
 djangorestframework-simplejwt
 django-cors-headers
+python-dotenv>=1.0

@@ -4,7 +4,7 @@ from .models import Course, Lesson, Homework
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("title",)}
-    list_display = ('id', 'title', 'slug')
+    list_display = ('course_id', 'title', 'slug')
     search_fields = ('title',)
 
 

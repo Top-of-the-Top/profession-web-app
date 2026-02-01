@@ -1,99 +1,133 @@
 // shared/api/interceptor.ts
-import { type ApiLandingResponse } from "./types";
+import { type ApiLandingResponse } from './types';
+import { authEvents } from '../events/authEvents';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+type TokensResponse = {
+  access_token: string;
+  refresh_token: string;
+};
+
 class ApiClient {
+  private buildHeaders(
+    customHeaders?: HeadersInit,
+    token?: string
+  ): HeadersInit {
+    return {
+      'Content-Type': 'application/json',
+      ...(customHeaders ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }
+
+  private logout() {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    authEvents.dispatchEvent(new Event('logout'));
+  }
+
+  private async refreshTokens(): Promise<TokensResponse | null> {
+    const refresh_token = localStorage.getItem('refresh_token');
+    if (!refresh_token) return null;
+
+    const response = await fetch(`${API_URL}/api/token/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token }),
+    });
+
+    if (!response.ok) return null;
+
+    const tokens: TokensResponse = await response.json();
+
+    localStorage.setItem('access_token', tokens.access_token);
+    localStorage.setItem('refresh_token', tokens.refresh_token);
+
+    return tokens;
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${API_URL}${endpoint}`;
+		console.log(url)
+    const accessToken = localStorage.getItem('access_token');
 
-    const token = localStorage.getItem('access_token');
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-
-    let response = await fetch(url, { ...options, headers });
+    let response = await fetch(url, {
+      ...options,
+      headers: this.buildHeaders(options.headers, accessToken ?? undefined),
+    });
 
     if (response.status === 401) {
-      const refresh_token = localStorage.getItem('refresh_token');
+      const tokens = await this.refreshTokens();
 
-      if (refresh_token) {
-        const refreshResponse = await fetch(`${API_URL}/api/token/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token }),
-        });
-
-        if (refreshResponse.ok) {
-          const tokens = await refreshResponse.json();
-
-          localStorage.setItem('access_token', tokens.access_token);
-          localStorage.setItem('refresh_token', tokens.refresh_token);
-
-          response = await fetch(url, {
-            ...options,
-            headers: {
-              ...headers,
-              Authorization: `Bearer ${tokens.access_token}`,
-            },
-          });
-        }
+      if (!tokens) {
+        this.logout();
+        throw new Error('AUTH_EXPIRED');
       }
+
+      response = await fetch(url, {
+        ...options,
+        headers: this.buildHeaders(options.headers, tokens.access_token),
+      });
     }
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      throw new Error(`API_ERROR_${response.status}`);
     }
 
     return response.json();
   }
-  async login(data: {
+
+
+  login(data: {
     email_cipher: string | null;
     phone_number_cipher: string | null;
     pass_hash: string;
     date_time: string;
   }) {
-    return this.request('api/auth/login', {
+    return this.request('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async register(data: {
+  register(data: {
     email_cipher: string | null;
     phone_number_cipher: string | null;
     pass_hash: string;
     date_time: string;
   }) {
-    return this.request('api/auht/register', {
+    return this.request('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async resetRequest(data: {
+  resetRequest(data: {
     email_cipher: string | null;
     phone_number_cipher: string | null;
   }) {
-    return this.request('api/auth/reset', {
+    return this.request('/api/auth/reset', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async resetPassword(data: { password_hash: string; token: string }) {
-    return this.request('api/auth/recover/set', {
+  resetPassword(data: {
+    password_hash: string;
+    token: string;
+  }) {
+    return this.request('/api/auth/recover/set', {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
 
-   async getLandingCourses() {
+
+  getLandingCourses() {
     return this.request<ApiLandingResponse>('/api/landing/courses');
   }
 }

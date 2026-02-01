@@ -3,9 +3,9 @@ import CryptoJS from 'crypto-js';
 
 const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY;
 
-export const encryptData = (data: string): string => {
-  if (!data) return '';
-  return CryptoJS.AES.encrypt(data, ENCRYPTION_KEY).toString();
+export const encryptData = (value: string) => {
+  if (!value) throw new Error("Cannot encrypt empty value");
+  return CryptoJS.AES.encrypt(value, "secret-key").toString();
 };
 
 export const decryptData = (cipherText: string): string => {

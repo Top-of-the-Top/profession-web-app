@@ -45,10 +45,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apps.users.apps.UsersConfig',
+    #'apps.users.apps.UsersConfig',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders', # для CORS. Разрешает браузерам делать запросы к API с других доменов
+    'apps.courses.apps.CoursesConfig',
+    'drf_spectacular',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True # Для разработки, потом поменяем. В проде нужен будет явный список
@@ -128,6 +130,19 @@ DATABASES = {
 }
 
 
+REST_FRAMEWORK = {
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'My Profession Web App API',
+    'DESCRIPTION': 'API для вашего проекта',
+    'VERSION': '1.0.0',  # <--- Обязательное поле!
+}
+
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
@@ -146,7 +161,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-AUTH_USER_MODEL = 'users.User' # Это указание на кастомную модель пользователя вместо стандартной
+#AUTH_USER_MODEL = 'users.User' # Это указание на кастомную модель пользователя вместо стандартной
 
 
 # Internationalization

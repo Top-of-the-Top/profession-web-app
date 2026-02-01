@@ -45,9 +45,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'apps.users.apps.UsersConfig',
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'corsheaders', # для CORS. Разрешает браузерам делать запросы к API с других доменов
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True # Для разработки, потом поменяем. В проде нужен будет явный список
+
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -79,6 +86,7 @@ WSGI_APPLICATION = 'project.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+import os
 
 DATABASES = {
     'default': {
@@ -109,6 +117,8 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+AUTH_USER_MODEL = 'users.User' # Это указание на кастомную модель пользователя вместо стандартной
 
 
 # Internationalization

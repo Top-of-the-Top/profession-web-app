@@ -52,6 +52,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${API_URL}${endpoint}`;
+		console.log(url)
     const accessToken = localStorage.getItem('access_token');
 
     let response = await fetch(url, {

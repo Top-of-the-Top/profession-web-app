@@ -57,25 +57,51 @@ jobs:
         run: |
           BRANCH="${{ steps.get_branch.outputs.branch_name }}"
 
-          regex_dev='^(feature|fix|hotfix|refactor|test)/(frontend|backend|infra|api|video|ai)/KAN-[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$'
-          regex_general='^(docs|guides|chore|general|meetings)/KAN-[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$'
+          # Регулярки с НЕобязательным KAN-
+          regex_dev_with_kan='^(feature|fix|hotfix|refactor|test)/(frontend|backend|infra|api|video|ai)/KAN-[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$'
+          regex_dev_without_kan='^(feature|fix|hotfix|refactor|test)/(frontend|backend|infra|api|video|ai)/[a-z0-9]+(-[a-z0-9]+)*$'
+          
+          regex_general_with_kan='^(docs|guides|chore|general|meetings)/KAN-[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$'
+          regex_general_without_kan='^(docs|guides|chore|general|meetings)/[a-z0-9]+(-[a-z0-9]+)*$'
 
-          if [[ "$BRANCH" =~ $regex_dev || "$BRANCH" =~ $regex_general ]]; then
+          if [[ "$BRANCH" =~ $regex_dev_with_kan || \
+                "$BRANCH" =~ $regex_dev_without_kan || \
+                "$BRANCH" =~ $regex_general_with_kan || \
+                "$BRANCH" =~ $regex_general_without_kan ]]; then
             echo "✅ Branch format is valid"
           else
             echo "❌ Invalid branch format"
             echo ""
-            echo "📌 Allowed formats:"
-            echo "  feature/frontend/KAN-32-auth-form"
-            echo "  fix/backend/KAN-15-login-bug"
-            echo "  hotfix/api/KAN-101-crash-on-start"
-            echo "  docs/KAN-5-update-readme"
-            echo "  chore/KAN-9-setup-ci"
+            echo "📌 Allowed formats (KAN- prefix is optional):"
+            echo ""
+            echo "  With KAN (recommended for JIRA integration):"
+            echo "    feature/frontend/KAN-32-auth-form"
+            echo "    fix/backend/KAN-15-login-bug"
+            echo "    hotfix/api/KAN-101-crash-on-start"
+            echo "    docs/KAN-5-update-readme"
+            echo "    chore/KAN-9-setup-ci"
+            echo ""
+            echo "  Without KAN:"
+            echo "    feature/frontend/auth-form"
+            echo "    fix/backend/login-bug"
+            echo "    hotfix/api/crash-on-start"
+            echo "    docs/update-readme"
+            echo "    chore/setup-ci"
             echo ""
             echo "📌 Rules:"
-            echo "  - KAN-<number> is required"
-            echo "  - Description must be kebab-case"
-            echo "  - Only lowercase letters in description"
+            echo "  - KAN-<number> prefix is OPTIONAL"
+            echo "  - Description must be kebab-case (lowercase, hyphen-separated)"
+            echo "  - No special characters except hyphens"
+            echo ""
+            echo "📌 Examples that will pass:"
+            echo "  ✅ feature/frontend/KAN-32-auth-form"
+            echo "  ✅ feature/frontend/auth-form"
+            echo "  ✅ fix/backend/KAN-15-login-bug"
+            echo "  ✅ fix/backend/login-bug"
+            echo "  ✅ docs/KAN-5-update-readme"
+            echo "  ✅ docs/update-readme"
+            echo "  ✅ chore/setup-ci"
+            echo "  ✅ chore/KAN-9-setup-ci"
             exit 1
           fi
 

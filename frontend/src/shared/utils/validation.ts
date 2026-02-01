@@ -35,27 +35,49 @@ export const validateEmailOrPhone = (value: string): {
 };
 
 
+export type PrepareDataOptions = {
+  includePassword?: boolean;
+  includeToken?: boolean;
+  token?: string;
+};
+
 export const prepareAuthData = (
   emailOrPhone: string,
-  password: string
-): {
-  email_cipher: string | null;
-  phone_number_cipher: string | null;
-  pass_hash: string;
-  date_time: string;
-} => {
+  password?: string,
+  options: PrepareDataOptions = {}
+) => {
   const validation = validateEmailOrPhone(emailOrPhone);
   
   if (!validation.isValid) {
     throw new Error('Invalid email or phone number');
   }
 
-  const dateTime = new Date().toISOString();
-  
-  return {
+  const result: any = {
     email_cipher: validation.isEmail ? encryptData(validation.normalized) : null,
     phone_number_cipher: validation.isPhone ? encryptData(validation.normalized) : null,
-    pass_hash: hashPassword(password),
-    date_time: dateTime
+    date_time: new Date().toISOString()
+  };
+
+  if (password && options.includePassword) {
+    result.pass_hash = hashPassword(password);
+  }
+
+  if (options.includeToken && options.token) {
+    result.token = options.token;
+  }
+
+  return result;
+};
+
+export const prepareResetPasswordData = (
+  password: string,
+  token: string
+): {
+  password_hash: string;
+  token: string;
+} => {
+  return {
+    password_hash: hashPassword(password),
+    token: token
   };
 };

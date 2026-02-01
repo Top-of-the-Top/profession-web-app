@@ -1,5 +1,5 @@
 // shared/api/interceptor.ts
-import { type ApiLandingResponse } from "./types";
+import { type ApiLandingResponse } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -70,7 +70,7 @@ class ApiClient {
     pass_hash: string;
     date_time: string;
   }) {
-    return this.request('api/auht/register', {
+    return this.request('api/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -93,7 +93,7 @@ class ApiClient {
     });
   }
 
-   async getLandingCourses() {
+  async getLandingCourses() {
     return this.request<ApiLandingResponse>('/api/landing/courses');
   }
 }

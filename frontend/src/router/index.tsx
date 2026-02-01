@@ -1,72 +1,32 @@
-// src/router/index.tsx - ИСПРАВЛЕННЫЙ ВАРИАНТ
-import { Routes, Route, Navigate } from 'react-router-dom'; // Убрали BrowserRouter!
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
-
-// Страницы
-import { 
-  LandingPage, 
-  LoginPage, 
-  RegistrationPage, 
-  RecoverPage, 
-  ResetPage 
-} from '../pages';
-
-// // Основное приложение
-// import MainApp from '../pages/MainApp';
-// import Dashboard from '../pages/MainApp/Dashboard';
-// import Courses from '../pages/MainApp/Courses';
-// import Profile from '../pages/MainApp/Profile';
+import { routes } from './routes';
+import React from 'react';
 
 export const AppRouter = () => {
   return (
-    // НЕТ BrowserRouter здесь!
     <AuthProvider>
       <Routes>
-        {/* Public маршруты */}
-        <Route path="/" element={
-          <PublicRoute>
-            <LandingPage />
-          </PublicRoute>
-        } />
-        
-        <Route path="/login" element={
-          <PublicRoute>
-            <LoginPage />
-          </PublicRoute>
-        } />
-        
-        <Route path="/register" element={
-          <PublicRoute>
-            <RegistrationPage />
-          </PublicRoute>
-        } />
-        
-        <Route path="/recover" element={
-          <PublicRoute>
-            <RecoverPage />
-          </PublicRoute>
-        } />
-        
-        <Route path="/reset-password/" element={
-          <PublicRoute>
-            <ResetPage />
-          </PublicRoute>
-        } />
+        {routes.map(({ path, element, protected: isProtected, publicOnly }) => {
+          let wrappedElement = element;
 
-        {/* Protected маршруты */}
-        {/* <Route path="/app" element={
-          <ProtectedRoute>
-            <MainApp />
-          </ProtectedRoute>
-        }>
-          <Route index element={<Dashboard />} />
-          <Route path="courses" element={<Courses />} />
-          <Route path="profile" element={<Profile />} />
-        </Route> */}
+          if (isProtected) {
+            wrappedElement = (
+              <ProtectedRoute>{element as React.JSX.Element}</ProtectedRoute>
+            );
+          }
 
-        {/* Fallback */}
+          if (publicOnly) {
+            wrappedElement = (
+              <PublicRoute>{element as React.JSX.Element}</PublicRoute>
+            );
+          }
+
+          return <Route key={path} path={path} element={wrappedElement} />;
+        })}
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>

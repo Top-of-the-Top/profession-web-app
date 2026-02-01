@@ -2,7 +2,7 @@
 import { createContext, useState, useEffect, type ReactNode } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
-interface User {
+export interface User {
   id: number;
   email?: string | null;
   phone?: string | null;
@@ -10,17 +10,17 @@ interface User {
   last_name?: string | null;
 }
 
-interface AuthTokens {
+export interface Tokens {
   access_token: string;
   access_expires_at: string;
   refresh_token: string;
   refresh_expires_at: string;
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (tokens: AuthTokens) => void;
+  login: (tokens: Tokens) => void;
   logout: () => void;
   refreshAuth: () => Promise<boolean>;
   isAuthenticated: boolean;
@@ -82,7 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = (tokens: AuthTokens) => {
+  const login = (tokens: Tokens) => {
     localStorage.setItem('access_token', tokens.access_token);
     localStorage.setItem('refresh_token', tokens.refresh_token);
     localStorage.setItem('access_expires_at', tokens.access_expires_at);
@@ -115,7 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!response.ok) return false;
 
-      const tokens: AuthTokens = await response.json();
+      const tokens: Tokens = await response.json();
       login(tokens);
       return true;
     } catch (error) {

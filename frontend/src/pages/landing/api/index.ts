@@ -71,7 +71,7 @@ function transformApiCourses(apiData: ApiLandingResponse): Track[] {
 
     return {
       id: `course-${index}`,
-      title: course.name,
+      title: course.title,
       price: course.price,
       image: imageSrc,
       ...colorScheme,
@@ -86,7 +86,8 @@ export const landingApi = {
   }> {
     try {
       const apiData = await apiClient.getLandingCourses();
-
+			
+			
       return {
         number_of_courses: apiData.number_of_courses,
         tracks: transformApiCourses(apiData),

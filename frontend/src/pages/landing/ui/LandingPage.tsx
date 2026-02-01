@@ -36,6 +36,7 @@ export default function LandingPage() {
       .getCourses()
       .then((data) => {
         setTracks(data.tracks);
+				console.log(data)
       })
       .catch((error) => {
         console.error('Ошибка загрузки курсов:', error);

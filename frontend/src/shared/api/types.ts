@@ -1,6 +1,6 @@
 // src/shared/api/types.ts
 export interface ApiCourse {
-  name: string;
+  title: string;
   price: number;
   image: string;
 }

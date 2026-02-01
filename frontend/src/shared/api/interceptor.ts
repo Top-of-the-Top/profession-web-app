@@ -52,13 +52,24 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${API_URL}${endpoint}`;
-		console.log(url)
+    console.log(url);
     const accessToken = localStorage.getItem('access_token');
 
     let response = await fetch(url, {
       ...options,
       headers: this.buildHeaders(options.headers, accessToken ?? undefined),
     });
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('❌ Response error:', {
+        status: response.status,
+        statusText: response.statusText,
+        url,
+        body: text.substring(0, 200), // первые 200 символов
+      });
+      throw new Error(`API_ERROR_${response.status}`);
+    }
+		
 
     if (response.status === 401) {
       const tokens = await this.refreshTokens();
@@ -77,10 +88,9 @@ class ApiClient {
     if (!response.ok) {
       throw new Error(`API_ERROR_${response.status}`);
     }
-
+		
     return response.json();
   }
-
 
   login(data: {
     email_cipher: string | null;
@@ -116,16 +126,12 @@ class ApiClient {
     });
   }
 
-  resetPassword(data: {
-    password_hash: string;
-    token: string;
-  }) {
+  resetPassword(data: { password_hash: string; token: string }) {
     return this.request('/api/auth/recover/set', {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
-
 
   getLandingCourses() {
     return this.request<ApiLandingResponse>('/api/landing/courses');

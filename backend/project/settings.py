@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    #'apps.users.apps.UsersConfig',
+    'apps.users.apps.UsersConfig',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders', # для CORS. Разрешает браузерам делать запросы к API с других доменов
@@ -161,7 +161,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-#AUTH_USER_MODEL = 'users.User' # Это указание на кастомную модель пользователя вместо стандартной
+AUTH_USER_MODEL = 'users.User' # Это указание на кастомную модель пользователя вместо стандартной
 
 
 # Internationalization

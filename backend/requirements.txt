@@ -8,4 +8,4 @@ djangorestframework
 djangorestframework-simplejwt
 django-cors-headers
 python-dotenv>=1.0
-drf_spectacular==0.27.0
+drf_spectacular>=0.27.0

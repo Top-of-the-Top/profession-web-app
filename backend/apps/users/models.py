@@ -5,6 +5,9 @@ from django.contrib.auth.hashers import make_password, check_password
 
 class UserManager(BaseUserManager):
   def create_user(self, email_cipher=None, phone_cipher=None, password=None, **extra_fields):
+    email_cipher = (email_cipher or '').strip() or None
+    phone_cipher = (phone_cipher or '').strip() or None
+
     if email_cipher:
       email_cipher = self.normalize_email(email_cipher)
 
@@ -17,13 +20,15 @@ class UserManager(BaseUserManager):
     return user
 
   def create_superuser(self, email_cipher, phone_cipher=None, password=None, **extra_fields):
+    if not email_cipher or not (email_cipher or '').strip():
+      raise ValueError('Суперпользователю необходимо указать email.')
     extra_fields.setdefault('is_staff', True)
     extra_fields.setdefault('is_superuser', True)
     extra_fields.setdefault('is_active', True)
 
     return self.create_user(
-      email_cipher=email_cipher,
-      phone_cipher=phone_cipher,
+      email_cipher=email_cipher.strip(),
+      phone_cipher=None,
       password=password,
       **extra_fields
     )
@@ -31,6 +36,23 @@ class UserManager(BaseUserManager):
 
 class User(AbstractUser):
   username = None
+
+  groups = models.ManyToManyField(
+    'auth.Group',
+    verbose_name='groups',
+    blank=True,
+    help_text='The groups this user belongs to.',
+    related_name='users_user_set',
+    related_query_name='user',
+  )
+  user_permissions = models.ManyToManyField(
+    'auth.Permission',
+    verbose_name='user permissions',
+    blank=True,
+    help_text='Specific permissions for this user.',
+    related_name='users_user_set',
+    related_query_name='user',
+  )
 
   first_name = models.CharField(
     max_length=30, 
@@ -87,8 +109,7 @@ class User(AbstractUser):
   )
   
   USERNAME_FIELD = 'email_cipher'
-  #REQUIRED_FIELDS = ['phone_cipher'] if phone_cipher else []
-  REQUIRED_FIELDS = ['phone_cipher']
+  REQUIRED_FIELDS = ['password_hash']
 
   objects = UserManager()
 

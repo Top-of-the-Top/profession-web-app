@@ -86,11 +86,6 @@ class User(AbstractUser):
     help_text='Введите телефон',
   )
 
-  password_hash = models.CharField(
-    max_length=128, 
-    blank=True,
-    help_text='Введите пароль',
-  )
 
   date_joined = models.DateTimeField(
     auto_now_add=True
@@ -109,7 +104,7 @@ class User(AbstractUser):
   )
   
   USERNAME_FIELD = 'email_cipher'
-  REQUIRED_FIELDS = ['password_hash']
+  REQUIRED_FIELDS = []
 
   objects = UserManager()
 
@@ -125,24 +120,5 @@ class User(AbstractUser):
       return f"{self.id}: {self.phone_cipher[:15]}..."
     return f'User #{self.id}'
 
-  @property
-  def password(self):
-    return self.password_hash
 
-  @password.setter
-  def password(self, raw_password):
-    self.set_password(raw_password)
-  
-  def set_password(self, raw_password):
-    if raw_password:
-      self.password_hash = make_password(raw_password)
-  
-  def check_password(self, raw_password):
-    if not self.password_hash:
-      return False
-    return check_password(raw_password, self.password_hash)
 
-  def has_usable_password(self):
-    return bool(self.password_hash) and self.password_hash.startswith((
-      'pbkdf2_', 'bcrypt$', 'argon2'
-    ))

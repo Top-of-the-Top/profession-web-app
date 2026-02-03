@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
     'apps.users.apps.UsersConfig',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -52,6 +53,14 @@ INSTALLED_APPS = [
     'apps.courses.apps.CoursesConfig',
     'drf_spectacular',
 ]
+USE_S3 = os.environ.get('USE_S3') == 'True'
+
+if USE_S3:
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'ru-central1')
 
 CORS_ALLOW_ALL_ORIGINS = True # Для разработки, потом поменяем. В проде нужен будет явный список
 

@@ -5,7 +5,7 @@ class Course(models.Model):
     title = models.CharField(max_length=120, verbose_name='Название курса')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
     price = models.PositiveIntegerField()
-    image = models.CharField(default='')
+    image = models.ImageField(upload_to='courses/', blank=True, null=True, verbose_name='Изображение курса')
 
     def __str__(self):
         return self.title

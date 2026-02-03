@@ -9,9 +9,15 @@ from rest_framework import viewsets, status, generics
 
 class CourseList(generics.ListAPIView):
     serializer_class = CourseSerializer
+    
     def get_queryset(self):
         queryset = Course.objects.all()
         return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()

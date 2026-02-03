@@ -137,6 +137,7 @@ export default function RecoverForm({
                       id="password"
                       name="password"
                       type="password"
+											autoComplete="new-password"
                       placeholder="••••••••••••••"
                       required
                       className={styles.input}
@@ -155,6 +156,7 @@ export default function RecoverForm({
                       id="confirmPassword"
                       name="confirmPassword"
                       type="password"
+											autoComplete="new-password"
                       placeholder="••••••••••••••"
                       required
                       className={styles.input}

@@ -90,6 +90,7 @@ export default function RegistrationForm({
                   <Input
                     id="email"
                     type="text"
+										autoComplete="email"
                     placeholder="Почта/телефон"
                     required
                     className={styles.input}
@@ -103,6 +104,7 @@ export default function RegistrationForm({
                   <Input
                     id="password"
                     type="password"
+										autoComplete="password"
                     placeholder="Пароль"
                     required
                     className={styles.input}
@@ -122,6 +124,7 @@ export default function RegistrationForm({
                     id="repeatPassword"
                     type="password"
                     placeholder="••••••••••••••"
+										autoComplete="password"
                     required
                     className={styles.input}
                   />

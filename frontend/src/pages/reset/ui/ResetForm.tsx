@@ -92,6 +92,7 @@ export default function ResetForm({
                       id="email"
                       type="text"
                       placeholder="Почта/телефон"
+											autoComplete="email"
                       required
                       className={styles.input}
                       disabled={loading}

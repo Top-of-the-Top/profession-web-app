@@ -79,6 +79,7 @@ export default function LoginForm({
                     <Input
                       id="email"
                       type="text"
+											autoComplete="email"
                       placeholder="Почта/телефон"
                       required
                       className={styles.input}
@@ -91,6 +92,7 @@ export default function LoginForm({
                     <Input
                       id="password"
                       type="password"
+											autoComplete="password"
                       placeholder="Пароль"
                       required
                       className={styles.input}

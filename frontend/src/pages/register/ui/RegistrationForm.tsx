@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../../../shared/ui';
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 
 import {
   Field,
@@ -18,8 +18,9 @@ import { ArrowRight } from 'lucide-react';
 import { cn } from '../../../shared/lib/utils';
 import Input from '../../../shared/ui/Input/Input';
 import styles from './RegistrationPage.module.css';
-import { registerUser } from '../api'; // если потом переименуешь в registerUser — просто поменяешь импорт
+import { registerUser } from '../api';
 import { Link } from 'react-router-dom';
+import { AuthContext } from '../../../context/AuthContext';
 
 export default function RegistrationForm({
   className,
@@ -27,6 +28,7 @@ export default function RegistrationForm({
 }: React.ComponentProps<'div'>) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+	const authContext = useContext(AuthContext);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,9 +52,9 @@ export default function RegistrationForm({
     }
 
     try {
-      // await registerUser({ emailOrPhone, password });
+      const tokens = await registerUser({ emailOrPhone, password });
       // TODO: вернуть регистрацию
-      // authContext?.login(tokens) или redirect
+      authContext?.login(tokens);
     } catch (err: any) {
       setError(err.message);
     } finally {

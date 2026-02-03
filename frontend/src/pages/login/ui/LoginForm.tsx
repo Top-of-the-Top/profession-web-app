@@ -38,11 +38,10 @@ export default function LoginForm({
       .value;
     const password = (form.elements.namedItem('password') as HTMLInputElement)
       .value;
-		console.log(emailOrPhone + '   ' + password)
+		// console.log(emailOrPhone + '   ' + password)
     try {
       const tokens = await loginUser({ emailOrPhone, password });
-			// TODO: ВЕРНУТЬ ЛОГИН
-      // authContext?.login(tokens);
+      authContext?.login(tokens);
     } catch (err: any) {
       setError(err.message);
     } finally {

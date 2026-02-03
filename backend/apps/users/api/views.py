@@ -142,10 +142,10 @@ class RecoverPasswordView(APIView):
 
   def patch(self, request):
     token = request.data.get('token')
-    password_hash = request.data.get('password_hash')
-    if not token or not password_hash:
+    password = request.data.get('password_hash')
+    if not token or not password:
       return Response(
-        {'detail': 'token и password_hash обязательны'},
+        {'detail': 'token и password обязательны'},
         status=status.HTTP_403_FORBIDDEN
       )
     user = User.objects.filter(
@@ -157,10 +157,10 @@ class RecoverPasswordView(APIView):
         {'detail': 'Невалидный или истёкший токен'},
         status=status.HTTP_403_FORBIDDEN
       )
-    user.set_password(password_hash)
+    user.set_password(password)
     user.reset_token = None
     user.reset_token_expires = None
-    user.save(update_fields=['password_hash', 'reset_token', 'reset_token_expires'])
+    user.save(update_fields=['password', 'reset_token', 'reset_token_expires'])
 
     return Response(get_tokens_for_user(user), status=status.HTTP_200_OK)
   

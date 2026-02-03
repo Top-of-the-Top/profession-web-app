@@ -40,7 +40,7 @@ export default function ResetForm({
       .value;
 
     try {
-      // await resetUser({ emailOrPhone });
+      await resetUser({ emailOrPhone });
       setSuccess(true);
       
     } catch (err: any) {

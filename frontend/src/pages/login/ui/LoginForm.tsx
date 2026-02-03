@@ -18,12 +18,13 @@ import styles from './LoginPage.module.css';
 import { useContext, useState } from 'react';
 import { AuthContext } from '../../../context/AuthContext';
 import { loginUser } from '../api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function LoginForm({
   className,
   ...props
 }: React.ComponentProps<'div'>) {
+  const navigate = useNavigate();
   const authContext = useContext(AuthContext);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,7 +42,9 @@ export default function LoginForm({
 		// console.log(emailOrPhone + '   ' + password)
     try {
       const tokens = await loginUser({ emailOrPhone, password });
+      
       authContext?.login(tokens);
+      navigate('/app', { replace: true });
     } catch (err: any) {
       setError(err.message);
     } finally {

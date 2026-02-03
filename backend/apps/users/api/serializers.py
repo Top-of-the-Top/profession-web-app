@@ -4,8 +4,8 @@ from ..models import User
 
 
 class RegisterSerializer(serializers.Serializer):
-  email_cipher = serializers.CharField(required=False, allow_blank=True)
-  phone_number_cipher = serializers.CharField(required=False, allow_blank=True)
+  email_cipher = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+  phone_number_cipher = serializers.CharField(required=False, allow_blank=True, allow_null=True)
   pass_hash = serializers.CharField(write_only=True, min_length=8)
 
   def validate(self, attrs):
@@ -29,8 +29,8 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class LoginSerializer(serializers.Serializer):
-  email_cipher = serializers.CharField(required=False, allow_blank=True)
-  phone_number_cipher = serializers.CharField(required=False, allow_blank=True)
+  email_cipher = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+  phone_number_cipher = serializers.CharField(required=False, allow_blank=True, allow_null=True)
   pass_hash = serializers.CharField(write_only=True)
 
   def validate(self, attrs):

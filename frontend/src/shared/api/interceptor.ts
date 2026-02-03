@@ -69,7 +69,7 @@ class ApiClient {
       });
       throw new Error(`API_ERROR_${response.status}`);
     }
-		
+
 
     if (response.status === 401) {
       const tokens = await this.refreshTokens();
@@ -88,8 +88,21 @@ class ApiClient {
     if (!response.ok) {
       throw new Error(`API_ERROR_${response.status}`);
     }
-		
-    return response.json();
+    console.log('Response bodyUsed before json():', response.bodyUsed);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+    const text = await response.text();
+    console.log('Response text length:', text.length);
+    console.log('Response text content:', text);
+
+    if (text.trim().length === 0) {
+      console.warn('⚠️ Response body is empty!');
+      return response.json(); // или throw специальную ошибку
+    }
+
+    // Только потом пытаемся парсить
+    return JSON.parse(text);
+    // return response.json();
   }
 
   login(data: {
@@ -98,7 +111,7 @@ class ApiClient {
     pass_hash: string;
     date_time: string;
   }) {
-    return this.request('/api/auth/login', {
+    return this.request('/api/auth/login/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -110,7 +123,7 @@ class ApiClient {
     pass_hash: string;
     date_time: string;
   }) {
-    return this.request('/api/auth/register', {
+    return this.request('/api/auth/register/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -120,21 +133,21 @@ class ApiClient {
     email_cipher: string | null;
     phone_number_cipher: string | null;
   }) {
-    return this.request('/api/auth/reset', {
+    return this.request('/api/auth/reset/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   resetPassword(data: { password_hash: string; token: string }) {
-    return this.request('/api/auth/recover/set', {
+    return this.request('/api/auth/recover/set/', {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
 
   getLandingCourses() {
-    return this.request<ApiLandingResponse>('/api/landing/courses');
+    return this.request<ApiLandingResponse>('/api/landing/courses/');
   }
 }
 

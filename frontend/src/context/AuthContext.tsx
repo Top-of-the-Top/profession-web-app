@@ -98,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('refresh_token', tokens.refresh_token);
     localStorage.setItem('access_expires_at', tokens.access_expires_at);
     localStorage.setItem('refresh_expires_at', tokens.refresh_expires_at);
-    
+
     setUserFromToken(tokens.access_token);
   };
 

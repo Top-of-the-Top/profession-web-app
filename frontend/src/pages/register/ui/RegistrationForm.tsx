@@ -19,7 +19,7 @@ import { cn } from '../../../shared/lib/utils';
 import Input from '../../../shared/ui/Input/Input';
 import styles from './RegistrationPage.module.css';
 import { registerUser } from '../api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../../context/AuthContext';
 
 export default function RegistrationForm({
@@ -28,7 +28,8 @@ export default function RegistrationForm({
 }: React.ComponentProps<'div'>) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-	const authContext = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +54,8 @@ export default function RegistrationForm({
 
     try {
       const tokens = await registerUser({ emailOrPhone, password });
-      // TODO: вернуть регистрацию
       authContext?.login(tokens);
+      navigate('/app', { replace: true });
     } catch (err: any) {
       setError(err.message);
     } finally {

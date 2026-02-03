@@ -100,7 +100,10 @@ class ResetPasswordView(APIView):
     if not user and phone:
       user = User.objects.filter(phone_cipher=phone).first()
     if not user:
-      return Response(status=status.HTTP_200_OK)
+      return Response(
+      {'detail': 'Необходимо указать email_cipher или phone_number_cipher'},
+        status=status.HTTP_403_FORBIDDEN
+      )
 
     token = set_reset_token(user)
     recover_url = f"{request.scheme}://{request.get_host()}/recover?token={token}"
@@ -113,7 +116,10 @@ class ResetPasswordView(APIView):
       fail_silently=True,
     )
 
-    return Response(status=status.HTTP_200_OK)
+    return Response(
+      {'status': 'success'},
+      status=status.HTTP_200_OK
+    )
 
 
 class RecoverPasswordView(APIView):

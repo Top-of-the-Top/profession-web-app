@@ -1,3 +1,4 @@
+// router/PublicRoute.tsx
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../shared/hooks/useAuth';
 import React from 'react';
@@ -10,7 +11,7 @@ export const PublicRoute = ({ children }: { children: React.JSX.Element }) => {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/app" replace />;
+    return <Navigate to="/admin/home" replace />;
   }
 
   return children;

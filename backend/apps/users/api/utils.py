@@ -1,7 +1,7 @@
 from rest_framework_simplejwt.tokens import RefreshToken
 from datetime import datetime, timezone, timedelta
 import secrets
-from django.utils import timezone
+from django.utils import timezone as django_timezone
 
 
 def generate_reset_token():
@@ -10,7 +10,7 @@ def generate_reset_token():
 
 def set_reset_token(user, valid_hours=24):
   user.reset_token = generate_reset_token()
-  user.reset_token_expires = timezone.now() + timedelta(hours=valid_hours)
+  user.reset_token_expires = django_timezone.now() + timedelta(hours=valid_hours)
   user.save(update_fields=['reset_token', 'reset_token_expires'])
   return user.reset_token
 

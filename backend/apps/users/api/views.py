@@ -12,7 +12,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from django.conf import settings
 from .utils import set_reset_token, decrypt_email
-
+import os
 from django.utils import timezone
 
 
@@ -104,15 +104,16 @@ class ResetPasswordView(APIView):
       {'detail': 'Необходимо указать email_cipher или phone_number_cipher'},
         status=status.HTTP_403_FORBIDDEN
       )
-
+    
     token = set_reset_token(user)
-    recover_url = f"{request.scheme}://{request.get_host()}/recover?token={token}"
+    frontend_host = os.environ.get('FRONTEND_HOST')
+    recover_url = f"{frontend_host}/recover?token={token}"
 
     decrypted_email = None
     if user.email_cipher:
       decrypted_email = decrypt_email(user.email_cipher)
 
-    recipient_email = decrypted_email if decrypted_email
+    recipient_email = decrypted_email if decrypted_email else ''
 
     try:
       result = send_mail(

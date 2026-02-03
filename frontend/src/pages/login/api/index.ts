@@ -20,7 +20,7 @@ export const loginUser = async ({
   try {
 		
     const payload = prepareAuthData(emailOrPhone, password, { includePassword: true });
-		console.log(payload)
+		// console.log(payload)
     const tokensRaw = await apiClient.login(payload);
     // Проверка через Zod
     const tokens = AuthTokensSchema.parse(tokensRaw);

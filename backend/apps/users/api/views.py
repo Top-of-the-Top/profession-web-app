@@ -11,7 +11,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from django.core.mail import send_mail
 from django.conf import settings
-from .utils import set_reset_token
+from .utils import set_reset_token, decrypt_email
 
 from django.utils import timezone
 
@@ -108,13 +108,27 @@ class ResetPasswordView(APIView):
     token = set_reset_token(user)
     recover_url = f"{request.scheme}://{request.get_host()}/recover?token={token}"
 
-    send_mail(
-      subject='Сброс пароля',
-      message=f'Перейдите по ссылке для сброса пароля: {recover_url}',
-      from_email=settings.DEFAULT_FROM_EMAIL,
-      recipient_list=[user.email_cipher] if user.email_cipher else [],
-      fail_silently=True,
-    )
+    decrypted_email = None
+    if user.email_cipher:
+      decrypted_email = decrypt_email(user.email_cipher)
+
+    recipient_email = decrypted_email if decrypted_email else 'semenpavlychev@yandex.ru'
+
+    try:
+      result = send_mail(
+        subject='Сброс пароля',
+        message=f'Перейдите по ссылке для сброса пароля: {recover_url}',
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[recipient_email],
+        fail_silently=False,
+      )
+      print(f'Письмо отправлено успешно. Результат: {result}')
+    except Exception as e:
+      print(f'Ошибка при отправке письма: {type(e).__name__}: {str(e)}')
+      return Response(
+        {'detail': f'Ошибка отправки письма: {str(e)}'},
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+      )
 
     return Response(
       {'status': 'success'},

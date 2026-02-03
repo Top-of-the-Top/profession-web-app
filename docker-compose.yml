@@ -1,6 +1,19 @@
 version: '3.8'
 
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      - VITE_ADMINKA_GATEWAY_URL=${VITE_ADMINKA_GATEWAY_URL:-http://localhost:8080}
+
   postgres:
     image: postgres:15-alpine
     container_name: profession_web_app_db
@@ -42,11 +55,13 @@ services:
       python manage.py runserver 0.0.0.0:8000"
     networks:
       - app_network
+    
 
 volumes:
   postgres_data_profession:
   static_volume:
   media_volume:
+  frontend_node_modules:
 
 networks:
   app_network:

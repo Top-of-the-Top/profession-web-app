@@ -112,7 +112,7 @@ class ResetPasswordView(APIView):
     if user.email_cipher:
       decrypted_email = decrypt_email(user.email_cipher)
 
-    recipient_email = decrypted_email if decrypted_email else 'semenpavlychev@yandex.ru'
+    recipient_email = decrypted_email if decrypted_email
 
     try:
       result = send_mail(

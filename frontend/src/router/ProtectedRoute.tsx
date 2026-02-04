@@ -1,3 +1,4 @@
+// Route/ProtectedRoute.tsx
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../shared/hooks/useAuth';
 import React from 'react';
@@ -11,7 +12,13 @@ export const ProtectedRoute = ({ children }: { children: React.JSX.Element }) =>
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return (
+      <Navigate
+        to="/"
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
   return children;

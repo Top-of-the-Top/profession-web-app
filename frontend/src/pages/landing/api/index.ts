@@ -61,18 +61,15 @@ const TRACKS_COLOR_SCHEMES: Omit<Track, 'id' | 'title' | 'price' | 'image'>[] =
   ];
 
 function transformApiCourses(apiData: ApiLandingResponse): Track[] {
-  return apiData.data.map((course, index) => {
-    const colorScheme =
-      TRACKS_COLOR_SCHEMES[index % TRACKS_COLOR_SCHEMES.length];
-
-    const imageSrc = course.image.startsWith('data:image')
-      ? course.image
-      : `data:image/jpeg;base64,${course.image}`;
-
+  return (apiData.data || []).filter(course => course != null).map((course, index) => {
+    const colorScheme = TRACKS_COLOR_SCHEMES[index % TRACKS_COLOR_SCHEMES.length];
+    
+    const imageSrc = course.image_url || '';
+    
     return {
       id: `course-${index}`,
-      title: course.name,
-      price: course.price,
+      title: course.title || 'Без названия',
+      price: course.price || 0,
       image: imageSrc,
       ...colorScheme,
     };
@@ -82,14 +79,14 @@ function transformApiCourses(apiData: ApiLandingResponse): Track[] {
 export const landingApi = {
   async getCourses(): Promise<{
     number_of_courses: number;
-    tracks: Track[];
+    data: Track[];
   }> {
     try {
       const apiData = await apiClient.getLandingCourses();
-
+      
       return {
-        number_of_courses: apiData.number_of_courses,
-        tracks: transformApiCourses(apiData),
+        number_of_courses: apiData?.number_of_courses || 0,
+        data: transformApiCourses(apiData || { data: [] }),
       };
     } catch (error) {
       console.error('Failed to fetch landing courses:', error);
@@ -97,6 +94,7 @@ export const landingApi = {
     }
   },
 };
+
 
 function getFallbackCourses() {
   const fallbackTracks: Track[] = [
@@ -182,6 +180,6 @@ function getFallbackCourses() {
 
   return {
     number_of_courses: fallbackTracks.length,
-    tracks: fallbackTracks,
+    data: fallbackTracks,
   };
 }

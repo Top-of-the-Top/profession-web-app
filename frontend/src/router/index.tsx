@@ -1,74 +1,33 @@
-// src/router/index.tsx - ИСПРАВЛЕННЫЙ ВАРИАНТ
-import { Routes, Route, Navigate } from 'react-router-dom'; // Убрали BrowserRouter!
+// router/index.tsx
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
+import { routes } from './routes';
+import type {AppRoute} from './types';
+import React from 'react';
 
-// Страницы
-import { 
-  LandingPage, 
-  LoginPage, 
-  RegistrationPage, 
-  RecoverPage, 
-  ResetPage 
-} from '../pages';
+const renderRoutes = (routes: AppRoute[], basePath = '') =>
+  routes.map(({ path, element, protected: isProtected, publicOnly, children }) => {
+    let wrappedElement = element as React.JSX.Element;
 
-// // Основное приложение
-// import MainApp from '../pages/MainApp';
-// import Dashboard from '../pages/MainApp/Dashboard';
-// import Courses from '../pages/MainApp/Courses';
-// import Profile from '../pages/MainApp/Profile';
+    if (isProtected) wrappedElement = <ProtectedRoute>{wrappedElement}</ProtectedRoute>;
+    if (publicOnly) wrappedElement = <PublicRoute>{wrappedElement}</PublicRoute>;
 
-export const AppRouter = () => {
-  return (
-    // НЕТ BrowserRouter здесь!
-    <AuthProvider>
-      <Routes>
-        {/* Public маршруты */}
-        <Route path="/" element={
-          <PublicRoute>
-            <LandingPage />
-          </PublicRoute>
-        } />
-        
-        <Route path="/login" element={
-          <PublicRoute>
-            <LoginPage />
-          </PublicRoute>
-        } />
-        
-        <Route path="/register" element={
-          <PublicRoute>
-            <RegistrationPage />
-          </PublicRoute>
-        } />
-        
-        <Route path="/recover" element={
-          <PublicRoute>
-            <RecoverPage />
-          </PublicRoute>
-        } />
-        
-        <Route path="/reset-password/" element={
-          <PublicRoute>
-            <ResetPage />
-          </PublicRoute>
-        } />
+    const fullPath = basePath + (path.startsWith('/') ? path : '/' + path);
 
-        {/* Protected маршруты */}
-        {/* <Route path="/app" element={
-          <ProtectedRoute>
-            <MainApp />
-          </ProtectedRoute>
-        }>
-          <Route index element={<Dashboard />} />
-          <Route path="courses" element={<Courses />} />
-          <Route path="profile" element={<Profile />} />
-        </Route> */}
+    return (
+      <Route key={fullPath} path={fullPath} element={wrappedElement}>
+        {children && renderRoutes(children, fullPath)}
+      </Route>
+    );
+  });
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AuthProvider>
-  );
-};
+export const AppRouter = () => (
+  <AuthProvider>
+    <Routes>
+      {renderRoutes(routes)}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  </AuthProvider>
+);

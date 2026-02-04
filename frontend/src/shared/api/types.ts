@@ -1,8 +1,9 @@
 // src/shared/api/types.ts
 export interface ApiCourse {
-  name: string;
+	course_id: string,
+  title: string;
   price: number;
-  image: string;
+  image_url: string;
 }
 
 export interface ApiLandingResponse {

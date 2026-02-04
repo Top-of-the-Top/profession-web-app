@@ -89,11 +89,13 @@ class ResetPasswordView(APIView):
   def post(self, request):
     email = (request.data.get('email_cipher') or '').strip()
     phone = (request.data.get('phone_cipher') or '').strip()
+
     if not email and not phone:
       return Response(
-      {'detail': 'Необходимо указать email_cipher или phone_number_cipher'},
+        {'detail': 'Необходимо указать email_cipher или phone_number_cipher'},
         status=status.HTTP_403_FORBIDDEN
       )
+
     user = None
     if email:
       user = User.objects.filter(email_cipher=email).first()
@@ -101,10 +103,10 @@ class ResetPasswordView(APIView):
       user = User.objects.filter(phone_cipher=phone).first()
     if not user:
       return Response(
-      {'detail': 'Необходимо указать email_cipher или phone_number_cipher'},
+        {'detail': 'Необходимо указать email_cipher или phone_number_cipher'},
         status=status.HTTP_403_FORBIDDEN
       )
-    
+
     token = set_reset_token(user)
     frontend_host = os.environ.get('FRONTEND_HOST')
     recover_url = f"{frontend_host}/recover?token={token}"
@@ -112,9 +114,8 @@ class ResetPasswordView(APIView):
     decrypted_email = None
     if user.email_cipher:
       decrypted_email = decrypt_email(user.email_cipher)
-
     recipient_email = decrypted_email if decrypted_email else ''
-
+    
     try:
       result = send_mail(
         subject='Сброс пароля',
@@ -130,7 +131,6 @@ class ResetPasswordView(APIView):
         {'detail': f'Ошибка отправки письма: {str(e)}'},
         status=status.HTTP_500_INTERNAL_SERVER_ERROR
       )
-
     return Response(
       {'status': 'success'},
       status=status.HTTP_200_OK

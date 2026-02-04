@@ -88,21 +88,9 @@ class ApiClient {
     if (!response.ok) {
       throw new Error(`API_ERROR_${response.status}`);
     }
-    console.log('Response bodyUsed before json():', response.bodyUsed);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-    const text = await response.text();
-    console.log('Response text length:', text.length);
-    console.log('Response text content:', text);
-
-    if (text.trim().length === 0) {
-      console.warn('⚠️ Response body is empty!');
-      return response.json(); // или throw специальную ошибку
-    }
-
-    // Только потом пытаемся парсить
-    return JSON.parse(text);
-    // return response.json();
+    
+    
+    return response.json();
   }
 
   login(data: {

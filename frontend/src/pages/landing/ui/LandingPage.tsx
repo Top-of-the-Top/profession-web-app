@@ -35,7 +35,7 @@ export default function LandingPage() {
     landingApi
       .getCourses()
       .then((data) => {
-        setTracks(data.tracks);
+        setTracks(data.data);
 				console.log(data)
       })
       .catch((error) => {

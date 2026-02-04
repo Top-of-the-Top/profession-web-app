@@ -92,7 +92,7 @@ class ResetPasswordView(APIView):
 
     if not email and not phone:
       return Response(
-        {'detail': 'Необходимо указать email_cipher или phone_number_cipher'},
+        {'detail': f'Необходимо указать email_cipher или phone_number_cipher'},
         status=status.HTTP_403_FORBIDDEN
       )
 
@@ -103,7 +103,7 @@ class ResetPasswordView(APIView):
       user = User.objects.filter(phone_cipher=phone).first()
     if not user:
       return Response(
-        {'detail': 'Необходимо указать email_cipher или phone_number_cipher'},
+        {'detail': f'Необходимо указать email_cipher или phone_number_cipher phone'},
         status=status.HTTP_403_FORBIDDEN
       )
 
@@ -128,7 +128,7 @@ class ResetPasswordView(APIView):
     except Exception as e:
       print(f'Ошибка при отправке письма: {type(e).__name__}: {str(e)}')
       return Response(
-        {'detail': f'Ошибка отправки письма: {str(e)}'},
+        {'detail': f'Ошибка отправки письма: {str(recipient_email)}'},
         status=status.HTTP_500_INTERNAL_SERVER_ERROR
       )
     return Response(

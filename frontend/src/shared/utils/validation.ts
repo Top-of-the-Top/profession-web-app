@@ -4,7 +4,6 @@ import { encryptData } from "./encryption";
 import { hashPassword } from "./hashing";
 
 
-// ОТДАЕТ: в .normalized: телефон всегда с плюсом, 8*** -> +7***, почта как есть
 export const validateEmailOrPhone = (value: string): {
   isValid: boolean;
   isEmail: boolean;
@@ -12,27 +11,37 @@ export const validateEmailOrPhone = (value: string): {
   normalized: string;
 } => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+
+  const phoneInputRegex = /^(\+?\d[\d\s\-()]{7,20})$/;
 
   const trimmed = value.trim();
   const isEmail = emailRegex.test(trimmed);
 
-  let digits = trimmed.replace(/\D/g, '');
+  let isPhone = false;
+  let normalizedPhone = '';
 
-  // Нормализация для рф: 8XXXXXXXXXX → 7XXXXXXXXXX
-  if (digits.startsWith('8') && digits.length === 11) {
-    digits = '7' + digits.slice(1);
+  if (!isEmail && phoneInputRegex.test(trimmed)) {
+    let digits = trimmed.replace(/\D/g, '');
+
+    // Нормализация РФ: 8XXXXXXXXXX → 7XXXXXXXXXX
+    if (digits.startsWith('8') && digits.length === 11) {
+      digits = '7' + digits.slice(1);
+    }
+
+    if (digits.length >= 10 && digits.length <= 15) {
+      isPhone = true;
+      normalizedPhone = `+${digits}`;
+    }
   }
-
-  const isPhone = phoneRegex.test(digits);
 
   return {
     isValid: isEmail || isPhone,
     isEmail,
     isPhone,
-    normalized: isPhone ? `+${digits}` : trimmed
+    normalized: isPhone ? normalizedPhone : trimmed
   };
 };
+
 
 
 export type PrepareDataOptions = {

@@ -7,44 +7,64 @@ import {
   CardTitle,
 } from '../../../shared/ui';
 import { useState } from 'react';
-
 import {
   Field,
   FieldGroup,
   FieldLabel,
 } from '../../../shared/ui';
-
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import Input from '../../../shared/ui/Input/Input';
 import styles from './ResetPage.module.css';
 import { Link, useNavigate } from 'react-router-dom';
 import { resetUser } from '../api';
+import { validateEmailOrPhone } from '../../../shared/utils/validation';
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function ResetForm({
   className,
   ...props
 }: React.ComponentProps<'div'>) {
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(false);
     setLoading(true);
 
     const form = e.currentTarget as HTMLFormElement;
-    const emailOrPhone = (form.elements.namedItem('email') as HTMLInputElement)
-      .value;
+    const emailOrPhone = (form.elements.namedItem('email') as HTMLInputElement).value;
+
+    const validation = validateEmailOrPhone(emailOrPhone);
+    
+    if (!validation.isValid) {
+      toast.error('Введите корректный email или номер телефона');
+      setLoading(false);
+      return;
+    }
 
     try {
       await resetUser({ emailOrPhone });
+      
+      toast.success('Ссылка для сброса пароля отправлена на вашу почту или телефон', {
+        duration: 5000,
+        icon: <CheckCircle2 className={styles.toastSuccessIcon} />,
+      });
+      
       setSuccess(true);
       
     } catch (err: any) {
-      setError(err.message || 'Произошла ошибка при отправке запроса');
+      if (err.response?.status === 400) {
+        toast.error('Некорректные данные. Проверьте введенные данные');
+      } else if (err.response?.status === 404) {
+        toast.error('Пользователь с такими данными не найден');
+      } else if (err.response?.status === 429) {
+        toast.error('Слишком много попыток. Попробуйте позже');
+      } else if (err.response?.status === 500) {
+        toast.error('Сервер временно недоступен. Попробуйте позже');
+      } else {
+        toast.error(err.message || 'Произошла ошибка при отправке запроса');
+      }
     } finally {
       setLoading(false);
     }
@@ -68,10 +88,6 @@ export default function ResetForm({
           <CardContent className={styles.cardContent}>
             {success ? (
               <div className={styles.successMessage}>
-                
-                {/* <p style={{ textAlign: 'center', fontSize: '14px', color: '#666' }}>
-                  Проверьте вашу почту или телефон для получения инструкций по сбросу пароля.
-                </p> */}
                 <Button
                   style={{ fontSize: '14px', marginTop: '20px' }}
                   type="button"
@@ -90,20 +106,18 @@ export default function ResetForm({
                     </FieldLabel>
                     <Input
                       id="email"
+                      name="email"
                       type="text"
                       placeholder="Почта/телефон"
-											autoComplete="email"
+                      autoComplete="email"
                       required
                       className={styles.input}
                       disabled={loading}
                     />
+                    <CardDescription style={{ fontSize: '12px', marginTop: '4px' }}>
+                      Например: example@email.com или +79991234567
+                    </CardDescription>
                   </Field>
-
-                  {error && (
-                    <div className={styles.errorMessage}>
-                      {error}
-                    </div>
-                  )}
 
                   <Button
                     style={{ fontSize: '14px' }}
@@ -128,6 +142,33 @@ export default function ResetForm({
         </Card>
         <div className={styles.copyright}>&copy; 2026 Профессия</div>
       </div>
+      
+      <Toaster 
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+            borderRadius: '8px',
+            fontSize: '14px',
+          },
+          success: {
+            duration: 5000,
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </div>
   );
 }

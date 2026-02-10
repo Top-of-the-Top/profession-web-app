@@ -222,3 +222,7 @@
 	text-align: center;
 	margin-top: 25px;
 }
+
+.toastSuccessIcon {
+  color: #10b981;
+}

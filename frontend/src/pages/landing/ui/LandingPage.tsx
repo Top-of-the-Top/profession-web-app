@@ -27,6 +27,9 @@ export default function LandingPage() {
   const handleMoreClick = () => {
     navigate(isAuthenticated ? '/dashboard' : '/register');
   };
+	 const handleAuthClick = () => {
+    navigate(isAuthenticated ? '/dashboard' : '/login');
+  };
 
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -67,9 +70,10 @@ export default function LandingPage() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <div>
+        <div className={styles.headerWrapper}>
+					<div>
           <div className={styles.logo}>
-            <img src="landing/profession-logo.svg" alt="" />
+            <img src="profession-logo.svg" alt="" />
           </div>
         </div>
 
@@ -86,36 +90,36 @@ export default function LandingPage() {
         </nav>
 
         <div className={styles.authActions}>
-					{isAuthenticated && (
-            <Button variant="outline" size="lg" onClick={() => navigate('/dashboard')}>
-              Мой кабинет
-            </Button>
-          )}
-          <Button variant="outline" size="lg" asChild>
-            <a href="/login">Войти</a>
+          <Button onClick={handleAuthClick} variant="outline" size="lg">
+            Войти
           </Button>
           <Button variant="primary" size="lg" asChild>
             <a href="/register">Регистрация</a>
           </Button>
-					
         </div>
+				</div>
       </header>
 
-      <div id="intro" className={styles.container}>
+      <div className={styles.container}>
         <main>
-          <section className={styles.hero}>
+          <section className={styles.hero} id="intro">
             <div className={styles.heroDescription}>
               <h1 className={styles.heroTitle}>
                 Онлайн школа <br />
                 <span className={styles.heroHighlight}>Профессия</span>
               </h1>
               <p className={styles.heroText}>
-                Погружаем детей и подростков в увлекательный мир профессий.
-                Дайте ребёнку шанс найти своё призвание и примерить на себя роль
+                Погружаем детей и подростков в увлекательный мир профессий. Дайте
+                ребёнку шанс найти своё призвание и примерить на себя роль
                 врача, биолога, химика или программиста.
               </p>
               <div className={styles.heroCta}>
-                <Button onClick={handleJoinClick} asChild size="lg" className={styles.buttonInline}>
+                <Button
+                  onClick={handleJoinClick}
+                  asChild
+                  size="lg"
+                  className={styles.buttonInline}
+                >
                   <p>Присоединиться</p>
                 </Button>
               </div>
@@ -175,7 +179,7 @@ export default function LandingPage() {
                         style={{ backgroundColor: 'transparent' }}
                         className={styles.moreButton}
                         variant="ghost"
-												onClick={handleMoreClick}
+                        onClick={handleMoreClick}
                       >
                         <div
                           className={styles.trackButton}
@@ -186,9 +190,7 @@ export default function LandingPage() {
                         >
                           <ArrowUpRight size={30} />
                         </div>
-                        <p  style={{ color: track.moreColor }}>
-                          Подробнее
-                        </p>
+                        <p style={{ color: track.moreColor }}>Подробнее</p>
                       </Button>
                       <img
                         src={track.image}
@@ -202,14 +204,13 @@ export default function LandingPage() {
             </div>
           </section>
 
-          <section style={{ width: '100%', height: '100vh' }} id="ways">
+          <section className={styles.section} id="ways">
             <CollapsibleSection />
-          </section>
-          <section>
-            <Footer />
           </section>
         </main>
       </div>
+
+      <Footer />
     </div>
   );
 }

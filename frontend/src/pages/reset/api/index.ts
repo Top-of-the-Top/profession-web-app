@@ -17,7 +17,6 @@ export const resetUser = async ({
   try {
 		
     const payload = prepareAuthData(emailOrPhone);
-		console.log(payload)
     const tokensRaw = await apiClient.resetRequest(payload);
     // Проверка через Zod
     const status = ResetSchema.parse(tokensRaw);

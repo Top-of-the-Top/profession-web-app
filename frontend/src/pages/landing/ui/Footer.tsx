@@ -7,7 +7,7 @@ export default function Footer({}: FooterProps) {
     <footer className={styles.footer}>
       <div className={styles.content}>
         <div className={styles.header}>
-					<img src="landing/profession-logo-white.svg" alt="" />
+					<img src="profession-logo-white.svg" alt="" />
 					<div></div> 
 					{/* Для грида */}
 					<div className={styles.linkContainer}>
@@ -18,8 +18,8 @@ export default function Footer({}: FooterProps) {
 				</div>
 				<div className={styles.contactInfo}>
 					<h5>Свяжитесь с нами:</h5>
-					 <a href="mailto:abrakadabra@yandex.ru">Почта: abrakadabra@yandex.ru</a>
-					 <a href="tel:+79999999999">Телефон: +7-999-999-99-99</a>
+					 <a href="mailto:abrakadabra@yandex.ru">Почта: profession.ru@yandex.ru</a>
+					 <a href="tel:+79999999999">Телефон: +7 (964) 623-90-72</a>
 				</div>
       </div>
 

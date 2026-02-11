@@ -118,7 +118,7 @@ class Homework(models.Model):
 class Question(models.Model):
     question_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    description = models.CharField() # Пока работаем только с текстовыми вопросами. Без картинок и так далее
+    text = models.CharField(max_length=200) # Пока работаем только с текстовыми вопросами. Без картинок и так далее
     correct_ans = models.CharField() # Пока считаем, что всего может быть только 1 правильный ответ
     answer_options = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -138,7 +138,7 @@ class Question(models.Model):
 class Task(models.Model):
     task_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    question = models.CharField()
+    text = models.CharField(max_length=200)
     max_points = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

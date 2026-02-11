@@ -89,6 +89,9 @@ class Homework(models.Model):
     lesson_id = models.ForeignKey(Lesson, on_delete=models.CASCADE)
     title = models.CharField(max_length=120, verbose_name='Название урока')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
+    deadline = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.title

@@ -7,4 +7,11 @@ class CourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Course
-        fields = ['course_id', 'title', 'price', 'image_url']
+        fields = '__all__'
+
+class CourseDTOSerializer(serializers.ModelSerializer):
+    image_url = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Course
+        fields = ['course_id', 'title', 'sub_title', 'image_url', 'price', 'slug']

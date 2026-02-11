@@ -4,7 +4,7 @@ from rest_framework.response import Response
 
 from .models import Course
 from .serializers import CourseDTOSerializer
-from rest_framework import viewsets, status, generics
+from rest_framework import generics
 
 
 class CourseDTOList(generics.ListAPIView):

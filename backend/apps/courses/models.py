@@ -95,3 +95,25 @@ class Homework(models.Model):
 
     def __str__(self):
         return self.title
+
+class Question(models.Model):
+    question_id = models.AutoField(primary_key=True)
+    homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
+    description = models.CharField()
+    correct_ans = models.JSONField()
+    answer_options = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.description
+
+class Task(models.Model):
+    task_id = models.AutoField(primary_key=True)
+    homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
+    question = models.CharField()
+    max_points = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return self.question
+

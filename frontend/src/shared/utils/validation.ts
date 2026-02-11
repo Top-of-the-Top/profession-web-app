@@ -66,8 +66,8 @@ export const prepareAuthData = (
   }
 
   const result: any = {
-    email_cipher: validation.isEmail ? encryptData(validation.normalized) : null,
-    phone_number_cipher: validation.isPhone ? encryptData(validation.normalized) : null,
+    email: validation.isEmail ? validation.normalized : null,
+    phone_number: validation.isPhone ? validation.normalized : null,
     date_time: new Date().toISOString()
   };
 

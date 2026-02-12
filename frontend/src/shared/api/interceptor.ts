@@ -67,22 +67,20 @@ class ApiClient {
         url,
         body: text.substring(0, 200), // первые 200 символов
       });
-      throw new Error(`API_ERROR_${response.status}`);
-    }
-
-
-    if (response.status === 401) {
-      const tokens = await this.refreshTokens();
-
-      if (!tokens) {
-        this.logout();
-        throw new Error('AUTH_EXPIRED');
+      if (response.status === 401) {
+        const tokens = await this.refreshTokens();
+  
+        if (!tokens) {
+          this.logout();
+          throw new Error('AUTH_EXPIRED');
+        }
+  
+        response = await fetch(url, {
+          ...options,
+          headers: this.buildHeaders(options.headers, tokens.access_token),
+        });
       }
-
-      response = await fetch(url, {
-        ...options,
-        headers: this.buildHeaders(options.headers, tokens.access_token),
-      });
+      
     }
 
     if (!response.ok) {
@@ -94,8 +92,8 @@ class ApiClient {
   }
 
   login(data: {
-    email_cipher: string | null;
-    phone_number_cipher: string | null;
+    email: string | null;
+    phone_number: string | null;
     pass_hash: string;
     date_time: string;
   }) {
@@ -106,8 +104,8 @@ class ApiClient {
   }
 
   register(data: {
-    email_cipher: string | null;
-    phone_number_cipher: string | null;
+    email: string | null;
+    phone_number: string | null;
     pass_hash: string;
     date_time: string;
   }) {
@@ -118,8 +116,8 @@ class ApiClient {
   }
 
   resetRequest(data: {
-    email_cipher: string | null;
-    phone_number_cipher: string | null;
+    email: string | null;
+    phone_number: string | null;
   }) {
     return this.request('/api/auth/reset/', {
       method: 'POST',

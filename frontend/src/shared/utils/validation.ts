@@ -12,25 +12,30 @@ export const validateEmailOrPhone = (value: string): {
 } => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const phoneInputRegex = /^(\+?\d[\d\s\-()]{7,20})$/;
-
   const trimmed = value.trim();
   const isEmail = emailRegex.test(trimmed);
 
   let isPhone = false;
   let normalizedPhone = '';
 
-  if (!isEmail && phoneInputRegex.test(trimmed)) {
-    let digits = trimmed.replace(/\D/g, '');
-
-    // Нормализация РФ: 8XXXXXXXXXX → 7XXXXXXXXXX
-    if (digits.startsWith('8') && digits.length === 11) {
-      digits = '7' + digits.slice(1);
-    }
-
-    if (digits.length >= 10 && digits.length <= 15) {
-      isPhone = true;
-      normalizedPhone = `+${digits}`;
+  if (!isEmail) {
+    const digitsOnly = trimmed.replace(/\D/g, '');
+    
+    if (digitsOnly.length === 11 || digitsOnly.length === 10) {
+      let normalizedDigits = digitsOnly;
+      
+      if (digitsOnly.length === 11 && digitsOnly.startsWith('8')) {
+        normalizedDigits = '7' + digitsOnly.slice(1);
+      }
+      
+      if (digitsOnly.length === 10) {
+        normalizedDigits = '7' + digitsOnly;
+      }
+      
+      if (normalizedDigits.startsWith('7')) {
+        isPhone = true;
+        normalizedPhone = `+${normalizedDigits}`;
+      }
     }
   }
 
@@ -41,7 +46,6 @@ export const validateEmailOrPhone = (value: string): {
     normalized: isPhone ? normalizedPhone : trimmed
   };
 };
-
 
 
 export type PrepareDataOptions = {
@@ -62,8 +66,8 @@ export const prepareAuthData = (
   }
 
   const result: any = {
-    email_cipher: validation.isEmail ? encryptData(validation.normalized) : null,
-    phone_number_cipher: validation.isPhone ? encryptData(validation.normalized) : null,
+    email: validation.isEmail ? validation.normalized : null,
+    phone_number: validation.isPhone ? validation.normalized : null,
     date_time: new Date().toISOString()
   };
 

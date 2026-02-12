@@ -1,4 +1,4 @@
-from .models import Course, Lesson, Homework
+from .models import Course, Lesson, Homework, Task, Question, Users_tasks_answers, Users_Homeworks_Attempts, Users_questions_answers
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -41,6 +41,28 @@ class LessonAdmin(admin.ModelAdmin):
 @admin.register(Homework)
 class HomeworkAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("title",)}
+
+@admin.register(Task)
+class TaskAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(Users_Homeworks_Attempts)
+class AttemptAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(Users_questions_answers)
+class QuestionAnswerAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(Users_tasks_answers)
+class TaskAnswerAdmin(admin.ModelAdmin):
+    pass
+
 
 
 

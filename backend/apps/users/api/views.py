@@ -11,7 +11,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from django.core.mail import send_mail
 from django.conf import settings
-from .utils import set_reset_token, decrypt_email
+from .utils import set_reset_token, encrypt_data
 import os
 from django.utils import timezone
 
@@ -27,13 +27,13 @@ class RegisterView(APIView):
         status=status.HTTP_403_FORBIDDEN
       )
     data = serializer.validated_data
-    email = data.get('email_cipher') or None
-    phone = data.get('phone_number_cipher') or None
+    email_cipher = data.get('email_cipher') or None
+    phone_cipher = data.get('phone_cipher') or None
     password = data['pass_hash']
 
     user = User.objects.create_user(
-      email_cipher=email,
-      phone_cipher=phone,
+      email_cipher=email_cipher,
+      phone_cipher=phone_cipher,
       password=password
     )
 
@@ -87,23 +87,25 @@ class ResetPasswordView(APIView):
   permission_classes = []
 
   def post(self, request):
-    email = (request.data.get('email_cipher') or '').strip()
-    phone = (request.data.get('phone_cipher') or '').strip()
+    email = (request.data.get('email') or '').strip()
+    phone = (request.data.get('phone_number') or '').strip()
 
     if not email and not phone:
       return Response(
-        {'detail': f'Необходимо указать email_cipher или phone_number_cipher'},
+        {'detail': f'Необходимо указать email или phone_number'},
         status=status.HTTP_403_FORBIDDEN
       )
 
     user = None
     if email:
-      user = User.objects.filter(email_cipher=email).first()
+      email_cipher = encrypt_data(email)
+      user = User.objects.filter(email_cipher=email_cipher).first()
     if not user and phone:
-      user = User.objects.filter(phone_cipher=phone).first()
+      phone_cipher = encrypt_data(phone)
+      user = User.objects.filter(phone_cipher=phone_cipher).first()
     if not user:
       return Response(
-        {'detail': f'Необходимо указать email_cipher или phone_number_cipher phone'},
+        {'detail': 'Пользователь не найден'},
         status=status.HTTP_403_FORBIDDEN
       )
 
@@ -111,10 +113,7 @@ class ResetPasswordView(APIView):
     frontend_host = os.environ.get('FRONTEND_HOST')
     recover_url = f"{frontend_host}/recover?token={token}"
 
-    decrypted_email = None
-    if user.email_cipher:
-      decrypted_email = decrypt_email(user.email_cipher)
-    recipient_email = decrypted_email if decrypted_email else ''
+    recipient_email = email if email else ''
     
     try:
       result = send_mail(

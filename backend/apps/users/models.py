@@ -8,9 +8,6 @@ class UserManager(BaseUserManager):
     email_cipher = (email_cipher or '').strip() or None
     phone_cipher = (phone_cipher or '').strip() or None
 
-    if email_cipher:
-      email_cipher = self.normalize_email(email_cipher)
-
     user = self.model(email_cipher=email_cipher, phone_cipher=phone_cipher, **extra_fields)
 
     if password:

@@ -1,4 +1,4 @@
-from .models import Course
+from ..models import Course
 from rest_framework import serializers
 
 

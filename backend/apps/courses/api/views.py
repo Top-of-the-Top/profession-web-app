@@ -3,12 +3,12 @@ from rest_framework.response import Response
 
 
 from .models import Course
-from .serializers import CourseSerializer
-from rest_framework import viewsets, status, generics
+from .serializers import CourseDTOSerializer
+from rest_framework import generics
 
 
-class CourseList(generics.ListAPIView):
-    serializer_class = CourseSerializer
+class CourseDTOList(generics.ListAPIView):
+    serializer_class = CourseDTOSerializer
     
     def get_queryset(self):
         queryset = Course.objects.all()

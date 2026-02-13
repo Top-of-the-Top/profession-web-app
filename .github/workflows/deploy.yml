@@ -22,6 +22,6 @@ jobs:
         ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "
           cd /home/shared/profession &&
           git pull origin main &&
-          docker-compose down &&
-          docker-compose up -d
+          docker compose down &&
+          docker compose up -d
         "

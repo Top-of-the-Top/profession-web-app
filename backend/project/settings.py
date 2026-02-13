@@ -54,7 +54,14 @@ INSTALLED_APPS = [
 USE_S3 = os.environ.get('USE_S3') == 'True'
 
 
-CORS_ALLOW_ALL_ORIGINS = True # Для разработки, потом поменяем. В проде нужен будет явный список
+CORS_ALLOWED_ORIGINS = [
+    "https://professionkid.ru",
+    "http://localhost:5173",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://professionkid.ru",
+]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

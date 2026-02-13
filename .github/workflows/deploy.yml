@@ -19,7 +19,7 @@ jobs:
 
     - name: Deploy to server
       run: |
-        ssh -o StrictHostKeyChecking=no ubuntu@professionkid.ru "
+        ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "
           cd /home/shared/profession &&
           git pull origin main &&
           docker-compose down &&

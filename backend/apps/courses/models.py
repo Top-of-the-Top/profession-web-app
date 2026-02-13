@@ -18,7 +18,7 @@ class Course(models.Model):
     course_id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=50, verbose_name='Название курса')
     sub_title = models.CharField(max_length=200, verbose_name='Краткое описание курса')
-    description = models.TextField(verbose_name = "Описание курса")
+    description = models.TextField(verbose_name="Описание курса")
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
     price = models.PositiveIntegerField()
     image = models.ImageField(

@@ -12,13 +12,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
     - name: Deploy to server
       run: |
-        ssh -o StrictHostKeyChecking=no ubuntu@professionkid.ru
+        ssh -o StrictHostKeyChecking=no ubuntu@professionkid.ru "
           cd /home/shared/profession &&
           git pull origin main &&
           docker-compose down &&
           docker-compose up -d
         "
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}

@@ -1,37 +1,43 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Onest:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Golos+Text:wght@400..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Onest:wght@100..900&display=swap');
+/* Базовые сбросы */
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box; /* добавил для удобства */
+}
+
+html {
+  font-size: 16px; /* база для rem */
+}
 
 .page {
   min-height: 100vh;
   background-color: #ffffff;
   color: #111827;
-  /* font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; */
-  font-family: 'Inter', sans-serif;
-}
-* {
-	padding: 0;
-	margin: 0;
+  font-family: 'Golos Text', sans-serif;
 }
 
 #tracks {
-  scroll-margin-top: 200px;
-}
-#ways {
-
+  scroll-margin-top: 100px; /* уменьшил для мобильных, можно подстроить */
 }
 
 .container {
   max-width: 90vw;
   margin: 0 auto;
-  padding: 24px 16px 0px 16px;
+  padding: 24px 16px 0 16px;
   z-index: 1;
   box-sizing: content-box;
 }
+
+/* Шапка */
 .header {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 24px;
-  position: fixed;
+  position: sticky;
+	top: 0;
+	left: 0;
   background-image: linear-gradient(
     to bottom,
     #ffffff,
@@ -40,30 +46,33 @@
     #ffffff48,
     #ffffff08
   );
-  width: 100vw;
-  height: 100px;
+  width: 100%;
+  height: 100px; /* можно оставить, но на мобиле адаптируем содержимое */
   z-index: 10;
   box-sizing: border-box;
 }
+
 .headerWrapper {
-	width: 90vw;
-	display: flex;
+  width: 90vw;
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  position: fixed;
   height: 100px;
   z-index: 10;
-	
 }
+
 .logo img {
   width: auto;
   max-width: 300px;
   height: 80%;
   min-width: 150px;
+  transform: translateY(3px);
 }
+
 .buttonInline {
   width: max-content;
 }
+
 .nav {
   display: flex;
   align-items: center;
@@ -82,12 +91,7 @@
   flex-shrink: 0;
 }
 
-.authActions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
+/* Хиро-секция */
 .hero {
   position: relative;
   display: flex;
@@ -95,12 +99,10 @@
   justify-content: space-around;
   gap: 40px;
   padding-top: 30px;
-  margin-top: 220px;
-  height: fit-content;
-  padding-bottom: 260px; /* запас под картинку фона */
+  margin-top: 120px; /* уменьшил с 220px, так как шапка фиксированная, но на мобиле добавим адаптацию */
+  padding-bottom: 80px; /* убрал огромный запас, фон будет адаптирован */
   background-image: url('landing/landing-circles.svg');
   background-repeat: no-repeat;
-
   background-position: 20% -30px;
   background-size: 550px auto;
   background-origin: content-box;
@@ -113,7 +115,6 @@
   background-repeat: no-repeat;
   background-position: -1px -10px;
   background-size: contain;
-
   background-image: url('landing/landing-children.svg');
 }
 
@@ -127,16 +128,18 @@
 
 .heroText {
   max-width: 500px;
-  margin: 0 0 200px 0;
+  margin: 0 0 40px 0; /* убрал 200px */
   font-size: 16px;
   line-height: 1.6;
   color: #4b5563;
   z-index: 10;
 }
+
 .heroHighlight {
   color: #191970;
 }
 
+/* Секции */
 .section {
   margin-top: 90px;
 }
@@ -144,10 +147,8 @@
 .sectionHeader {
   display: flex;
   flex-direction: row;
-  /* justify-content: space-between; */
   gap: 8px;
   margin-bottom: 32px;
-	
 }
 
 .sectionTitleRow {
@@ -172,16 +173,17 @@
   padding: 5px;
   border-radius: 8px;
   font-weight: 700;
-  margin-right: 50px;
+  margin-right: 50px; /* возможно, лишнее – уберём на мобиле */
 }
 
 .sectionDescription {
   max-width: 660px;
   font-size: 13px;
   line-height: 1.5;
-  color: #6b7280;
+  color: #000000;
 }
 
+/* Сетка треков */
 .tracksGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(240px, 1fr));
@@ -196,6 +198,7 @@
   box-shadow: 1px 3px 0 0 black !important;
   border-radius: 40px !important;
   padding: 30px 20px 20px 10px !important;
+  position: relative; /* для позиционирования изображения */
 }
 
 .trackHeader {
@@ -204,6 +207,7 @@
   gap: 4px;
   margin-bottom: 1px !important;
 }
+
 .trackPrice {
   font-size: 30px;
 }
@@ -242,37 +246,12 @@
   padding-left: 1px !important;
   transition: 0.2s;
 }
+
 .moreButton:hover {
   transform: scale(1.05);
 }
 
-@media (max-width: 900px) {
-  .hero {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .hero {
-    margin-top: 40px;
-  }
-}
-
-@media (max-width: 640px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .heroTitle,
-  .heroHighlight {
-    font-size: 32px;
-  }
-
-  .heroCta {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
+/* Аккордеон */
 .learningSection {
   padding: 80px 0;
   height: fit-content;
@@ -292,14 +271,14 @@
 .collapsibleItem {
   background: #f3f3f3;
   border-radius: 20px;
-  /* border: 1px solid var(--color-border); */
   overflow: hidden;
   transition: all 0.3s ease;
   width: 100%;
   box-shadow:
-    0 2px 0 0 rgba(0, 0, 0, 0.8),
+    0 4px 0 0 rgba(0, 0, 0, 0.8),
     0 0 1px 0 rgba(0, 0, 0, 0.3);
 }
+
 .collapsibleItem[data-state='open'] {
   background-color: #191970;
   color: white;
@@ -338,12 +317,15 @@
 .collapsibleTitleWrapper {
   flex: 1;
   text-align: left;
+	
 }
 
 .collapsibleTitle {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: 25px;
+  font-weight: 500;
+  color: black;
+	 -webkit-appearance: none;
+	 appearance: none;
 }
 
 .collapsibleIcon {
@@ -356,7 +338,6 @@
   transform: rotate(180deg);
 }
 
-/* Content */
 .collapsibleContent {
   padding: 0 30px 30px;
 }
@@ -396,78 +377,14 @@
   font-size: 18px;
 }
 
-@media (max-width: 768px) {
-  .sectionTitleCenter {
-    font-size: 36px;
-  }
-
-  .sectionDescriptionCenter {
-    font-size: 16px;
-  }
-
-  .collapsibleContentWrapper {
-    grid-template-columns: 1fr;
-    gap: 30px;
-  }
-
-  .collapsibleTrigger {
-    padding: 20px;
-  }
-
-  .collapsibleNumber {
-    font-size: 30px;
-    min-width: 35px;
-  }
-
-  .collapsibleTitle {
-    font-size: 20px;
-  }
-
-  .collapsibleContent {
-    padding: 0 20px 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .collapsibleTriggerContent {
-    gap: 15px;
-  }
-
-  .collapsibleTitle {
-    font-size: 18px;
-  }
-}
-
-.collapsibleItem[data-state='open'] {
-  background-color: #191970;
-  color: white;
-}
-
-.collapsibleItem[data-state='open'] .collapsibleTitle {
-  color: white !important;
-}
-
-.collapsibleItem[data-state='open'] .collapsibleNumber {
-  color: white !important;
-}
-
-.collapsibleItem[data-state='open'] .collapsibleIcon {
-  color: white !important;
-}
-
-.collapsibleItem[data-state='open'] .collapsibleDescription {
-  color: white !important;
-}
-
-.collapsibleItem[data-state='open'] .imagePlaceholder {
-  color: white !important;
-}
+/* Иконка плюс-минус */
 .plusMinusIcon {
   position: relative;
   width: 24px;
   height: 24px;
   flex-shrink: 0;
 }
+
 .plusMinusIconContainer {
   border-radius: 50%;
   position: relative;
@@ -505,4 +422,357 @@
 .collapsibleItem[data-state='open'] .plusMinusIconVertical {
   opacity: 0;
   transform: translateX(-50%) scale(0);
+}
+
+/* ========== МЕДИАЗАПРОСЫ ========== */
+
+@media (max-width: 768px) {
+  .container {
+    padding: 24px 12px 0 12px;
+  }
+
+  .desktopNav,
+  .desktopAuth {
+    display: none;
+  }
+
+  .burgerButton {
+    display: flex;
+		z-index: 100;
+  }
+
+  .headerWrapper {
+    width: 100%;
+    height: 80px;
+    align-items: flex-start;
+  }
+
+	
+  .heroTitle {
+    font-size: 32px;
+  }
+
+  .heroTitle, .heroHighlight {
+		text-align: left;
+		font-size: 55px;
+		font-weight: 700;
+	}
+	.heroText {
+		text-align: left;
+	}
+
+	.heroCta p {
+		width: 70%;
+		padding: 30px 0;
+		font-size: 20px;
+	}
+	.heroDescription {
+		display: flex;
+		flex-direction: column;
+		gap: 30px;
+
+	}
+
+  .hero {
+    flex-direction: column; /* ставим текст и картинку в колонку */
+    align-items: center;
+    text-align: center;
+    margin-top: 100px;
+    padding-bottom: 40px;
+    background-size: 300px auto;
+    background-position: 50% -20px;
+  }
+
+  .children {
+    display: none;
+  }
+
+  .heroText {
+    margin-bottom: 20px;
+  }
+
+  .sectionTitle {
+    margin-right: 0;
+  }
+
+  .tracksGrid {
+    grid-template-columns: 1fr; /* одна колонка */
+    gap: 20px;
+  }
+
+  .trackCard {
+    padding: 20px 15px 15px 10px !important;
+  }
+
+  .trackImage {
+    width: 120px; /* уменьшаем картинку */
+  }
+
+  /* Аккордеон */
+  .collapsibleNumber {
+    font-size: 30px;
+    min-width: 35px;
+  }
+
+  .collapsibleTitle {
+    font-size: 20px;
+		 -webkit-appearance: none;
+	 appearance: none;
+
+  }
+	.collapsibleItem[data-state='open'] .collapsibleTitle, .collapsibleItem[data-state='open'] .collapsibleNumber {
+  color: white;
+}
+
+  .collapsibleTrigger {
+    padding: 20px;
+  }
+
+  .collapsibleContent {
+    padding: 0 20px 20px;
+  }
+
+  .collapsibleTriggerContent {
+    gap: 20px;
+  }
+
+  .imagePlaceholder {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3/2; /* сохраняем пропорции */
+  }
+}
+
+/* Телефоны (до 480px) */
+@media (max-width: 480px) {
+  .header {
+    /* height: auto; */
+    padding: 10px 16px;
+		
+  }
+
+  .headerWrapper {
+    flex-direction: column;
+    /* height: auto; */
+    gap: 10px;
+  }
+
+  .mobileMenu {
+    padding: 15px;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .logo img {
+    min-width: 120px;
+  }
+
+  .heroTitle {
+    font-size: 32px;
+  }
+
+  .heroTitle, .heroHighlight {
+		text-align: left;
+		font-size: 55px;
+		font-weight: 700;
+	}
+	.heroText {
+		text-align: left;
+	}
+
+	.heroCta p {
+		width: 70%;
+		padding: 30px 0;
+		font-size: 20px;
+	}
+	.heroDescription {
+		display: flex;
+		flex-direction: column;
+		gap: 30px;
+
+	}
+  .hero {
+    margin-top: 120px;
+    background-size: 250px auto;
+  }
+
+  .children {
+    display: none;
+  }
+
+  .sectionTitle {
+    font-size: 25px;
+		padding: 5px 10px 5px 10px;
+		font-weight: 500;
+  }
+	.sectionHeader {
+		flex-direction: column;
+		gap: 20px;
+		
+	}
+
+  .sectionDescription {
+    font-size: 14px;
+  }
+
+  .trackPrice {
+    font-size: 24px;
+  }
+
+  .trackTitle {
+    font-size: 20px;
+  }
+
+  .trackImage {
+    width: 100px;
+    bottom: 5px;
+  }
+
+  .trackFooter {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* Аккордеон */
+  .collapsibleNumber {
+    font-size: 24px;
+    min-width: 30px;
+  }
+
+  .collapsibleTitle {
+    font-size: 18px;
+		 -webkit-appearance: none;
+	 appearance: none;
+  }
+
+  .collapsibleTriggerContent {
+    gap: 15px;
+  }
+
+  .collapsibleTrigger {
+    padding: 15px;
+  }
+
+  .plusMinusIconContainer {
+    padding: 6px;
+  }
+}
+
+/* ===== Бургер-кнопка ===== */
+.burgerButton {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 35px;
+  height: 35px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+	padding: 0;
+  z-index: 100;
+	color: black;
+}
+
+.desktopAuth {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+}
+
+.mobileMenu {
+  position: fixed;
+  top: 0px;
+  left: 50%;
+  transform: translate(-50%, -150%);
+  opacity: 0;
+
+  width: 90%;
+  padding: 30px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  transition: transform 0.5s ease, opacity 0.25s ease;
+  z-index: 100;
+}
+
+.mobileMenu svg {
+	z-index: 100;
+}
+.mobileMenu.open {
+  transform: translate(-50%, 80px);
+  opacity: 1;
+}
+
+.menuBackground {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 90;
+	display: none;
+}
+.bgOpen {
+	display: block;
+}
+
+.mobileNav {
+	display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.mobileNav a {
+	text-align: left !important;
+	justify-content: flex-start !important;
+	padding: 0 !important;
+}
+.mobileAuth {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  gap: 12px;
+}
+.mobileAuth button {
+	width: 100% !important;
+}
+
+.mobileNav .navLink,
+.mobileAuth .navLink {
+  width: 100%;
+  text-align: center;
+}
+
+/* ===== Адаптация для мобильных ===== */
+@media (max-width: 768px) {
+  .desktopNav,
+  .desktopAuth {
+    display: none;
+  }
+
+  .burgerButton {
+    display: flex;
+		z-index: 100;
+  }
+
+  .headerWrapper {
+    width: 100%;
+    height: 80px;
+  }
+}
+
+/* Для очень маленьких экранов можно уменьшить отступы */
+@media (max-width: 480px) {
+  .headerWrapper {
+    height: auto;
+  }
+
+  .mobileMenu {
+    padding: 15px;
+  }
 }

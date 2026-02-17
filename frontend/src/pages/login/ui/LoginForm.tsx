@@ -57,7 +57,7 @@ export default function LoginForm({
         <div className={styles.loginWrapper}>
           <img
             className={styles.logo}
-            src="landing/profession-logo.svg"
+            src="profession-logo.svg"
             alt=""
           />
           <Card className={styles.card}>

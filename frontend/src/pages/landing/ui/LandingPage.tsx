@@ -1,7 +1,8 @@
 import styles from './LandingPage.module.css';
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../shared/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '../../../shared/lib/utils';
+import { Menu, X } from 'lucide-react';
 import {
   Button,
   Card,
@@ -17,29 +18,19 @@ import { type Track } from '../../../schemas/types';
 import { landingApi } from '../api';
 
 export default function LandingPage() {
-  const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-
-  const handleJoinClick = () => {
-    navigate(isAuthenticated ? '/dashboard' : '/register');
-  };
-
-  const handleMoreClick = () => {
-    navigate(isAuthenticated ? '/dashboard' : '/register');
-  };
-	 const handleAuthClick = () => {
-    navigate(isAuthenticated ? '/dashboard' : '/login');
-  };
 
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  const toggleMenu = () => setIsMenuOpen((prev) => !prev);
   useEffect(() => {
     landingApi
       .getCourses()
       .then((data) => {
         setTracks(data.data);
-				console.log(data)
+        console.log(data);
       })
       .catch((error) => {
         console.error('Ошибка загрузки курсов:', error);
@@ -71,13 +62,75 @@ export default function LandingPage() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div className={styles.headerWrapper}>
-					<div>
-          <div className={styles.logo}>
-            <img src="profession-logo.svg" alt="" />
+          <div>
+            <div className={styles.logo}>
+              <img src="profession-logo.svg" alt="" />
+            </div>
+          </div>
+
+          <nav className={styles.nav} aria-label="Основная навигация">
+            <Button
+              variant="ghost"
+              size="lg"
+              className={styles.navLink}
+              asChild
+            >
+              <a href="#intro">О нас</a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              className={styles.navLink}
+              asChild
+            >
+              <a href="#tracks">Направления</a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              className={styles.navLink}
+              asChild
+            >
+              <a href="#ways">Процесс обучения</a>
+            </Button>
+          </nav>
+
+          <div className={styles.desktopAuth}>
+            <Button
+              onClick={() => navigate('/login')}
+              variant="outline"
+              size="lg"
+            >
+              Войти
+            </Button>
+            <Button
+              onClick={() => navigate('/register')}
+              variant="primary"
+              size="lg"
+            >
+              Регистрация
+            </Button>
           </div>
         </div>
 
-        <nav className={styles.nav} aria-label="Основная навигация">
+        <button
+          className={styles.burgerButton}
+          onClick={toggleMenu}
+          data-open={isMenuOpen}
+        >
+          {isMenuOpen ? (
+            <X width="35px" height="35px" />
+          ) : (
+            <Menu width="35px" height="35px" />
+          )}
+        </button>
+      </header>
+      <div
+        className={cn(styles.menuBackground, isMenuOpen && styles.bgOpen)}
+        onClick={toggleMenu}
+      />
+      <div className={`${styles.mobileMenu} ${isMenuOpen ? styles.open : ''}`}>
+        <nav className={styles.mobileNav} aria-label="Мобильная навигация">
           <Button variant="ghost" size="lg" className={styles.navLink} asChild>
             <a href="#intro">О нас</a>
           </Button>
@@ -88,18 +141,23 @@ export default function LandingPage() {
             <a href="#ways">Процесс обучения</a>
           </Button>
         </nav>
-
-        <div className={styles.authActions}>
-          <Button onClick={handleAuthClick} variant="outline" size="lg">
+        <div className={styles.mobileAuth}>
+          <Button
+            onClick={() => navigate('/login')}
+            variant="outline"
+            size="lg"
+          >
             Войти
           </Button>
-          <Button variant="primary" size="lg" asChild>
-            <a href="/register">Регистрация</a>
+          <Button
+            onClick={() => navigate('/register')}
+            variant="primary"
+            size="lg"
+          >
+            Регистрация
           </Button>
         </div>
-				</div>
-      </header>
-
+      </div>
       <div className={styles.container}>
         <main>
           <section className={styles.hero} id="intro">
@@ -109,13 +167,13 @@ export default function LandingPage() {
                 <span className={styles.heroHighlight}>Профессия</span>
               </h1>
               <p className={styles.heroText}>
-                Погружаем детей и подростков в увлекательный мир профессий. Дайте
-                ребёнку шанс найти своё призвание и примерить на себя роль
+                Погружаем детей и подростков в увлекательный мир профессий.
+                Дайте ребёнку шанс найти своё призвание и примерить на себя роль
                 врача, биолога, химика или программиста.
               </p>
               <div className={styles.heroCta}>
                 <Button
-                  onClick={handleJoinClick}
+                  onClick={() => navigate('/register')}
                   asChild
                   size="lg"
                   className={styles.buttonInline}
@@ -147,6 +205,7 @@ export default function LandingPage() {
               ) : (
                 tracks.map((track) => (
                   <Card
+									onClick={() => {navigate('/register')}}
                     key={track.id}
                     className={styles.trackCard}
                     style={{ backgroundColor: track.bgColor }}
@@ -179,7 +238,7 @@ export default function LandingPage() {
                         style={{ backgroundColor: 'transparent' }}
                         className={styles.moreButton}
                         variant="ghost"
-                        onClick={handleMoreClick}
+                        onClick={() => navigate('/register')}
                       >
                         <div
                           className={styles.trackButton}

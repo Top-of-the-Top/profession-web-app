@@ -10,7 +10,6 @@ from .serializers import CartItemSerializer, CartSerializer
 
 
 class CartView(APIView):
-    permission_classes = [IsAuthenticated]
     serializer_class = CartSerializer
 
     @extend_schema(
@@ -25,7 +24,6 @@ class CartView(APIView):
 
 
 class AddToCartView(APIView):
-    permission_classes = [IsAuthenticated]
     serializer_class = CartItemSerializer
 
     @extend_schema(

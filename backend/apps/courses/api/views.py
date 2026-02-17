@@ -1,18 +1,17 @@
-from django.http import Http404
-from rest_framework.generics import GenericAPIView, RetrieveAPIView
+from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework_simplejwt.authentication import JWTAuthentication
-
+from django.http import Http404
+from rest_framework.exceptions import NotFound
 from ..models import Course
 from .serializers import CourseDTOSerializer, CourseSerializer
 from rest_framework import generics
-
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
 class CourseDTOList(generics.ListAPIView):
     serializer_class = CourseDTOSerializer
-    
+    permission_classes = (IsAuthenticated,)
+
     def get_queryset(self):
         queryset = Course.objects.all()
         return queryset
@@ -34,9 +33,32 @@ class CourseDTOList(generics.ListAPIView):
 class CourseDetail(RetrieveAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
-    permission_classes = (IsAuthenticated,)
-    lookup_url_kwarg = 'slug' # Поле для поиска объекта
+    lookup_url_kwarg = 'slug'
+    lookup_field = 'slug'
 
+    def get_object(self):
+        try:
+            return super().get_object()
+        except Http404:
+            raise NotFound(detail="Курс не найден")
+
+    @extend_schema(
+        summary="Детали курса",
+        description="Полная информация о курсе по slug",
+        tags=["Courses"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug курса',
+            )
+        ],
+        responses={
+            200: CourseSerializer,
+            404: OpenApiTypes.OBJECT,
+        },
+    )
     def get(self, request, *args, **kwargs):
         course = self.get_object()
         serializer = self.get_serializer(course)

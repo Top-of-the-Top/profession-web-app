@@ -1,5 +1,4 @@
 from django.shortcuts import render
-
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -8,6 +7,7 @@ from ..models import User
 from .serializers import RegisterSerializer, LoginSerializer
 from .utils import get_tokens_for_user
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
 from django.core.mail import send_mail
 from django.conf import settings
@@ -19,6 +19,12 @@ from django.utils import timezone
 class RegisterView(APIView):
   permission_classes = []
 
+  @extend_schema(
+    summary="Регистрация пользователя",
+    description="Регистрация пользователя",
+    tags=["Users"],
+    responses={200: OpenApiTypes.OBJECT},
+  )
   def post(self, request):
     serializer = RegisterSerializer(data=request.data)
     if not serializer.is_valid():
@@ -43,6 +49,12 @@ class RegisterView(APIView):
 class LoginView(APIView):
   permission_classes = []
 
+  @extend_schema(
+    summary="Вход пользователя",
+    description="Вход пользователя",
+    tags=["Users"],
+    responses={200: OpenApiTypes.OBJECT},
+  )
   def post(self, request):
     serializer = LoginSerializer(data=request.data)
     if not serializer.is_valid():
@@ -56,7 +68,13 @@ class LoginView(APIView):
 
 class RefreshTokenView(APIView):
   permission_classes = []
-
+  
+  @extend_schema(
+    summary="Обновление рефреш токена",
+    description="Обновление рефреш токена",
+    tags=["Users"],
+    responses={200: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT},
+  )
   def post(self, request):
     refresh_token = request.data.get('refresh_token')
     if not refresh_token:
@@ -85,7 +103,12 @@ class RefreshTokenView(APIView):
 
 class ResetPasswordView(APIView):
   permission_classes = []
-
+  @extend_schema(
+    summary="Сброс пароля",
+    description="Сброс пароля по email или phone_number",
+    tags=["Users"],
+    responses={200: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT, 500: OpenApiTypes.OBJECT},
+  )
   def post(self, request):
     email = (request.data.get('email') or '').strip()
     phone = (request.data.get('phone_number') or '').strip()
@@ -138,7 +161,12 @@ class ResetPasswordView(APIView):
 
 class RecoverPasswordView(APIView):
   permission_classes = []
-
+  @extend_schema(
+    summary="Ввод нового пароля",
+    description="Ввод нового пароля",
+    tags=["Users"],
+    responses={200: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT},
+  )
   def patch(self, request):
     token = request.data.get('token')
     password = request.data.get('password_hash')

@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'apps.users.apps.UsersConfig',
+    'apps.cart.apps.CartConfig',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders', # для CORS. Разрешает браузерам делать запросы к API с других доменов

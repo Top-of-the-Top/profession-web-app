@@ -10,12 +10,19 @@ from .serializers import CartItemSerializer, CartSerializer
 
 
 class CartView(APIView):
+    permission_classes = (IsAuthenticated,)
     serializer_class = CartSerializer
 
     @extend_schema(
         summary="Получить корзину пользователя",
         description="Возвращает корзину с перечнем курсов",
-        responses={200: CartSerializer},
+        responses={
+            200: CartSerializer,
+            401: {
+                "description": "Не авторизован",
+                "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
+            },
+        },
     )
     def get(self, request):
         cart, _ = Cart.objects.get_or_create(user=request.user)
@@ -24,6 +31,7 @@ class CartView(APIView):
 
 
 class AddToCartView(APIView):
+    permission_classes = (IsAuthenticated,)
     serializer_class = CartItemSerializer
 
     @extend_schema(
@@ -41,8 +49,12 @@ class AddToCartView(APIView):
             201: CartItemSerializer,
             400: {
                 "description": "Курс уже в корзине",
-                "schema": {"type": "object", "properties": {"error": {"type": "string"}}}
-            }
+                "schema": {"type": "object", "properties": {"error": {"type": "string"}}},
+            },
+            401: {
+                "description": "Не авторизован",
+                "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
+            },
         },
         request=None
     )
@@ -65,6 +77,8 @@ class AddToCartView(APIView):
 
 
 class CartItemView(APIView):
+    permission_classes = (IsAuthenticated,)
+
     @extend_schema(
         summary="Удалить курс из корзины",
         description="Удаляет курс по slug из корзины пользователя",
@@ -77,7 +91,13 @@ class CartItemView(APIView):
             )
         ],
 
-        responses={204: None},
+        responses={
+            204: None,
+            401: {
+                "description": "Не авторизован",
+                "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
+            },
+        },
     )
 
     def delete(self, request, slug):

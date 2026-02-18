@@ -5,15 +5,12 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../../../shared/ui/';
-import {
-  Field,
-  // FieldDescription,
-  FieldGroup,
-  FieldLabel,
+	Field,
+	FieldGroup,
+	FieldLabel,
+	Input,
 } from '../../../shared/ui';
 import { cn } from '../../../shared/lib/utils';
-import Input from '../../../shared/ui/Input/Input';
 import styles from './LoginPage.module.css';
 import { useContext, useState } from 'react';
 import { AuthContext } from '../../../context/AuthContext';

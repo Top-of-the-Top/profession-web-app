@@ -1,29 +1,92 @@
-// Barrel export для всех UI компонентов
+// Shared UI components
+export { Button } from './Button'
+export type { ButtonProps } from './Button'
 
-// Button
-export * from "./Button";
+export {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './Table'
+export  {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+} from './Card'
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './Tooltip'
 
-// Card
-export * from "./Card";
+export { Input } from './Input'
+export {
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLegend,
+  FieldSeparator,
+  FieldSet,
+  FieldContent,
+  FieldTitle,
+} from './Field'
 
-// Carousel
-export * from "./Carousel";
+export {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from './Collapsible'
+export {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay,
+  AlertDialogPortal,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from './AlertDialog'
+export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor } from './Popover';
 
-// Input
-export * from "./Input";
+export {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+} from './Command'
 
-// Label
-export * from "./Label";
 
-// Pagination
-export * from "./Pagination";
+export { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs'
+export { Label } from './Label'
+export { Alert, AlertTitle, AlertDescription } from './Alert'
+export  {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from './Select'
 
-// Item
-export * from "./Item";
-export * from './Collapsible'
+export { Switch } from './Switch'
 
-export * from './Input'
 
-// Separator
-export { default as Separator } from "./Separator";
-export * from './Field'
+export { RadioGroup, RadioGroupItem } from './RadioGroup'

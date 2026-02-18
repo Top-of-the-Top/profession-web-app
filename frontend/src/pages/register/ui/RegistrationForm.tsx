@@ -11,12 +11,11 @@ import { useState, useContext } from 'react';
 import {
   Field,
   FieldGroup,
-  FieldLabel,
+  FieldLabel, Input
 } from '../../../shared/ui';
 
 import { ArrowRight } from 'lucide-react';
 import { cn } from '../../../shared/lib/utils';
-import Input from '../../../shared/ui/Input/Input';
 import styles from './RegistrationPage.module.css';
 import { registerUser } from '../api';
 import { Link, useNavigate } from 'react-router-dom';

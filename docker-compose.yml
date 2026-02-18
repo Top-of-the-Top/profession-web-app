@@ -45,13 +45,38 @@ services:
       "
     networks:
       - app_network
-    
+
+  celery_worker:
+    build: ./backend
+    container_name: profession_web_app_celery
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+    command: celery -A project worker --loglevel=info
+    depends_on:
+      - redis
+      - backend
+    networks:
+      - app_network
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app_network
+
 
 volumes:
   postgres_data_profession:
   static_volume:
   media_volume:
   frontend_node_modules:
+  redis_data:
 
 networks:
   app_network:

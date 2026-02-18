@@ -37,14 +37,6 @@ class AddToCartView(APIView):
     @extend_schema(
         summary="Добавить курс в корзину",
         description="Добавляет курс по slug в корзину пользователя",
-        parameters=[
-            OpenApiParameter(
-                name='slug',
-                type=OpenApiTypes.STR,
-                description='slug курса',
-                required=True
-            )
-        ],
         responses={
             201: CartItemSerializer,
             400: {
@@ -53,6 +45,10 @@ class AddToCartView(APIView):
             },
             401: {
                 "description": "Не авторизован",
+                "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
+            },
+            404: {
+                "description": "Курс с с таким slug не найден в списке курсов",
                 "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
             },
         },
@@ -82,19 +78,15 @@ class CartItemView(APIView):
     @extend_schema(
         summary="Удалить курс из корзины",
         description="Удаляет курс по slug из корзины пользователя",
-        parameters=[
-            OpenApiParameter(
-                name='slug',
-                type=OpenApiTypes.STR,
-                description='slug курса',
-                required=True
-            )
-        ],
 
         responses={
             204: None,
             401: {
                 "description": "Не авторизован",
+                "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
+            },
+            404: {
+                "description": "Курс с таким slug не найден в корзине",
                 "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
             },
         },

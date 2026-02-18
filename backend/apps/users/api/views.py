@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -7,7 +6,24 @@ from ..models import User
 from .serializers import RegisterSerializer, LoginSerializer
 from .utils import get_tokens_for_user
 from rest_framework_simplejwt.tokens import RefreshToken
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from drf_spectacular.utils import extend_schema,  OpenApiTypes
+
+SCHEMA_403 = {
+    "type": "object",
+    "properties": {
+        "detail": {"type": "string", "description": "Сообщение об ошибке."},
+    },
+}
+SCHEMA_403_OBJECT = {
+    "type": "object",
+    "description": "Объект с полями ошибок валидации (имена полей — ключи).",
+}
+SCHEMA_500 = {
+    "type": "object",
+    "properties": {
+        "detail": {"type": "string", "description": "Ошибка сервера.", "example": "Ошибка отправки письма."},
+    },
+}
 
 from django.core.mail import send_mail
 from django.conf import settings
@@ -23,7 +39,13 @@ class RegisterView(APIView):
     summary="Регистрация пользователя",
     description="Регистрация пользователя",
     tags=["Users"],
-    responses={200: OpenApiTypes.OBJECT},
+    responses={
+      200: OpenApiTypes.OBJECT,
+      403: {
+        "description": "Ошибка валидации. В теле — объект с полями и списком ошибок (serializer.errors).",
+        "schema": SCHEMA_403_OBJECT,
+      },
+    },
   )
   def post(self, request):
     serializer = RegisterSerializer(data=request.data)
@@ -53,7 +75,13 @@ class LoginView(APIView):
     summary="Вход пользователя",
     description="Вход пользователя",
     tags=["Users"],
-    responses={200: OpenApiTypes.OBJECT},
+    responses={
+      200: OpenApiTypes.OBJECT,
+      403: {
+        "description": "Ошибка валидации. В теле — объект с полями и списком ошибок (serializer.errors).",
+        "schema": SCHEMA_403_OBJECT,
+      },
+    },
   )
   def post(self, request):
     serializer = LoginSerializer(data=request.data)
@@ -73,7 +101,13 @@ class RefreshTokenView(APIView):
     summary="Обновление рефреш токена",
     description="Обновление рефреш токена",
     tags=["Users"],
-    responses={200: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT},
+    responses={
+      200: OpenApiTypes.OBJECT,
+      403: {
+        "description": "refresh_token не передан — «refresh_token обязателен»; или невалидный/истёкший токен — «Невалидный или истекший refresh_token».",
+        "schema": SCHEMA_403,
+      },
+    },
   )
   def post(self, request):
     refresh_token = request.data.get('refresh_token')
@@ -107,7 +141,17 @@ class ResetPasswordView(APIView):
     summary="Сброс пароля",
     description="Сброс пароля по email или phone_number",
     tags=["Users"],
-    responses={200: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT, 500: OpenApiTypes.OBJECT},
+    responses={
+      200: OpenApiTypes.OBJECT,
+      403: {
+        "description": "Не указан email/phone — «Необходимо указать email или phone_number»; пользователь не найден — «Пользователь не найден».",
+        "schema": SCHEMA_403,
+      },
+      500: {
+        "description": "Ошибка при отправке письма на указанный email.",
+        "schema": SCHEMA_500,
+      },
+    },
   )
   def post(self, request):
     email = (request.data.get('email') or '').strip()
@@ -165,7 +209,13 @@ class RecoverPasswordView(APIView):
     summary="Ввод нового пароля",
     description="Ввод нового пароля",
     tags=["Users"],
-    responses={200: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT},
+    responses={
+      200: OpenApiTypes.OBJECT,
+      403: {
+        "description": "Не переданы token/password — «token и password обязательны»; невалидный или истёкший токен — «Невалидный или истёкший токен».",
+        "schema": SCHEMA_403,
+      },
+    },
   )
   def patch(self, request):
     token = request.data.get('token')

@@ -1,8 +1,7 @@
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from django.http import Http404
-from rest_framework.exceptions import NotFound
+from rest_framework import status
 from ..models import Course
 from .serializers import CourseDTOSerializer, CourseSerializer
 from rest_framework import generics
@@ -13,8 +12,18 @@ SCHEMA_401 = {
     "properties": {
         "detail": {
             "type": "string",
-            "description": "Сообщение об ошибке аутентификации (например: учётные данные не переданы или токен недействителен).",
+            "description": "Сообщение об ошибке аутентификации.",
             "example": "Authentication credentials were not provided.",
+        }
+    },
+}
+SCHEMA_404 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Курс не найден.",
+            "example": "Курс не найден",
         }
     },
 }
@@ -76,28 +85,36 @@ class CourseDetail(RetrieveAPIView):
     lookup_url_kwarg = 'slug'
     lookup_field = 'slug'
 
-    def get_object(self):
-        try:
-            return super().get_object()
-        except Http404:
-            raise NotFound(detail="Курс не найден")
-
     @extend_schema(
         summary="Детали курса",
         description="Полная информация о курсе по slug",
         tags=["Courses"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug курса',
+            )
+        ],
         responses={
             200: CourseSerializer,
             401: {
                 "description": "Не авторизован. Токен отсутствует или недействителен.",
                 "schema": SCHEMA_401,
             },
-            404: OpenApiTypes.OBJECT,
+            404: {
+                "description": "Курс с указанным slug не найден.",
+                "schema": SCHEMA_404,
+            },
         },
     )
     def get(self, request, *args, **kwargs):
-        course = self.get_object()
+        course = Course.objects.filter(slug=kwargs.get('slug')).first()
+        if course is None:
+            return Response(
+                {'detail': 'Курс не найден'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         serializer = self.get_serializer(course)
-        data = serializer.data
-
-        return Response({'course': data})
+        return Response({'course': serializer.data})

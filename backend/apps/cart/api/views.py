@@ -2,8 +2,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from ...courses.models import Course
 from ..models import Cart, CartItem
 from .serializers import CartItemSerializer, CartSerializer
@@ -13,7 +12,7 @@ SCHEMA_401 = {
     "properties": {
         "detail": {
             "type": "string",
-            "description": "Сообщение об ошибке аутентификации (например: учётные данные не переданы или токен недействителен).",
+            "description": "Сообщение об ошибке аутентификации.",
             "example": "Authentication credentials were not provided.",
         }
     },
@@ -24,7 +23,7 @@ SCHEMA_404 = {
         "detail": {
             "type": "string",
             "description": "Ресурс не найден.",
-            "example": "Not found.",
+            "example": "Курс с таким slug не найден в списке курсов.",
         }
     },
 }
@@ -33,7 +32,7 @@ SCHEMA_400_ERROR = {
     "properties": {
         "error": {
             "type": "string",
-            "description": "Описание ошибки валидации или бизнес-логики.",
+            "description": "Ошибка бизнес-логики.",
             "example": "Курс уже в корзине",
         }
     },
@@ -92,10 +91,16 @@ class AddToCartView(APIView):
         if CartItem.objects.filter(cart=cart, course__slug=slug).exists():
             return Response(
                 {'error': 'Курс уже в корзине'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        course = get_object_or_404(Course, slug=slug)
+        course = Course.objects.filter(slug=slug).first()
+        if course is None:
+            return Response(
+                {'detail': 'Курс с таким slug не найден в списке курсов.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         serializer = self.get_serializer(data={'cart': cart.id, 'course': course.id})
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -125,10 +130,12 @@ class CartItemView(APIView):
 
     def delete(self, request, slug):
         cart, _ = Cart.objects.get_or_create(user=request.user)
-        cart_item = get_object_or_404(
-            CartItem,
-            cart=cart,
-            course__slug=slug
-        )
+        cart_item = CartItem.objects.filter(cart=cart, course__slug=slug).first()
+        if cart_item is None:
+            return Response(
+                {'detail': 'Курс с таким slug не найден в корзине.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         cart_item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

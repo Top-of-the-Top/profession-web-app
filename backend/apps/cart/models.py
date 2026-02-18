@@ -9,14 +9,22 @@ class Cart(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     courses = models.ManyToManyField(Course, through='CartItem')
 
+    class Meta:
+        verbose_name = 'Корзина'
+        verbose_name_plural = 'Корзины'
+
 
 class CartItem(models.Model):
     cart_id = models.ForeignKey(Cart, on_delete=models.CASCADE)
     course_id = models.ForeignKey(Course, on_delete=models.CASCADE)
 
     class Meta:
+        verbose_name = 'Курс в корзине'
+        verbose_name_plural = 'Курсы в корзине'
         unique_together = ('cart_id', 'course_id')
         db_table = 'courses_by_cart'
+
+
 
 
 

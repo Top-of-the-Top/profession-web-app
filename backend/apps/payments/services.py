@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class YooKassaPaymentResponse:
-    """Структура ответа от (мок) ЮKassa при создании платежа."""
     id: str
     status: str
     paid: bool
@@ -20,23 +19,14 @@ class YooKassaPaymentResponse:
     description: str
 
 
-class MockYooKassaService:
-    """
-    Мок-реализация платёжного шлюза ЮKassa.
-
-    В продакшене здесь будет реальный SDK yookassa-python:
-        from yookassa import Payment as YKPayment
-        YKPayment.create({...})
-
-    Мок имитирует создание платежа (возвращает URL для оплаты)
-    и проверку статуса (80% успех / 20% отклонение).
-    """
+class MockYooKassaService: # Это мок-реализация платёжного шлюза ЮKassa.
+    
 
     MOCK_BASE_URL = 'https://mock-yookassa.ru/payments'
-    SUCCESS_PROBABILITY = 0.8
+    SUCCESS_PROBABILITY = 0.8 # Это вероятность успешного платежа.
 
     @classmethod
-    def create_payment(
+    def create_payment( # Это метод для создания платежа в (мок) ЮKassa.
         cls,
         amount: Decimal,
         currency: str = 'RUB',
@@ -44,18 +34,7 @@ class MockYooKassaService:
         return_url: str = '',
         idempotency_key: Optional[str] = None,
     ) -> YooKassaPaymentResponse:
-        """
-        Создаёт платёж в (мок) ЮKassa.
-
-        В реальной интеграции:
-            yookassa.Configuration.account_id = SHOP_ID
-            yookassa.Configuration.secret_key = SECRET_KEY
-            payment = YKPayment.create({
-                'amount': {'value': str(amount), 'currency': currency},
-                'confirmation': {'type': 'redirect', 'return_url': return_url},
-                'description': description,
-            }, idempotency_key)
-        """
+        
         payment_uuid = idempotency_key or str(uuid.uuid4())
         confirmation_url = f'{cls.MOCK_BASE_URL}/{payment_uuid}'
 
@@ -75,16 +54,7 @@ class MockYooKassaService:
         )
 
     @classmethod
-    def fetch_payment_status(cls, yookassa_id: str) -> dict:
-        """
-        Проверяет статус платежа в (мок) ЮKassa.
-
-        В реальной интеграции:
-            payment = YKPayment.find_one(yookassa_id)
-            return {'status': payment.status, 'paid': payment.paid}
-
-        Мок возвращает succeeded с вероятностью SUCCESS_PROBABILITY.
-        """
+    def fetch_payment_status(cls, yookassa_id: str) -> dict: # Это метод - заглушка для проверки статуса платежа
         is_success = random.random() < cls.SUCCESS_PROBABILITY
         status = 'succeeded' if is_success else 'canceled'
 
@@ -100,8 +70,7 @@ class MockYooKassaService:
         }
 
     @classmethod
-    def capture_payment(cls, yookassa_id: str) -> dict:
-        """Подтверждение двухстадийного платежа (capture)."""
+    def capture_payment(cls, yookassa_id: str) -> dict: # Это метод - заглушка для подтверждения платежа.
         logger.info('MockYooKassa: capture платежа %s', yookassa_id)
         return {
             'id': yookassa_id,
@@ -110,8 +79,7 @@ class MockYooKassaService:
         }
 
     @classmethod
-    def refund_payment(cls, yookassa_id: str, amount: Decimal) -> dict:
-        """Возврат платежа."""
+    def refund_payment(cls, yookassa_id: str, amount: Decimal) -> dict: # Это метод - заглушка для возврата платежа.
         refund_id = str(uuid.uuid4())
         logger.info(
             'MockYooKassa: возврат %s на сумму %s',

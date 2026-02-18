@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from apps.courses.api.serializers import CourseDTOSerializer
 from ..models import Payment, PaymentItem
-from apps.courses.models import PurchasedCourse
 
 
 class PaymentItemSerializer(serializers.ModelSerializer):
@@ -51,19 +50,4 @@ class PaymentShortSerializer(serializers.ModelSerializer):
             'status_display',
             'created_at',
             'paid_at',
-        ]
-
-
-class PurchasedCourseSerializer(serializers.ModelSerializer):
-    course = CourseDTOSerializer(read_only=True)
-    is_active = serializers.BooleanField(read_only=True)
-
-    class Meta:
-        model = PurchasedCourse
-        fields = [
-            'id',
-            'course',
-            'payment',
-            'access_expires_at',
-            'is_active',
         ]

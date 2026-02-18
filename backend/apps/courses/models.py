@@ -263,7 +263,6 @@ class Users_questions_answers(models.Model):
         return self.answer_id
 
 class PurchasedCourse(models.Model):
-    """Купленные курсы пользователя (courses_by_user)."""
 
     user = models.ForeignKey(
         User,

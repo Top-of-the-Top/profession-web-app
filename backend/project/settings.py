@@ -16,9 +16,6 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 
-
-
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -37,7 +34,7 @@ INSTALLED_APPS = [
     'apps.payments.apps.PaymentsConfig',
     'drf_spectacular',
     'storages',
-    'django_celery_results',
+    'django_celery_results', # Это табличка для результатов выполнения задач Celery
 ]
 USE_S3 = os.environ.get('USE_S3') == 'True'
 
@@ -197,12 +194,10 @@ STORAGES = {
     }
 }
 
-# URL'ы остаются ТАКИМИ ЖЕ
 MEDIA_URL = f'https://storage.yandexcloud.net/{os.getenv("AWS_S3_BUCKET_NAME")}/media/'
 STATIC_URL = f'https://storage.yandexcloud.net/{os.getenv("AWS_S3_BUCKET_NAME")}/static/'
 
 
-# ---------- Celery ----------
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_ACCEPT_CONTENT = ['json']

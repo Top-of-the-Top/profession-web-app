@@ -3,7 +3,7 @@ from ..users.models import User
 from ..courses.models import Course
 
 class Cart(models.Model):
-    card_id = models.AutoField(primary_key=True)
+    cart_id = models.AutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

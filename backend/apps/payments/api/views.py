@@ -15,7 +15,6 @@ from ...cart.models import Cart, CartItem
 from .serializers import (
     PaymentSerializer,
     PaymentShortSerializer,
-    PurchasedCourseSerializer,
 )
 
 
@@ -157,23 +156,3 @@ class PaymentDetailView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class PurchasedCoursesView(APIView):
-    """
-    GET /api/payments/purchased/
-
-    Список купленных курсов текущего пользователя.
-    """
-    permission_classes = (IsAuthenticated,)
-
-    @extend_schema(
-        summary='Купленные курсы',
-        description='Возвращает список купленных курсов с датой окончания доступа.',
-        responses={200: PurchasedCourseSerializer(many=True)},
-    )
-    def get(self, request):
-        purchased = PurchasedCourse.objects.filter(
-            user=request.user,
-        ).select_related('course', 'payment')
-
-        serializer = PurchasedCourseSerializer(purchased, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)

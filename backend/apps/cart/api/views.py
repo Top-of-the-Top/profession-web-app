@@ -8,6 +8,37 @@ from ...courses.models import Course
 from ..models import Cart, CartItem
 from .serializers import CartItemSerializer, CartSerializer
 
+SCHEMA_401 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Сообщение об ошибке аутентификации (например: учётные данные не переданы или токен недействителен).",
+            "example": "Authentication credentials were not provided.",
+        }
+    },
+}
+SCHEMA_404 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Ресурс не найден.",
+            "example": "Not found.",
+        }
+    },
+}
+SCHEMA_400_ERROR = {
+    "type": "object",
+    "properties": {
+        "error": {
+            "type": "string",
+            "description": "Описание ошибки валидации или бизнес-логики.",
+            "example": "Курс уже в корзине",
+        }
+    },
+}
+
 
 class CartView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -19,8 +50,8 @@ class CartView(APIView):
         responses={
             200: CartSerializer,
             401: {
-                "description": "Не авторизован",
-                "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
+                "description": "Не авторизован. Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
             },
         },
     )
@@ -40,16 +71,16 @@ class AddToCartView(APIView):
         responses={
             201: CartItemSerializer,
             400: {
-                "description": "Курс уже в корзине",
-                "schema": {"type": "object", "properties": {"error": {"type": "string"}}},
+                "description": "Курс уже в корзине.",
+                "schema": SCHEMA_400_ERROR,
             },
             401: {
-                "description": "Не авторизован",
-                "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
+                "description": "Не авторизован. Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
             },
             404: {
-                "description": "Курс с с таким slug не найден в списке курсов",
-                "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
+                "description": "Курс с таким slug не найден в списке курсов.",
+                "schema": SCHEMA_404,
             },
         },
         request=None
@@ -82,12 +113,12 @@ class CartItemView(APIView):
         responses={
             204: None,
             401: {
-                "description": "Не авторизован",
-                "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
+                "description": "Не авторизован. Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
             },
             404: {
-                "description": "Курс с таким slug не найден в корзине",
-                "schema": {"type": "object", "properties": {"detail": {"type": "string"}}},
+                "description": "Курс с таким slug не найден в корзине.",
+                "schema": SCHEMA_404,
             },
         },
     )

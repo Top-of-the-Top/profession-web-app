@@ -59,8 +59,9 @@ export default function AppLayout() {
         <img src="/profession-logo.svg" alt="Logo" className={styles.logo} />
         <div className={styles.topbarItem}>
           <Link className={styles.headerLink} to='/cart'><ShoppingCart width={'20px'} height={'20px'} /></Link>
-          <Link to="/profile" className={styles.headerLink}>
+          <Link to="profile" className={styles.headerLink}>
             <div className={styles.pfp}>
+							{/* TODO: НУЖНО ПОЛУЧАТЬ ОТ СЕРВЕРА */}
               <img src="/ya.svg" alt="Profile" />
             </div>
           </Link>
@@ -123,9 +124,7 @@ export default function AppLayout() {
         </div>
 
         <main className={styles.main}>
-          <div className={styles.appWrapper}>
-            <Outlet />
-          </div>
+          <Outlet />
         </main>
       </div>
     </div>

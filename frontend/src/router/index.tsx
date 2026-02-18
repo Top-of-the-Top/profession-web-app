@@ -9,6 +9,8 @@ import React from 'react';
 
 const renderRoutes = (routes: AppRoute[], basePath = '') =>
   routes.map(({ path, element, protected: isProtected, publicOnly, children }) => {
+    console.log(`Рендер маршрута: ${basePath + path}`, { isProtected, publicOnly });
+    
     let wrappedElement = element as React.JSX.Element;
 
     if (isProtected) wrappedElement = <ProtectedRoute>{wrappedElement}</ProtectedRoute>;

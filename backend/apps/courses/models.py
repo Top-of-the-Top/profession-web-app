@@ -5,6 +5,9 @@ from django.dispatch import receiver
 from rest_framework.exceptions import ValidationError
 from ..users.models import User
 from django.db.models import Sum
+import uuid
+from slugify import slugify
+
 
 DEFAULT_COURSE_IMAGE = "courses/default_course.png"
 
@@ -12,6 +15,17 @@ DEFAULT_COURSE_IMAGE = "courses/default_course.png"
 def course_image_path(instance, filename):
     ext = filename.split('.')[-1].lower()
     return f'courses/course_{instance.pk}.{ext}'
+
+
+def generate_unique_slug(instance, title, slug_field='slug'):
+    """Просто title slug + UUID - никаких проверок БД"""
+    base_slug = slugify(title[:80])
+    if not base_slug:
+        base_slug = 'title'
+
+    # Добавляем короткий UUID - 100% уникальность
+    uuid_part = str(uuid.uuid4()).split('-')[0][:8]  # первые 8 символов
+    return f"{base_slug}-{uuid_part}"
 
 
 class Course(models.Model):
@@ -38,18 +52,21 @@ class Course(models.Model):
         return f'https://storage.yandexcloud.net/{bucket}/{DEFAULT_COURSE_IMAGE}'
 
     def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = generate_unique_slug(self, self.title)
+            super().save(update_fields=['slug'])
+
         is_new = self.pk is None
-        
         if is_new and self.image and hasattr(self.image, 'file') and self.image.name != DEFAULT_COURSE_IMAGE:
             image_file = self.image.file
             original_name = getattr(self.image, 'name', 'image.jpg')
-            
+
             self.image = None
             super().save(*args, **kwargs)
-            
+
             ext = original_name.split('.')[-1].lower() if '.' in original_name else 'jpg'
             new_name = f'courses/course_{self.pk}.{ext}'
-            
+
             image_file.seek(0)
             self.image.save(new_name, image_file, save=False)
             super().save(update_fields=['image'])
@@ -82,7 +99,11 @@ def delete_course_image(sender, instance, **kwargs):
     if instance.image and instance.image.name != DEFAULT_COURSE_IMAGE:
         instance.image.delete(save=False)
 
-
+@receiver(pre_save, sender=Course)
+def generate_course_slug(sender, instance, **kwargs):
+    """Автогенерация slug для Course"""
+    if not instance.slug:
+        instance.slug = generate_unique_slug(instance, instance.title)
 
 class Lesson(models.Model):
     lesson_id = models.AutoField(primary_key=True)
@@ -93,6 +114,13 @@ class Lesson(models.Model):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = generate_unique_slug(self, self.title)
+            super().save(update_fields=['slug'])
+
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Урок'
@@ -108,6 +136,13 @@ class Homework(models.Model):
     deadline = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = generate_unique_slug(self, self.title)
+            super().save(update_fields=['slug'])
+
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Домашнее задание'

@@ -34,8 +34,10 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders', # для CORS. Разрешает браузерам делать запросы к API с других доменов
     'apps.courses.apps.CoursesConfig',
+    'apps.payments.apps.PaymentsConfig',
     'drf_spectacular',
-    'storages', # для облачных хранилищ
+    'storages',
+    'django_celery_results',
 ]
 USE_S3 = os.environ.get('USE_S3') == 'True'
 
@@ -65,10 +67,10 @@ from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': False,
-    'UPDATE_LAST_LOGIN': True,
+    # Настройки для безопасности
+    'ROTATE_REFRESH_TOKENS': True,  # При обновлении выдается новый refresh токен
+    'BLACKLIST_AFTER_ROTATION': False,  # True требует rest_framework_simplejwt.token_blacklist в INSTALLED_APPS
+    'UPDATE_LAST_LOGIN': True,  # Обновляет last_login при аутентификации
     
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
@@ -118,7 +120,7 @@ DATABASES = {
 SPECTACULAR_SETTINGS = {
     'TITLE': 'My Profession Web App API',
     'DESCRIPTION': 'API для вашего проекта',
-    'VERSION': '1.0.0',
+    'VERSION': '1.0.0',  # <--- Обязательное поле!
 }
 
 # Password validation
@@ -170,14 +172,14 @@ SERVER_EMAIL = os.environ.get('SERVER_EMAIL')
 # Настройки S3 Yandex Cloud Storage
 STORAGES = {
     "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
+        "BACKEND": "storages.backends.s3.S3Storage",  # ← Внимание: S3Storage, не S3Boto3Storage!
         "OPTIONS": {
             "access_key": os.getenv('AWS_ACCESS_KEY_ID'),
             "secret_key": os.getenv('AWS_SECRET_ACCESS_KEY'),
             "endpoint_url": os.getenv('AWS_S3_ENDPOINT_URL', 'https://storage.yandexcloud.net'),
             "bucket_name": os.getenv('AWS_S3_BUCKET_NAME'),
             "region_name": os.getenv('AWS_S3_REGION_NAME', 'ru-central1'),
-            "default_acl": "public-read-write",
+            "default_acl": "public-read-write",  # ← Лучше чем public-read-write
             "querystring_auth": False,
         },
     },
@@ -195,5 +197,16 @@ STORAGES = {
     }
 }
 
+# URL'ы остаются ТАКИМИ ЖЕ
 MEDIA_URL = f'https://storage.yandexcloud.net/{os.getenv("AWS_S3_BUCKET_NAME")}/media/'
 STATIC_URL = f'https://storage.yandexcloud.net/{os.getenv("AWS_S3_BUCKET_NAME")}/static/'
+
+
+# ---------- Celery ----------
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True

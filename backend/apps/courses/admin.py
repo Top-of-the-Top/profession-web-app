@@ -1,4 +1,4 @@
-from .models import Course, Lesson, Homework, Task, Question, Users_tasks_answers, Users_Homeworks_Attempts, Users_questions_answers
+from .models import Course, Lesson, Homework, Task, Question, Users_tasks_answers, Users_Homeworks_Attempts, Users_questions_answers, PurchasedCourse
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -64,6 +64,9 @@ class TaskAnswerAdmin(admin.ModelAdmin):
     pass
 
 
-
-
+@admin.register(PurchasedCourse)
+class PurchasedCourseAdmin(admin.ModelAdmin):
+    list_display = ('user', 'course', 'payment', 'access_expires_at', 'is_active')
+    list_filter = ('access_expires_at',)
+    search_fields = ('user__email_cipher', 'course__title')
 

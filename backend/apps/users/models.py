@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.contrib.auth.hashers import make_password, check_password
+from django.dispatch import receiver
+from django.db.models.signals import pre_delete, pre_save
+import os
 
 
 class UserManager(BaseUserManager):
@@ -118,4 +121,79 @@ class User(AbstractUser):
     return f'User #{self.id}'
 
 
+DEFAULT_PROFILE_IMAGE = "users/default_photo_user.png"
 
+
+def profile_image_path(instance, filename):
+  ext = filename.split('.')[-1].lower()
+  return f'users/profile_{instance.pk}.{ext}'
+
+
+class Profile(models.Model):
+  GENDER_CHOICES = (
+    ('М', 'Мужской'),
+    ('Ж', 'Женский'),
+  )
+
+  user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+  profile_id = models.AutoField(primary_key=True)
+  birthday = models.DateField(null=True, blank=True)
+  gender = models.CharField(choices=GENDER_CHOICES, null=True, blank=True)
+  avatar = models.ImageField(
+    upload_to=profile_image_path,
+    blank=True,
+    null=True,
+    verbose_name='Аватар',
+    default=DEFAULT_PROFILE_IMAGE,
+  )
+
+  @property
+  def avatar_url(self):
+    if self.avatar and self.avatar.name != DEFAULT_PROFILE_IMAGE:
+      return self.avatar.url
+    bucket = os.getenv("AWS_S3_BUCKET_NAME", "your-bucket")
+    return f'https://storage.yandexcloud.net/{bucket}/{DEFAULT_PROFILE_IMAGE}'
+
+  def save(self, *args, **kwargs):
+    is_new = self.pk is None
+    if is_new and self.avatar and hasattr(self.avatar, 'file') and self.avatar.name != DEFAULT_PROFILE_IMAGE:
+      image_file = self.avatar.file
+      original_name = getattr(self.avatar, 'name', 'image.jpg')
+      
+      self.avatar = None
+      super().save(*args, **kwargs)
+
+      ext = original_name.split('.')[-1].lower() if '.' in original_name else 'jpg'
+      new_name = f'users/profile_{self.pk}.{ext}'
+
+      image_file.seek(0)
+      self.avatar.save(new_name, image_file, save=False)
+      super().save(update_fields=['avatar'])
+    else:
+      super().save(*args, **kwargs)
+  
+  class Meta:
+    verbose_name = 'Учетная запись'
+    verbose_name_plural = 'Учетная запись'
+    ordering = ['-user__date_joined']
+    
+  def __str__(self):
+    return f'Profile #{self.profile_id}'
+  
+@receiver(pre_save, sender=Profile)
+def handle_profile_image_update(sender, instance, **kwargs):
+  if not instance.pk:
+    return
+
+  try:
+    old_instance = sender.objects.get(pk=instance.pk)
+    if (old_instance.avatar and old_instance.avatar.name != DEFAULT_PROFILE_IMAGE and
+        instance.avatar and instance.avatar != old_instance.avatar):
+      old_instance.avatar.delete(save=False)
+  except sender.DoesNotExist:
+    pass
+
+@receiver(pre_delete, sender=Profile)
+def delete_profile_image(sender, instance, **kwargs):
+  if instance.avatar and instance.avatar.name != DEFAULT_PROFILE_IMAGE:
+    instance.avatar.delete(save=False)

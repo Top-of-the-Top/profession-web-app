@@ -19,14 +19,6 @@ from .serializers import (
 
 
 class CartPayView(APIView):
-    """
-    POST /api/cart/pay/
-
-    Создаёт платёж из текущей корзины пользователя.
-    Курсы из корзины фиксируются в PaymentItem.
-    Оплата обрабатывается асинхронно через Celery.
-    Возвращает объект Payment с mock_payment_url для редиректа на оплату.
-    """
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -68,16 +60,16 @@ class CartPayView(APIView):
             )
 
         with transaction.atomic():
-            total_sum = sum(
+            total_sum = sum( # Считаем сумму по всем элементам корзины
                 Decimal(item.course_id.price) for item in cart_items
             )
 
-            payment = Payment.objects.create(
+            payment = Payment.objects.create( # Инициализируем платеж
                 user=request.user,
                 total_sum=total_sum,
             )
 
-            payment_items = [
+            payment_items = [ # Инициализируем курсы в платеже
                 PaymentItem(
                     payment=payment,
                     course=item.course_id,
@@ -85,7 +77,7 @@ class CartPayView(APIView):
                 )
                 for item in cart_items
             ]
-            PaymentItem.objects.bulk_create(payment_items)
+            PaymentItem.objects.bulk_create(payment_items) # Создаем коллекцию объектов payment item
 
         yookassa_response = MockYooKassaService.create_payment(
             amount=payment.total_sum,
@@ -96,7 +88,7 @@ class CartPayView(APIView):
         payment.mock_payment_url = yookassa_response.confirmation_url
         payment.save(update_fields=['mock_payment_url', 'updated_at'])
 
-        process_payment_task.apply_async(
+        process_payment_task.apply_async( # создаем асинхронную задачу для асинхронного менеджера задач celery
             args=[payment.payment_id],
             countdown=5,
         )
@@ -106,11 +98,7 @@ class CartPayView(APIView):
 
 
 class PaymentListView(APIView):
-    """
-    GET /api/payments/
 
-    Список всех платежей текущего пользователя.
-    """
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -125,11 +113,6 @@ class PaymentListView(APIView):
 
 
 class PaymentDetailView(APIView):
-    """
-    GET /api/payments/<payment_id>/
-
-    Детальная информация о платеже с позициями.
-    """
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(

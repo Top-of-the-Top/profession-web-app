@@ -117,7 +117,7 @@ DATABASES = {
 SPECTACULAR_SETTINGS = {
     'TITLE': 'My Profession Web App API',
     'DESCRIPTION': 'API для вашего проекта',
-    'VERSION': '1.0.0',  # <--- Обязательное поле!
+    'VERSION': '1.0.0',
 }
 
 # Password validation
@@ -169,14 +169,14 @@ SERVER_EMAIL = os.environ.get('SERVER_EMAIL')
 # Настройки S3 Yandex Cloud Storage
 STORAGES = {
     "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",  # ← Внимание: S3Storage, не S3Boto3Storage!
+        "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
             "access_key": os.getenv('AWS_ACCESS_KEY_ID'),
             "secret_key": os.getenv('AWS_SECRET_ACCESS_KEY'),
             "endpoint_url": os.getenv('AWS_S3_ENDPOINT_URL', 'https://storage.yandexcloud.net'),
             "bucket_name": os.getenv('AWS_S3_BUCKET_NAME'),
             "region_name": os.getenv('AWS_S3_REGION_NAME', 'ru-central1'),
-            "default_acl": "public-read-write",  # ← Лучше чем public-read-write
+            "default_acl": "public-read-write",
             "querystring_auth": False,
         },
     },

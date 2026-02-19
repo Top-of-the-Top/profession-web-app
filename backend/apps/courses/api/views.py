@@ -89,7 +89,7 @@ class CourseDetail(RetrieveAPIView):
     @extend_schema(
         summary="Детали курса",
         description="Полная информация о курсе по slug",
-        tags=["Courses"],
+        tags=["courses"],
         parameters=[
             OpenApiParameter(
                 name='slug',

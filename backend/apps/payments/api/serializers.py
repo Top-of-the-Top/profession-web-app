@@ -35,7 +35,6 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 
 class PaymentShortSerializer(serializers.ModelSerializer):
-    """Краткий сериализатор для списка платежей."""
     status_display = serializers.CharField(
         source='get_status_display',
         read_only=True,

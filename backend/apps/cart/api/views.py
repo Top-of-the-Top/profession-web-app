@@ -87,23 +87,26 @@ class AddToCartView(APIView):
 
     def post(self, request, slug):
         cart, _ = Cart.objects.get_or_create(user=request.user)
-
-        if CartItem.objects.filter(cart=cart, course__slug=slug).exists():
-            return Response(
-                {'error': 'Курс уже в корзине'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         course = Course.objects.filter(slug=slug).first()
+
         if course is None:
             return Response(
                 {'detail': 'Курс с таким slug не найден в списке курсов.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = self.get_serializer(data={'cart': cart.id, 'course': course.id})
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        if CartItem.objects.filter(cart_id=cart.cart_id, course_id=course.course_id).exists():
+            return Response(
+                {'error': 'Курс уже в корзине'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cart_item = CartItem.objects.create(
+            cart_id=cart,
+            course_id=course,
+        )
+
+        serializer = CartItemSerializer(cart_item)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -130,7 +133,13 @@ class CartItemView(APIView):
 
     def delete(self, request, slug):
         cart, _ = Cart.objects.get_or_create(user=request.user)
-        cart_item = CartItem.objects.filter(cart=cart, course__slug=slug).first()
+        course = Course.objects.get(slug=slug)
+        cart_item = CartItem.objects.filter(
+            cart_id=cart,
+            course_id=course
+        ).first()
+
+
         if cart_item is None:
             return Response(
                 {'detail': 'Курс с таким slug не найден в корзине.'},

@@ -2,8 +2,9 @@ from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from ..models import Course
-from .serializers import CourseDTOSerializer, CourseSerializer
+from rest_framework.views import APIView
+from ..models import Course, PurchasedCourse
+from .serializers import CourseDTOSerializer, CourseSerializer, PurchasedCourseSerializer
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
@@ -88,7 +89,7 @@ class CourseDetail(RetrieveAPIView):
     @extend_schema(
         summary="Детали курса",
         description="Полная информация о курсе по slug",
-        tags=["Courses"],
+        tags=["courses"],
         parameters=[
             OpenApiParameter(
                 name='slug',
@@ -118,3 +119,25 @@ class CourseDetail(RetrieveAPIView):
             )
         serializer = self.get_serializer(course)
         return Response({'course': serializer.data})
+
+
+class PurchasedCoursesView(APIView):
+    """
+    GET /api/courses/purchased/
+
+    Список купленных курсов текущего пользователя.
+    """
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary='Купленные курсы',
+        description='Возвращает список купленных курсов с датой окончания доступа.',
+        responses={200: PurchasedCourseSerializer(many=True)},
+    )
+    def get(self, request):
+        purchased = PurchasedCourse.objects.filter(
+            user=request.user,
+        ).select_related('course', 'payment')
+
+        serializer = PurchasedCourseSerializer(purchased, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -17,3 +17,6 @@ boto3==1.34.130
 dj_database_url
 drf_yasg
 python-slugify
+celery>=5.3
+redis>=5.0
+django-celery-results>=2.5

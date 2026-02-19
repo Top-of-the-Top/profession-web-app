@@ -18,13 +18,11 @@ def course_image_path(instance, filename):
 
 
 def generate_unique_slug(instance, title, slug_field='slug'):
-    """Просто title slug + UUID - никаких проверок БД"""
     base_slug = slugify(title[:80])
     if not base_slug:
         base_slug = 'title'
 
-    # Добавляем короткий UUID - 100% уникальность
-    uuid_part = str(uuid.uuid4()).split('-')[0][:8]  # первые 8 символов
+    uuid_part = str(uuid.uuid4()).split('-')[0][:8]
     return f"{base_slug}-{uuid_part}"
 
 
@@ -99,11 +97,6 @@ def delete_course_image(sender, instance, **kwargs):
     if instance.image and instance.image.name != DEFAULT_COURSE_IMAGE:
         instance.image.delete(save=False)
 
-@receiver(pre_save, sender=Course)
-def generate_course_slug(sender, instance, **kwargs):
-    """Автогенерация slug для Course"""
-    if not instance.slug:
-        instance.slug = generate_unique_slug(instance, instance.title)
 
 class Lesson(models.Model):
     lesson_id = models.AutoField(primary_key=True)
@@ -268,6 +261,40 @@ class Users_questions_answers(models.Model):
 
     def __str__(self):
         return self.answer_id
+
+class PurchasedCourse(models.Model):
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='purchased_courses',
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='purchases',
+    )
+    payment = models.ForeignKey(
+        'payments.Payment',
+        on_delete=models.CASCADE,
+        related_name='purchased_courses',
+    )
+    access_expires_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'courses_by_user'
+        verbose_name = 'Купленный курс'
+        verbose_name_plural = 'Купленные курсы'
+        unique_together = ('user', 'course')
+
+    def __str__(self):
+        return f'{self.user} → {self.course}'
+
+    @property
+    def is_active(self):
+        from django.utils import timezone
+        return timezone.now() < self.access_expires_at
+
 
 class Users_tasks_answers(models.Model):
     TASK_STATUS_CHOICES = [

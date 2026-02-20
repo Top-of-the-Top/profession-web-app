@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
             name='CartItem',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cart_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='cart.cart')),
+                ('cart_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='carts.carts')),
                 ('course_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.course')),
             ],
             options={
@@ -37,8 +37,8 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.AddField(
-            model_name='cart',
+            model_name='carts',
             name='courses',
-            field=models.ManyToManyField(through='cart.CartItem', to='courses.course'),
+            field=models.ManyToManyField(through='carts.CartItem', to='courses.course'),
         ),
     ]

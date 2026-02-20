@@ -11,12 +11,11 @@ import { useState, useContext } from 'react';
 import {
   Field,
   FieldGroup,
-  FieldLabel,
+  FieldLabel, Input
 } from '../../../shared/ui';
 
 import { ArrowRight } from 'lucide-react';
 import { cn } from '../../../shared/lib/utils';
-import Input from '../../../shared/ui/Input/Input';
 import styles from './RegistrationPage.module.css';
 import { registerUser } from '../api';
 import { Link, useNavigate } from 'react-router-dom';
@@ -68,7 +67,7 @@ export default function RegistrationForm({
       <div className={styles.loginWrapper}>
         <img
           className={styles.logo}
-          src="landing/profession-logo.svg"
+          src="profession-logo.svg"
           alt=""
         />
         <Card className={styles.card}>

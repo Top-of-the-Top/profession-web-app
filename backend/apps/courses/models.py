@@ -5,6 +5,9 @@ from django.dispatch import receiver
 from rest_framework.exceptions import ValidationError
 from ..users.models import User
 from django.db.models import Sum
+import uuid
+from slugify import slugify
+
 
 DEFAULT_COURSE_IMAGE = "courses/default_course.png"
 
@@ -12,6 +15,15 @@ DEFAULT_COURSE_IMAGE = "courses/default_course.png"
 def course_image_path(instance, filename):
     ext = filename.split('.')[-1].lower()
     return f'courses/course_{instance.pk}.{ext}'
+
+
+def generate_unique_slug(instance, title, slug_field='slug'):
+    base_slug = slugify(title[:80])
+    if not base_slug:
+        base_slug = 'title'
+
+    uuid_part = str(uuid.uuid4()).split('-')[0][:8]
+    return f"{base_slug}-{uuid_part}"
 
 
 class Course(models.Model):
@@ -38,18 +50,21 @@ class Course(models.Model):
         return f'https://storage.yandexcloud.net/{bucket}/{DEFAULT_COURSE_IMAGE}'
 
     def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = generate_unique_slug(self, self.title)
+            super().save(update_fields=['slug'])
+
         is_new = self.pk is None
-        
         if is_new and self.image and hasattr(self.image, 'file') and self.image.name != DEFAULT_COURSE_IMAGE:
             image_file = self.image.file
             original_name = getattr(self.image, 'name', 'image.jpg')
-            
+
             self.image = None
             super().save(*args, **kwargs)
-            
+
             ext = original_name.split('.')[-1].lower() if '.' in original_name else 'jpg'
             new_name = f'courses/course_{self.pk}.{ext}'
-            
+
             image_file.seek(0)
             self.image.save(new_name, image_file, save=False)
             super().save(update_fields=['image'])
@@ -83,7 +98,6 @@ def delete_course_image(sender, instance, **kwargs):
         instance.image.delete(save=False)
 
 
-
 class Lesson(models.Model):
     lesson_id = models.AutoField(primary_key=True)
     course_id = models.ForeignKey(Course, on_delete=models.CASCADE)
@@ -93,6 +107,13 @@ class Lesson(models.Model):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = generate_unique_slug(self, self.title)
+            super().save(update_fields=['slug'])
+
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Урок'
@@ -108,6 +129,13 @@ class Homework(models.Model):
     deadline = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = generate_unique_slug(self, self.title)
+            super().save(update_fields=['slug'])
+
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Домашнее задание'
@@ -233,6 +261,40 @@ class Users_questions_answers(models.Model):
 
     def __str__(self):
         return self.answer_id
+
+class PurchasedCourse(models.Model):
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='purchased_courses',
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='purchases',
+    )
+    payment = models.ForeignKey(
+        'payments.Payment',
+        on_delete=models.CASCADE,
+        related_name='purchased_courses',
+    )
+    access_expires_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'courses_by_user'
+        verbose_name = 'Купленный курс'
+        verbose_name_plural = 'Купленные курсы'
+        unique_together = ('user', 'course')
+
+    def __str__(self):
+        return f'{self.user} → {self.course}'
+
+    @property
+    def is_active(self):
+        from django.utils import timezone
+        return timezone.now() < self.access_expires_at
+
 
 class Users_tasks_answers(models.Model):
     TASK_STATUS_CHOICES = [

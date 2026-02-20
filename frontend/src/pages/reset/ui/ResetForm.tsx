@@ -7,13 +7,8 @@ import {
   CardTitle,
 } from '../../../shared/ui';
 import { useState } from 'react';
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-} from '../../../shared/ui';
+import { Field, FieldGroup, FieldLabel, Input } from '../../../shared/ui';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
-import Input from '../../../shared/ui/Input/Input';
 import styles from './ResetPage.module.css';
 import { Link, useNavigate } from 'react-router-dom';
 import { resetUser } from '../api';
@@ -33,10 +28,11 @@ export default function ResetForm({
     setLoading(true);
 
     const form = e.currentTarget as HTMLFormElement;
-    const emailOrPhone = (form.elements.namedItem('email') as HTMLInputElement).value;
+    const emailOrPhone = (form.elements.namedItem('email') as HTMLInputElement)
+      .value;
 
     const validation = validateEmailOrPhone(emailOrPhone);
-    
+
     if (!validation.isValid) {
       toast.error('Введите корректный email или номер телефона');
       setLoading(false);
@@ -45,14 +41,16 @@ export default function ResetForm({
 
     try {
       await resetUser({ emailOrPhone });
-      
-      toast.success('Ссылка для сброса пароля отправлена на вашу почту или телефон', {
-        duration: 5000,
-        icon: <CheckCircle2 className={styles.toastSuccessIcon} />,
-      });
-      
+
+      toast.success(
+        'Ссылка для сброса пароля отправлена на вашу почту или телефон',
+        {
+          duration: 5000,
+          icon: <CheckCircle2 className={styles.toastSuccessIcon} />,
+        }
+      );
+
       setSuccess(true);
-      
     } catch (err: any) {
       if (err.response?.status === 400) {
         toast.error('Некорректные данные. Проверьте введенные данные');
@@ -114,7 +112,9 @@ export default function ResetForm({
                       className={styles.input}
                       disabled={loading}
                     />
-                    <CardDescription style={{ fontSize: '12px', marginTop: '4px' }}>
+                    <CardDescription
+                      style={{ fontSize: '12px', marginTop: '4px' }}
+                    >
                       Например: example@email.com или +79991234567
                     </CardDescription>
                   </Field>
@@ -142,8 +142,8 @@ export default function ResetForm({
         </Card>
         <div className={styles.copyright}>&copy; 2026 Профессия</div>
       </div>
-      
-      <Toaster 
+
+      <Toaster
         position="top-center"
         toastOptions={{
           duration: 4000,

@@ -26,23 +26,6 @@ services:
       - media_volume:/app/media
     ports:
       - "${BACKEND_PORT:-8000}:8000"
-    command: |
-      sh -c "
-      echo 'Waiting for DATABASE...'
-      until python - <<'PYEND'
-      import os,sys
-      import psycopg
-      try:
-          psycopg.connect(os.environ['DATABASE_URL'])
-          sys.exit(0)
-      except Exception:
-          sys.exit(1)
-      PYEND
-      do sleep 2; echo '.'; done
-      python manage.py migrate --noinput
-      python manage.py collectstatic --noinput
-      exec python manage.py runserver 0.0.0.0:$${BACKEND_PORT:-8000}
-      "
     networks:
       - app_network
 
@@ -72,7 +55,6 @@ services:
 
 
 volumes:
-  postgres_data_profession:
   static_volume:
   media_volume:
   frontend_node_modules:

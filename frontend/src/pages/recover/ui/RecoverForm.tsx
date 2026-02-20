@@ -10,10 +10,9 @@ import { useState } from 'react';
 import {
   Field,
   FieldGroup,
-  FieldLabel,
+  FieldLabel,Input
 } from '../../../shared/ui';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
-import Input from '../../../shared/ui/Input/Input';
 import styles from './RecoverPage.module.css';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { resetPassword } from '../api';

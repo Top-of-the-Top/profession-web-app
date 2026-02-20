@@ -11,7 +11,7 @@ export const PublicRoute = ({ children }: { children: React.JSX.Element }) => {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/admin/home" replace />;
+    return <Navigate to="/app/home" replace />;
   }
 
   return children;

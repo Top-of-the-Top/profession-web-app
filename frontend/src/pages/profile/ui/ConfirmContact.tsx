@@ -33,7 +33,6 @@ export default function ConfirmContact({
   const descriptions = {
     input: `Введите ${type === 'email' ? 'свой адрес почты' : 'свой номер телефона'} для подтверждения`,
 		code: `Введите код, который мы отправили Вам, чтобы подтвердить ${type === 'email' ? 'адрес почты' : 'номер телефона'}`,
-    // code: `Введите код, который мы отправили ${type === 'email' ? 'на почту' : 'в СМС'}${contact ? `: ${contact}` : ''}`,
     success:
       type === 'email'
         ? 'Почта успешно подтверждена'
@@ -208,11 +207,6 @@ export default function ConfirmContact({
         </div>
       )}
 
-      {/* {step === 'success' && (
-        <div className={styles.successState}>
-          <p className={styles.successText}>{descriptions.success}</p>
-        </div>
-      )} */}
     </div>
   );
 }

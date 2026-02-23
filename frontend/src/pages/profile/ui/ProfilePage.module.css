@@ -220,3 +220,16 @@
 .SelectItem:hover {
   background-color: #DBDBE0;
 }
+.fieldAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.fieldAvatarFallback {
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--primary-color, #3b82f6);
+  color: white;
+}

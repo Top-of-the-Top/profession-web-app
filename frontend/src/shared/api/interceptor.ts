@@ -14,34 +14,26 @@ export class ApiClient {
     token?: string,
     isFormData?: boolean
   ): HeadersInit {
-    // Создаем объект заголовков с правильной типизацией
     const headers: Record<string, string> = {};
     
-    // Копируем кастомные заголовки, если они есть
     if (customHeaders) {
       if (customHeaders instanceof Headers) {
-        // Если это объект Headers, конвертируем в Record
         customHeaders.forEach((value, key) => {
           headers[key] = value;
         });
       } else if (Array.isArray(customHeaders)) {
-        // Если это массив массивов
         customHeaders.forEach(([key, value]) => {
           headers[key] = value;
         });
       } else {
-        // Если это обычный объект
         Object.assign(headers, customHeaders);
       }
     }
     
-    // Добавляем токен авторизации
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    // Добавляем Content-Type только если это НЕ FormData
-    // и если заголовок еще не установлен
     if (!isFormData && !headers['Content-Type']) {
       headers['Content-Type'] = 'application/json';
     }
@@ -81,7 +73,6 @@ export class ApiClient {
     const url = `${API_URL}${endpoint}`;
     const accessToken = localStorage.getItem('access_token');
     
-    // Проверяем, является ли тело FormData
     const isFormData = options.body instanceof FormData;
 
     let response = await fetch(url, {

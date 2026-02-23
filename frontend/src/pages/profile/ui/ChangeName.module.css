@@ -1,25 +1,25 @@
 .container {
   width: 100%;
-	display: none;
+  display: none;
   max-width: 480px;
   padding: 24px;
   background-color: var(--background);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
-	z-index: 120;
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
+  z-index: 120;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 .formVisible {
-	display: block;
+  display: block;
 }
 
 .titleHeader {
-	border-bottom: 1px solid rgb(226, 226, 226);
-	margin: 0 0 24px 0;
+  border-bottom: 1px solid rgb(226, 226, 226);
+  margin: 0 0 24px 0;
 }
 
 .title {
@@ -58,8 +58,6 @@
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
-
-
 
 .header {
   display: flex;
@@ -148,8 +146,6 @@
   transition: all 0.2s ease;
 }
 
-
-
 .saveButton:hover {
   transform: scale(1.01) !important;
 }
@@ -173,7 +169,6 @@
     padding-bottom: 20px;
   }
 }
-
 
 .avatarContainer {
   position: relative;

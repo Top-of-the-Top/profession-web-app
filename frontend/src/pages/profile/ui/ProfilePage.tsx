@@ -7,22 +7,20 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
 } from '../../../shared/ui';
-import {
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  Pencil,
-  Plus,
-  Venus,
-  Mars,
-} from 'lucide-react';
+import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars } from 'lucide-react';
 import styles from './ProfilePage.module.css';
 import { cn } from '../../../shared/lib/utils';
 import ChangeName from './ChangeName';
 import ConfirmContact from './ConfirmContact';
-import { profileApi, type ProfileData, type UpdateProfilePayload } from '../../../shared/api/profileApi';
+import {
+  profileApi,
+  type ProfileData,
+  type UpdateProfilePayload,
+} from '../../../shared/api/profileApi';
 
 interface ProfileFieldProps {
   icon: React.ReactNode;
@@ -55,19 +53,20 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const [isChangeNameMenuOpen, setChangeMenuOpen] = useState(false);
   const [isEmailMenuOpen, setEmailMenuOpen] = useState(false);
   const [isPhoneMenuOpen, setPhoneMenuOpen] = useState(false);
   const [gender, setGender] = useState<string | null>(null);
 
-  // --- Загрузка профиля ---
   useEffect(() => {
     profileApi
       .getProfile()
       .then((data) => {
         setProfile(data);
         setGender(data.gender === 'Мужской' ? 'Мужской' : 'Женский');
+        setAvatarUrl(data.avatar);
       })
       .catch((err) => {
         console.error(err);
@@ -87,7 +86,6 @@ export default function ProfilePage() {
     }
   };
 
-  // --- Меню модалок ---
   const toggleNameMenu = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     setChangeMenuOpen((prev) => !prev);
@@ -112,42 +110,41 @@ export default function ProfilePage() {
   if (error) return <div>{error}</div>;
   if (!profile) return <div>Профиль недоступен</div>;
 
-  // --- Обработчики сохранения ---
-  const handleNameSave = async (data: { 
-  firstName: string; 
-  lastName: string;
-  avatar?: File | null;
-}) => {
-  try {
-    const updateData: UpdateProfilePayload = {
-      first_name: data.firstName,
-      last_name: data.lastName,
-    };
-    
-    // Если есть новый файл аватара, добавляем его
-    if (data.avatar instanceof File) {
-      updateData.avatar = data.avatar;
+  const handleNameSave = async (data: {
+    firstName: string;
+    lastName: string;
+    avatar?: File | null;
+  }) => {
+    try {
+      const updateData: UpdateProfilePayload = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+      };
+
+      if (data.avatar instanceof File) {
+        updateData.avatar = data.avatar;
+        const tempUrl = URL.createObjectURL(data.avatar);
+        setAvatarUrl(tempUrl);
+      }
+
+      await profileApi.updateProfile(updateData);
+
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              first_name: data.firstName,
+              last_name: data.lastName,
+            }
+          : prev
+      );
+
+      setChangeMenuOpen(false);
+    } catch (err) {
+      console.error('Ошибка обновления имени', err);
+      setAvatarUrl(profile.avatar);
     }
-    // Если avatar === null (удален), отправляем null
-    else if (data.avatar === null) {
-      updateData.avatar = null;
-    }
-    
-    await profileApi.updateProfile(updateData);
-    
-    setProfile((prev) => prev ? { 
-      ...prev, 
-      first_name: data.firstName, 
-      last_name: data.lastName,
-      // Если аватар обновлен, нужно обновить и его
-      ...(data.avatar && { avatar: URL.createObjectURL(data.avatar) })
-    } : prev);
-    
-    setChangeMenuOpen(false);
-  } catch (err) {
-    console.error('Ошибка обновления имени', err);
-  }
-};
+  };
 
   const handleContactSave = async (
     { contact }: { contact: string },
@@ -170,6 +167,12 @@ export default function ProfilePage() {
     }
   };
 
+  const getInitials = () => {
+    const first = profile.first_name?.[0] || '';
+    const last = profile.last_name?.[0] || '';
+    return (first + last).toUpperCase() || 'U';
+  };
+
   return (
     <div className={styles.profilePage}>
       {anyMenuOpen && (
@@ -182,7 +185,7 @@ export default function ProfilePage() {
         onSave={handleNameSave}
         currentFirstName={profile.first_name || ''}
         currentLastName={profile.last_name || ''}
-        currentAvatar={profile.avatar}
+        currentAvatar={avatarUrl}
       />
       <ConfirmContact
         type="email"
@@ -201,22 +204,34 @@ export default function ProfilePage() {
         <h1 className={styles.profilePageTitle}>Личный кабинет</h1>
         <Card className={styles.profilePageCard}>
           <CardContent className={styles.profilePageContent}>
-            {/* Имя и Фамилия */}
             <div className={styles.profileSection}>
-              <ProfileField
-                icon={<User size={20} />}
-                label="Имя и Фамилия"
-                value={`${profile.first_name ?? ''} ${profile.last_name ?? ''}`}
-                onClick={toggleNameMenu}
-                actionButton={
+              <div className={styles.profileField} onClick={toggleNameMenu}>
+                <div className={styles.profileFieldContent}>
+                  <div className={styles.profileFieldIcon}>
+                    <Avatar className={styles.fieldAvatar}>
+                      <AvatarImage src={avatarUrl || ''} />
+                      <AvatarFallback className={styles.fieldAvatarFallback}>
+                        {getInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className={styles.profileFieldInfo}>
+                    <span className={styles.profileFieldLabel}>
+                      Имя и Фамилия
+                    </span>
+                    <span className={styles.profileFieldValue}>
+                      {`${profile.first_name ?? ''} ${profile.last_name ?? ''}`}
+                    </span>
+                  </div>
+                </div>
+                <div className={styles.profileFieldAction}>
                   <Button variant="ghost" size="icon" onClick={toggleNameMenu}>
                     <Pencil size={16} />
                   </Button>
-                }
-              />
+                </div>
+              </div>
             </div>
 
-            {/* Контакты */}
             <div className={styles.profileSection}>
               <h2 className={styles.profileSectionTitle}>Контакты</h2>
               <ProfileField
@@ -243,7 +258,6 @@ export default function ProfilePage() {
               />
             </div>
 
-            {/* Дополнительно */}
             <div className={styles.profileSection}>
               <h2 className={styles.profileSectionTitle}>
                 Дополнительные данные
@@ -259,7 +273,6 @@ export default function ProfilePage() {
                 }
               />
 
-              {/* Пол */}
               <Select value={gender ?? ''} onValueChange={updateGender}>
                 <SelectTrigger
                   className={cn(styles.profileField, styles.genderTrigger)}

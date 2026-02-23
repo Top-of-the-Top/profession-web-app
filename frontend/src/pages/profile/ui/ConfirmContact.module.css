@@ -18,7 +18,6 @@
   z-index: 120;
 }
 
-/* Убираем старые лишние стили */
 .formVisible {
   display: block;
 }
@@ -37,7 +36,6 @@
   text-align: left;
 }
 
-/* 👇 НОВОЕ: Описание под заголовком */
 .description {
   font-size: 14px;
   color: var(--muted-foreground);
@@ -157,13 +155,11 @@
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
-/* 👇 НОВОЕ: Disabled состояние */
 .input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* 👇 НОВОЕ: Текст ошибки */
 .errorText {
   font-size: 13px;
   color: #ef4444;
@@ -191,14 +187,12 @@
   transform: translateY(0);
 }
 
-/* 👇 НОВОЕ: Disabled состояние кнопки */
 .saveButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none !important;
 }
 
-/* 👇 НОВОЕ: Группа кнопок (Назад + Подтвердить) */
 .buttonGroup {
   display: flex;
   gap: 12px;
@@ -222,7 +216,6 @@
   color: var(--accent-foreground);
 }
 
-/* 👇 НОВОЕ: Состояние успеха */
 .successState {
   display: flex;
   flex-direction: column;

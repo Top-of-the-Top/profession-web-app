@@ -1,6 +1,3 @@
-// ChangeName.tsx
-'use client';
-
 import { useState, type ChangeEvent, useRef } from 'react';
 import { Button, Input, Label, Avatar, AvatarFallback, AvatarImage } from '../../../shared/ui';
 import { X, Camera } from 'lucide-react';
@@ -39,7 +36,6 @@ export default function ChangeName({
     if (file) {
       setAvatarFile(file);
       
-      // Создаем превью для отображения
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string);
@@ -60,7 +56,6 @@ export default function ChangeName({
     });
   };
 
-  // Сброс формы при открытии/закрытии
   const handleClose = () => {
     setFirstName(currentFirstName);
     setLastName(currentLastName);
@@ -74,7 +69,6 @@ export default function ChangeName({
 
   return (
     <div className={cn(styles.container, isVisible ? styles.formVisible : '')}>
-      {/* Кнопка закрытия */}
       <div className={styles.titleHeader}>
         {onClose && (
           <button 
@@ -99,7 +93,6 @@ export default function ChangeName({
           </Avatar>
         </div>
         
-        {/* Скрытый input для выбора файла */}
         <input
           ref={fileInputRef}
           type="file"

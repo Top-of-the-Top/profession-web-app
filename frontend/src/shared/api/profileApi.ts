@@ -47,11 +47,11 @@ export const profileApi = {
     return apiClient.request<{ status: 'success' }>('/api/app/profile/', {
       method: 'PATCH',
       body: formData,
-      // Не указываем Content-Type - браузер выставит сам
     });
   },
+
+	// ПОКА НЕ ИСПОЛЬЗУЕТСЯ
   
-  // Если нужна загрузка аватара, создайте отдельный метод
   updateAvatar(file: File): Promise<{ status: 'success' }> {
     const formData = new FormData();
     formData.append('avatar', file);
@@ -59,7 +59,6 @@ export const profileApi = {
     return apiClient.request<{ status: 'success' }>('/api/app/profile/', {
       method: 'PATCH',
       body: formData,
-      // Не указываем Content-Type - браузер сам выставит правильный с boundary
     });
   },
 };

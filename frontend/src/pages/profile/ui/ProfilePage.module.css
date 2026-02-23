@@ -13,10 +13,10 @@
 
 .profilePage {
   width: 100%;
-  min-height: 100vh;
+  min-height: 100%;
   background-color: #E2E8F0;
   padding: 20px;
-  position: relative;
+  /* position: relative; */
 }
 .wrapper {
   position: relative;
@@ -78,6 +78,7 @@
   background-color: #EEEEF0;
   border-radius: 12px;
   margin-bottom: 12px;
+	cursor: pointer;
   transition: background-color 0.3s;
 }
 
@@ -94,7 +95,12 @@
   align-items: center;
   gap: 16px;
   flex: 1;
+	
 }
+
+
+
+
 
 .profileFieldIcon {
   display: flex;
@@ -174,4 +180,43 @@
     width: 36px;
     height: 36px;
   }
+}
+
+.profileFieldInfo {
+	text-align: left;
+	/* padding: 16px; */
+}
+
+.genderTrigger {
+  width: 100%;
+  height: 72px !important;
+  padding: 16px !important; /* совпадает с profileField */
+  border-radius: 12px;
+  background-color: #EEEEF0;
+  display: flex;
+  cursor: pointer;
+}
+
+.genderTrigger:hover {
+  background-color: #DBDBE0;
+}
+
+.genderSelectContent {
+  width: 100%; /* растягиваем на всю ширину поля */
+  border-radius: 12px;
+  background-color: #EEEEF0;
+  padding: 4px 0; /* немного сверху и снизу */
+}
+
+.genderSelectContent [data-state="checked"] {
+  font-weight: 500;
+}
+
+.SelectItem {
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+.SelectItem:hover {
+  background-color: #DBDBE0;
 }

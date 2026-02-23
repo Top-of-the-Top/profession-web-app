@@ -11,7 +11,7 @@
   transform: translate(-50%, -50%);
   width: 100%;
   max-width: 480px;
-  padding: 24px;
+  padding: 24px 24px 0px 24px;
   background-color: var(--background);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -26,7 +26,6 @@
   border-bottom: 1px solid rgb(226, 226, 226);
   margin: 0 0 15px 0;
   padding-bottom: 5px;
-  position: relative;
 }
 
 .title {
@@ -124,8 +123,8 @@
 }
 
 .label {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--foreground);
 }
 
@@ -150,7 +149,6 @@
   color: var(--muted-foreground);
 }
 
-/* 👇 НОВОЕ: Состояние ошибки для input */
 .inputError {
   border-color: #ef4444;
 }

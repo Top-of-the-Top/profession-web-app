@@ -1,5 +1,23 @@
-import { Card, CardContent, Button } from '../../../shared/ui';
-import { User, Mail, Phone, Calendar, Pencil, Plus } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../shared/ui';
+import {
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  Pencil,
+  Plus,
+  Venus,
+  Mars,
+} from 'lucide-react';
 import styles from './ProfilePage.module.css';
 import { useState } from 'react';
 import { cn } from '../../../shared/lib/utils';
@@ -39,6 +57,7 @@ export default function ProfilePage() {
   const [isChangeNameMenuOpen, setChangeMenuOpen] = useState(false);
   const [isEmailMenuOpen, setIsEmailMenuOpen] = useState(false);
   const [isPhoneMenuOpen, setIsPhoneMenuOpen] = useState(false);
+  const [gender, setGender] = useState<string | null>(null);
 
   const toggleNameMenu = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -163,6 +182,46 @@ export default function ProfilePage() {
                   </Button>
                 }
               />
+
+              <Select value={gender ?? ''} onValueChange={setGender}>
+                <SelectTrigger
+                  className={cn(styles.profileField, styles.genderTrigger)}
+                >
+                  <div className={styles.profileFieldContent}>
+                    <div className={styles.profileFieldIcon}>
+                      {gender === 'male' ? (
+                        <Mars size={20} />
+                      ) : (
+                        <Venus size={20} />
+                      )}
+                    </div>
+
+                    <div className={styles.profileFieldInfo}>
+                      <span className={styles.profileFieldLabel}>Пол</span>
+                      <span className={styles.profileFieldValue}>
+                        {gender === 'male'
+                          ? 'Мужской'
+                          : gender === 'female'
+                            ? 'Женский'
+                            : 'Не указан'}
+                      </span>
+                    </div>
+
+                    <div className={styles.profileFieldAction}>
+                      <Pencil size={16} />
+                    </div>
+                  </div>
+                </SelectTrigger>
+
+                <SelectContent
+                  className={styles.genderSelectContent}
+                  position="popper"
+                  sideOffset={4}
+                >
+                  <SelectItem value="male">Мужской</SelectItem>
+                  <SelectItem value="female">Женский</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

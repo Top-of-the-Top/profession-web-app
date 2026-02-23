@@ -1,4 +1,4 @@
-import { apiClient } from '../../../shared/api/interceptor';
+import { landingApi } from '../../../shared/api/landingApi';
 import { type ApiLandingResponse } from '../../../shared/api/types';
 import { type Track } from '../../../schemas/types'
 
@@ -76,13 +76,13 @@ function transformApiCourses(apiData: ApiLandingResponse): Track[] {
   });
 }
 
-export const landingApi = {
+export const internalLandingApi = {
   async getCourses(): Promise<{
     number_of_courses: number;
     data: Track[];
   }> {
     try {
-      const apiData = await apiClient.getLandingCourses();
+      const apiData = await landingApi.getCourses();
       
       return {
         number_of_courses: apiData?.number_of_courses || 0,

@@ -1,24 +1,52 @@
 // shared/api/interceptor.ts
-import { type ApiLandingResponse } from './types';
 import { authEvents } from '../events/authEvents';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-type TokensResponse = {
+export type TokensResponse = {
   access_token: string;
   refresh_token: string;
 };
 
-class ApiClient {
+export class ApiClient {
   private buildHeaders(
     customHeaders?: HeadersInit,
-    token?: string
+    token?: string,
+    isFormData?: boolean
   ): HeadersInit {
-    return {
-      'Content-Type': 'application/json',
-      ...(customHeaders ?? {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
+    // Создаем объект заголовков с правильной типизацией
+    const headers: Record<string, string> = {};
+    
+    // Копируем кастомные заголовки, если они есть
+    if (customHeaders) {
+      if (customHeaders instanceof Headers) {
+        // Если это объект Headers, конвертируем в Record
+        customHeaders.forEach((value, key) => {
+          headers[key] = value;
+        });
+      } else if (Array.isArray(customHeaders)) {
+        // Если это массив массивов
+        customHeaders.forEach(([key, value]) => {
+          headers[key] = value;
+        });
+      } else {
+        // Если это обычный объект
+        Object.assign(headers, customHeaders);
+      }
+    }
+    
+    // Добавляем токен авторизации
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // Добавляем Content-Type только если это НЕ FormData
+    // и если заголовок еще не установлен
+    if (!isFormData && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    return headers;
   }
 
   private logout() {
@@ -40,100 +68,49 @@ class ApiClient {
     if (!response.ok) return null;
 
     const tokens: TokensResponse = await response.json();
-
     localStorage.setItem('access_token', tokens.access_token);
     localStorage.setItem('refresh_token', tokens.refresh_token);
 
     return tokens;
   }
 
-  private async request<T>(
+  async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${API_URL}${endpoint}`;
-    console.log(url);
     const accessToken = localStorage.getItem('access_token');
+    
+    // Проверяем, является ли тело FormData
+    const isFormData = options.body instanceof FormData;
 
     let response = await fetch(url, {
       ...options,
-      headers: this.buildHeaders(options.headers, accessToken ?? undefined),
+      headers: this.buildHeaders(options.headers, accessToken ?? undefined, isFormData),
     });
+
     if (!response.ok) {
-      const text = await response.text();
-      console.error('❌ Response error:', {
-        status: response.status,
-        statusText: response.statusText,
-        url,
-        body: text.substring(0, 200), // первые 200 символов
-      });
       if (response.status === 401) {
         const tokens = await this.refreshTokens();
-  
         if (!tokens) {
           this.logout();
           throw new Error('AUTH_EXPIRED');
         }
-  
         response = await fetch(url, {
           ...options,
-          headers: this.buildHeaders(options.headers, tokens.access_token),
+          headers: this.buildHeaders(options.headers, tokens.access_token, isFormData),
         });
       }
-      
     }
 
     if (!response.ok) {
-      throw new Error(`API_ERROR_${response.status}`);
+      const text = await response.text();
+      throw new Error(`API_ERROR_${response.status}: ${text}`);
     }
-    
-    
-    return response.json();
-  }
 
-  login(data: {
-    email: string | null;
-    phone_number: string | null;
-    pass_hash: string;
-    date_time: string;
-  }) {
-    return this.request('/api/auth/login/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  register(data: {
-    email: string | null;
-    phone_number: string | null;
-    pass_hash: string;
-    date_time: string;
-  }) {
-    return this.request('/api/auth/register/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  resetRequest(data: {
-    email: string | null;
-    phone_number: string | null;
-  }) {
-    return this.request('/api/auth/reset/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  resetPassword(data: { password_hash: string; token: string }) {
-    return this.request('/api/auth/recover/set/', {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-  }
-
-  getLandingCourses() {
-    return this.request<ApiLandingResponse>('/api/landing/courses/');
+    const text = await response.text();
+    if (!text) return {} as T;
+    return JSON.parse(text) as T;
   }
 }
 

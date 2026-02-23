@@ -173,3 +173,44 @@
     padding-bottom: 20px;
   }
 }
+
+
+.avatarContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.removeAvatarButton {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.removeAvatarButton:hover {
+  background-color: #dc2626;
+}
+
+.changeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 16px;
+}

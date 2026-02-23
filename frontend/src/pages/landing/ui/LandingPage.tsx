@@ -15,7 +15,7 @@ import { ArrowUpRight } from 'lucide-react';
 import CollapsibleSection from './CollapsibleSection';
 import Footer from './Footer';
 import { type Track } from '../../../schemas/types';
-import { landingApi } from '../api';
+import { internalLandingApi } from '../api';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export default function LandingPage() {
 
   const toggleMenu = () => setIsMenuOpen((prev) => !prev);
   useEffect(() => {
-    landingApi
+    internalLandingApi
       .getCourses()
       .then((data) => {
         setTracks(data.data);

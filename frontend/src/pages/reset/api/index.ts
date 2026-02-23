@@ -1,5 +1,5 @@
 // src/features/register/api/index.ts
-import { apiClient } from '../../../shared/api/interceptor';
+import { authApi } from '../../../shared/api/authApi';
 import { prepareAuthData } from '../../../shared/utils/validation';
 import { ResetSchema } from '../../../schemas/auth/reset.schema';
 
@@ -17,7 +17,7 @@ export const resetUser = async ({
   try {
 		
     const payload = prepareAuthData(emailOrPhone);
-    const tokensRaw = await apiClient.resetRequest(payload);
+    const tokensRaw = await authApi.resetRequest(payload);
     // Проверка через Zod
     const status = ResetSchema.parse(tokensRaw);
     return status;

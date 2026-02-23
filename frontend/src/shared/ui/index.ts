@@ -90,3 +90,19 @@
 
 
 	export { RadioGroup, RadioGroupItem } from './RadioGroup'
+
+	export { Avatar, AvatarImage, AvatarFallback } from './Avatar'
+
+	export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+} from './Dialog'
+

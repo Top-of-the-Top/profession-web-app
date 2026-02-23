@@ -1,15 +1,29 @@
+
+
+.bgOpen {
+	display: block;
+}
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 110;
+}
+
+
 .profilePage {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   background-color: #E2E8F0;
-	padding: 20px;
+  padding: 20px;
+  /* position: relative; */
 }
-
 .wrapper {
-	justify-self: center;
-	width: 70%;
+  position: relative;
+  z-index: 100;
+  justify-self: center;
+  width: 70%;
 }
-
 .profilePageTitle {
   font-size: 24px;
   font-weight: 700;
@@ -32,8 +46,12 @@
 }
 
 .profileSection {
-  padding: 24px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 20px 10px 20px;
+}
+
+.formItem {
+	cursor: pointer;
+	margin-bottom: 10px;
 }
 
 .profileSection:last-child {
@@ -60,6 +78,7 @@
   background-color: #EEEEF0;
   border-radius: 12px;
   margin-bottom: 12px;
+	cursor: pointer;
   transition: background-color 0.3s;
 }
 
@@ -76,7 +95,12 @@
   align-items: center;
   gap: 16px;
   flex: 1;
+	
 }
+
+
+
+
 
 .profileFieldIcon {
   display: flex;
@@ -125,7 +149,7 @@
 }
 
 .profileFieldButton:hover {
-  background-color: #e2e8f0;
+  background-color: transparent !important;
   color: #1e293b;
 }
 
@@ -156,4 +180,56 @@
     width: 36px;
     height: 36px;
   }
+}
+
+.profileFieldInfo {
+	text-align: left;
+	/* padding: 16px; */
+}
+
+.genderTrigger {
+  width: 100%;
+  height: 72px !important;
+  padding: 16px !important;
+  border-radius: 12px;
+  background-color: #EEEEF0;
+  display: flex;
+  cursor: pointer;
+}
+
+.genderTrigger:hover {
+  background-color: #DBDBE0;
+}
+
+.genderSelectContent {
+  width: 100%;
+  border-radius: 12px;
+  /* background-color: #EEEEF0; */
+  padding: 4px 0;
+}
+
+.genderSelectContent [data-state="checked"] {
+  font-weight: 500;
+}
+
+.SelectItem {
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+.SelectItem:hover {
+  background-color: #DBDBE0;
+}
+.fieldAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.fieldAvatarFallback {
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--primary-color, #3b82f6);
+  color: white;
 }

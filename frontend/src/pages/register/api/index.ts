@@ -1,5 +1,5 @@
 // src/features/register/api/index.ts
-import { apiClient } from '../../../shared/api/interceptor';
+import { authApi } from '../../../shared/api/authApi';
 import { prepareAuthData } from '../../../shared/utils/validation';
 import type { Tokens } from '../../../context/AuthContext';
 import { RegisterTokensSchema } from '../../../schemas/auth/register.schema';
@@ -21,7 +21,7 @@ export const registerUser = async ({
 		
     const payload = prepareAuthData(emailOrPhone, password, { includePassword: true });
 		console.log(payload)
-    const tokensRaw = await apiClient.register(payload);
+    const tokensRaw = await authApi.register(payload);
     // Проверка через Zod
     const tokens = RegisterTokensSchema.parse(tokensRaw);
     return tokens;

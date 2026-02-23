@@ -55,7 +55,7 @@
     "typescript": "^5.0.0",
     "vite": "^7.2.4"
   },
-	"overrides": {
+  "overrides": {
     "minimatch": "^10.2.1"
   }
 }

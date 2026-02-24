@@ -10,7 +10,7 @@ from ..models import Payment, PaymentItem
 from ...courses.models import PurchasedCourse
 from ..services import MockYooKassaService
 from ..tasks import process_payment_task
-from ...cart.models import Cart, CartItem
+from ...carts.models import Cart, CartItem
 
 from .serializers import (
     PaymentSerializer,

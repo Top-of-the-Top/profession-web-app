@@ -34,7 +34,7 @@ export default function AppLayout() {
   const navItems = [
     { href: '/app/home', label: 'Домашняя', icon: ArrowRight, id: 'home' },
     {
-      href: '/app/upload',
+      href: '/app/store',
       label: 'Магазин',
       icon: Upload,
       id: 'upload',

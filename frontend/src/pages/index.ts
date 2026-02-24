@@ -4,3 +4,5 @@ export { default as RegistrationPage } from "./register/ui/RegistrationPage";
 export { default as ResetPage } from "./reset/ui/ResetPage";
 export { default as RecoverPage } from "./recover/ui/RecoverPage";
 export { default as ProfilePage } from "./profile/ui/ProfilePage";
+export { default as CourseStorePage } from './store/ui/CourseStorePage'
+export { default as CourseDetailPage } from './courseDetail/ui/CourseDetailPage'

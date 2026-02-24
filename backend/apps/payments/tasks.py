@@ -45,7 +45,7 @@ def process_payment_task(self, payment_id: int):
 
 def _handle_success(payment): # Это метод - обработка успешного платежа.
     from ..courses.models import PurchasedCourse
-    from ..cart.models import Cart, CartItem
+    from ..carts.models import Cart, CartItem
 
     payment.status = 'success'
     payment.paid_at = timezone.now()

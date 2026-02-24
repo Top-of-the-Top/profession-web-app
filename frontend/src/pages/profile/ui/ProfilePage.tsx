@@ -65,7 +65,7 @@ export default function ProfilePage() {
       .getProfile()
       .then((data) => {
         setProfile(data);
-        setGender(data.gender === 'Мужской' ? 'Мужской' : 'Женский');
+        setGender(data.gender || null);
         setAvatarUrl(data.avatar);
       })
       .catch((err) => {

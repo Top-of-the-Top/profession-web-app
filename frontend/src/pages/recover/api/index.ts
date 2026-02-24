@@ -1,4 +1,4 @@
-import { apiClient } from '../../../shared/api/interceptor';
+import { authApi } from '../../../shared/api/authApi';
 
 export interface ResetPasswordParams {
   password_hash: string;
@@ -17,7 +17,7 @@ export const resetPassword = async (data: ResetPasswordParams) => {
       date_time: new Date().toISOString()
     };
     
-    const response = await apiClient.resetPassword(payload);
+    const response = await authApi.resetPassword(payload);
     return response;
   } catch (err: any) {
     if (err.message.includes('403')) {

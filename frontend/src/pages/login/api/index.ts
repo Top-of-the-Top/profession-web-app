@@ -1,5 +1,5 @@
 // src/features/login/api/index.ts
-import { apiClient } from '../../../shared/api/interceptor';
+import { authApi } from '../../../shared/api/authApi';
 import { prepareAuthData } from '../../../shared/utils/validation';
 import type { Tokens } from '../../../context/AuthContext';
 import { AuthTokensSchema } from '../../../schemas/auth/auth.schema';
@@ -21,7 +21,7 @@ export const loginUser = async ({
 		
     const payload = prepareAuthData(emailOrPhone, password, { includePassword: true });
 		// console.log(payload)
-    const tokensRaw = await apiClient.login(payload);
+    const tokensRaw = await authApi.login(payload);
     // Проверка через Zod
     const tokens = AuthTokensSchema.parse(tokensRaw);
     return tokens;

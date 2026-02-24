@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { Button } from '../../../shared/ui';
-import { courseApi, type Course } from '../../../shared/api/courseApi';
+import { courseApi, type CourseDTO, } from '../../../shared/api/courseApi';
 import styles from './CourseStorePage.module.css';
 
 interface CourseCardProps {
-  course: Course;
+  course: CourseDTO;
   onClick: () => void;
 }
 
@@ -69,7 +69,7 @@ const CourseCard = ({ course, onClick }: CourseCardProps) => {
 
 export default function CourseStorePage() {
   const navigate = useNavigate();
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

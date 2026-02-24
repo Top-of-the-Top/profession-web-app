@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../../../shared/ui';
@@ -24,6 +22,7 @@ export default function CourseDetailPage() {
       try {
         setLoading(true);
         const data = await courseApi.getCourseBySlug(slug);
+				console.log(data)
         setCourse(data.course);
       } catch (err) {
         setError('Не удалось загрузить курс');
@@ -53,14 +52,12 @@ export default function CourseDetailPage() {
             />
           </div>
 
-          {/* О курсе */}
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>О курсе</h2>
-            <p className={styles.text}>{course.sub_title}</p>
+            <p className={styles.text}>{course.description}</p>
           </section>
         </div>
 
-        {/* Боковая панель с ценой */}
         <aside className={styles.sidebar}>
           <div className={styles.priceCard}>
             <div className={styles.priceHeader}>

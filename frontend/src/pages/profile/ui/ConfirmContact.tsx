@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, type ChangeEvent } from 'react';
 import { Button, Input, Label } from '../../../shared/ui';
 import { X, CheckCircle2, AlertCircle } from 'lucide-react';

@@ -1,0 +1,196 @@
+.cartPage {
+  width: 100%;
+  min-height: 100%;
+  padding: 54px;
+  background-color: #e2e8f0;
+}
+
+.cartTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 32px 40px;
+  text-align: left;
+}
+
+.cartLayout {
+  margin: 0 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.9fr);
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.cartList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cartItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.cartItemInfo {
+  max-width: 60%;
+}
+
+.cartItemTitle {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.cartItemSubtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.cartItemPriceBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: 1.5px solid #cbd5f5;
+  background-color: #f8fafc;
+}
+
+.cartItemPeriod {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #4b5563;
+}
+
+.cartItemPrice {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.cartItemHint {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.cartSummary {
+  min-width: 260px;
+}
+
+.summaryCard {
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+  background-color: #ffffff;
+}
+
+.summaryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+}
+
+.summaryTitle {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.summaryAmount {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.summaryContent {
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.summaryLabel {
+}
+
+.summaryValue {
+  font-weight: 600;
+  color: #111827;
+}
+
+.payButton {
+  width: 100%;
+  margin-top: 8px;
+  background-color: #191970 !important;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.centerBlock {
+  margin: 40px;
+  padding: 32px;
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.emptyCard {
+  margin: 0 40px;
+}
+
+.emptyContent {
+  padding: 32px;
+  font-size: 16px;
+  color: #4b5563;
+}
+
+@media (max-width: 960px) {
+  .cartLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .cartSummary {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .cartPage {
+    padding: 24px 16px;
+  }
+
+  .cartTitle {
+    margin: 0 0 16px 0;
+  }
+
+  .cartLayout {
+    margin: 0;
+  }
+
+  .cartItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .cartItemInfo {
+    max-width: 100%;
+  }
+
+  .cartItemPriceBlock {
+    align-items: flex-start;
+  }
+}

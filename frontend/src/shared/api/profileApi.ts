@@ -1,15 +1,8 @@
 // shared/api/profileApi.ts
 import { apiClient } from './interceptor';
+import type { ApiUserResponse } from './types';
 
-export interface ProfileData {
-  first_name: string | null;
-  last_name: string | null;
-  phone_number: string | null;
-  email: string | null;
-  gender: string | null;
-  birthday: string | null;
-  avatar: string | null;
-}
+export type ProfileData = ApiUserResponse;
 
 export interface UpdateProfilePayload {
   first_name?: string | null;

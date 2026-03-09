@@ -6,9 +6,9 @@ import {
   ResetPage,
   ProfilePage,
   CourseStorePage,
-	CourseDetailPage,
+  CourseDetailPage,
+  CartPage,
 } from '../pages';
-import { Navigate } from 'react-router-dom';
 import AppLayout from '../widgets/AppLayout/ui/AppLayout';
 
 import type { AppRoute } from './types';
@@ -37,8 +37,7 @@ export const routes: AppRoute[] = [
   {
     path: '/app',
     element: <AppLayout />,
-    // TODO: ПОМЕНЯТЬ НА TRUE
-    // protected: ,
+    protected: true,
     children: [
       // { path: '', element: <Navigate to="" replace /> },
       { path: 'profile', element: <ProfilePage /> },
@@ -47,8 +46,18 @@ export const routes: AppRoute[] = [
         path: 'courses/:slug', // Динамический параметр :slug
         element: <CourseDetailPage />,
       },
+      {
+        path: '/cart',
+        element: <CartPage />,
+        protected: true,
+      },
       // { path: 'modify', element: <ModifyPage /> },
       // { path: 'distribute', element: <DistributePage /> },
     ],
   },
+  // {
+  //   path: '/cart',
+  //   element: <CartPage />,
+  //   protected: true,
+  // },
 ];

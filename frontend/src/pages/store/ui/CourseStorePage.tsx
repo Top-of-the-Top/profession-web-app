@@ -2,16 +2,20 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 import { Button } from '../../../shared/ui';
-import { courseApi, type CourseDTO, } from '../../../shared/api/courseApi';
+import { courseApi, type CourseDTO } from '../../../shared/api/courseApi';
+import { cartApi } from '../../../shared/api/cartApi';
 import styles from './CourseStorePage.module.css';
 
 interface CourseCardProps {
   course: CourseDTO;
   onClick: () => void;
+  onAddToCart: () => void;
+  disabled?: boolean;
 }
 
-const CourseCard = ({ course, onClick }: CourseCardProps) => {
+const CourseCard = ({ course, onClick, onAddToCart, disabled }: CourseCardProps) => {
   const formattedPrice = new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: 'RUB',
@@ -53,11 +57,12 @@ const CourseCard = ({ course, onClick }: CourseCardProps) => {
           Подробнее
         </Button>
 
-        <Button 
+        <Button
           className={styles.selectButton}
+          disabled={disabled}
           onClick={(e) => {
             e.stopPropagation();
-            console.log('Выбран курс:', course.title);
+            onAddToCart();
           }}
         >
           Выбрать
@@ -72,6 +77,7 @@ export default function CourseStorePage() {
   const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addingSlug, setAddingSlug] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -96,6 +102,26 @@ export default function CourseStorePage() {
 
   const handleCourseClick = (slug: string) => {
     navigate(`/app/courses/${slug}`);
+  };
+
+  const handleAddToCart = async (slug: string, title: string) => {
+    setAddingSlug(slug);
+    try {
+      await cartApi.addCourse(slug);
+      toast.success(`Курс «${title}» добавлен в корзину`);
+    } catch (err: any) {
+      const message: string = err?.message ?? '';
+
+      if (message === 'AUTH_EXPIRED' || message.includes('API_ERROR_401')) {
+        toast.error('Авторизуйтесь, чтобы добавить курс в корзину');
+      } else if (message.includes('API_ERROR_400')) {
+        toast.error('Курс уже в корзине');
+      } else {
+        toast.error('Не удалось добавить курс в корзину');
+      }
+    } finally {
+      setAddingSlug(null);
+    }
   };
 
   if (loading) {
@@ -125,24 +151,29 @@ export default function CourseStorePage() {
   }
 
   return (
-    <div className={styles.catalog}>
-      <h2 className={styles.catalogTitle}>Каталог курсов</h2>
+    <>
+      <Toaster position="top-right" />
+      <div className={styles.catalog}>
+        <h2 className={styles.catalogTitle}>Каталог курсов</h2>
 
-      {courses.length === 0 ? (
-        <div className={styles.emptyState}>
-          <p>Курсы не найдены</p>
-        </div>
-      ) : (
-        <div className={styles.coursesGrid}>
-          {courses.map((course) => (
-            <CourseCard
-              key={course.course_id}
-              course={course}
-              onClick={() => handleCourseClick(course.slug)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+        {courses.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>Курсы не найдены</p>
+          </div>
+        ) : (
+          <div className={styles.coursesGrid}>
+            {courses.map((course) => (
+              <CourseCard
+                key={course.course_id}
+                course={course}
+                onClick={() => handleCourseClick(course.slug)}
+                onAddToCart={() => handleAddToCart(course.slug, course.title)}
+                disabled={addingSlug === course.slug}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

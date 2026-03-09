@@ -21,6 +21,7 @@ import {
   type ProfileData,
   type UpdateProfilePayload,
 } from '../../../shared/api/profileApi';
+import { useUserStore } from '../../../entities/user/model/userStore';
 
 interface ProfileFieldProps {
   icon: React.ReactNode;
@@ -50,6 +51,7 @@ const ProfileField = ({
 );
 
 export default function ProfilePage() {
+  const setUser = useUserStore((state) => state.setUser);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,20 +69,27 @@ export default function ProfilePage() {
         setProfile(data);
         setGender(data.gender || null);
         setAvatarUrl(data.avatar);
+        setUser(data);
       })
       .catch((err) => {
         console.error(err);
         setError('Не удалось загрузить профиль');
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [setUser]);
 
   // --- Изменение пола ---
   const updateGender = async (value: string) => {
     setGender(value);
     try {
       await profileApi.updateProfile({ gender: value });
-      setProfile((prev) => (prev ? { ...prev, gender: value } : prev));
+      setProfile((prev) => {
+        const next = prev ? { ...prev, gender: value } : prev;
+        if (next) {
+          setUser(next);
+        }
+        return next;
+      });
     } catch (err) {
       console.error('Ошибка обновления пола', err);
     }
@@ -129,15 +138,19 @@ export default function ProfilePage() {
 
       await profileApi.updateProfile(updateData);
 
-      setProfile((prev) =>
-        prev
+      setProfile((prev) => {
+        const next = prev
           ? {
               ...prev,
               first_name: data.firstName,
               last_name: data.lastName,
             }
-          : prev
-      );
+          : prev;
+        if (next) {
+          setUser(next);
+        }
+        return next;
+      });
 
       setChangeMenuOpen(false);
     } catch (err) {
@@ -153,13 +166,23 @@ export default function ProfilePage() {
     try {
       if (type === 'email') {
         await profileApi.updateProfile({ email: contact });
-        setProfile((prev) => (prev ? { ...prev, email: contact } : prev));
+        setProfile((prev) => {
+          const next = prev ? { ...prev, email: contact } : prev;
+          if (next) {
+            setUser(next);
+          }
+          return next;
+        });
         setEmailMenuOpen(false);
       } else {
         await profileApi.updateProfile({ phone_number: contact });
-        setProfile((prev) =>
-          prev ? { ...prev, phone_number: contact } : prev
-        );
+        setProfile((prev) => {
+          const next = prev ? { ...prev, phone_number: contact } : prev;
+          if (next) {
+            setUser(next);
+          }
+          return next;
+        });
         setPhoneMenuOpen(false);
       }
     } catch (err) {

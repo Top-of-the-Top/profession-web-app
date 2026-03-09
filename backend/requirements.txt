@@ -20,3 +20,4 @@ python-slugify
 celery>=5.3
 redis>=5.0
 django-celery-results>=2.5
+python-slugify>=5.0.0

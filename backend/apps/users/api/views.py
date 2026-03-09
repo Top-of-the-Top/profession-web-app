@@ -5,20 +5,28 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
 from ..models import User, Profile
-from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer, UpdateProfileSerializer
+from .serializers import (
+    RegisterSerializer,
+    LoginSerializer,
+    UserProfileSerializer,
+    UpdateProfileSerializer,
+    TokenResponseSerializer,
+)
 from .utils import get_tokens_for_user
 from rest_framework_simplejwt.tokens import RefreshToken
-from drf_spectacular.utils import extend_schema,  OpenApiTypes
+from drf_spectacular.utils import extend_schema
 
+SCHEMA_401 = {
+    "type": "object",
+    "properties": {"detail": {"type": "string", "description": "Токен/учётные данные отсутствуют или недействительны."}},
+}
 SCHEMA_403 = {
     "type": "object",
-    "properties": {
-        "detail": {"type": "string", "description": "Сообщение об ошибке."},
-    },
+    "properties": {"detail": {"type": "string", "description": "Сообщение об ошибке (отказ в действии, не аутентификация)."}},
 }
-SCHEMA_403_OBJECT = {
+SCHEMA_VALIDATION_ERROR = {
     "type": "object",
-    "description": "Объект с полями ошибок валидации (имена полей: ключи).",
+    "description": "Объект с ошибками валидации: ключи — имена полей, значения — список строк ошибок.",
 }
 SCHEMA_500 = {
     "type": "object",
@@ -35,18 +43,22 @@ from django.utils import timezone
 
 
 class RegisterView(APIView):
+
   permission_classes = []
 
   @extend_schema(
     summary="Регистрация пользователя",
-    description="Регистрация пользователя",
+    description=(
+      "Создаёт нового пользователя по email и/или номеру телефона и паролю. "
+      "Передайте в теле запроса либо email, либо phone_number (или оба), а также pass_hash (не менее 8 символов). "
+      "При успехе возвращается объект с access_token, access_expires_at, refresh_token, refresh_expires_at — эти токены используются для доступа к защищённым эндпоинтам (заголовок Authorization: Bearer <access_token>). "
+      "При ошибке валидации (дубликат email/телефона, не указан контакт, короткий пароль) возвращается 403 и объект с полями-ошибками."
+    ),
     tags=["Users"],
+    request=RegisterSerializer,
     responses={
-      200: OpenApiTypes.OBJECT,
-      403: {
-        "description": "Ошибка валидации. В теле — объект с полями и списком ошибок (serializer.errors).",
-        "schema": SCHEMA_403_OBJECT,
-      },
+      200: TokenResponseSerializer,
+      403: {"description": "Валидация: дубликат email/phone или не указан контакт. Тело — объект с полями ошибок.", "schema": SCHEMA_VALIDATION_ERROR},
     },
   )
   def post(self, request):
@@ -75,14 +87,17 @@ class LoginView(APIView):
 
   @extend_schema(
     summary="Вход пользователя",
-    description="Вход пользователя",
+    description=(
+      "Аутентификация по email и/или номеру телефона и паролю. "
+      "В теле запроса передайте email или phone_number (или оба) и pass_hash. "
+      "При успехе возвращается объект с access_token, access_expires_at, refresh_token, refresh_expires_at. "
+      "При неверной паре контакт/пароль или отсутствии контакта возвращается 403 и объект с ошибками валидации."
+    ),
     tags=["Users"],
+    request=LoginSerializer,
     responses={
-      200: OpenApiTypes.OBJECT,
-      403: {
-        "description": "Ошибка валидации. В теле — объект с полями и списком ошибок (serializer.errors).",
-        "schema": SCHEMA_403_OBJECT,
-      },
+      200: TokenResponseSerializer,
+      403: {"description": "Валидация: неверная пара контакт/пароль или не указан контакт. Тело — объект с полями ошибок.", "schema": SCHEMA_VALIDATION_ERROR},
     },
   )
   def post(self, request):
@@ -101,14 +116,16 @@ class RefreshTokenView(APIView):
   
   @extend_schema(
     summary="Обновление рефреш токена",
-    description="Обновление рефреш токена",
+    description=(
+      "Выдаёт новую пару access и refresh токенов по действующему refresh_token. "
+      "В теле запроса передайте поле refresh_token (строка). "
+      "Используйте этот эндпоинт, когда access_token истёк, чтобы не заставлять пользователя логиниться снова. "
+      "При отсутствии refresh_token в теле или невалидном/истёкшем токене возвращается 401 с полем detail."
+    ),
     tags=["Users"],
     responses={
-      200: OpenApiTypes.OBJECT,
-      403: {
-        "description": "refresh_token не передан — «refresh_token обязателен»; или невалидный/истёкший токен — «Невалидный или истекший refresh_token».",
-        "schema": SCHEMA_403,
-      },
+      200: TokenResponseSerializer,
+      401: {"description": "Нет refresh_token — «refresh_token обязателен»; иначе «Невалидный или истекший refresh_token».", "schema": SCHEMA_401},
     },
   )
   def post(self, request):
@@ -116,7 +133,7 @@ class RefreshTokenView(APIView):
     if not refresh_token:
       return Response(
         {'detail': 'refresh_token обязателен'},
-        status=status.HTTP_403_FORBIDDEN
+        status=status.HTTP_401_UNAUTHORIZED
       )
     try:
       refresh = RefreshToken(refresh_token)
@@ -133,7 +150,7 @@ class RefreshTokenView(APIView):
     except Exception:
       return Response(
         {'detail': 'Невалидный или истекший refresh_token'},
-        status=status.HTTP_403_FORBIDDEN
+        status=status.HTTP_401_UNAUTHORIZED
       )
 
 
@@ -141,18 +158,19 @@ class ResetPasswordView(APIView):
   permission_classes = []
   @extend_schema(
     summary="Сброс пароля",
-    description="Сброс пароля по email или phone_number",
+    description=(
+      "Запрос на сброс пароля по email или номеру телефона. "
+      "В теле передайте email и/или phone_number. На указанный email отправляется письмо со ссылкой для ввода нового пароля (страница восстановления на фронте). "
+      "При успехе возвращается объект { status: 'success' }. "
+      "Если не передан ни email, ни phone_number — 403 с сообщением «Необходимо указать email или phone_number». "
+      "Если пользователь не найден — 403 «Пользователь не найден». "
+      "При сбое отправки письма — 500 с полем detail."
+    ),
     tags=["Users"],
     responses={
-      200: OpenApiTypes.OBJECT,
-      403: {
-        "description": "Не указан email/phone — «Необходимо указать email или phone_number»; пользователь не найден — «Пользователь не найден».",
-        "schema": SCHEMA_403,
-      },
-      500: {
-        "description": "Ошибка при отправке письма на указанный email.",
-        "schema": SCHEMA_500,
-      },
+      200: {"description": "Письмо со ссылкой сброса отправлено.", "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
+      403: {"description": "Нет email/phone — «Необходимо указать email или phone_number»; иначе «Пользователь не найден».", "schema": SCHEMA_403},
+      500: {"description": "Ошибка отправки письма. Тело: { detail }.", "schema": SCHEMA_500},
     },
   )
   def post(self, request):
@@ -209,14 +227,17 @@ class RecoverPasswordView(APIView):
   permission_classes = []
   @extend_schema(
     summary="Ввод нового пароля",
-    description="Ввод нового пароля",
+    description=(
+      "Завершение сброса пароля: по одноразовому токену из письма и новому паролю обновляется пароль пользователя и выдаются токены. "
+      "В теле передайте token (из ссылки в письме) и password_hash (новый пароль). "
+      "При успехе возвращается объект с access_token, access_expires_at, refresh_token, refresh_expires_at. "
+      "Если не переданы token или password_hash — 403 «token и password обязательны». "
+      "Если токен не найден или истёк — 403 «Невалидный или истёкший токен»."
+    ),
     tags=["Users"],
     responses={
-      200: OpenApiTypes.OBJECT,
-      403: {
-        "description": "Не переданы token/password — «token и password обязательны»; невалидный или истёкший токен — «Невалидный или истёкший токен».",
-        "schema": SCHEMA_403,
-      },
+      200: TokenResponseSerializer,
+      403: {"description": "Нет token/password — «token и password обязательны»; иначе «Невалидный или истёкший токен».", "schema": SCHEMA_403},
     },
   )
   def patch(self, request):
@@ -250,17 +271,18 @@ class ProfileView(APIView):
 
   @extend_schema(
     summary="Получение профиля пользователя",
-    description="Получение профиля пользователя",
+    description=(
+      "Возвращает профиль текущего авторизованного пользователя. "
+      "Требуется заголовок Authorization: Bearer <access_token>. "
+      "В ответе: first_name, last_name, email, phone_number (расшифрованные при наличии), gender, birthday, avatar (URL). "
+      "При отсутствии или невалидности токена возвращается 401 с полем detail."
+    ),
     tags=["Users"],
     responses={
-      200: OpenApiTypes.OBJECT,
-      401: {
-        "description": "Не авторизован — «Необходимо авторизоваться».",
-        "schema": SCHEMA_403,
-      },
+      200: UserProfileSerializer,
+      401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
     },
   )
-
   def get(self, request):
     user = request.user
     profile, _ = Profile.objects.get_or_create(user=user)
@@ -277,18 +299,19 @@ class ProfileView(APIView):
 
   @extend_schema(
     summary="Обновление профиля пользователя",
-    description="Частичное обновление профиля пользователя",
+    description=(
+      "Частичное обновление профиля и данных пользователя. Требуется Authorization: Bearer <access_token>. "
+      "В теле можно передать любые из полей: first_name, last_name, email, phone_number, gender (Мужской/Женский), birthday, avatar (файл, макс. 5 МБ). "
+      "При успехе возвращается { status: 'success' }. "
+      "При ошибках валидации (дубликат email/телефона, неверный gender, слишком большой avatar) — 400 и объект с полями-ошибками. "
+      "При невалидном/отсутствующем токене — 401."
+    ),
     tags=["Users"],
+    request=UpdateProfileSerializer,
     responses={
-      200: OpenApiTypes.OBJECT,
-      400: {
-        "description": "Ошибка валидации. В теле — объект с полями и списком ошибок (serializer.errors).",
-        "schema": SCHEMA_403_OBJECT,
-      },
-      401: {
-        "description": "Не авторизован — «Необходимо авторизоваться».",
-        "schema": SCHEMA_403,
-      },
+      200: {"description": "Профиль обновлён.", "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
+      400: {"description": "Валидация. Тело — объект с полями ошибок.", "schema": SCHEMA_VALIDATION_ERROR},
+      401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
     },
   )
   def patch(self, request):

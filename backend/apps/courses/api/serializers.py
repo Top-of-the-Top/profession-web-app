@@ -17,6 +17,17 @@ class CourseDTOSerializer(serializers.ModelSerializer):
         fields = ['course_id', 'title', 'sub_title', 'image_url', 'price', 'slug']
 
 
+class CourseListResponseSerializer(serializers.Serializer):
+    """Обёртка ответа списка курсов (лендинг / store)."""
+    number_of_courses = serializers.IntegerField()
+    data = CourseDTOSerializer(many=True, read_only=True)
+
+
+class CourseDetailResponseSerializer(serializers.Serializer):
+    """Обёртка ответа деталей курса: одно поле course."""
+    course = CourseSerializer(read_only=True)
+
+
 class PurchasedCourseSerializer(serializers.ModelSerializer):
     course = CourseDTOSerializer(read_only=True)
     is_active = serializers.BooleanField(read_only=True)

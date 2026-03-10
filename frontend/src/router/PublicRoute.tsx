@@ -1,17 +1,17 @@
 // router/PublicRoute.tsx
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../shared/hooks/useAuth';
 import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useUserStore } from '../entities/user/model/userStore';
 
 export const PublicRoute = ({ children }: { children: React.JSX.Element }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isLoading, isAuthChecked } = useUserStore();
 
-  if (isLoading) {
+  if (!isAuthChecked || isLoading) {
     return <div>Загрузка...</div>;
   }
 
-  if (isAuthenticated) {
-    return <Navigate to="/app/home" replace />;
+  if (user) {
+    return <Navigate to="/app/store" replace />;
   }
 
   return children;

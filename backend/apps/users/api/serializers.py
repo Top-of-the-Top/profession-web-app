@@ -4,6 +4,14 @@ from ..models import User, Profile
 from .utils import encrypt_data, decrypt_data
 
 
+class TokenResponseSerializer(serializers.Serializer):
+    """Схема ответа с токенами доступа (Register, Login, Refresh, Recover)."""
+    access_token = serializers.CharField(read_only=True)
+    access_expires_at = serializers.CharField(read_only=True)
+    refresh_token = serializers.CharField(read_only=True)
+    refresh_expires_at = serializers.CharField(read_only=True)
+
+
 class RegisterSerializer(serializers.Serializer):
   email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
   phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)

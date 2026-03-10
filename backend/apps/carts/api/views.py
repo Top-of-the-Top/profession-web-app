@@ -45,13 +45,16 @@ class CartView(APIView):
 
     @extend_schema(
         summary="Получить корзину пользователя",
-        description="Возвращает корзину с перечнем курсов",
+        description=(
+            "Возвращает корзину текущего пользователя со списком добавленных курсов. "
+            "Требуется заголовок Authorization: Bearer <access_token>. "
+            "В ответе: cart_id, user, courses (массив объектов курса с course_id, title, sub_title, image_url, price, slug). "
+            "При отсутствии или невалидности токена — 401 с полем detail."
+        ),
+        tags=["Carts"],
         responses={
             200: CartSerializer,
-            401: {
-                "description": "Не авторизован. Токен отсутствует или недействителен.",
-                "schema": SCHEMA_401,
-            },
+            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
         },
     )
     def get(self, request):
@@ -66,23 +69,21 @@ class AddToCartView(APIView):
 
     @extend_schema(
         summary="Добавить курс в корзину",
-        description="Добавляет курс по slug в корзину пользователя",
+        description=(
+            "Добавляет курс в корзину текущего пользователя по slug курса (в пути URL). "
+            "Требуется Authorization: Bearer <access_token>. "
+            "При успехе возвращается созданная позиция корзины (cart_id, course_id, вложенный объект course). "
+            "Если курс с таким slug не существует в каталоге — 404 с полем detail. "
+            "Если курс уже добавлен в корзину — 400 с полем error: «Курс уже в корзине». "
+            "При невалидном токене — 401."
+        ),
+        tags=["Carts"],
         responses={
             201: CartItemSerializer,
-            400: {
-                "description": "Курс уже в корзине.",
-                "schema": SCHEMA_400_ERROR,
-            },
-            401: {
-                "description": "Не авторизован. Токен отсутствует или недействителен.",
-                "schema": SCHEMA_401,
-            },
-            404: {
-                "description": "Курс с таким slug не найден в списке курсов.",
-                "schema": SCHEMA_404,
-            },
+            400: {"description": "Тело: { error: 'Курс уже в корзине' }.", "schema": SCHEMA_400_ERROR},
+            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            404: {"description": "Тело: { detail: 'Курс с таким slug не найден в списке курсов.' }.", "schema": SCHEMA_404},
         },
-        request=None
     )
 
     def post(self, request, slug):
@@ -116,35 +117,36 @@ class CartItemView(APIView):
 
     @extend_schema(
         summary="Удалить курс из корзины",
-        description="Удаляет курс по slug из корзины пользователя",
-
+        description=(
+            "Удаляет курс из корзины текущего пользователя по slug (в пути URL). "
+            "Требуется Authorization: Bearer <access_token>. "
+            "При успехе возвращается 204 без тела. "
+            "404 возвращается в двух случаях: курс с таким slug не найден в каталоге (detail: «Курс с таким slug не найден в списке курсов.») или курс не в корзине (detail: «Курс с таким slug не найден в корзине.»). "
+            "При невалидном токене — 401."
+        ),
+        tags=["Carts"],
         responses={
-            204: None,
-            401: {
-                "description": "Не авторизован. Токен отсутствует или недействителен.",
-                "schema": SCHEMA_401,
-            },
-            404: {
-                "description": "Курс с таким slug не найден в корзине.",
-                "schema": SCHEMA_404,
-            },
+            204: {"description": "Курс удалён из корзины, тело ответа пустое."},
+            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            404: {"description": "Тело: { detail }. «Курс с таким slug не найден в списке курсов.» или «Курс с таким slug не найден в корзине.»", "schema": SCHEMA_404},
         },
     )
-
     def delete(self, request, slug):
         cart, _ = Cart.objects.get_or_create(user=request.user)
-        course = Course.objects.get(slug=slug)
+        course = Course.objects.filter(slug=slug).first()
+        if course is None:
+            return Response(
+                {'detail': 'Курс с таким slug не найден в списке курсов.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         cart_item = CartItem.objects.filter(
             cart_id=cart,
-            course_id=course
+            course_id=course,
         ).first()
-
-
         if cart_item is None:
             return Response(
                 {'detail': 'Курс с таким slug не найден в корзине.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         cart_item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -24,6 +24,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@rehookify/datepicker": "^6.6.8",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "crypto-js": "^4.2.0",
@@ -37,12 +38,14 @@
     "react-router": "^7.12.0",
     "react-router-dom": "^7.12.0",
     "tailwind-merge": "^3.4.0",
-    "zod": "^4.3.6"
+    "tamagui": "^2.0.0-rc.22",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@types/crypto-js": "^4.2.2",
-    "@types/node": "^24.10.8",
+    "@types/node": "^24.12.0",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.54.0",

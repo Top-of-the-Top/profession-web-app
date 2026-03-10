@@ -7,10 +7,26 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
 from ..models import Payment, PaymentItem
+
+SCHEMA_401 = {
+    "type": "object",
+    "properties": {"detail": {"type": "string", "description": "Токен отсутствует или недействителен."}},
+}
+SCHEMA_404 = {
+    "type": "object",
+    "properties": {"detail": {"type": "string", "description": "Платёж не найден."}},
+}
+SCHEMA_400 = {
+    "type": "object",
+    "properties": {
+        "error": {"type": "string"},
+        "course_ids": {"type": "array", "items": {"type": "integer"}, "description": "Опционально при уже купленных курсах."},
+    },
+}
 from ...courses.models import PurchasedCourse
 from ..services import MockYooKassaService
 from ..tasks import process_payment_task
-from ...cart.models import Cart, CartItem
+from ...carts.models import Cart, CartItem
 
 from .serializers import (
     PaymentSerializer,
@@ -22,20 +38,22 @@ class CartPayView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary='Оплатить корзину',
+        summary="Оплатить корзину",
         description=(
-            'Создаёт платёж на основе текущей корзины. '
-            'Возвращает URL для оплаты (мок ЮKassa). '
-            'Статус платежа обновляется асинхронно.'
+            "Создаёт платёж на основе текущей корзины пользователя. Требуется Authorization: Bearer <access_token>. "
+            "Корзина должна быть непустой; все курсы в корзине не должны быть уже куплены. "
+            "При успехе создаётся платёж, возвращается полный объект платежа (payment_id, total_sum, status, mock_payment_url, items с курсами и ценами). "
+            "Статус платежа обновляется асинхронно через Celery после создания. "
+            "400: пустая корзина (error: «Корзина пуста...») или часть курсов уже куплена (error и course_ids). "
+            "401: токен отсутствует или недействителен."
         ),
+        tags=["Carts"],
         responses={
             201: PaymentSerializer,
-            400: {
-                'description': 'Корзина пуста.',
-            },
+            400: {"description": "Тело: { error } или { error, course_ids }. Корзина пуста или курсы уже куплены.", "schema": SCHEMA_400},
+            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
         },
     )
-    
     def post(self, request):
         cart, _ = Cart.objects.get_or_create(user=request.user)
         cart_items = CartItem.objects.filter(
@@ -98,13 +116,21 @@ class CartPayView(APIView):
 
 
 class PaymentListView(APIView):
-
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary='Список платежей',
-        description='Возвращает все платежи текущего пользователя.',
-        responses={200: PaymentShortSerializer(many=True)},
+        summary="Список платежей",
+        description=(
+            "Возвращает список всех платежей текущего пользователя (краткий формат). "
+            "Требуется Authorization: Bearer <access_token>. "
+            "Каждый элемент: payment_id, total_sum, status, status_display, created_at, paid_at. "
+            "При невалидном токене — 401 с полем detail."
+        ),
+        tags=["Payments"],
+        responses={
+            200: PaymentShortSerializer(many=True),
+            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+        },
     )
     def get(self, request):
         payments = Payment.objects.filter(user=request.user)
@@ -116,11 +142,18 @@ class PaymentDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary='Детали платежа',
-        description='Возвращает подробную информацию о платеже с перечнем курсов.',
+        summary="Детали платежа",
+        description=(
+            "Возвращает полную информацию о платеже по payment_id (в пути URL). Требуется Authorization: Bearer <access_token>. "
+            "Доступ только к своим платежам; при запросе чужого или несуществующего — 404. "
+            "В ответе: payment_id, total_sum, status, status_display, mock_payment_url, mock_yookassa_id, created_at, updated_at, paid_at, items (массив позиций: course, price). "
+            "При невалидном токене — 401; при ненайденном/чужом платеже — 404 с полем detail: «Платёж не найден.»."
+        ),
+        tags=["Payments"],
         responses={
             200: PaymentSerializer,
-            404: {'description': 'Платёж не найден.'},
+            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            404: {"description": "Тело: { detail: 'Платёж не найден.' }. Чужие платежи тоже 404.", "schema": SCHEMA_404},
         },
     )
     def get(self, request, payment_id):

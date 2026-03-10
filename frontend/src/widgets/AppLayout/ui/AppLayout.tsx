@@ -18,6 +18,7 @@ import {
   AlertTitle,
 } from '../../../shared/ui';
 import { cn } from '../../../shared/lib/utils';
+import { useUserStore } from '../../../entities/user/model/userStore';
 
 import styles from './AppLayout.module.css';
 
@@ -30,6 +31,7 @@ type ErrorType =
 
 export default function AppLayout() {
   const location = useLocation();
+  const user = useUserStore((state) => state.user);
 
   const navItems = [
     { href: '/app/home', label: 'Домашняя', icon: ArrowRight, id: 'home' },
@@ -58,11 +60,15 @@ export default function AppLayout() {
       <header className={styles.topbar}>
         <img src="/profession-logo.svg" alt="Logo" className={styles.logo} />
         <div className={styles.topbarItem}>
-          <Link className={styles.headerLink} to='/cart'><ShoppingCart width={'20px'} height={'20px'} /></Link>
+          <Link className={styles.headerLink} to="cart">
+            <ShoppingCart width="20px" height="20px" />
+          </Link>
           <Link to="profile" className={styles.headerLink}>
             <div className={styles.pfp}>
-							{/* TODO: НУЖНО ПОЛУЧАТЬ ОТ СЕРВЕРА */}
-              <img src="/ya.svg" alt="Profile" />
+              <img
+                src={user?.avatar || '/ya.svg'}
+                alt="Profile"
+              />
             </div>
           </Link>
         </div>

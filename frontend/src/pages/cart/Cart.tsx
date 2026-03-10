@@ -9,6 +9,8 @@ import {
 import { cartApi, type CartResponse } from '../../shared/api/cartApi';
 import styles from './Cart.module.css';
 
+import { X } from 'lucide-react'
+
 const formatPrice = (value: number) =>
   new Intl.NumberFormat('ru-RU', {
     style: 'currency',
@@ -30,7 +32,6 @@ export default function CartPage() {
         const data = await cartApi.getCart();
         setCart(data);
       } catch (err: any) {
-        // Ошибку не скрываем — показываем человеко-понятное сообщение
         if (err?.message === 'AUTH_EXPIRED') {
           setError('Сессия истекла, пожалуйста, войдите снова.');
         } else {
@@ -43,6 +44,23 @@ export default function CartPage() {
 
     void fetchCart();
   }, []);
+
+  const handleRemove = async (slug: string) => {
+    if (!cart) return;
+
+    // Оптимистично обновляем
+    const prevCourses = cart.courses;
+    const updatedCourses = prevCourses.filter(c => c.slug !== slug);
+    setCart({ ...cart, courses: updatedCourses });
+
+    try {
+      await cartApi.removeCourse(slug); // Должен вызвать /api/carts/remove/{slug}
+    } catch (err) {
+      // В случае ошибки возвращаем обратно
+      setCart({ ...cart, courses: prevCourses });
+      console.error('Ошибка при удалении курса', err);
+    }
+  };
 
   if (loading) {
     return (
@@ -88,6 +106,14 @@ export default function CartPage() {
         <div className={styles.cartList}>
           {courses.map((course) => (
             <div key={course.course_id} className={styles.cartItem}>
+              <button
+                className={styles.cartItemRemove}
+                onClick={() => handleRemove(course.slug)}
+                title="Удалить из корзины"
+              >
+                <X />
+              </button>
+
               <div className={styles.cartItemInfo}>
                 <h2 className={styles.cartItemTitle}>{course.title}</h2>
                 <p className={styles.cartItemSubtitle}>{course.sub_title}</p>
@@ -115,9 +141,7 @@ export default function CartPage() {
                 <span className={styles.summaryLabel}>Сумма заказа</span>
                 <span className={styles.summaryValue}>{formattedTotal}</span>
               </div>
-              <Button className={styles.payButton}>
-                Перейти к оплате
-              </Button>
+              <Button className={styles.payButton}>Перейти к оплате</Button>
             </CardContent>
           </Card>
         </aside>

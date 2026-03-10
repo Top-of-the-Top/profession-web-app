@@ -7,3 +7,4 @@ export { default as ProfilePage } from "./profile/ui/ProfilePage";
 export { default as CourseStorePage } from './store/ui/CourseStorePage'
 export { default as CourseDetailPage } from './courseDetail/ui/CourseDetailPage'
 export { default as CartPage } from './cart/Cart';
+export { default as NotFoundPage } from './notfound/NotFoundPage'

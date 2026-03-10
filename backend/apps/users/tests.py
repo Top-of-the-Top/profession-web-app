@@ -92,7 +92,7 @@ class UsersApiUnitTests(SimpleTestCase):
         request = self.factory.post("/api/auth/token/refresh/", {}, format="json")
         response = RefreshTokenView.as_view()(request)
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(response.data["detail"], "refresh_token обязателен")
 
     def test_refresh_invalid_token(self):
@@ -105,7 +105,7 @@ class UsersApiUnitTests(SimpleTestCase):
         with patch("apps.users.api.views.RefreshToken", side_effect=Exception("bad")):
             response = RefreshTokenView.as_view()(request)
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(response.data["detail"], "Невалидный или истекший refresh_token")
 
     def test_reset_requires_email_or_phone(self):

@@ -1,4 +1,5 @@
-from django.test import SimpleTestCase
+
+from django.test import SimpleTestCase, TestCase
 from django.db import models
 from unittest.mock import MagicMock, patch
 
@@ -194,10 +195,12 @@ class CartIntegrationUnitTests(SimpleTestCase):
 class CartAuthUnitTests(SimpleTestCase):
     """Тесты авторизации для Cart views"""
 
+    databases = "__all__"
     def setUp(self):
         self.factory = APIRequestFactory()
 
         # Создаем авторизованного пользователя
+
         self.auth_user = SimpleNamespace(
             id=1,
             pk=1,
@@ -317,7 +320,6 @@ class CartAuthUnitTests(SimpleTestCase):
             self.assertIn('error', response.data)
             self.assertEqual(response.data['error'], 'Курс уже в корзине')
 
-    # Тесты для CartItemView (DELETE /api/cart/remove/<slug>/)
 
     def test_cart_item_view_without_auth(self):
         """Тест что CartItemView возвращает 401 для неавторизованного"""
@@ -345,20 +347,22 @@ class CartAuthUnitTests(SimpleTestCase):
 
     def test_cart_item_view_with_auth_success(self):
         """Тест успешного удаления курса из корзины авторизованным пользователем"""
-        request = self.factory.delete('/api/cart/remove/test-course/')
+        request = self.factory.delete('/api/carts/remove/test-course/')
         force_authenticate(request, user=self.auth_user)
 
         mock_cart_item = MagicMock()
         mock_cart_item.delete = MagicMock()
 
         with patch('apps.carts.api.views.Cart.objects.get_or_create') as mock_cart_get, \
-                patch('apps.carts.api.views.Course.objects.get') as mock_course_get, \
-                patch('apps.carts.api.views.CartItem.objects.filter') as mock_item_filter:
+                patch('apps.carts.api.views.Course.objects.filter') as mock_course_filter, \
+                patch('apps.carts.api.views.CartItem.objects.filter') as mock_cartitem_filter:
             mock_cart_get.return_value = (self.mock_cart, True)
-            mock_course_get.return_value = self.mock_course
-            mock_item_filter.return_value.first.return_value = mock_cart_item
 
-            response = CartItemView.as_view()(request, slug='test-course')
+            mock_course_filter.return_value.first.return_value = self.mock_course
+
+            mock_cartitem_filter.return_value.first.return_value = mock_cart_item
+
+            response = CartItemView.as_view()(request, 'test-course')
 
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             mock_cart_item.delete.assert_called_once()

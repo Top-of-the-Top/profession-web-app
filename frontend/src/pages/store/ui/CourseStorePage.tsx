@@ -13,16 +13,10 @@ interface CourseCardProps {
   onClick: () => void;
   onAddToCart: () => void;
   disabled?: boolean;
+  inCart?: boolean;
 }
 
-const CourseCard = ({ course, onClick, onAddToCart, disabled }: CourseCardProps) => {
-  const formattedPrice = new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(course.price);
-
+const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart }: CourseCardProps) => {
   return (
     <div className={styles.courseCard}>
       <div className={styles.courseHeader}>
@@ -59,13 +53,13 @@ const CourseCard = ({ course, onClick, onAddToCart, disabled }: CourseCardProps)
 
         <Button
           className={styles.selectButton}
-          disabled={disabled}
+          disabled={disabled || inCart}
           onClick={(e) => {
             e.stopPropagation();
             onAddToCart();
           }}
         >
-          Выбрать
+          {inCart ? 'В корзине' : 'Выбрать'}
         </Button>
       </div>
     </div>
@@ -78,17 +72,39 @@ export default function CourseStorePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingSlug, setAddingSlug] = useState<string | null>(null);
+  const [inCartSlugs, setInCartSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await courseApi.getCourses();
-        
-        console.log('Courses data:', data);
-        
-        setCourses(data.data)
+        const [coursesResponse, cartResponse] = await Promise.all([
+          courseApi.getCourses(),
+          cartApi.getCart().catch((err: unknown) => {
+            const message = (err as Error)?.message ?? '';
+
+            // Если не авторизованы / токен протух — просто считаем, что корзина пустая
+            if (
+              message === 'AUTH_EXPIRED' ||
+              message.includes('API_ERROR_401')
+            ) {
+              return null;
+            }
+
+            throw err;
+          }),
+        ]);
+
+        setCourses(coursesResponse.data);
+
+        if (cartResponse && Array.isArray(cartResponse.courses)) {
+          setInCartSlugs(
+            new Set(cartResponse.courses.map((course) => course.slug)),
+          );
+        } else {
+          setInCartSlugs(new Set());
+        }
       } catch (err) {
         console.error('Ошибка загрузки курсов:', err);
         setError('Не удалось загрузить курсы. Пожалуйста, попробуйте позже.');
@@ -97,7 +113,7 @@ export default function CourseStorePage() {
       }
     };
 
-    fetchCourses();
+    fetchData();
   }, []);
 
   const handleCourseClick = (slug: string) => {
@@ -109,6 +125,12 @@ export default function CourseStorePage() {
     try {
       await cartApi.addCourse(slug);
       toast.success(`Курс «${title}» добавлен в корзину`);
+
+      setInCartSlugs((prev) => {
+        const next = new Set(prev);
+        next.add(slug);
+        return next;
+      });
     } catch (err: any) {
       const message: string = err?.message ?? '';
 
@@ -169,6 +191,7 @@ export default function CourseStorePage() {
                 onClick={() => handleCourseClick(course.slug)}
                 onAddToCart={() => handleAddToCart(course.slug, course.title)}
                 disabled={addingSlug === course.slug}
+                inCart={inCartSlugs.has(course.slug)}
               />
             ))}
           </div>

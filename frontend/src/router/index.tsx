@@ -4,13 +4,14 @@ import { AuthProvider } from '../context/AuthContext';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 import { routes } from './routes';
-import type {AppRoute} from './types';
+import type { AppRoute } from './types';
 import React from 'react';
+import { NotFoundPage } from '../pages';
 
 const renderRoutes = (routes: AppRoute[], basePath = '') =>
   routes.map(({ path, element, protected: isProtected, publicOnly, children }) => {
     console.log(`Рендер маршрута: ${basePath + path}`, { isProtected, publicOnly });
-    
+
     let wrappedElement = element as React.JSX.Element;
 
     if (isProtected) wrappedElement = <ProtectedRoute>{wrappedElement}</ProtectedRoute>;
@@ -29,7 +30,7 @@ export const AppRouter = () => (
   <AuthProvider>
     <Routes>
       {renderRoutes(routes)}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   </AuthProvider>
 );

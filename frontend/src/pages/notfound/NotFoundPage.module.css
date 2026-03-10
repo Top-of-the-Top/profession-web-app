@@ -1,0 +1,155 @@
+.root {
+  background: #0a0a0a;
+  color: #fff;
+  font-family: 'Arial Black', Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Фоновый шум */
+.root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+}
+
+.errorRow {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.digit {
+  font-size: clamp(120px, 20vw, 220px);
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  letter-spacing: -4px;
+  text-shadow:
+    0 0 40px rgba(255, 255, 255, 0.15),
+    0 0 80px rgba(255, 255, 255, 0.05);
+  user-select: none;
+}
+
+/* Видео-ноль */
+.videoZero {
+  position: relative;
+  width: clamp(120px, 18vw, 200px);
+  height: clamp(120px, 18vw, 200px);
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  box-shadow:
+    0 0 0 5px rgba(255, 255, 255, 0.9),
+    0 0 30px rgba(255, 255, 255, 0.2),
+    0 0 60px rgba(255, 255, 255, 0.08);
+
+  animation: breathe 4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 5px rgba(255, 255, 255, 0.9),
+      0 0 30px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px rgba(255, 255, 255, 1),
+      0 0 50px rgba(255, 255, 255, 0.35);
+  }
+}
+
+.videoZero video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Плашка при отсутствии видео */
+.placeholder {
+  width: 100%;
+  height: 100%;
+  background: #1a1a1a;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #555;
+  text-align: center;
+  padding: 12px;
+}
+
+/* Текст под числом */
+.message {
+  text-align: center;
+  line-height: 1.5;
+}
+
+.message h1 {
+  font-size: clamp(18px, 3vw, 28px);
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.message p {
+  font-size: clamp(13px, 1.8vw, 17px);
+  font-weight: 400;
+  color: #777;
+  font-family: Arial, sans-serif;
+}
+
+/* Кнопка */
+.btn {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 14px 36px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  color: #fff;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Arial Black', Arial, sans-serif;
+  letter-spacing: 0.5px;
+  border-radius: 50px;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+  cursor: pointer;
+  background: transparent;
+}
+
+.btn:hover {
+  background: #fff;
+  color: #0a0a0a;
+  transform: translateY(-2px);
+}
+
+/* Мелкий код внизу */
+.codeHint {
+  position: fixed;
+  bottom: 24px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #333;
+  user-select: none;
+}

@@ -1,264 +1,181 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import type {
-  Block,
-  BlockType,
-  CourseStructure,
-  Lesson,
-  Module,
-} from './types';
-import { serializeCourseStructure } from './types';
+import type { Block, BlockType, LessonLayout } from './types';
+import { serializeLessonLayout } from './types';
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  MIN_MEDIA_BLOCK_H,
+  MIN_MEDIA_BLOCK_W,
+  MIN_TEXT_BLOCK_H,
+  MIN_TEXT_BLOCK_W,
+  FONT_SIZE_STEPS,
+  DEFAULT_FONT_SIZE_INDEX,
+} from '../lib/constants';
 
-interface CourseBuilderState {
-  structure: CourseStructure;
-  selectedModuleId?: string;
-  selectedLessonId?: string;
-  isSaving: boolean;
-  lastSavedAt?: string;
+interface LessonBuilderState {
+  layout: LessonLayout;
 }
 
-interface CourseBuilderActions {
-  initialize: (structure: CourseStructure) => void;
-  selectLesson: (moduleId: string, lessonId: string) => void;
-  addModule: () => void;
-  addLesson: (moduleId: string) => void;
-  addBlock: (lessonId: string, type: BlockType) => void;
-  updateBlock: (lessonId: string, blockId: string, patch: Partial<Block>) => void;
-  reorderBlocks: (lessonId: string, fromIndex: number, toIndex: number) => void;
-  moveBlockToLesson: (
-    fromLessonId: string,
-    toLessonId: string,
-    blockId: string,
-    toIndex: number,
-  ) => void;
-  reorderModules: (fromIndex: number, toIndex: number) => void;
-  reorderLessons: (moduleId: string, fromIndex: number, toIndex: number) => void;
-  toJSON: () => CourseStructure;
-  startSaving: () => void;
-  finishSaving: () => void;
+interface LessonBuilderActions {
+  initialize: (layout: LessonLayout) => void;
+  setTitle: (title: string) => void;
+  addBlock: (type: BlockType) => void;
+  updateBlock: (blockId: string, patch: Partial<Block>) => void;
+  moveBlock: (blockId: string, x: number, y: number) => void;
+  resizeBlock: (blockId: string, w: number, h: number) => void;
+  toJSON: () => LessonLayout;
 }
 
-export type CourseBuilderStore = CourseBuilderState & CourseBuilderActions;
+export type LessonBuilderStore = LessonBuilderState & LessonBuilderActions;
 
-const createEmptyStructure = (): CourseStructure => ({
+const createEmptyLayout = (): LessonLayout => ({
   id: nanoid(),
-  title: 'Новый курс',
-  modules: [],
+  title: 'Новый урок',
+  blocks: [],
 });
 
-const moveItem = <T,>(array: T[], fromIndex: number, toIndex: number): T[] => {
-  const next = array.slice();
-  const [item] = next.splice(fromIndex, 1);
-  next.splice(toIndex, 0, item);
-  return next;
+const rectsIntersect = (a: Block, b: Block): boolean => {
+  if (a.id === b.id) return false;
+  return !(
+    a.x + a.w <= b.x ||
+    b.x + b.w <= a.x ||
+    a.y + a.h <= b.y ||
+    b.y + b.h <= a.y
+  );
 };
 
-export const useCourseBuilderStore = create<CourseBuilderStore>((set, get) => ({
-  structure: createEmptyStructure(),
-  selectedModuleId: undefined,
-  selectedLessonId: undefined,
-  isSaving: false,
-  lastSavedAt: undefined,
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value));
 
-  initialize: (structure) =>
+export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
+  layout: createEmptyLayout(),
+
+  initialize: (layout) =>
     set(() => ({
-      structure,
-      selectedModuleId: structure.modules[0]?.id,
-      selectedLessonId: structure.modules[0]?.lessons[0]?.id,
+      layout,
     })),
 
-  selectLesson: (moduleId, lessonId) =>
-    set(() => ({
-      selectedModuleId: moduleId,
-      selectedLessonId: lessonId,
-    })),
-
-  addModule: () =>
-    set((state) => {
-      const newModule: Module = {
-        id: nanoid(),
-        title: `Модуль ${state.structure.modules.length + 1}`,
-        lessons: [],
-      };
-
-      const modules = [...state.structure.modules, newModule];
-
-      return {
-        structure: { ...state.structure, modules },
-        selectedModuleId: newModule.id,
-        selectedLessonId: undefined,
-      };
-    }),
-
-  addLesson: (moduleId) =>
-    set((state) => {
-      const modules = state.structure.modules.map((module) => {
-        if (module.id !== moduleId) return module;
-
-        const newLesson: Lesson = {
-          id: nanoid(),
-          title: `Урок ${module.lessons.length + 1}`,
-          blocks: [],
-        };
-
-        return {
-          ...module,
-          lessons: [...module.lessons, newLesson],
-        };
-      });
-
-      const module = modules.find((m) => m.id === moduleId);
-      const newLesson = module?.lessons[module.lessons.length - 1];
-
-      return {
-        structure: { ...state.structure, modules },
-        selectedModuleId: moduleId,
-        selectedLessonId: newLesson?.id,
-      };
-    }),
-
-  addBlock: (lessonId, type) =>
-    set((state) => {
-      const modules = state.structure.modules.map((module) => ({
-        ...module,
-        lessons: module.lessons.map((lesson) => {
-          if (lesson.id !== lessonId) return lesson;
-
-          let newBlock: Block;
-          if (type === 'text') {
-            newBlock = { id: nanoid(), type: 'text', content: '' };
-          } else if (type === 'video') {
-            newBlock = { id: nanoid(), type: 'video', url: '', description: '' };
-          } else if (type === 'homework') {
-            newBlock = { id: nanoid(), type: 'homework', instructions: '', maxScore: 0 };
-          } else {
-            newBlock = { id: nanoid(), type: 'quiz', question: '', options: [] };
-          }
-
-          return {
-            ...lesson,
-            blocks: [...lesson.blocks, newBlock],
-          };
-        }),
-      }));
-
-      return {
-        structure: { ...state.structure, modules },
-      };
-    }),
-
-  updateBlock: (lessonId, blockId, patch) =>
-    set((state) => {
-      const modules = state.structure.modules.map((module) => ({
-        ...module,
-        lessons: module.lessons.map((lesson) => {
-          if (lesson.id !== lessonId) return lesson;
-
-          return {
-            ...lesson,
-            blocks: lesson.blocks.map((block) => {
-              if (block.id !== blockId) return block;
-              return { ...(block as Block), ...(patch as Block) };
-            }),
-          };
-        }),
-      }));
-
-      return {
-        structure: { ...state.structure, modules },
-      };
-    }),
-
-  reorderBlocks: (lessonId, fromIndex, toIndex) =>
-    set((state) => {
-      const modules = state.structure.modules.map((module) => ({
-        ...module,
-        lessons: module.lessons.map((lesson) => {
-          if (lesson.id !== lessonId) return lesson;
-
-          return {
-            ...lesson,
-            blocks: moveItem(lesson.blocks, fromIndex, toIndex),
-          };
-        }),
-      }));
-
-      return {
-        structure: { ...state.structure, modules },
-      };
-    }),
-
-  moveBlockToLesson: (fromLessonId, toLessonId, blockId, toIndex) =>
-    set((state) => {
-      let movedBlock: Block | undefined;
-
-      const modules = state.structure.modules.map((module) => ({
-        ...module,
-        lessons: module.lessons.map((lesson) => {
-          if (lesson.id === fromLessonId) {
-            const remainingBlocks = lesson.blocks.filter((block) => {
-              if (block.id === blockId) {
-                movedBlock = block;
-                return false;
-              }
-              return true;
-            });
-            return { ...lesson, blocks: remainingBlocks };
-          }
-
-          if (lesson.id === toLessonId && movedBlock) {
-            const nextBlocks = lesson.blocks.slice();
-            nextBlocks.splice(toIndex, 0, movedBlock);
-            return { ...lesson, blocks: nextBlocks };
-          }
-
-          return lesson;
-        }),
-      }));
-
-      return {
-        structure: { ...state.structure, modules },
-      };
-    }),
-
-  reorderModules: (fromIndex, toIndex) =>
+  setTitle: (title) =>
     set((state) => ({
-      structure: {
-        ...state.structure,
-        modules: moveItem(state.structure.modules, fromIndex, toIndex),
+      layout: { ...state.layout, title },
+    })),
+
+  addBlock: (type) =>
+    set((state) => {
+      const isMedia = type === 'photo' || type === 'video';
+      const w = isMedia ? MIN_MEDIA_BLOCK_W : MIN_TEXT_BLOCK_W;
+      const h = isMedia ? MIN_MEDIA_BLOCK_H : MIN_TEXT_BLOCK_H;
+
+      // поиск первого свободного места w×h
+      let targetX = 0;
+      let targetY = 0;
+      outer: for (let y = 0; y <= GRID_ROWS - h; y += 1) {
+        for (let x = 0; x <= GRID_COLS - w; x += 1) {
+          const candidate: Block = {
+            id: '__probe__',
+            type,
+            x,
+            y,
+            w,
+            h,
+            ...(type === 'text' ? { html: '' } : { url: '' }),
+          } as Block;
+
+          const hasCollision = state.layout.blocks.some((other) =>
+            rectsIntersect(candidate, other as Block),
+          );
+          if (!hasCollision) {
+            targetX = x;
+            targetY = y;
+            break outer;
+          }
+        }
+      }
+
+      const newBlock: Block =
+        type === 'text'
+          ? {
+              id: nanoid(),
+              type: 'text',
+              x: targetX,
+              y: targetY,
+              w,
+              h,
+              html: '',
+              fontSizeIndex: DEFAULT_FONT_SIZE_INDEX,
+            }
+          : {
+              id: nanoid(),
+              type,
+              x: targetX,
+              y: targetY,
+              w,
+              h,
+              url: '',
+            };
+
+      return {
+        layout: { ...state.layout, blocks: [...state.layout.blocks, newBlock] },
+      };
+    }),
+
+  updateBlock: (blockId, patch) =>
+    set((state) => ({
+      layout: {
+        ...state.layout,
+        blocks: state.layout.blocks.map((block) =>
+          block.id === blockId ? ({ ...block, ...(patch as Block) } as Block) : block,
+        ),
       },
     })),
 
-  reorderLessons: (moduleId, fromIndex, toIndex) =>
+  moveBlock: (blockId, x, y) =>
     set((state) => {
-      const modules = state.structure.modules.map((module) => {
-        if (module.id !== moduleId) return module;
+      const blocks = state.layout.blocks.map((block) => {
+        if (block.id !== blockId) return block;
 
-        return {
-          ...module,
-          lessons: moveItem(module.lessons, fromIndex, toIndex),
-        };
+        const clampedX = clamp(x, 0, GRID_COLS - block.w);
+        const clampedY = clamp(y, 0, GRID_ROWS - block.h);
+        const candidate: Block = { ...block, x: clampedX, y: clampedY };
+
+        const hasCollision = state.layout.blocks.some((other) =>
+          rectsIntersect(candidate, other as Block),
+        );
+
+        return hasCollision ? block : candidate;
       });
 
-      return {
-        structure: { ...state.structure, modules },
-      };
+      return { layout: { ...state.layout, blocks } };
+    }),
+
+  resizeBlock: (blockId, w, h) =>
+    set((state) => {
+      const blocks = state.layout.blocks.map((block) => {
+        if (block.id !== blockId) return block;
+
+        const isMedia = block.type === 'photo' || block.type === 'video';
+        const minW = isMedia ? MIN_MEDIA_BLOCK_W : MIN_TEXT_BLOCK_W;
+        const minH = isMedia ? MIN_MEDIA_BLOCK_H : MIN_TEXT_BLOCK_H;
+
+        const clampedW = clamp(w, minW, GRID_COLS - block.x);
+        const clampedH = clamp(h, minH, GRID_ROWS - block.y);
+
+        const candidate: Block = { ...block, w: clampedW, h: clampedH };
+
+        const hasCollision = state.layout.blocks.some((other) =>
+          rectsIntersect(candidate, other as Block),
+        );
+
+        return hasCollision ? block : candidate;
+      });
+
+      return { layout: { ...state.layout, blocks } };
     }),
 
   toJSON: () => {
-    const { structure } = get();
-    return serializeCourseStructure(structure);
+    const { layout } = get();
+    return serializeLessonLayout(layout);
   },
-
-  startSaving: () =>
-    set(() => ({
-      isSaving: true,
-    })),
-
-  finishSaving: () =>
-    set(() => ({
-      isSaving: false,
-      lastSavedAt: new Date().toISOString(),
-    })),
 }));
 

@@ -1,10 +1,12 @@
 .courseBuilder {
   display: flex;
-  gap: 24px;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   padding: 16px;
   box-sizing: border-box;
+  gap: 12px;
+	direction: ltr !important;
 }
 
 .sidebar {
@@ -16,12 +18,56 @@
   padding-right: 16px;
 }
 
-.content {
-  flex: 1;
+.sidebarTop {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
+
+.sidebarPreview {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.sidebarPreviewTitle {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.previewBlocks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.previewBlock {
+  border-radius: 6px;
+  background: #e5e7eb;
+}
+
+.previewBlockText {
+  background: #e5e7eb;
+}
+
+.previewBlockVideo {
+  background: #e5e7eb;
+}
+
+.previewBlockHomework {
+  background: #e5e7eb;
+  border-left: 3px solid #9ca3af;
+}
+
+.previewBlockQuiz {
+  background: #e5e7eb;
+  border-left: 3px solid #6b7280;
+}
+
+/* old sidebar/content styles are no longer used */
 
 .header {
   display: flex;
@@ -101,62 +147,7 @@
   background-color: rgba(37, 99, 235, 0.12);
 }
 
-.palette {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.paletteButton {
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  background: #fff;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.blocksContainer {
-  border-radius: 12px;
-  border: 1px dashed rgba(0, 0, 0, 0.14);
-  padding: 12px;
-  min-height: 120px;
-  background-color: #fafafa;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.blockCard {
-  background: #fff;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.blockHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.blockType {
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #4b5563;
-}
-
-.blockBody {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+/* old palette and vertical list styles removed */
 
 .input {
   width: 100%;
@@ -173,7 +164,7 @@
   font-size: 13px;
   padding: 6px 8px;
   min-height: 80px;
-  resize: vertical;
+  resize: none;
 }
 
 .badge {
@@ -199,10 +190,6 @@
   background-color: #10b981;
 }
 
-.saving {
-  background-color: #f59e0b;
-}
-
 .button {
   border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.12);
@@ -223,17 +210,427 @@
   color: #6b7280;
 }
 
+/* grid-based editor */
+.gridWrapper {
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  /* background-size: 80px 80px;
+  background-image: linear-gradient(
+      to right,
+      rgba(0, 0, 0, 0.04) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px); */
+  position: relative;
+  overflow: auto;
+}
+
+.gridInner {
+	background-size: 80px 80px;
+  background-image: linear-gradient(
+      to right,
+      rgba(0, 0, 0, 0.04) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+  position: relative;
+  width: calc(80px * 16);
+  max-width: 100%;
+  height: calc(80px * 100);
+}
+
+.gridBlock {
+  position: absolute;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  box-sizing: border-box;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+.blockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  font-size: 11px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.blockType {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+}
+
+.blockToggle {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  color: #6b7280;
+}
+
+.blockBody {
+  flex: 1;
+  padding: 6px 8px;
+  overflow: auto;
+}
+
+.textEditorToolbar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.textEditorButton {
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: #ffffff;
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.textEditorContent {
+  min-height: 40px;
+  outline: none;
+  font-size: 13px;
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+.resizeHandle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background-color: rgba(15, 23, 42, 0.16);
+  cursor: nwse-resize;
+}
+
+.paletteBar {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background-color: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.paletteButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.paletteButton {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 @media (max-width: 960px) {
   .courseBuilder {
-    flex-direction: column;
+    padding: 12px;
   }
 
-  .sidebar {
-    flex: 0 0 auto;
-    border-right: none;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    padding-right: 0;
-    padding-bottom: 16px;
+  .gridInner {
+    height: 480px;
+    width: 100%;
   }
 }
 
+@media (max-width: 960px) {
+  .courseBuilder {
+    padding: 12px;
+  }
+}
+
+.textSkeleton {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.textSkeletonLine {
+  display: flex;
+  gap: 20px;
+}
+
+.textSkeletonItem {
+  height: 10px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+.textSkeletonItem:first-child {
+  width: 40px;
+}
+
+.textSkeletonItem:nth-child(2) {
+  width: 80px;
+}
+
+.textSkeletonItem:last-child {
+  width: 60px;
+}
+
+
+.imageSkeleton {
+	width: 100%;
+	
+	display: flex;
+	justify-content: left;
+	padding-left: 10px;
+	align-items: center;
+}
+
+.textEditorContent blockquote {
+  margin: 8px 0;
+  padding-left: 16px;
+  border-left: 3px solid #2563eb;
+  background-color: rgba(37, 99, 235, 0.04);
+  font-style: italic;
+}
+
+.textEditorContent strong {
+  font-weight: 600;
+}
+
+.textEditorContent em {
+  font-style: italic;
+}
+
+.textEditorContent u {
+  text-decoration: underline;
+}
+/* Стили для WYSIWYG редактора */
+.wysiwygEditor {
+  width: 100%;
+	overflow: visible;
+  height: 100%;
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+.wysiwygEditor :global(.rsw-editor) {
+	overflow: visible;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: none !important;
+  direction: ltr !important;
+}
+
+.wysiwygEditor :global(.rsw-toolbar) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  background-color: #f9fafb;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 6px 6px 0 0;
+  direction: ltr !important;
+  transform: translateY(-105px);
+  position: absolute;
+}
+
+.wysiwygEditorCollapsed :global(.rsw-toolbar) {
+  display: none;
+}
+
+.wysiwygEditor :global(.rsw-btn) {
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #374151;
+  min-width: 32px;
+  transition: background-color 0.2s;
+}
+
+.wysiwygEditor :global(.rsw-btn:hover) {
+  background-color: #e5e7eb;
+}
+
+.wysiwygEditor :global(.rsw-btn[data-active="true"]) {
+  background-color: #2563eb;
+  color: white;
+}
+
+.wysiwygEditor :global(.rsw-dd) {
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.wysiwygEditor :global(.rsw-dd:hover) {
+  background-color: #e5e7eb;
+}
+
+.wysiwygEditor :global(.rsw-content-editor) {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  overflow-y: auto;
+  min-height: 100px;
+  max-height: 400px;
+  outline: none;
+  font-size: 13px;
+  line-height: 1.5;
+  background-color: white;
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+.wysiwygEditor :global(.rsw-content-editor:focus) {
+  border-color: #2563eb;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.wysiwygEditor :global(.rsw-content-editor p) {
+  margin: 0 0 8px 0;
+}
+
+.wysiwygEditor :global(.rsw-content-editor blockquote) {
+  margin: 8px 0;
+  padding-left: 16px;
+  border-left: 3px solid #2563eb;
+  background-color: rgba(37, 99, 235, 0.04);
+  font-style: italic;
+}
+
+.wysiwygEditor :global(.rsw-content-editor strong) {
+  font-weight: 600;
+}
+
+.wysiwygEditor :global(.rsw-content-editor em) {
+  font-style: italic;
+}
+
+.wysiwygEditor :global(.rsw-content-editor u) {
+  text-decoration: underline;
+}
+
+.wysiwygEditor :global(.rsw-content-editor h1) {
+  font-size: 2em;
+  margin: 0.67em 0;
+  font-weight: bold;
+}
+
+.wysiwygEditor :global(.rsw-content-editor h2) {
+  font-size: 1.5em;
+  margin: 0.75em 0;
+  font-weight: bold;
+}
+
+.wysiwygEditor :global(.rsw-content-editor h3) {
+  font-size: 1.17em;
+  margin: 0.83em 0;
+  font-weight: bold;
+}
+
+.wysiwygEditor :global(.rsw-content-editor ul),
+.wysiwygEditor :global(.rsw-content-editor ol) {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.wysiwygEditor :global(.rsw-content-editor li) {
+  margin: 4px 0;
+}
+
+/* Стили для изображений в блоках */
+.blockImage {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+/* Стили для видео */
+.videoWrapper {
+  position: relative;
+  padding-bottom: 56.25%; /* 16:9 */
+  height: 0;
+  overflow: hidden;
+  margin-bottom: 12px;
+  border-radius: 4px;
+}
+
+.blockVideo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Статус сохранения */
+.statusDot.saving {
+  background-color: #f59e0b;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Блок при перетаскивании */
+.gridBlock.dragging {
+  opacity: 0.8;
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+/* Убедимся, что все текстовые элементы имеют правильное направление */
+.gridBlock,
+.blockBody,
+.textEditorContent,
+.wysiwygEditor,
+.wysiwygEditor * {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+
+.wysiwygEditor :global(.rsw-ce:focus) {
+	outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}

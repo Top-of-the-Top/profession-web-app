@@ -1,8 +1,9 @@
-import { CourseBuilder } from "../../features/course-builder";
+import { CourseBuilder } from '../../features/course-builder';
 
 export default function CreateLesson() {
-
-	return(
-		<CourseBuilder courseId={12} />
-	)
+  return (
+    <>
+      <CourseBuilder courseId={12} />
+    </>
+  );
 }

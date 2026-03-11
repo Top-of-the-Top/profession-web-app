@@ -1,20 +1,8 @@
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-} from '@dnd-kit/sortable';
-import React, { useEffect, useMemo, useState } from 'react';
-import { courseBuilderApi } from '../../api/courseBuilderApi';
-import { useCourseBuilderStore } from '../../model/store';
-import type { Block, BlockType, Lesson, Module } from '../../model/types';
+import React, { useEffect, useRef, useState } from 'react';
+import { DefaultEditor } from 'react-simple-wysiwyg';
+import { useLessonBuilderStore } from '../../model/store';
+import type { Block, BlockType } from '../../model/types';
+import { GRID_CELL_SIZE } from '../../lib/constants';
 import styles from './CourseBuilder.module.css';
 
 interface CourseBuilderProps {
@@ -23,248 +11,270 @@ interface CourseBuilderProps {
 
 const BLOCK_LABELS: Record<BlockType, string> = {
   text: 'Текст',
+  photo: 'Фото',
   video: 'Видео',
-  homework: 'Домашнее задание',
-  quiz: 'Тестовый вопрос',
-};
-
-const useDebouncedCallback = (callback: () => void, delay: number) => {
-  const [timeoutId, setTimeoutId] = useState<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [timeoutId]);
-
-  const schedule = () => {
-    if (timeoutId !== null) {
-      window.clearTimeout(timeoutId);
-    }
-    const id = window.setTimeout(() => {
-      callback();
-    }, delay);
-    setTimeoutId(id);
-  };
-
-  return schedule;
 };
 
 export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
   const {
-    structure,
-    selectedModuleId,
-    selectedLessonId,
-    isSaving,
-    initialize,
-    selectLesson,
-    addModule,
-    addLesson,
+    layout,
+    setTitle,
     addBlock,
     updateBlock,
-    reorderBlocks,
+    moveBlock,
+    resizeBlock,
     toJSON,
-    startSaving,
-    finishSaving,
-  } = useCourseBuilderStore();
+  } = useLessonBuilderStore();
 
-  const selectedModule: Module | undefined = useMemo(
-    () => structure.modules.find((m) => m.id === selectedModuleId),
-    [structure.modules, selectedModuleId],
-  );
+  const [isSaving, setIsSaving] = useState(false);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [collapsedEditors, setCollapsedEditors] = useState<Record<string, boolean>>({});
 
-  const selectedLesson: Lesson | undefined = useMemo(
-    () => selectedModule?.lessons.find((l) => l.id === selectedLessonId),
-    [selectedModule, selectedLessonId],
-  );
+  type DragMode = 'move' | 'resize';
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
-  const scheduleSave = useDebouncedCallback(async () => {
-    startSaving();
-    try {
-      const payload = toJSON();
-      await courseBuilderApi.save({ courseId, structure: payload });
-    } finally {
-      finishSaving();
-    }
-  }, 800);
+  const [dragState, setDragState] = useState<
+    | {
+        mode: DragMode;
+        blockId: string;
+        startClientX: number;
+        startClientY: number;
+        startX: number;
+        startY: number;
+        startW: number;
+        startH: number;
+      }
+    | null
+  >(null);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await courseBuilderApi.load(courseId);
-        initialize(data);
-      } catch {
-        // оставляем структуру по умолчанию
+    if (!layout.blocks.length) return;
+
+    setIsSaving(true);
+    const timeoutId = window.setTimeout(() => {
+      const json = toJSON();
+      // временно просто выводим в консоль
+      // eslint-disable-next-line no-console
+      console.log('Lesson layout JSON for course', courseId, json);
+      setIsSaving(false);
+    }, 800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [layout, toJSON, courseId]);
+
+  useEffect(() => {
+    const handleMove = (event: MouseEvent) => {
+      if (!dragState || !gridRef.current) return;
+      const deltaX = event.clientX - dragState.startClientX;
+      const deltaY = event.clientY - dragState.startClientY;
+
+      const dx = Math.round(deltaX / GRID_CELL_SIZE);
+      const dy = Math.round(deltaY / GRID_CELL_SIZE);
+
+      if (dragState.mode === 'move') {
+        const nextX = dragState.startX + dx;
+        const nextY = dragState.startY + dy;
+        moveBlock(dragState.blockId, nextX, nextY);
+      } else {
+        const block = layout.blocks.find((b) => b.id === dragState.blockId);
+        const isMedia = block?.type === 'photo' || block?.type === 'video';
+        const minW = isMedia ? 2 : 1;
+        const minH = isMedia ? 2 : 1;
+        const nextW = Math.max(minW, dragState.startW + dx);
+        const nextH = Math.max(minH, dragState.startH + dy);
+        resizeBlock(dragState.blockId, nextW, nextH);
       }
     };
-    void load();
-  }, [courseId, initialize]);
 
-  useEffect(() => {
-    if (structure.modules.length === 0) return;
-    scheduleSave();
-  }, [structure, scheduleSave]);
+    const handleUp = () => {
+      setDragState(null);
+    };
+
+    if (dragState) {
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [dragState, moveBlock, resizeBlock]);
 
   const handleAddBlock = (type: BlockType) => {
-    if (!selectedLesson) return;
-    addBlock(selectedLesson.id, type);
+    addBlock(type);
   };
 
-  const handleBlockChange = (blockId: string, patch: Partial<Block>) => {
-    if (!selectedLesson) return;
-    updateBlock(selectedLesson.id, blockId, patch);
-  };
-
-  const handleDragEnd = (event: any) => {
-    const { active, over } = event;
-    if (!selectedLesson || !over || active.id === over.id) return;
-
-    const oldIndex = selectedLesson.blocks.findIndex((b) => b.id === active.id);
-    const newIndex = selectedLesson.blocks.findIndex((b) => b.id === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    reorderBlocks(selectedLesson.id, oldIndex, newIndex);
+  const startDrag = (mode: DragMode, block: Block, event: React.MouseEvent) => {
+    event.stopPropagation();
+    event.preventDefault();
+    setDragState({
+      mode,
+      blockId: block.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: block.x,
+      startY: block.y,
+      startW: block.w,
+      startH: block.h,
+    });
   };
 
   const handleCourseTitleChange = (title: string) => {
-    // пока простое обновление заголовка курса
-    // чтобы не раздувать стор, обновим через initialize
-    initialize({ ...structure, title });
+    setTitle(title);
   };
 
-  const renderBlockFields = (block: Block) => {
-    switch (block.type) {
-      case 'text':
-        return (
-          <textarea
-            className={styles.textarea}
-            placeholder="Текст урока..."
-            value={block.content ?? ''}
-            onChange={(e) => handleBlockChange(block.id, { content: e.target.value } as Block)}
-          />
-        );
-      case 'video':
-        return (
-          <div className={styles.blockBody}>
-            <input
-              className={styles.input}
-              placeholder="Ссылка на видео"
-              value={block.url ?? ''}
-              onChange={(e) => handleBlockChange(block.id, { url: e.target.value } as Block)}
-            />
-            <textarea
-              className={styles.textarea}
-              placeholder="Описание видео (опционально)"
-              value={block.description ?? ''}
-              onChange={(e) =>
-                handleBlockChange(block.id, { description: e.target.value } as Block)
-              }
+  const handleTextChange = (blockId: string, html: string) => {
+    updateBlock(blockId, { html } as Block);
+  };
+
+  const renderBlockBody = (block: Block) => {
+    if (block.type === 'text') {
+      const collapsed = collapsedEditors[block.id] ?? true;
+      return (
+        <div className={styles.blockBody} dir="ltr">
+          <div
+            className={`${styles.wysiwygEditor} ${
+              collapsed ? styles.wysiwygEditorCollapsed : ''
+            }`}
+          >
+            <DefaultEditor
+              value={block.html || ''}
+              onChange={(e) => handleTextChange(block.id, e.target.value)}
+              tagName="p"
             />
           </div>
-        );
-      case 'homework':
-        return (
-          <div className={styles.blockBody}>
-            <textarea
-              className={styles.textarea}
-              placeholder="Задание для студентов..."
-              value={block.instructions ?? ''}
-              onChange={(e) =>
-                handleBlockChange(block.id, { instructions: e.target.value } as Block)
-              }
-            />
-          </div>
-        );
-      case 'quiz':
-        return (
-          <div className={styles.blockBody}>
-            <input
-              className={styles.input}
-              placeholder="Вопрос"
-              value={block.question ?? ''}
-              onChange={(e) => handleBlockChange(block.id, { question: e.target.value } as Block)}
-            />
-          </div>
-        );
-      default:
-        return null;
+        </div>
+      );
     }
+
+    if (block.type === 'photo') {
+      return (
+        <div className={styles.blockBody}>
+          {block.url && (
+            <img 
+              src={block.url} 
+              alt="content" 
+              className={styles.blockImage}
+              onError={(e) => {
+                e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Ошибка+загрузки+изображения';
+              }}
+            />
+          )}
+          <input
+            type="text"
+            placeholder="URL изображения"
+            className={styles.input}
+            value={block.url ?? ''}
+            onChange={(e) =>
+              updateBlock(block.id, { url: e.target.value } as Block)
+            }
+          />
+        </div>
+      );
+    }
+
+    if (block.type === 'video') {
+      return (
+        <div className={styles.blockBody}>
+          {block.url && (
+            <div className={styles.videoWrapper}>
+              <iframe
+                src={block.url.replace('watch?v=', 'embed/')}
+                title="video"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className={styles.blockVideo}
+              />
+            </div>
+          )}
+          <input
+            type="text"
+            placeholder="URL видео"
+            className={styles.input}
+            value={block.url ?? ''}
+            onChange={(e) =>
+              updateBlock(block.id, { url: e.target.value } as Block)
+            }
+          />
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
-    <div className={styles.courseBuilder}>
-      <div className={styles.sidebar}>
-        <div className={styles.modulesHeader}>
-          <span>Структура курса</span>
-          <button type="button" className={styles.button} onClick={addModule}>
-            + Модуль
-          </button>
+    <div className={styles.courseBuilder} dir="ltr">
+      <div className={styles.header}>
+        <input
+          className={styles.titleInput}
+          value={layout.title}
+          onChange={(e) => handleCourseTitleChange(e.target.value)}
+          placeholder="Название курса"
+        />
+        <div className={styles.toolbar}>
+          <span className={`${styles.statusDot} ${isSaving ? styles.saving : ''}`} />
+          <span>{isSaving ? 'Сериализация в консоль...' : 'Локальный черновик'}</span>
         </div>
-        <div className={styles.modulesList}>
-          {structure.modules.map((module) => (
+      </div>
+
+      <div className={styles.gridWrapper}>
+        <div ref={gridRef} className={styles.gridInner}>
+          {layout.blocks.map((block) => (
             <div
-              key={module.id}
-              className={`${styles.moduleItem} ${
-                module.id === selectedModuleId ? styles.moduleItemActive : ''
-              }`}
+              key={block.id}
+              className={`${styles.gridBlock} ${dragState?.blockId === block.id ? styles.dragging : ''}`}
+              style={{
+                left: block.x * GRID_CELL_SIZE,
+                top: block.y * GRID_CELL_SIZE,
+                width: block.w * GRID_CELL_SIZE,
+                height: block.h * GRID_CELL_SIZE,
+              }}
+              dir="ltr"
             >
-              <div className={styles.moduleTitleRow}>
-                <span className={styles.moduleTitle}>{module.title}</span>
-                <button
-                  type="button"
-                  className={styles.button}
-                  onClick={() => addLesson(module.id)}
-                >
-                  + Урок
-                </button>
-              </div>
-              <div className={styles.lessonsList}>
-                {module.lessons.map((lesson) => (
+              <div
+                className={styles.blockHeader}
+                onMouseDown={(e) => startDrag('move', block, e)}
+              >
+                <span className={styles.blockType}>
+                  {BLOCK_LABELS[block.type]}
+                </span>
+                {block.type === 'text' && (
                   <button
-                    key={lesson.id}
                     type="button"
-                    className={`${styles.lessonItem} ${
-                      lesson.id === selectedLessonId ? styles.lessonItemActive : ''
-                    }`}
-                    onClick={() => selectLesson(module.id, lesson.id)}
+                    className={styles.blockToggle}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCollapsedEditors((prev) => {
+                        const current = prev[block.id] ?? true;
+                        return {
+                          ...prev,
+                          [block.id]: !current,
+                        };
+                      });
+                    }}
+                    aria-label="Свернуть/развернуть редактор"
                   >
-                    {lesson.title}
+                    {collapsedEditors[block.id] ?? true ? '▲' : '▼'}
                   </button>
-                ))}
+                )}
               </div>
+              {renderBlockBody(block)}
+              <div
+                className={styles.resizeHandle}
+                onMouseDown={(e) => startDrag('resize', block, e)}
+              />
             </div>
           ))}
         </div>
       </div>
 
-      <div className={styles.content}>
-        <div className={styles.header}>
-          <input
-            className={styles.titleInput}
-            value={structure.title}
-            onChange={(e) => handleCourseTitleChange(e.target.value)}
-          />
-          <div className={styles.toolbar}>
-            <span
-              className={`${styles.statusDot} ${
-                isSaving ? styles.saving : ''
-              }`}
-            />
-            <span>{isSaving ? 'Сохранение...' : 'Все изменения сохранены'}</span>
-          </div>
-        </div>
-
-        <div className={styles.palette}>
+      <div className={styles.paletteBar}>
+        <div className={styles.paletteButtons}>
           {(Object.keys(BLOCK_LABELS) as BlockType[]).map((type) => (
             <button
               key={type}
@@ -272,42 +282,22 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
               className={styles.paletteButton}
               onClick={() => handleAddBlock(type)}
             >
-              {BLOCK_LABELS[type]}
+              + {BLOCK_LABELS[type]}
             </button>
           ))}
         </div>
-
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={selectedLesson?.blocks.map((b) => b.id) ?? []}>
-            <div className={styles.blocksContainer}>
-              {selectedLesson ? (
-                selectedLesson.blocks.length === 0 ? (
-                  <span className={styles.emptyState}>
-                    Добавьте первый блок, чтобы начать собирать урок.
-                  </span>
-                ) : (
-                  selectedLesson.blocks.map((block) => (
-                    <div key={block.id} className={styles.blockCard}>
-                      <div className={styles.blockHeader}>
-                        <span className={styles.blockType}>
-                          {BLOCK_LABELS[block.type]}
-                        </span>
-                        <span className={styles.badge}>Блок</span>
-                      </div>
-                      {renderBlockFields(block)}
-                    </div>
-                  ))
-                )
-              ) : (
-                <span className={styles.emptyState}>
-                  Создайте модуль и урок, чтобы начать.
-                </span>
-              )}
-            </div>
-          </SortableContext>
-        </DndContext>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.buttonPrimary}`}
+          onClick={() => {
+            const json = toJSON();
+            // eslint-disable-next-line no-console
+            console.log('Lesson layout JSON (manual dump):', json);
+          }}
+        >
+          Вывести JSON в консоль
+        </button>
       </div>
     </div>
   );
 };
-

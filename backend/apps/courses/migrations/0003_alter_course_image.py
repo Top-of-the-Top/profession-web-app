@@ -17,7 +17,10 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='course',
             name='image',
-            field=models.ImageField(blank=True, null=True, upload_to='courses/', verbose_name='Изображение курса'),
+            field=models.ImageField(
+                blank=True,
+                null=True,
+                upload_to='courses/',
+                verbose_name='Изображение курса'),
         ),
     ]
-

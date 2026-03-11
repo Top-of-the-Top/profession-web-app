@@ -9,12 +9,19 @@ class CourseSerializer(serializers.ModelSerializer):
         model = Course
         fields = '__all__'
 
+
 class CourseDTOSerializer(serializers.ModelSerializer):
     image_url = serializers.ReadOnlyField()
 
     class Meta:
         model = Course
-        fields = ['course_id', 'title', 'sub_title', 'image_url', 'price', 'slug']
+        fields = [
+            'course_id',
+            'title',
+            'sub_title',
+            'image_url',
+            'price',
+            'slug']
 
 
 class CourseListResponseSerializer(serializers.Serializer):

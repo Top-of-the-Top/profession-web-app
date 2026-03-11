@@ -108,7 +108,11 @@ class CourseDetail(RetrieveAPIView):
         ),
         tags=["Courses"],
         parameters=[
-            OpenApiParameter(name='slug', type=OpenApiTypes.STR, location=OpenApiParameter.PATH, description='slug курса'),
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug курса'),
         ],
         responses={
             200: CourseDetailResponseSerializer,

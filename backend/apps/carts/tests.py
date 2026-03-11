@@ -99,8 +99,6 @@ class CartItemModelUnitTests(SimpleTestCase):
         self.assertIn(('cart_id', 'course_id'), CartItem._meta.unique_together)
 
 
-
-
 class CartIntegrationUnitTests(SimpleTestCase):
     """Mock-only интеграционные тесты для корзины"""
 
@@ -153,7 +151,8 @@ class CartIntegrationUnitTests(SimpleTestCase):
         mock_items.all.return_value = [mock_item1, mock_item2]
         self.mock_cart.cartitem_set = mock_items
 
-        total = sum(item.course_id.price for item in self.mock_cart.cartitem_set.all())
+        total = sum(
+            item.course_id.price for item in self.mock_cart.cartitem_set.all())
 
         self.assertEqual(total, 8000)
 
@@ -171,7 +170,8 @@ class CartIntegrationUnitTests(SimpleTestCase):
 
         self.mock_cart.courses.remove(self.mock_course1)
 
-        self.mock_cart.courses.remove.assert_called_once_with(self.mock_course1)
+        self.mock_cart.courses.remove.assert_called_once_with(
+            self.mock_course1)
 
     def test_clear_cart(self):
         """Тест очистки корзины"""
@@ -192,10 +192,12 @@ class CartIntegrationUnitTests(SimpleTestCase):
         self.assertEqual(mock_item.cart_id, self.mock_cart)
         self.assertEqual(mock_item.course_id, self.mock_course1)
 
+
 class CartAuthUnitTests(SimpleTestCase):
     """Тесты авторизации для Cart views"""
 
     databases = "__all__"
+
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -319,7 +321,6 @@ class CartAuthUnitTests(SimpleTestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn('error', response.data)
             self.assertEqual(response.data['error'], 'Курс уже в корзине')
-
 
     def test_cart_item_view_without_auth(self):
         """Тест что CartItemView возвращает 401 для неавторизованного"""

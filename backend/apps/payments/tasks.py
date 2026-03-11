@@ -16,12 +16,13 @@ ACCESS_DURATION_DAYS = 365
     acks_late=True,
 )
 def process_payment_task(self, payment_id: int):
-    
+
     from .models import Payment
     from .services import MockYooKassaService
 
     try:
-        payment = Payment.objects.select_related('user').get(payment_id=payment_id)
+        payment = Payment.objects.select_related(
+            'user').get(payment_id=payment_id)
     except Payment.DoesNotExist:
         logger.error('Payment %s не найден', payment_id)
         return {'status': 'error', 'detail': f'Payment {payment_id} not found'}
@@ -35,7 +36,7 @@ def process_payment_task(self, payment_id: int):
 
     yookassa_result = MockYooKassaService.fetch_payment_status(
         str(payment.mock_yookassa_id),
-    ) # Получаем статус платежа из (мок) ЮKassa. 
+    )  # Получаем статус платежа из (мок) ЮKassa.
 
     if yookassa_result['paid']:
         return _handle_success(payment)
@@ -43,7 +44,7 @@ def process_payment_task(self, payment_id: int):
         return _handle_failure(self, payment)
 
 
-def _handle_success(payment): # Это метод - обработка успешного платежа.
+def _handle_success(payment):  # Это метод - обработка успешного платежа.
     from ..courses.models import PurchasedCourse
     from ..carts.models import Cart, CartItem
 
@@ -56,7 +57,8 @@ def _handle_success(payment): # Это метод - обработка успе�
     payment_items = payment.items.select_related('course').all()
 
     created_count = 0
-    for item in payment_items: # Для каждого курса в платеже создаем объект в PurchasedCourse.
+    # Для каждого курса в платеже создаем объект в PurchasedCourse.
+    for item in payment_items:
         _, created = PurchasedCourse.objects.get_or_create(
             user=payment.user,
             course=item.course,
@@ -68,7 +70,8 @@ def _handle_success(payment): # Это метод - обработка успе�
         if created:
             created_count += 1
 
-    CartItem.objects.filter(cart_id__user=payment.user).delete() # Очищаем текущую корзину пользователя.
+    # Очищаем текущую корзину пользователя.
+    CartItem.objects.filter(cart_id__user=payment.user).delete()
 
     logger.info(
         'Payment %s успешен: %d курсов добавлено пользователю %s',
@@ -82,7 +85,8 @@ def _handle_success(payment): # Это метод - обработка успе�
     }
 
 
-def _handle_failure(task_instance, payment): # Это метод - обработка неудачного платежа.
+# Это метод - обработка неудачного платежа.
+def _handle_failure(task_instance, payment):
     payment.status = 'failed'
     payment.save(update_fields=['status', 'updated_at'])
 

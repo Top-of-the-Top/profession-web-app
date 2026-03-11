@@ -21,7 +21,8 @@ class Migration(migrations.Migration):
                 ('cart_id', models.AutoField(primary_key=True, serialize=False)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                ('user', models.OneToOneField(
+                    on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'verbose_name': 'Корзина',
@@ -31,9 +32,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='CartItem',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cart_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='carts.cart')),
-                ('course_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.course')),
+                ('id', models.BigAutoField(auto_created=True,
+                 primary_key=True, serialize=False, verbose_name='ID')),
+                ('cart_id', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, to='carts.cart')),
+                ('course_id', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, to='courses.course')),
             ],
             options={
                 'verbose_name': 'Курс в корзине',
@@ -45,6 +49,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='cart',
             name='courses',
-            field=models.ManyToManyField(through='carts.CartItem', to='courses.course'),
+            field=models.ManyToManyField(
+                through='carts.CartItem', to='courses.course'),
         ),
     ]

@@ -59,7 +59,8 @@ class UsersApiUnitTests(SimpleTestCase):
 
         serializer = MagicMock()
         serializer.is_valid.return_value = False
-        serializer.errors = {"non_field_errors": ["Необходимо указать email или phone_number"]}
+        serializer.errors = {"non_field_errors": [
+            "Необходимо указать email или phone_number"]}
 
         with patch("apps.users.api.views.RegisterSerializer", return_value=serializer):
             response = view(request)
@@ -89,7 +90,8 @@ class UsersApiUnitTests(SimpleTestCase):
         self.assertEqual(response.data, tokens)
 
     def test_refresh_requires_token(self):
-        request = self.factory.post("/api/auth/token/refresh/", {}, format="json")
+        request = self.factory.post(
+            "/api/auth/token/refresh/", {}, format="json")
         response = RefreshTokenView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -106,14 +108,17 @@ class UsersApiUnitTests(SimpleTestCase):
             response = RefreshTokenView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(response.data["detail"], "Невалидный или истекший refresh_token")
+        self.assertEqual(
+            response.data["detail"],
+            "Невалидный или истекший refresh_token")
 
     def test_reset_requires_email_or_phone(self):
         request = self.factory.post("/api/auth/reset/", {}, format="json")
         response = ResetPasswordView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data["detail"], "Необходимо указать email или phone_number")
+        self.assertEqual(response.data["detail"],
+                         "Необходимо указать email или phone_number")
 
     def test_reset_user_not_found(self):
         request = self.factory.post(
@@ -148,11 +153,14 @@ class UsersApiUnitTests(SimpleTestCase):
         send_mail_mock.assert_called_once()
 
     def test_recover_requires_token_and_password(self):
-        request = self.factory.patch("/api/auth/recover/set/", {}, format="json")
+        request = self.factory.patch(
+            "/api/auth/recover/set/", {}, format="json")
         response = RecoverPasswordView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data["detail"], "token и password обязательны")
+        self.assertEqual(
+            response.data["detail"],
+            "token и password обязательны")
 
     def test_recover_invalid_token(self):
         request = self.factory.patch(
@@ -166,7 +174,9 @@ class UsersApiUnitTests(SimpleTestCase):
             response = RecoverPasswordView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data["detail"], "Невалидный или истёкший токен")
+        self.assertEqual(
+            response.data["detail"],
+            "Невалидный или истёкший токен")
 
     def test_recover_success(self):
         request = self.factory.patch(
@@ -216,13 +226,15 @@ class UsersApiUnitTests(SimpleTestCase):
         self.assertEqual(response.data["email"], "student@example.com")
 
     def test_profile_patch_validation_error(self):
-        request = self.factory.patch("/api/app/profile/", {"gender": "X"}, format="json")
+        request = self.factory.patch(
+            "/api/app/profile/", {"gender": "X"}, format="json")
         auth_user = MagicMock(is_authenticated=True)
         force_authenticate(request, user=auth_user)
 
         serializer = MagicMock()
         serializer.is_valid.return_value = False
-        serializer.errors = {"gender": ["Допустимые значения: Мужской, Женский"]}
+        serializer.errors = {
+            "gender": ["Допустимые значения: Мужской, Женский"]}
 
         with patch("apps.users.api.views.UpdateProfileSerializer", return_value=serializer):
             response = ProfileView.as_view()(request)

@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.views import APIView
-from ..models import Course, PurchasedCourse
+from ..models import Course, PurchasedCourse, Lesson, Task, Homework, Question
 from .serializers import (
     CourseDTOSerializer,
     CourseSerializer,
@@ -19,6 +19,7 @@ from .serializers import (
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
+
 SCHEMA_401 = {
     "type": "object",
     "properties": {
@@ -29,7 +30,7 @@ SCHEMA_401 = {
         }
     },
 }
-SCHEMA_404 = {
+SCHEMA_COURSE_404 = {
     "type": "object",
     "properties": {
         "detail": {
@@ -40,17 +41,104 @@ SCHEMA_404 = {
     },
 }
 
+SCHEMA_LESSON_404 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Урок не найден.",
+            "example": "Урок не найден",
+        }
+    },
+}
+SCHEMA_LESSON_500 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Внутренняя ошибка сервера.",
+            "example": "Произошла ошибка при обработке запроса.",
+        }
+    },
+}
+
+SCHEMA_HOMEWORK_404 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Домашнее задание не найдено.",
+            "example": "Домашнее задание не найдено",
+        }
+    },
+}
+SCHEMA_HOMEWORK_500 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Внутренняя ошибка сервера.",
+            "example": "Произошла ошибка при обработке запроса.",
+        }
+    },
+}
+
+SCHEMA_TASK_404 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Задача не найдена.",
+            "example": "Задача не найдена",
+        }
+    },
+}
+SCHEMA_TASK_500 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Внутренняя ошибка сервера.",
+            "example": "Произошла ошибка при обработке запроса.",
+        }
+    },
+}
+
+SCHEMA_QUESTION_404 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Вопрос не найден.",
+            "example": "Вопрос не найден",
+        }
+    },
+}
+SCHEMA_QUESTION_500 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Внутренняя ошибка сервера.",
+            "example": "Произошла ошибка при обработке запроса.",
+        }
+    },
+}
+
 
 class CourseDTOListBase(generics.ListAPIView):
     serializer_class = CourseDTOSerializer
 
+
     def get_queryset(self):
         return Course.objects.all()
+
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -61,8 +149,10 @@ class CourseDTOListBase(generics.ListAPIView):
         })
 
 
+
 class CourseDTOList(CourseDTOListBase):
     permission_classes = (AllowAny,)
+
 
     @extend_schema(
         summary="Список курсов (лендинг)",
@@ -77,8 +167,10 @@ class CourseDTOList(CourseDTOListBase):
         return super().get(request, *args, **kwargs)
 
 
+
 class CourseDTOListAuthenticated(CourseDTOListBase):
     permission_classes = (IsAuthenticated,)
+
 
     @extend_schema(
         summary="Список курсов (store)",
@@ -97,11 +189,13 @@ class CourseDTOListAuthenticated(CourseDTOListBase):
         return super().get(request, *args, **kwargs)
 
 
+
 class CourseDetail(RetrieveAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     lookup_url_kwarg = 'slug'
     lookup_field = 'slug'
+
 
     @extend_schema(
         summary="Детали курса",
@@ -122,7 +216,7 @@ class CourseDetail(RetrieveAPIView):
         responses={
             200: CourseDetailResponseSerializer,
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
-            404: {"description": "Тело: { detail: 'Курс не найден' }.", "schema": SCHEMA_404},
+            404: {"description": "Тело: { detail: 'Курс не найден' }.", "schema": SCHEMA_COURSE_404},
         },
     )
     def get(self, request, *args, **kwargs):
@@ -136,8 +230,10 @@ class CourseDetail(RetrieveAPIView):
         return Response({'course': serializer.data})
 
 
+
 class PurchasedCoursesView(APIView):
     permission_classes = (IsAuthenticated,)
+
 
     @extend_schema(
         summary="Купленные курсы",
@@ -158,257 +254,396 @@ class PurchasedCoursesView(APIView):
             user=request.user,
         ).select_related('course', 'payment')
 
+
         serializer = PurchasedCourseSerializer(purchased, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class LessonViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = 'slug'
 
+    def get_queryset(self):
+       course_slug = self.kwargs['course_slug']
+       return Lesson.objects.filter(course__slug=course_slug)
+
     @extend_schema(
-      description="Получить список уроков",
+      summary="Получить список уроков",
       tags=["Lessons"],
       responses={
         200: LessonSerializer(many=True),
-        401: 'Не авторизован'
+        401: {"description": "Не авторизован", "schema": SCHEMA_401},
+        500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
     def list(self, request, *args, **kwargs):
-      pass
+        return super().list(request, *args, **kwargs)
 
     @extend_schema(
-      description="Создать новый урок",
+      summary="Создать новый урок",
       tags=["Lessons"],
       responses={
-        201: LessonSerializer(many=True),
-        401: 'Не авторизован'
+        201: LessonSerializer,
+        401: {"description": "Не авторизован", "schema": SCHEMA_401},
+        500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
     def create(self, request, *args, **kwargs):
-      pass
+        return super().create(request, *args, **kwargs)
 
     @extend_schema(
-      description="Получить информацию о уроке",
+      summary="Получить информацию о уроке",
       tags=["Lessons"],
+      parameters=[
+          OpenApiParameter(
+              name='slug',
+              type=OpenApiTypes.STR,
+              location=OpenApiParameter.PATH,
+              description='slug урока'),
+      ],
       responses={
-        200: LessonSerializer(many=True),
-        401: 'Не авторизован'
+        200: LessonSerializer,
+        401: {"description": "Не авторизован", "schema": SCHEMA_401},
+        404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
+        500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
     def retrieve(self, request, *args, **kwargs):
-      pass
+        return super().retrieve(request, *args, **kwargs)
 
     @extend_schema(
-      description="Обновить урок",
+      summary="Обновить урок",
       tags=["Lessons"],
+      parameters=[
+          OpenApiParameter(
+              name='slug',
+              type=OpenApiTypes.STR,
+              location=OpenApiParameter.PATH,
+              description='slug урока'),
+      ],
       responses={
-        200: LessonSerializer(many=True),
-        401: 'Не авторизован'
+        200: LessonSerializer,
+        401: {"description": "Не авторизован", "schema": SCHEMA_401},
+        404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
+        500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
-
     def partial_update(self, request, *args, **kwargs):
-      pass
-
+        return super().partial_update(request, *args, **kwargs)
 
     @extend_schema(
-      description="Удалить урок",
+      summary="Удалить урок",
       tags=["Lessons"],
+      parameters=[
+          OpenApiParameter(
+              name='slug',
+              type=OpenApiTypes.STR,
+              location=OpenApiParameter.PATH,
+              description='slug урока'),
+      ],
       responses={
-        204: LessonSerializer(many=True),
-        401: 'Не авторизован'
+        204: None,
+        401: {"description": "Не авторизован", "schema": SCHEMA_401},
+        404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
+        500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
-
     def destroy(self, request, *args, **kwargs):
-      pass
-
+        return super().destroy(request, *args, **kwargs)
 
 class HomeworkViewSet(viewsets.ModelViewSet):
-  permission_classes = (IsAuthenticated,)
-  http_method_names = ['get', 'post', 'patch', 'delete']
-  lookup_field = 'slug'
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'post', 'patch', 'delete']
+    lookup_field = 'slug'
 
-  @extend_schema(
-    description="Получить список домашних заданий",
-    tags=["Homeworks"],
-    responses={
-      200: HomeworkSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
-  def list(self, request, *args, **kwargs):
-    pass
+    def get_queryset(self):
+        course_slug = self.kwargs['course_slug']
+        lesson_slug = self.kwargs['lesson_slug']
+        return Homework.objects.filter(
+            lesson__slug=lesson_slug, 
+            lesson__course__slug=course_slug
+        )
 
-  @extend_schema(
-    description="Создать новое домашнее задание",
-    tags=["Homeworks"],
-    responses={
-      201: HomeworkSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
-  def create(self, request, *args, **kwargs):
-    pass
+    @extend_schema(
+        summary="Получить список домашних заданий",
+        tags=["Homeworks"],
+        responses={
+            200: HomeworkSerializer(many=True),
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
-  @extend_schema(
-    description="Получить информацию о домашнем задании",
-    tags=["Homeworks"],
-    responses={
-      200: HomeworkSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
-  def retrieve(self, request, *args, **kwargs):
-    pass
+    @extend_schema(
+        summary="Создать новое домашнее задание",
+        tags=["Homeworks"],
+        responses={
+            201: HomeworkSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
 
-  @extend_schema(
-    description="Обновить домашнее задание",
-    tags=["Homeworks"],
-    responses={
-      200: HomeworkSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
+    @extend_schema(
+        summary="Получить информацию о домашнем задании",
+        tags=["Homeworks"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug домашнего задания'),
+        ],
+        responses={
+            200: HomeworkSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Домашнее задание не найдено.", "schema": SCHEMA_HOMEWORK_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
-  def partial_update(self, request, *args, **kwargs):
-    pass
+    @extend_schema(
+        summary="Обновить домашнее задание",
+        tags=["Homeworks"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug домашнего задания'),
+        ],
+        responses={
+            200: HomeworkSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Домашнее задание не найдено.", "schema": SCHEMA_HOMEWORK_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
 
-  @extend_schema(
-    description="Удалить домашнее задание",
-    tags=["Homeworks"],
-    responses={
-      204: HomeworkSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
-  def destroy(self, request, *args, **kwargs):
-    pass
+    @extend_schema(
+        summary="Удалить домашнее задание",
+        tags=["Homeworks"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug домашнего задания'),
+        ],
+        responses={
+            204: None,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Домашнее задание не найдено.", "schema": SCHEMA_HOMEWORK_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
 
 class TaskViewSet(viewsets.ModelViewSet):
-  permission_classes = (IsAuthenticated,)
-  http_method_names = ['get', 'post', 'patch', 'delete']
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'post', 'patch', 'delete']
+    lookup_field = 'slug'
 
-  @extend_schema(
-    description="Получить список задач",
-    tags=["Tasks"],
-    responses={
-      200: TaskSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
-  def list(self, request, *args, **kwargs):
-    pass
+    def get_queryset(self):
+        course_slug = self.kwargs['course_slug']
+        lesson_slug = self.kwargs['lesson_slug']
+        homework_slug = self.kwargs['homework_slug']
+        return Task.objects.filter(
+            homework__slug=homework_slug,
+            homework__lesson__slug=lesson_slug, 
+            homework__lesson__course__slug=course_slug
+        )
 
-  @extend_schema(
-    description="Создать задачу ",
-    tags=["Tasks"],
-    responses={
-      201: TaskSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
+    @extend_schema(
+        summary="Получить список задач",
+        tags=["Tasks"],
+        responses={
+            200: TaskSerializer(many=True),
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
+        }
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
-  def create(self, request, *args, **kwargs):
-    pass
+    @extend_schema(
+        summary="Создать задачу ",
+        tags=["Tasks"],
+        responses={
+            201: TaskSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
 
-  @extend_schema(
-    description="Получить информацию о задаче",
-    tags=["Tasks"],
-    responses={
-      200: TaskSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
+    @extend_schema(
+        summary="Получить информацию о задаче",
+        tags=["Tasks"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug задачи'),
+        ],
+        responses={
+            200: TaskSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Задача не найдена.", "schema": SCHEMA_TASK_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
+        }
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
-  def retrieve(self, request, *args, **kwargs):
-    pass
+    @extend_schema(
+        summary="Обновить задачу",
+        tags=["Tasks"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug задачи'),
+        ],
+        responses={
+            200: TaskSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Задача не найдена.", "schema": SCHEMA_TASK_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
+        }
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
 
-  @extend_schema(
-    description="Обновить задачу",
-    tags=["Tasks"],
-    responses={
-      200: TaskSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
-
-  def partial_update(self, request, *args, **kwargs):
-    pass
-
-  @extend_schema(
-    description="Удалить задачу",
-    tags=["Tasks"],
-    responses={
-      204: TaskSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
-
-  def destroy(self, request, *args, **kwargs):
-    pass
-
+    @extend_schema(
+        summary="Удалить задачу",
+        tags=["Tasks"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug задачи'),
+        ],
+        responses={
+            204: None,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Задача не найдена.", "schema": SCHEMA_TASK_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
+        }
+    )
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
 
 class QuestionViewSet(viewsets.ModelViewSet):
-  permission_classes = (IsAuthenticated,)
-  http_method_names = ['get', 'post', 'patch', 'delete']
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'post', 'patch', 'delete']
+    lookup_field = 'slug'
 
-  @extend_schema(
-    description="Получить список вопросов",
-    tags=["Questions"],
-    responses={
-      200: QuestionSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
-  def list(self, request, *args, **kwargs):
-    pass
+    def get_queryset(self):
+        course_slug = self.kwargs['course_slug']
+        lesson_slug = self.kwargs['lesson_slug']
+        homework_slug = self.kwargs['homework_slug']
+      
+        return Question.objects.filter(
+            homework__slug=homework_slug,
+            homework__lesson__slug=lesson_slug, 
+            homework__lesson__course__slug=course_slug
+        )
 
-  @extend_schema(
-    description="Создать вопрос",
-    tags=["Questions"],
-    responses={
-      201: QuestionSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
+    @extend_schema(
+        summary="Получить список вопросов",
+        tags=["Questions"],
+        responses={
+            200: QuestionSerializer(many=True),
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
+        }
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
-  def create(self, request, *args, **kwargs):
-    pass
+    @extend_schema(
+        summary="Создать вопрос",
+        tags=["Questions"],
+        responses={
+            201: QuestionSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
 
-  @extend_schema(
-    description="Получить информацию о вопросе",
-    tags=["Questions"],
-    responses={
-      200: QuestionSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
+    @extend_schema(
+        summary="Получить информацию о вопросе",
+        tags=["Questions"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug вопроса'),
+        ],
+        responses={
+            200: QuestionSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Вопрос не найден.", "schema": SCHEMA_QUESTION_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
+        }
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
-  def retrieve(self, request, *args, **kwargs):
-    pass
+    @extend_schema(
+        summary="Обновить вопрос",
+        tags=["Questions"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug вопроса'),
+        ],
+        responses={
+            200: QuestionSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Вопрос не найден.", "schema": SCHEMA_QUESTION_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
+        }
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
 
-  @extend_schema(
-    description="Обновить вопрос",
-    tags=["Questions"],
-    responses={
-      200: QuestionSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
-
-  def partial_update(self, request, *args, **kwargs):
-    pass
-
-  @extend_schema(
-    description="Удалить вопрос",
-    tags=["Questions"],
-    responses={
-      204: QuestionSerializer(many=True),
-      401: 'Не авторизован'
-    }
-  )
-
-  def destroy(self, request, *args, **kwargs):
-    pass
+    @extend_schema(
+        summary="Удалить вопрос",
+        tags=["Questions"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug вопроса'),
+        ],
+        responses={
+            204: None,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Вопрос не найден.", "schema": SCHEMA_QUESTION_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
+        }
+    )
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)

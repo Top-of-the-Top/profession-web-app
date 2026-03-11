@@ -1,7 +1,8 @@
+from django.contrib.admin import action
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.views import APIView
 from ..models import Course, PurchasedCourse
 from .serializers import (
@@ -10,6 +11,10 @@ from .serializers import (
     CourseListResponseSerializer,
     CourseDetailResponseSerializer,
     PurchasedCourseSerializer,
+    LessonSerializer,
+    HomeworkSerializer,
+    QuestionSerializer,
+    TaskSerializer
 )
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
@@ -155,3 +160,255 @@ class PurchasedCoursesView(APIView):
 
         serializer = PurchasedCourseSerializer(purchased, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class LessonViewSet(viewsets.ModelViewSet):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'post', 'patch', 'delete']
+    lookup_field = 'slug'
+
+    @extend_schema(
+      description="Получить список уроков",
+      tags=["Lessons"],
+      responses={
+        200: LessonSerializer(many=True),
+        401: 'Не авторизован'
+      }
+    )
+    def list(self, request, *args, **kwargs):
+      pass
+
+    @extend_schema(
+      description="Создать новый урок",
+      tags=["Lessons"],
+      responses={
+        201: LessonSerializer(many=True),
+        401: 'Не авторизован'
+      }
+    )
+    def create(self, request, *args, **kwargs):
+      pass
+
+    @extend_schema(
+      description="Получить информацию о уроке",
+      tags=["Lessons"],
+      responses={
+        200: LessonSerializer(many=True),
+        401: 'Не авторизован'
+      }
+    )
+    def retrieve(self, request, *args, **kwargs):
+      pass
+
+    @extend_schema(
+      description="Обновить урок",
+      tags=["Lessons"],
+      responses={
+        200: LessonSerializer(many=True),
+        401: 'Не авторизован'
+      }
+    )
+
+    def partial_update(self, request, *args, **kwargs):
+      pass
+
+
+    @extend_schema(
+      description="Удалить урок",
+      tags=["Lessons"],
+      responses={
+        204: LessonSerializer(many=True),
+        401: 'Не авторизован'
+      }
+    )
+
+    def destroy(self, request, *args, **kwargs):
+      pass
+
+
+class HomeworkViewSet(viewsets.ModelViewSet):
+  permission_classes = (IsAuthenticated,)
+  http_method_names = ['get', 'post', 'patch', 'delete']
+  lookup_field = 'slug'
+
+  @extend_schema(
+    description="Получить список домашних заданий",
+    tags=["Homeworks"],
+    responses={
+      200: HomeworkSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+  def list(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Создать новое домашнее задание",
+    tags=["Homeworks"],
+    responses={
+      201: HomeworkSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+  def create(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Получить информацию о домашнем задании",
+    tags=["Homeworks"],
+    responses={
+      200: HomeworkSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+  def retrieve(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Обновить домашнее задание",
+    tags=["Homeworks"],
+    responses={
+      200: HomeworkSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+
+  def partial_update(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Удалить домашнее задание",
+    tags=["Homeworks"],
+    responses={
+      204: HomeworkSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+  def destroy(self, request, *args, **kwargs):
+    pass
+
+class TaskViewSet(viewsets.ModelViewSet):
+  permission_classes = (IsAuthenticated,)
+  http_method_names = ['get', 'post', 'patch', 'delete']
+
+  @extend_schema(
+    description="Получить список задач",
+    tags=["Tasks"],
+    responses={
+      200: TaskSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+  def list(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Создать задачу ",
+    tags=["Tasks"],
+    responses={
+      201: TaskSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+
+  def create(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Получить информацию о задаче",
+    tags=["Tasks"],
+    responses={
+      200: TaskSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+
+  def retrieve(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Обновить задачу",
+    tags=["Tasks"],
+    responses={
+      200: TaskSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+
+  def partial_update(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Удалить задачу",
+    tags=["Tasks"],
+    responses={
+      204: TaskSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+
+  def destroy(self, request, *args, **kwargs):
+    pass
+
+
+class QuestionViewSet(viewsets.ModelViewSet):
+  permission_classes = (IsAuthenticated,)
+  http_method_names = ['get', 'post', 'patch', 'delete']
+
+  @extend_schema(
+    description="Получить список вопросов",
+    tags=["Questions"],
+    responses={
+      200: QuestionSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+  def list(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Создать вопрос",
+    tags=["Questions"],
+    responses={
+      201: QuestionSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+
+  def create(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Получить информацию о вопросе",
+    tags=["Questions"],
+    responses={
+      200: QuestionSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+
+  def retrieve(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Обновить вопрос",
+    tags=["Questions"],
+    responses={
+      200: QuestionSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+
+  def partial_update(self, request, *args, **kwargs):
+    pass
+
+  @extend_schema(
+    description="Удалить вопрос",
+    tags=["Questions"],
+    responses={
+      204: QuestionSerializer(many=True),
+      401: 'Не авторизован'
+    }
+  )
+
+  def destroy(self, request, *args, **kwargs):
+    pass

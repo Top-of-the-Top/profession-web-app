@@ -58,10 +58,12 @@ class HomeworkSerializer(serializers.ModelSerializer):
   class Meta:
     model = Homework
     fields = '__all__'
+
 class QuestionSerializer(serializers.ModelSerializer):
   class Meta:
     model = Homework
     fields = '__all__'
+    
 class TaskSerializer(serializers.ModelSerializer):
   class Meta:
     model = Homework

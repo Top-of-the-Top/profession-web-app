@@ -35,8 +35,7 @@ class Migration(migrations.Migration):
                         default=True,
                         help_text='Designates whether this user should be treated as active. Unselect this instead of deleting accounts.',
                         verbose_name='active')),
-                ('first_name', models.CharField(
-                    blank=True, max_length=30, null=True)),
+                ('first_name', models.CharField(blank=True, max_length=30, null=True)),
                 ('last_name', models.CharField(blank=True, max_length=30, null=True)),
                 ('email_cipher',
                  models.CharField(blank=True,

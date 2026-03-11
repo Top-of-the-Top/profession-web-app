@@ -13,10 +13,7 @@ class TokenResponseSerializer(serializers.Serializer):
 
 
 class RegisterSerializer(serializers.Serializer):
-    email = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        allow_null=True)
+    email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     phone_number = serializers.CharField(
         required=False, allow_blank=True, allow_null=True)
     pass_hash = serializers.CharField(write_only=True, min_length=8)
@@ -51,10 +48,7 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        allow_null=True)
+    email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     phone_number = serializers.CharField(
         required=False, allow_blank=True, allow_null=True)
     pass_hash = serializers.CharField(write_only=True)
@@ -124,18 +118,11 @@ class UserProfileSerializer(serializers.Serializer):
 class UpdateProfileSerializer(serializers.Serializer):
     first_name = serializers.CharField(
         required=False, allow_blank=True, allow_null=True)
-    last_name = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True)
-    email = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        allow_null=True)
+    last_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     phone_number = serializers.CharField(
         required=False, allow_blank=True, allow_null=True)
-    gender = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        allow_null=True)
+    gender = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     birthday = serializers.DateField(required=False, allow_null=True)
     avatar = serializers.ImageField(required=False, allow_null=True)
 

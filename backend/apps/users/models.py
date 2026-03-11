@@ -87,8 +87,7 @@ class User(AbstractUser):
         null=True,
         blank=True,
         db_index=True,
-        error_messages={
-            'unique': 'Пользователь с таким телефоном уже существует'},
+        error_messages={'unique': 'Пользователь с таким телефоном уже существует'},
         help_text='Введите телефон',
     )
 
@@ -140,10 +139,7 @@ class Profile(models.Model):
         ('Ж', 'Женский'),
     )
 
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name='profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     profile_id = models.AutoField(primary_key=True)
     birthday = models.DateField(null=True, blank=True)
     gender = models.CharField(choices=GENDER_CHOICES, null=True, blank=True)

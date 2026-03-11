@@ -21,8 +21,7 @@ def process_payment_task(self, payment_id: int):
     from .services import MockYooKassaService
 
     try:
-        payment = Payment.objects.select_related(
-            'user').get(payment_id=payment_id)
+        payment = Payment.objects.select_related('user').get(payment_id=payment_id)
     except Payment.DoesNotExist:
         logger.error('Payment %s не найден', payment_id)
         return {'status': 'error', 'detail': f'Payment {payment_id} not found'}
@@ -57,8 +56,7 @@ def _handle_success(payment):  # Это метод - обработка успе
     payment_items = payment.items.select_related('course').all()
 
     created_count = 0
-    # Для каждого курса в платеже создаем объект в PurchasedCourse.
-    for item in payment_items:
+    for item in payment_items:  # Для каждого курса в платеже создаем объект в PurchasedCourse.
         _, created = PurchasedCourse.objects.get_or_create(
             user=payment.user,
             course=item.course,

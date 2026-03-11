@@ -27,8 +27,7 @@ class Payment(models.Model):
         default='pending',
     )
 
-    mock_payment_url = models.URLField(
-        null=True, blank=True)  # Пока что замокаем URL
+    mock_payment_url = models.URLField(null=True, blank=True)  # Пока что замокаем URL
     mock_yookassa_id = models.UUIDField(  # Пока что замокаем ID платежа
         unique=True,
         default=uuid.uuid4,

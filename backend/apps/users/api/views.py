@@ -261,11 +261,7 @@ class RecoverPasswordView(APIView):
         user.set_password(password)
         user.reset_token = None
         user.reset_token_expires = None
-        user.save(
-            update_fields=[
-                'password',
-                'reset_token',
-                'reset_token_expires'])
+        user.save(update_fields=['password', 'reset_token', 'reset_token_expires'])
 
         return Response(get_tokens_for_user(user), status=status.HTTP_200_OK)
 
@@ -321,8 +317,7 @@ class ProfileView(APIView):
     )
     def patch(self, request):
         user = request.user
-        serializer = UpdateProfileSerializer(
-            data=request.data, context={'user': user})
+        serializer = UpdateProfileSerializer(data=request.data, context={'user': user})
         if not serializer.is_valid():
             return Response(
                 serializer.errors,

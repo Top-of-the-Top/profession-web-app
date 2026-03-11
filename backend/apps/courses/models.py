@@ -29,9 +29,7 @@ def generate_unique_slug(instance, title, slug_field='slug'):
 class Course(models.Model):
     course_id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=50, verbose_name='Название курса')
-    sub_title = models.CharField(
-        max_length=75,
-        verbose_name='Краткое описание курса')
+    sub_title = models.CharField(max_length=75, verbose_name='Краткое описание курса')
     description = models.TextField(verbose_name="Описание курса")
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
     price = models.PositiveIntegerField()
@@ -207,10 +205,7 @@ class Users_Homeworks_Attempts(models.Model):
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
     user_id = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default='draft')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -238,8 +233,7 @@ class Users_Homeworks_Attempts(models.Model):
         total_max = task_max + question_max
         total_points = task_points + question_points
 
-        percentage: float = (
-            total_points / (total_max * 100.0)) if total_max > 0 else 0
+        percentage: float = (total_points / (total_max * 100.0)) if total_max > 0 else 0
 
         return max(1, min(10, round(percentage / 10)))
 
@@ -336,8 +330,7 @@ class Users_tasks_answers(models.Model):
     # Как то проверять, что не больше чем max_points у соответствующего вопроса
     points = models.PositiveIntegerField(default=0)
 
-    # Пока не понятно, что загружаем в качестве ответа. Пока будет Text без
-    # ограничений.
+    # Пока не понятно, что загружаем в качестве ответа. Пока будет Text без ограничений.
     user_answer = models.TextField()
 
     created_at = models.DateTimeField(auto_now_add=True)

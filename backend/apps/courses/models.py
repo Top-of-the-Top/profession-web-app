@@ -55,14 +55,16 @@ class Course(models.Model):
             super().save(update_fields=['slug'])
 
         is_new = self.pk is None
-        if is_new and self.image and hasattr(self.image, 'file') and self.image.name != DEFAULT_COURSE_IMAGE:
+        if is_new and self.image and hasattr(
+                self.image, 'file') and self.image.name != DEFAULT_COURSE_IMAGE:
             image_file = self.image.file
             original_name = getattr(self.image, 'name', 'image.jpg')
 
             self.image = None
             super().save(*args, **kwargs)
 
-            ext = original_name.split('.')[-1].lower() if '.' in original_name else 'jpg'
+            ext = original_name.split(
+                '.')[-1].lower() if '.' in original_name else 'jpg'
             new_name = f'courses/course_{self.pk}.{ext}'
 
             image_file.seek(0)
@@ -78,6 +80,8 @@ class Course(models.Model):
 
     def __str__(self):
         return self.title
+
+
 @receiver(pre_save, sender=Course)
 def handle_course_image_update(sender, instance, **kwargs):
     if not instance.pk:
@@ -145,11 +149,14 @@ class Homework(models.Model):
     def __str__(self):
         return self.title
 
+
 class Question(models.Model):
     question_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    text = models.CharField(max_length=200) # Пока работаем только с текстовыми вопросами. Без картинок и так далее
-    correct_ans = models.CharField() # Пока считаем, что всего может быть только 1 правильный ответ
+    # Пока работаем только с текстовыми вопросами. Без картинок и так далее
+    text = models.CharField(max_length=200)
+    # Пока считаем, что всего может быть только 1 правильный ответ
+    correct_ans = models.CharField()
     answer_options = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -165,6 +172,7 @@ class Question(models.Model):
     def __str__(self):
         return self.description
 
+
 class Task(models.Model):
     task_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
@@ -172,6 +180,7 @@ class Task(models.Model):
     max_points = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
         verbose_name = 'Задача'
         verbose_name_plural = 'Задачи'
@@ -182,6 +191,7 @@ class Task(models.Model):
 
     def __str__(self):
         return self.question
+
 
 class Users_Homeworks_Attempts(models.Model):
 
@@ -231,7 +241,8 @@ class Users_Homeworks_Attempts(models.Model):
         verbose_name = 'Попытка'
         verbose_name_plural = 'Попытки'
         ordering = ['created_at']
-        unique_together = ('homework_id', 'user_id') # Уникальная пара ключей, при submit просто обновляем через PUT/PATCH
+        # Уникальная пара ключей, при submit просто обновляем через PUT/PATCH
+        unique_together = ('homework_id', 'user_id')
         indexes = [
             models.Index(fields=['user_id', 'homework_id', 'status'])
         ]
@@ -243,7 +254,10 @@ class Users_Homeworks_Attempts(models.Model):
 class Users_questions_answers(models.Model):
     answer_id = models.AutoField(primary_key=True)
     question_id = models.ForeignKey(Question, on_delete=models.CASCADE)
-    attempt_id = models.ForeignKey(Users_Homeworks_Attempts, on_delete=models.CASCADE, related_name='question_answers')
+    attempt_id = models.ForeignKey(
+        Users_Homeworks_Attempts,
+        on_delete=models.CASCADE,
+        related_name='question_answers')
 
     is_correct = models.BooleanField(default=False)
     user_answer = models.CharField(max_length=120)
@@ -261,6 +275,7 @@ class Users_questions_answers(models.Model):
 
     def __str__(self):
         return self.answer_id
+
 
 class PurchasedCourse(models.Model):
 
@@ -298,7 +313,8 @@ class PurchasedCourse(models.Model):
 
 class Users_tasks_answers(models.Model):
     TASK_STATUS_CHOICES = [
-        # Начали отвечать -> draft -> отправили всю домашку -> submitted -> эту проверили -> reviewed
+        # Начали отвечать -> draft -> отправили всю домашку -> submitted -> эту
+        # проверили -> reviewed
         ('draft', 'Draft'),
         ('submitted', 'Submitted'),
         ('reviewed', 'Reviewed'),
@@ -306,21 +322,29 @@ class Users_tasks_answers(models.Model):
     answer_id = models.AutoField(primary_key=True)
 
     task_id = models.ForeignKey(Task, on_delete=models.CASCADE)
-    attempt_id = models.ForeignKey(Users_Homeworks_Attempts, on_delete=models.CASCADE, related_name='task_answers')
+    attempt_id = models.ForeignKey(
+        Users_Homeworks_Attempts,
+        on_delete=models.CASCADE,
+        related_name='task_answers')
 
-    points = models.PositiveIntegerField(default=0) # Как то проверять, что не больше чем max_points у соответствующего вопроса
+    # Как то проверять, что не больше чем max_points у соответствующего вопроса
+    points = models.PositiveIntegerField(default=0)
 
-    user_answer = models.TextField() # Пока не понятно, что загружаем в качестве ответа. Пока будет Text без ограничений.
+    # Пока не понятно, что загружаем в качестве ответа. Пока будет Text без ограничений.
+    user_answer = models.TextField()
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    task_status = models.CharField(max_length=20, choices=TASK_STATUS_CHOICES, default='submitted')
+    task_status = models.CharField(
+        max_length=20,
+        choices=TASK_STATUS_CHOICES,
+        default='submitted')
 
     def clean(self):
-        if self.points > self.task_id.max_points: # Проверяем что выставлено корректное количество баллов
+        if self.points > self.task_id.max_points:  # Проверяем что выставлено корректное количество баллов
             raise ValidationError({
-                'points' : f'За задание {self.task_id} можно получить максимум {self.task_id.max_points}'
+                'points': f'За задание {self.task_id} можно получить максимум {self.task_id.max_points}'
             })
 
     def save(self, *args, **kwargs):

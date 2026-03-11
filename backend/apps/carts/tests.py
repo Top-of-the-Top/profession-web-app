@@ -99,8 +99,6 @@ class CartItemModelUnitTests(SimpleTestCase):
         self.assertIn(('cart_id', 'course_id'), CartItem._meta.unique_together)
 
 
-
-
 class CartIntegrationUnitTests(SimpleTestCase):
     """Mock-only интеграционные тесты для корзины"""
 
@@ -192,10 +190,12 @@ class CartIntegrationUnitTests(SimpleTestCase):
         self.assertEqual(mock_item.cart_id, self.mock_cart)
         self.assertEqual(mock_item.course_id, self.mock_course1)
 
+
 class CartAuthUnitTests(SimpleTestCase):
     """Тесты авторизации для Cart views"""
 
     databases = "__all__"
+
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -319,7 +319,6 @@ class CartAuthUnitTests(SimpleTestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn('error', response.data)
             self.assertEqual(response.data['error'], 'Курс уже в корзине')
-
 
     def test_cart_item_view_without_auth(self):
         """Тест что CartItemView возвращает 401 для неавторизованного"""

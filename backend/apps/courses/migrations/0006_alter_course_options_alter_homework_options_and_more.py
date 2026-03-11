@@ -17,32 +17,54 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterModelOptions(
             name='course',
-            options={'ordering': ['-created_at'], 'verbose_name': 'Курс', 'verbose_name_plural': 'Курсы'},
+            options={
+                'ordering': ['-created_at'],
+                'verbose_name': 'Курс',
+                'verbose_name_plural': 'Курсы'},
         ),
         migrations.AlterModelOptions(
             name='homework',
-            options={'ordering': ['created_at'], 'verbose_name': 'Домашнее задание', 'verbose_name_plural': 'Домашние задания'},
+            options={
+                'ordering': ['created_at'],
+                'verbose_name': 'Домашнее задание',
+                'verbose_name_plural': 'Домашние задания'},
         ),
         migrations.AlterModelOptions(
             name='lesson',
-            options={'ordering': ['date'], 'verbose_name': 'Урок', 'verbose_name_plural': 'Уроки'},
+            options={
+                'ordering': ['date'],
+                'verbose_name': 'Урок',
+                'verbose_name_plural': 'Уроки'},
         ),
         migrations.AddField(
             model_name='course',
             name='created_at',
-            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now),
+            field=models.DateTimeField(
+                auto_now_add=True,
+                default=django.utils.timezone.now),
             preserve_default=False,
         ),
         migrations.AddField(
             model_name='homework',
             name='created_at',
-            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now),
+            field=models.DateTimeField(
+                auto_now_add=True,
+                default=django.utils.timezone.now),
             preserve_default=False,
         ),
         migrations.AddField(
             model_name='homework',
             name='deadline',
-            field=models.DateTimeField(default=datetime.datetime(2026, 2, 11, 20, 53, 59, 739392, tzinfo=datetime.timezone.utc)),
+            field=models.DateTimeField(
+                default=datetime.datetime(
+                    2026,
+                    2,
+                    11,
+                    20,
+                    53,
+                    59,
+                    739392,
+                    tzinfo=datetime.timezone.utc)),
             preserve_default=False,
         ),
         migrations.AddField(
@@ -59,7 +81,8 @@ class Migration(migrations.Migration):
                 ('answer_options', models.JSONField()),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('homework_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.homework')),
+                ('homework_id', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, to='courses.homework')),
             ],
             options={
                 'verbose_name': 'Вопрос',
@@ -75,7 +98,8 @@ class Migration(migrations.Migration):
                 ('max_points', models.PositiveIntegerField(default=0)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('homework_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.homework')),
+                ('homework_id', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, to='courses.homework')),
             ],
             options={
                 'verbose_name': 'Задача',
@@ -87,12 +111,22 @@ class Migration(migrations.Migration):
             name='Users_Homeworks_Attempts',
             fields=[
                 ('attempt_id', models.AutoField(primary_key=True, serialize=False)),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('submitted', 'Submitted'), ('reviewed', 'Reviewed')], default='draft', max_length=20)),
+                ('status',
+                 models.CharField(choices=[('draft',
+                                            'Draft'),
+                                           ('submitted',
+                                            'Submitted'),
+                                           ('reviewed',
+                                            'Reviewed')],
+                                  default='draft',
+                                  max_length=20)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('send_at', models.DateTimeField(blank=True, null=True)),
-                ('homework_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.homework')),
-                ('user_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                ('homework_id', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, to='courses.homework')),
+                ('user_id', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'verbose_name': 'Попытка',
@@ -108,8 +142,10 @@ class Migration(migrations.Migration):
                 ('user_answer', models.CharField(max_length=120)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('attempt_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='question_answers', to='courses.users_homeworks_attempts')),
-                ('question_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.question')),
+                ('attempt_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE,
+                 related_name='question_answers', to='courses.users_homeworks_attempts')),
+                ('question_id', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, to='courses.question')),
             ],
             options={
                 'verbose_name': 'Ответ на вопрос',
@@ -125,9 +161,21 @@ class Migration(migrations.Migration):
                 ('user_answer', models.TextField()),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('task_status', models.CharField(choices=[('draft', 'Draft'), ('submitted', 'Submitted'), ('reviewed', 'Reviewed')], default='submitted', max_length=20)),
-                ('attempt_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='task_answers', to='courses.users_homeworks_attempts')),
-                ('task_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.task')),
+                ('task_status',
+                 models.CharField(choices=[('draft',
+                                            'Draft'),
+                                           ('submitted',
+                                            'Submitted'),
+                                           ('reviewed',
+                                            'Reviewed')],
+                                  default='submitted',
+                                  max_length=20)),
+                ('attempt_id',
+                 models.ForeignKey(on_delete=django.db.models.deletion.CASCADE,
+                                   related_name='task_answers',
+                                   to='courses.users_homeworks_attempts')),
+                ('task_id', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, to='courses.task')),
             ],
             options={
                 'verbose_name': 'Ответ на задание',
@@ -137,15 +185,24 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='question',
-            index=models.Index(fields=['homework_id'], name='courses_que_homewor_6e7bae_idx'),
+            index=models.Index(
+                fields=['homework_id'],
+                name='courses_que_homewor_6e7bae_idx'),
         ),
         migrations.AddIndex(
             model_name='task',
-            index=models.Index(fields=['homework_id'], name='courses_tas_homewor_aaa8f5_idx'),
+            index=models.Index(
+                fields=['homework_id'],
+                name='courses_tas_homewor_aaa8f5_idx'),
         ),
         migrations.AddIndex(
             model_name='users_homeworks_attempts',
-            index=models.Index(fields=['user_id', 'homework_id', 'status'], name='courses_use_user_id_87ce09_idx'),
+            index=models.Index(
+                fields=[
+                    'user_id',
+                    'homework_id',
+                    'status'],
+                name='courses_use_user_id_87ce09_idx'),
         ),
         migrations.AlterUniqueTogether(
             name='users_homeworks_attempts',
@@ -153,10 +210,19 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='users_questions_answers',
-            index=models.Index(fields=['attempt_id', 'question_id'], name='courses_use_attempt_d78b30_idx'),
+            index=models.Index(
+                fields=[
+                    'attempt_id',
+                    'question_id'],
+                name='courses_use_attempt_d78b30_idx'),
         ),
         migrations.AddIndex(
             model_name='users_tasks_answers',
-            index=models.Index(fields=['attempt_id', 'task_id', 'task_status'], name='courses_use_attempt_dcd302_idx'),
+            index=models.Index(
+                fields=[
+                    'attempt_id',
+                    'task_id',
+                    'task_status'],
+                name='courses_use_attempt_dcd302_idx'),
         ),
     ]

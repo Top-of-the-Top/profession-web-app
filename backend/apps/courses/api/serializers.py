@@ -9,6 +9,7 @@ class CourseSerializer(serializers.ModelSerializer):
         model = Course
         fields = '__all__'
 
+
 class CourseDTOSerializer(serializers.ModelSerializer):
     image_url = serializers.ReadOnlyField()
 

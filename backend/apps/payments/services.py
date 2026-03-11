@@ -19,14 +19,13 @@ class YooKassaPaymentResponse:
     description: str
 
 
-class MockYooKassaService: # Это мок-реализация платёжного шлюза ЮKassa.
-    
+class MockYooKassaService:  # Это мок-реализация платёжного шлюза ЮKassa.
 
     MOCK_BASE_URL = 'https://mock-yookassa.ru/payments'
-    SUCCESS_PROBABILITY = 0.8 # Это вероятность успешного платежа.
+    SUCCESS_PROBABILITY = 0.8  # Это вероятность успешного платежа.
 
     @classmethod
-    def create_payment( # Это метод для создания платежа в (мок) ЮKassa.
+    def create_payment(  # Это метод для создания платежа в (мок) ЮKassa.
         cls,
         amount: Decimal,
         currency: str = 'RUB',
@@ -34,7 +33,7 @@ class MockYooKassaService: # Это мок-реализация платёжно
         return_url: str = '',
         idempotency_key: Optional[str] = None,
     ) -> YooKassaPaymentResponse:
-        
+
         payment_uuid = idempotency_key or str(uuid.uuid4())
         confirmation_url = f'{cls.MOCK_BASE_URL}/{payment_uuid}'
 
@@ -54,7 +53,8 @@ class MockYooKassaService: # Это мок-реализация платёжно
         )
 
     @classmethod
-    def fetch_payment_status(cls, yookassa_id: str) -> dict: # Это метод - заглушка для проверки статуса платежа
+    # Это метод - заглушка для проверки статуса платежа
+    def fetch_payment_status(cls, yookassa_id: str) -> dict:
         is_success = random.random() < cls.SUCCESS_PROBABILITY
         status = 'succeeded' if is_success else 'canceled'
 
@@ -70,7 +70,8 @@ class MockYooKassaService: # Это мок-реализация платёжно
         }
 
     @classmethod
-    def capture_payment(cls, yookassa_id: str) -> dict: # Это метод - заглушка для подтверждения платежа.
+    # Это метод - заглушка для подтверждения платежа.
+    def capture_payment(cls, yookassa_id: str) -> dict:
         logger.info('MockYooKassa: capture платежа %s', yookassa_id)
         return {
             'id': yookassa_id,
@@ -79,7 +80,8 @@ class MockYooKassaService: # Это мок-реализация платёжно
         }
 
     @classmethod
-    def refund_payment(cls, yookassa_id: str, amount: Decimal) -> dict: # Это метод - заглушка для возврата платежа.
+    # Это метод - заглушка для возврата платежа.
+    def refund_payment(cls, yookassa_id: str, amount: Decimal) -> dict:
         refund_id = str(uuid.uuid4())
         logger.info(
             'MockYooKassa: возврат %s на сумму %s',

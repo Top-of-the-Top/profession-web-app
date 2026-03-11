@@ -204,7 +204,8 @@ class PaymentTaskUnitTests(SimpleTestCase):
         mock_item2.course.id = 2
 
         mock_items_queryset = MagicMock()
-        mock_items_queryset.select_related.return_value.all.return_value = [mock_item1, mock_item2]
+        mock_items_queryset.select_related.return_value.all.return_value = [
+            mock_item1, mock_item2]
         mock_payment.items = mock_items_queryset
 
         # Создаем моки для PurchasedCourse и CartItem
@@ -263,6 +264,7 @@ class PaymentTaskUnitTests(SimpleTestCase):
             self.assertEqual(mock_payment.status, 'failed')
             mock_payment.save.assert_called_once()
 
+
 class CartPayViewUnitTests(SimpleTestCase):
     """Mock-only тесты для CartPayView"""
 
@@ -297,7 +299,8 @@ class CartPayViewUnitTests(SimpleTestCase):
         mock_cart = MagicMock()
         mock_cart_items = MagicMock()
         mock_cart_items.exists.return_value = False
-        # В представлении вызывается .filter(...).select_related('course_id') — exists() у результата
+        # В представлении вызывается .filter(...).select_related('course_id') —
+        # exists() у результата
         mock_cart_items.select_related.return_value = mock_cart_items
 
         mock_purchased_filter = MagicMock()
@@ -370,7 +373,8 @@ class CartPayViewUnitTests(SimpleTestCase):
             mock_purchased_filter.return_value.values_list.return_value = []
             mock_payment_create.return_value = mock_payment
             mock_yookassa.return_value = mock_yookassa_response
-            mock_serializer.return_value.data = {'payment_id': 1, 'total_sum': '5000.00'}
+            mock_serializer.return_value.data = {
+                'payment_id': 1, 'total_sum': '5000.00'}
 
             response = CartPayView.as_view()(request)
 

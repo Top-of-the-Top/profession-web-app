@@ -52,7 +52,8 @@ class CourseModelUnitTests(SimpleTestCase):
         with patch('apps.courses.models.slugify', return_value='testovyy-kurs'), \
                 patch('apps.courses.models.uuid.uuid4') as mock_uuid:
             mock_uuid_obj = MagicMock()
-            mock_uuid_obj.__str__ = MagicMock(return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+            mock_uuid_obj.__str__ = MagicMock(
+                return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
             mock_uuid.return_value = mock_uuid_obj
 
             slug = generate_unique_slug(mock_course, 'Тестовый курс')
@@ -222,7 +223,8 @@ class CourseApiViewUnitTests(SimpleTestCase):
 
         self.mock_queryset = MagicMock()
         self.mock_queryset.__len__.return_value = 2
-        self.mock_queryset.__iter__.return_value = iter([self.mock_course, self.mock_course])
+        self.mock_queryset.__iter__.return_value = iter(
+            [self.mock_course, self.mock_course])
 
     def test_course_dto_list_public(self):
         """Тест публичного списка курсов"""
@@ -269,7 +271,8 @@ class CourseApiViewUnitTests(SimpleTestCase):
             mock_filter.return_value.first.return_value = self.mock_course
 
             with patch('apps.courses.api.views.CourseSerializer') as mock_serializer:
-                mock_serializer.return_value.data = {'title': 'Тестовый курс', 'price': 5000}
+                mock_serializer.return_value.data = {
+                    'title': 'Тестовый курс', 'price': 5000}
 
                 response = CourseDetail.as_view()(request, slug='test-course')
 
@@ -349,7 +352,8 @@ class GenerateUniqueSlugUnitTests(SimpleTestCase):
                 patch('apps.courses.models.uuid.uuid4') as mock_uuid:
             # Настраиваем uuid мок правильно
             mock_uuid_obj = MagicMock()
-            mock_uuid_obj.__str__ = MagicMock(return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+            mock_uuid_obj.__str__ = MagicMock(
+                return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
             mock_uuid.return_value = mock_uuid_obj
 
             slug = generate_unique_slug(mock_instance, 'Тестовый курс')
@@ -366,7 +370,8 @@ class GenerateUniqueSlugUnitTests(SimpleTestCase):
         with patch('apps.courses.models.slugify', return_value='x' * 80), \
                 patch('apps.courses.models.uuid.uuid4') as mock_uuid:
             mock_uuid_obj = MagicMock()
-            mock_uuid_obj.__str__ = MagicMock(return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+            mock_uuid_obj.__str__ = MagicMock(
+                return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
             mock_uuid.return_value = mock_uuid_obj
 
             slug = generate_unique_slug(mock_instance, long_title)
@@ -381,7 +386,8 @@ class GenerateUniqueSlugUnitTests(SimpleTestCase):
         with patch('apps.courses.models.slugify', return_value=''), \
                 patch('apps.courses.models.uuid.uuid4') as mock_uuid:
             mock_uuid_obj = MagicMock()
-            mock_uuid_obj.__str__ = MagicMock(return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+            mock_uuid_obj.__str__ = MagicMock(
+                return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
             mock_uuid.return_value = mock_uuid_obj
 
             slug = generate_unique_slug(mock_instance, '')
@@ -396,10 +402,12 @@ class GenerateUniqueSlugUnitTests(SimpleTestCase):
         with patch('apps.courses.models.slugify', return_value='python-django-web-razrabotka'), \
                 patch('apps.courses.models.uuid.uuid4') as mock_uuid:
             mock_uuid_obj = MagicMock()
-            mock_uuid_obj.__str__ = MagicMock(return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+            mock_uuid_obj.__str__ = MagicMock(
+                return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
             mock_uuid.return_value = mock_uuid_obj
 
-            slug = generate_unique_slug(mock_instance, 'Python & Django: "Web" разработка!')
+            slug = generate_unique_slug(
+                mock_instance, 'Python & Django: "Web" разработка!')
 
             self.assertTrue(slug.startswith('python-django-web-razrabotka-'))
             self.assertEqual(len(slug.split('-')[-1]), 8)

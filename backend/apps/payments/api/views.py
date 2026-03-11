@@ -1,3 +1,11 @@
+from .serializers import (
+    PaymentSerializer,
+    PaymentShortSerializer,
+)
+from ...carts.models import Cart, CartItem
+from ..tasks import process_payment_task
+from ..services import MockYooKassaService
+from ...courses.models import PurchasedCourse
 from decimal import Decimal
 from django.db import transaction
 from rest_framework import status
@@ -23,15 +31,6 @@ SCHEMA_400 = {
         "course_ids": {"type": "array", "items": {"type": "integer"}, "description": "Опционально при уже купленных курсах."},
     },
 }
-from ...courses.models import PurchasedCourse
-from ..services import MockYooKassaService
-from ..tasks import process_payment_task
-from ...carts.models import Cart, CartItem
-
-from .serializers import (
-    PaymentSerializer,
-    PaymentShortSerializer,
-)
 
 
 class CartPayView(APIView):
@@ -73,21 +72,22 @@ class CartPayView(APIView):
 
         if already_purchased:
             return Response(
-                {'error': 'Некоторые курсы уже куплены.', 'course_ids': list(already_purchased)},
+                {'error': 'Некоторые курсы уже куплены.',
+                    'course_ids': list(already_purchased)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         with transaction.atomic():
-            total_sum = sum( # Считаем сумму по всем элементам корзины
+            total_sum = sum(  # Считаем сумму по всем элементам корзины
                 Decimal(item.course_id.price) for item in cart_items
             )
 
-            payment = Payment.objects.create( # Инициализируем платеж
+            payment = Payment.objects.create(  # Инициализируем платеж
                 user=request.user,
                 total_sum=total_sum,
             )
 
-            payment_items = [ # Инициализируем курсы в платеже
+            payment_items = [  # Инициализируем курсы в платеже
                 PaymentItem(
                     payment=payment,
                     course=item.course_id,
@@ -95,7 +95,8 @@ class CartPayView(APIView):
                 )
                 for item in cart_items
             ]
-            PaymentItem.objects.bulk_create(payment_items) # Создаем коллекцию объектов payment item
+            # Создаем коллекцию объектов payment item
+            PaymentItem.objects.bulk_create(payment_items)
 
         yookassa_response = MockYooKassaService.create_payment(
             amount=payment.total_sum,
@@ -106,7 +107,7 @@ class CartPayView(APIView):
         payment.mock_payment_url = yookassa_response.confirmation_url
         payment.save(update_fields=['mock_payment_url', 'updated_at'])
 
-        process_payment_task.apply_async( # создаем асинхронную задачу для асинхронного менеджера задач celery
+        process_payment_task.apply_async(  # создаем асинхронную задачу для асинхронного менеджера задач celery
             args=[payment.payment_id],
             countdown=5,
         )
@@ -170,5 +171,3 @@ class PaymentDetailView(APIView):
 
         serializer = PaymentSerializer(payment)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-

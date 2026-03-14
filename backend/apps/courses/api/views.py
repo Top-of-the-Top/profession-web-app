@@ -262,11 +262,12 @@ class PurchasedCoursesView(APIView):
 class LessonViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post', 'patch', 'delete']
+    serializer_class = LessonSerializer
     lookup_field = 'slug'
 
     def get_queryset(self):
        course_slug = self.kwargs['course_slug']
-       return Lesson.objects.filter(course__slug=course_slug)
+       return Lesson.objects.filter(course_id__slug=course_slug)
 
     @extend_schema(
       summary="Получить список уроков",
@@ -354,6 +355,7 @@ class LessonViewSet(viewsets.ModelViewSet):
 
 class HomeworkViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
+    serializer_class = HomeworkSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = 'slug'
 
@@ -361,8 +363,8 @@ class HomeworkViewSet(viewsets.ModelViewSet):
         course_slug = self.kwargs['course_slug']
         lesson_slug = self.kwargs['lesson_slug']
         return Homework.objects.filter(
-            lesson__slug=lesson_slug, 
-            lesson__course__slug=course_slug
+            lesson_id__slug=lesson_slug,
+            lesson_id__course_id__slug=course_slug
         )
 
     @extend_schema(
@@ -451,6 +453,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
 
 class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
+    serializer_class = TaskSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = 'slug'
 
@@ -459,9 +462,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         lesson_slug = self.kwargs['lesson_slug']
         homework_slug = self.kwargs['homework_slug']
         return Task.objects.filter(
-            homework__slug=homework_slug,
-            homework__lesson__slug=lesson_slug, 
-            homework__lesson__course__slug=course_slug
+            homework_id__slug=homework_slug,
+            homework__id__lesson_id__slug=lesson_slug,
+            homework__id__lesson_id__course_id__slug=course_slug
         )
 
     @extend_schema(
@@ -550,6 +553,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 class QuestionViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
+    serializer_class = QuestionSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = 'slug'
 
@@ -559,9 +563,9 @@ class QuestionViewSet(viewsets.ModelViewSet):
         homework_slug = self.kwargs['homework_slug']
       
         return Question.objects.filter(
-            homework__slug=homework_slug,
-            homework__lesson__slug=lesson_slug, 
-            homework__lesson__course__slug=course_slug
+            homework_id__slug=homework_slug,
+            homework_id__lesson_id__slug=lesson_slug,
+            homework_id__lesson_id__course_id__slug=course_slug
         )
 
     @extend_schema(

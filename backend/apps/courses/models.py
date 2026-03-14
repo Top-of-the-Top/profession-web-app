@@ -32,7 +32,7 @@ class Course(models.Model):
     sub_title = models.CharField(max_length=75, verbose_name='Краткое описание курса')
     description = models.TextField(verbose_name="Описание курса")
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
-    price = models.PositiveIntegerField()
+    price = models.PositiveIntegerField(verbose_name='Цена')
     image = models.ImageField(
         upload_to=course_image_path,
         blank=True,
@@ -107,7 +107,7 @@ class Lesson(models.Model):
     course_id = models.ForeignKey(Course, on_delete=models.CASCADE)
     title = models.CharField(max_length=120, verbose_name='Название урока')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
-    date = models.DateTimeField()
+    date = models.DateTimeField(verbose_name='Дата проведения урока')
 
     def __str__(self):
         return self.title
@@ -128,9 +128,9 @@ class Lesson(models.Model):
 class Homework(models.Model):
     homework_id = models.AutoField(primary_key=True)
     lesson_id = models.ForeignKey(Lesson, on_delete=models.CASCADE)
-    title = models.CharField(max_length=120, verbose_name='Название урока')
+    title = models.CharField(max_length=120, verbose_name='Название домашнего задания')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
-    deadline = models.DateTimeField()
+    deadline = models.DateTimeField(verbose_name='Дедлайн')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -154,10 +154,10 @@ class Question(models.Model):
     question_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
     # Пока работаем только с текстовыми вопросами. Без картинок и так далее
-    text = models.CharField(max_length=200)
+    text = models.CharField(max_length=200, verbose_name='Текст вопроса')
     # Пока считаем, что всего может быть только 1 правильный ответ
-    correct_ans = models.CharField()
-    answer_options = models.JSONField()
+    correct_ans = models.CharField(verbose_name='Правильный ответ на вопрос')
+    answer_options = models.JSONField(verbose_name='Варианты ответов')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -176,8 +176,8 @@ class Question(models.Model):
 class Task(models.Model):
     task_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    text = models.CharField(max_length=200)
-    max_points = models.PositiveIntegerField(default=0)
+    text = models.CharField(max_length=200, verbose_name='Текст задания')
+    max_points = models.PositiveIntegerField(default=0, verbose_name='Максимальное количество баллов за задание')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -205,11 +205,11 @@ class Users_Homeworks_Attempts(models.Model):
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
     user_id = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name='Статус')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    send_at = models.DateTimeField(null=True, blank=True)
+    send_at = models.DateTimeField(null=True, blank=True, verbose_name='Отправлено в')
 
     @property
     def grade(self):
@@ -260,7 +260,7 @@ class Users_questions_answers(models.Model):
         related_name='question_answers')
 
     is_correct = models.BooleanField(default=False)
-    user_answer = models.CharField(max_length=120)
+    user_answer = models.CharField(max_length=120, verbose_name='Ответ пользователя')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

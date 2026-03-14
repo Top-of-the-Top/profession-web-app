@@ -1,4 +1,4 @@
-from ..models import Course, PurchasedCourse
+from ..models import Course, PurchasedCourse, Lesson, Homework
 from rest_framework import serializers
 
 
@@ -48,3 +48,23 @@ class PurchasedCourseSerializer(serializers.ModelSerializer):
             'access_expires_at',
             'is_active',
         ]
+
+class LessonSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = Lesson
+    fields = '__all__'
+
+class HomeworkSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = Homework
+    fields = '__all__'
+
+class QuestionSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = Homework
+    fields = '__all__'
+    
+class TaskSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = Homework
+    fields = '__all__'

@@ -299,5 +299,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
         </button>
       </div>
     </div>
+
   );
 };

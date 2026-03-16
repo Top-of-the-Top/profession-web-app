@@ -51,7 +51,7 @@ export class ApiClient {
     const refresh_token = localStorage.getItem('refresh_token');
     if (!refresh_token) return null;
 
-    const response = await fetch(`${API_URL}/api/token/refresh`, {
+    const response = await fetch(`${API_URL}/api/auth/token/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token }),

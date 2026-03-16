@@ -15,7 +15,7 @@ export const ProtectedRoute = ({ children }: { children: React.JSX.Element }) =>
   if (!user) {
     return (
       <Navigate
-        to="/"
+        to="/login"
         state={{ from: location }}
         replace
       />

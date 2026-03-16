@@ -8,6 +8,7 @@ import {
   CourseStorePage,
   CourseDetailPage,
   CartPage,
+	CreateLesson,
 } from '../pages';
 import AppLayout from '../widgets/AppLayout/ui/AppLayout';
 
@@ -45,6 +46,11 @@ export const routes: AppRoute[] = [
       {
         path: 'courses/:slug', // Динамический параметр :slug
         element: <CourseDetailPage />,
+      },
+			{
+        path: '/create',
+        element: <CreateLesson />,
+        protected: true,
       },
       {
         path: '/cart',

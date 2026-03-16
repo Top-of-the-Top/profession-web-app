@@ -21,6 +21,7 @@ interface LessonBuilderActions {
   initialize: (layout: LessonLayout) => void;
   setTitle: (title: string) => void;
   addBlock: (type: BlockType) => void;
+  addBlockAt: (type: BlockType, x: number, y: number, w: number, h: number) => void;
   updateBlock: (blockId: string, patch: Partial<Block>) => void;
   moveBlock: (blockId: string, x: number, y: number) => void;
   resizeBlock: (blockId: string, w: number, h: number) => void;
@@ -112,6 +113,43 @@ export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
               y: targetY,
               w,
               h,
+              url: '',
+            };
+
+      return {
+        layout: { ...state.layout, blocks: [...state.layout.blocks, newBlock] },
+      };
+    }),
+
+  addBlockAt: (type, x, y, w, h) =>
+    set((state) => {
+      const isMedia = type === 'photo' || type === 'video';
+      const minW = isMedia ? MIN_MEDIA_BLOCK_W : MIN_TEXT_BLOCK_W;
+      const minH = isMedia ? MIN_MEDIA_BLOCK_H : MIN_TEXT_BLOCK_H;
+      const clampedW = clamp(w, minW, GRID_COLS);
+      const clampedH = clamp(h, minH, GRID_ROWS);
+      const clampedX = clamp(x, 0, GRID_COLS - clampedW);
+      const clampedY = clamp(y, 0, GRID_ROWS - clampedH);
+
+      const newBlock: Block =
+        type === 'text'
+          ? {
+              id: nanoid(),
+              type: 'text',
+              x: clampedX,
+              y: clampedY,
+              w: clampedW,
+              h: clampedH,
+              html: '',
+              fontSizeIndex: DEFAULT_FONT_SIZE_INDEX,
+            }
+          : {
+              id: nanoid(),
+              type,
+              x: clampedX,
+              y: clampedY,
+              w: clampedW,
+              h: clampedH,
               url: '',
             };
 

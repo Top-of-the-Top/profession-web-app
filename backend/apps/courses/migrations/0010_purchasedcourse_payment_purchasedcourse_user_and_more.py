@@ -16,12 +16,18 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='purchasedcourse',
             name='payment',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='purchased_courses', to='payments.payment'),
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name='purchased_courses',
+                to='payments.payment'),
         ),
         migrations.AddField(
             model_name='purchasedcourse',
             name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='purchased_courses', to=settings.AUTH_USER_MODEL),
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name='purchased_courses',
+                to=settings.AUTH_USER_MODEL),
         ),
         migrations.AlterUniqueTogether(
             name='purchasedcourse',

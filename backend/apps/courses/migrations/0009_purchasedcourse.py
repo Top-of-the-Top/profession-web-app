@@ -14,9 +14,11 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='PurchasedCourse',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.BigAutoField(auto_created=True,
+                 primary_key=True, serialize=False, verbose_name='ID')),
                 ('access_expires_at', models.DateTimeField()),
-                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='purchases', to='courses.course')),
+                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE,
+                 related_name='purchases', to='courses.course')),
             ],
             options={
                 'verbose_name': 'Купленный курс',

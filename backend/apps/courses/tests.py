@@ -52,7 +52,8 @@ class CourseModelUnitTests(SimpleTestCase):
         with patch('apps.courses.models.slugify', return_value='testovyy-kurs'), \
                 patch('apps.courses.models.uuid.uuid4') as mock_uuid:
             mock_uuid_obj = MagicMock()
-            mock_uuid_obj.__str__ = MagicMock(return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+            mock_uuid_obj.__str__ = MagicMock(
+                return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
             mock_uuid.return_value = mock_uuid_obj
 
             slug = generate_unique_slug(mock_course, 'Тестовый курс')
@@ -78,7 +79,8 @@ class CourseModelUnitTests(SimpleTestCase):
         expected_url = f'https://storage.yandexcloud.net/test-bucket/{DEFAULT_COURSE_IMAGE}'
 
         with patch('os.getenv', return_value='test-bucket'):
-            type(mock_course).image_url = PropertyMock(return_value=expected_url)
+            type(mock_course).image_url = PropertyMock(
+                return_value=expected_url)
 
             url = mock_course.image_url
             self.assertEqual(url, expected_url)
@@ -222,7 +224,8 @@ class CourseApiViewUnitTests(SimpleTestCase):
 
         self.mock_queryset = MagicMock()
         self.mock_queryset.__len__.return_value = 2
-        self.mock_queryset.__iter__.return_value = iter([self.mock_course, self.mock_course])
+        self.mock_queryset.__iter__.return_value = iter(
+            [self.mock_course, self.mock_course])
 
     def test_course_dto_list_public(self):
         """Тест публичного списка курсов"""
@@ -269,13 +272,16 @@ class CourseApiViewUnitTests(SimpleTestCase):
             mock_filter.return_value.first.return_value = self.mock_course
 
             with patch('apps.courses.api.views.CourseSerializer') as mock_serializer:
-                mock_serializer.return_value.data = {'title': 'Тестовый курс', 'price': 5000}
+                mock_serializer.return_value.data = {
+                    'title': 'Тестовый курс', 'price': 5000}
 
                 response = CourseDetail.as_view()(request, slug='test-course')
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertIn('course', response.data)
-                self.assertEqual(response.data['course']['title'], 'Тестовый курс')
+                self.assertEqual(
+                    response.data['course']['title'],
+                    'Тестовый курс')
 
     def test_course_detail_not_found(self):
         """Тест получения несуществующего курса"""
@@ -322,7 +328,8 @@ class CourseApiViewUnitTests(SimpleTestCase):
 
         mock_purchased = MagicMock()
         mock_queryset = MagicMock()
-        mock_queryset.filter.return_value.select_related.return_value = [mock_purchased]
+        mock_queryset.filter.return_value.select_related.return_value = [
+            mock_purchased]
 
         with patch('apps.courses.api.views.PurchasedCourse.objects') as mock_objects:
             mock_objects.filter.return_value = mock_queryset
@@ -335,7 +342,9 @@ class CourseApiViewUnitTests(SimpleTestCase):
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(len(response.data), 1)
-                self.assertEqual(response.data[0]['course']['title'], 'Тестовый курс')
+                self.assertEqual(
+                    response.data[0]['course']['title'],
+                    'Тестовый курс')
 
 
 class GenerateUniqueSlugUnitTests(SimpleTestCase):
@@ -349,7 +358,8 @@ class GenerateUniqueSlugUnitTests(SimpleTestCase):
                 patch('apps.courses.models.uuid.uuid4') as mock_uuid:
             # Настраиваем uuid мок правильно
             mock_uuid_obj = MagicMock()
-            mock_uuid_obj.__str__ = MagicMock(return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+            mock_uuid_obj.__str__ = MagicMock(
+                return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
             mock_uuid.return_value = mock_uuid_obj
 
             slug = generate_unique_slug(mock_instance, 'Тестовый курс')
@@ -366,7 +376,8 @@ class GenerateUniqueSlugUnitTests(SimpleTestCase):
         with patch('apps.courses.models.slugify', return_value='x' * 80), \
                 patch('apps.courses.models.uuid.uuid4') as mock_uuid:
             mock_uuid_obj = MagicMock()
-            mock_uuid_obj.__str__ = MagicMock(return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+            mock_uuid_obj.__str__ = MagicMock(
+                return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
             mock_uuid.return_value = mock_uuid_obj
 
             slug = generate_unique_slug(mock_instance, long_title)
@@ -381,7 +392,8 @@ class GenerateUniqueSlugUnitTests(SimpleTestCase):
         with patch('apps.courses.models.slugify', return_value=''), \
                 patch('apps.courses.models.uuid.uuid4') as mock_uuid:
             mock_uuid_obj = MagicMock()
-            mock_uuid_obj.__str__ = MagicMock(return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+            mock_uuid_obj.__str__ = MagicMock(
+                return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
             mock_uuid.return_value = mock_uuid_obj
 
             slug = generate_unique_slug(mock_instance, '')
@@ -396,10 +408,12 @@ class GenerateUniqueSlugUnitTests(SimpleTestCase):
         with patch('apps.courses.models.slugify', return_value='python-django-web-razrabotka'), \
                 patch('apps.courses.models.uuid.uuid4') as mock_uuid:
             mock_uuid_obj = MagicMock()
-            mock_uuid_obj.__str__ = MagicMock(return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
+            mock_uuid_obj.__str__ = MagicMock(
+                return_value='abc12345-xxxx-xxxx-xxxx-xxxxxxxxxxxx')
             mock_uuid.return_value = mock_uuid_obj
 
-            slug = generate_unique_slug(mock_instance, 'Python & Django: "Web" разработка!')
+            slug = generate_unique_slug(
+                mock_instance, 'Python & Django: "Web" разработка!')
 
             self.assertTrue(slug.startswith('python-django-web-razrabotka-'))
             self.assertEqual(len(slug.split('-')[-1]), 8)

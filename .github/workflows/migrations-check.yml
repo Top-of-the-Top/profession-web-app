@@ -2,9 +2,9 @@ name: Migrations check
 
 on:
   push:
-    branches: [dev]
+    branches: [develop]
   pull_request:
-    branches: [dev]
+    branches: [develop]
 
 defaults:
   run:

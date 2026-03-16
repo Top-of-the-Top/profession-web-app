@@ -14,12 +14,24 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='course',
             name='sub_title',
-            field=models.CharField(default=datetime.datetime(2026, 2, 11, 21, 41, 56, 574145, tzinfo=datetime.timezone.utc), max_length=200, verbose_name='Краткое описание курса'),
+            field=models.CharField(
+                default=datetime.datetime(
+                    2026,
+                    2,
+                    11,
+                    21,
+                    41,
+                    56,
+                    574145,
+                    tzinfo=datetime.timezone.utc),
+                max_length=200,
+                verbose_name='Краткое описание курса'),
             preserve_default=False,
         ),
         migrations.AlterField(
             model_name='course',
             name='title',
-            field=models.CharField(max_length=50, verbose_name='Название курса'),
+            field=models.CharField(
+                max_length=50, verbose_name='Название курса'),
         ),
     ]

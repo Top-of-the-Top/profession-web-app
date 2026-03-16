@@ -18,9 +18,16 @@ class Migration(migrations.Migration):
             fields=[
                 ('profile_id', models.AutoField(primary_key=True, serialize=False)),
                 ('birthday', models.DateField(blank=True, null=True)),
-                ('gender', models.CharField(blank=True, choices=[('М', 'Мужской'), ('Ж', 'Женский')], null=True)),
-                ('avatar', models.ImageField(blank=True, default='users/default_photo_user.png', null=True, upload_to=apps.users.models.profile_image_path, verbose_name='Аватар')),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='profile', to=settings.AUTH_USER_MODEL)),
+                ('gender', models.CharField(blank=True, choices=[
+                 ('М', 'Мужской'), ('Ж', 'Женский')], null=True)),
+                ('avatar',
+                 models.ImageField(blank=True,
+                                   default='users/default_photo_user.png',
+                                   null=True,
+                                   upload_to=apps.users.models.profile_image_path,
+                                   verbose_name='Аватар')),
+                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE,
+                 related_name='profile', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'verbose_name': 'Учетная запись',

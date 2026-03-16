@@ -1,48 +1,35 @@
 import React from 'react';
-import type { Block, CourseStructure, Lesson, Module } from '../model/types';
+import type { Block, LessonLayout } from '../model/types';
 
 interface CourseRendererProps {
-  structure: CourseStructure;
+  layout: LessonLayout;
 }
 
 const renderBlock = (block: Block) => {
   switch (block.type) {
     case 'text':
-      return <p>{block.content}</p>;
-    case 'video':
       return (
-        <div>
-          <a href={block.url} target="_blank" rel="noreferrer">
-            Открыть видео
-          </a>
-          {block.description && <p>{block.description}</p>}
-        </div>
+        <div dangerouslySetInnerHTML={{ __html: block.html }} />
       );
-    case 'homework':
-      return <p>{block.instructions}</p>;
-    case 'quiz':
-      return <p>{block.question}</p>;
+    case 'photo':
+      return block.url ? (
+        <img src={block.url} alt="" style={{ maxWidth: '100%' }} />
+      ) : null;
+    case 'video':
+      return block.url ? (
+        <video src={block.url} controls style={{ maxWidth: '100%' }} />
+      ) : null;
     default:
       return null;
   }
 };
 
-export const CourseRenderer: React.FC<CourseRendererProps> = ({ structure }) => {
+export const CourseRenderer: React.FC<CourseRendererProps> = ({ layout }) => {
   return (
     <div>
-      <h1>{structure.title}</h1>
-      {structure.modules.map((module: Module) => (
-        <section key={module.id}>
-          <h2>{module.title}</h2>
-          {module.lessons.map((lesson: Lesson) => (
-            <article key={lesson.id}>
-              <h3>{lesson.title}</h3>
-              {lesson.blocks.map((block) => (
-                <div key={block.id}>{renderBlock(block)}</div>
-              ))}
-            </article>
-          ))}
-        </section>
+      <h1>{layout.title}</h1>
+      {layout.blocks.map((block) => (
+        <div key={block.id}>{renderBlock(block)}</div>
       ))}
     </div>
   );

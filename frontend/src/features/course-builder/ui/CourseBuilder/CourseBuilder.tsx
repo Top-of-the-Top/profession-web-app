@@ -6,6 +6,8 @@ import type { Layout, LayoutItem } from 'react-grid-layout';
 import { useLessonBuilderStore } from '../../model/store';
 import type { Block, BlockType } from '../../model/types';
 import { GRID_COLS } from '../../lib/constants';
+import { HomeworkBuilder } from '../HomeworkBuilder';
+import { useHomeworkStore } from '../../model/homeworkStore';
 import styles from './CourseBuilder.module.css';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -40,6 +42,7 @@ function blocksToLayout(blocks: Block[]): Layout {
 export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
   const { layout, setTitle, addBlockAt, updateBlock, toJSON } =
     useLessonBuilderStore();
+  const { initialize: initHomework } = useHomeworkStore();
 
   const [mounted, setMounted] = useState(false);
   const [collapsedEditors, setCollapsedEditors] = useState<
@@ -50,6 +53,10 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    initHomework(String(courseId ?? ''));
+  }, [courseId, initHomework]);
 
   const gridLayout = blocksToLayout(layout.blocks);
 
@@ -401,14 +408,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
             </>
           )}
 
-          {activeTab === 'homework' && (
-            <div className={styles.homeworkStub}>
-              <h2 className={styles.homeworkTitle}>Конструктор домашнего задания</h2>
-              <p className={styles.homeworkSubtitle}>
-                Здесь скоро появится конструктор ДЗ для этого урока.
-              </p>
-            </div>
-          )}
+          {activeTab === 'homework' && <HomeworkBuilder />}
         </div>
       </div>
     </div>

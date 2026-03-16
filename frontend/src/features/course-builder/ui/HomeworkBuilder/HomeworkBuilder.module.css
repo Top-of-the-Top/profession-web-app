@@ -1,0 +1,318 @@
+.homeworkWrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  background-color: white;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 75vh;
+}
+
+.homeworkList {
+  flex: 1;
+  padding: 8px 0 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.homeworkInner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 60%;
+  min-width: 500px;
+  margin: 0 auto;
+}
+
+.homeworkCard {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 0 8px rgba(15, 23, 42, 0.18);
+	margin: 0 5px 0 5px;
+	box-sizing: border-box;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+
+.homeworkGridLayout {
+  width: 520px !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+}
+
+.homeworkCardDragging {
+  opacity: 0.7;
+}
+
+.homeworkCardDragOver {
+  outline: 2px dashed #191970;
+  outline-offset: 2px;
+}
+
+.homeworkCardHeader {
+  display: flex;
+	flex: 1;
+	width: 100%;
+	padding: 0 10px 0 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.homeworkCardHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.homeworkCardHeaderWrapper {
+  display: flex;
+	flex-direction: column;
+  align-items:flex-start;
+  width: 100%;
+  position: relative;
+}
+
+.homeworkDragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 44px;
+  padding: 0 4px 0 0;
+  cursor: grab;
+  color: #6b7280;
+  align-self: stretch;
+}
+
+.homeworkQuestionTitle {
+  /* flex: 1; */
+	width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 4px 5px;
+  font-size: 14px;
+	transition: 0.3s;
+	border-radius: 8px;
+}
+
+.homeworkQuestionTitle:focus {
+  outline: none;
+  background-color: #EEEEF0;
+	border: none;
+}
+
+.homeworkIconButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #9ca3af;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.homeworkCardBody {
+  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.homeworkOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.homeworkOptionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+	border-radius: 20px;
+	
+}
+.homeworkOptionRowCorrect {
+	background-color: #B6B6D9;
+}
+.homeworkOptionRowCorrect input {
+	background-color: #B6B6D9 !important;
+	
+}
+
+.homeworkOptionRadio {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid #9ca3af;
+  flex-shrink: 0;
+  background: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease;
+}
+
+.homeworkOptionRadioActive {
+  border-color: #191970;
+  position: relative;
+}
+
+.homeworkOptionRadioActive::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #191970;
+  display: block;
+}
+
+
+
+.homeworkOptionInput {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 2px 0;
+  font-size: 13px;
+}
+
+.homeworkOptionInput:focus {
+  outline: none;
+}
+
+.homeworkAddOption {
+  border: none;
+  background: transparent;
+  color: #8a8a8a;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 10px 0 10px 0;
+  text-align: left;
+	margin-left: 25px;
+}
+
+.homeworkLongAnswer {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.9);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.homeworkCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.homeworkScoreLabel {
+  font-size: 12px;
+}
+
+.homeworkScoreInput {
+  width: 56px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.9);
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.homeworkActionsBar {
+  margin-top: 12px;
+	padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.homeworkAddButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.homeworkAddQuestionButton {
+  border-radius: 999px;
+	background-color: #191970;
+	color: white;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: grab;
+  user-select: none;
+	border: none;
+}
+
+.homeworkAddQuestionButton:active {
+  cursor: grabbing;
+}
+
+.homeworkCtaButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.button {
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: #f9fafb;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  background-color: #191970;
+  color: white;
+  border-color: transparent;
+}
+
+.buttonSecondary {
+  background-color: #73737382;
+  color: white;
+  border-color: transparent;
+}
+
+.homeworkDragPreview {
+  min-width: 200px;
+  max-width: 260px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.9);
+  background-color: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.homeworkDragPreviewHeader {
+  padding: 6px 10px;
+  font-size: 12px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.homeworkDragPreviewType {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4b5563;
+}
+
+.homeworkDragPreviewBody {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #6b7280;
+}

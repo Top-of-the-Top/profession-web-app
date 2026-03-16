@@ -12,6 +12,7 @@
     "fsd:feature": "powershell -ExecutionPolicy Bypass -File scripts/Create-FSDFeature.ps1"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -35,6 +36,8 @@
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-avatar": "^5.0.4",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^19.2.0",
     "react-grid-layout": "^1.5.3",
     "react-hot-toast": "^2.6.0",

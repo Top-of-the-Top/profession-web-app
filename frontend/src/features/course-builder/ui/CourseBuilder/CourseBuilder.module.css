@@ -328,7 +328,7 @@
   margin-top: 12px;
   padding: 8px 10px;
   border-radius: 999px;
-
+	max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -450,62 +450,39 @@
   padding: 32px 6px;
   border: none;
   background: transparent;
-  color: #6b7280;
+  color: #1919707c;
   font-size: 12px;
   text-transform: lowercase;
   cursor: pointer;
   position: relative;
   clip-path: polygon(0 0, 100% 0, 100% 95%, 0 100%, 0% 100%);
+	min-height: 180px;
 }
 
 .sideTab::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: #e5e7eb;
+  background-color: #EEEEF0;
   clip-path: polygon(0 0, 100% 10px, 100% 100%, 0 100%);
   z-index: -1;
 }
 
 .sideTabActive {
-  color: #111827;
+  color: #191970;
 }
 
 .sideTabActive::before {
-  background: #ffffff;
+  background-color: #ffffff;
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1);
 }
 
 .mainContent {
   flex: 1;
+	max-width: 100%;
   display: flex;
   flex-direction: column;
 	justify-content:space-between;
-}
-
-.homeworkStub {
-  flex: 1;
-  border-radius: 12px;
-  border: 1px dashed rgba(148, 163, 184, 0.8);
-  background: #f9fafb;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 32px;
-}
-
-.homeworkTitle {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: #111827;
-}
-
-.homeworkSubtitle {
-  font-size: 14px;
-  color: #6b7280;
 }
 
 .textSkeleton {

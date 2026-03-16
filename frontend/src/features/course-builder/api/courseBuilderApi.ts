@@ -1,22 +1,23 @@
 import { apiClient } from '../../../shared/api/interceptor';
-import type { CourseStructureDTO } from '../model/types';
+import type { LessonLayoutDTO } from '../model/types';
 
-export interface SaveCourseStructureParams {
+export interface SaveLessonLayoutParams {
   courseId: number;
-  structure: CourseStructureDTO;
+  layout: LessonLayoutDTO;
 }
 
 export const courseBuilderApi = {
-  async load(courseId: number): Promise<CourseStructureDTO> {
-    return apiClient.request<CourseStructureDTO>(`/api/app/courses/${courseId}/structure/`, {
-      method: 'GET',
-    });
+  async load(courseId: number): Promise<LessonLayoutDTO> {
+    return apiClient.request<LessonLayoutDTO>(
+      `/api/app/courses/${courseId}/structure/`,
+      { method: 'GET' },
+    );
   },
 
-  async save({ courseId, structure }: SaveCourseStructureParams): Promise<void> {
+  async save({ courseId, layout }: SaveLessonLayoutParams): Promise<void> {
     await apiClient.request(`/api/app/courses/${courseId}/structure/`, {
       method: 'PUT',
-      body: JSON.stringify(structure),
+      body: JSON.stringify(layout),
     });
   },
 };

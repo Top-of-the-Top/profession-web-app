@@ -1,2 +1,2 @@
 export * from './CourseBuilder';
-export * from './CourseRenderer';
+export * from './HomeworkBuilder';

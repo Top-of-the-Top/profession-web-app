@@ -20,6 +20,7 @@ services:
     restart: unless-stopped
     env_file:
       - ./backend/.env
+    command: daphne -b 0.0.0.0 -p 9000 project.asgi:application
     volumes:
       - ./backend:/app
       - static_volume:/app/static
@@ -37,10 +38,12 @@ services:
       - ./backend/.env
     volumes:
       - ./backend:/app
-    command: celery -A project worker --loglevel=info
+    command: celery -A project worker --loglevel=info -P solo
     depends_on:
-      - redis
+      - rabbitmq
       - backend
+    environment:
+      - RABBITMQ_HOST=rabbitmq
     networks:
       - app_network
 
@@ -53,12 +56,26 @@ services:
     networks:
       - app_network
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    hostname: rabbitmq
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app_network
 
 volumes:
   static_volume:
   media_volume:
   frontend_node_modules:
   redis_data:
+  rabbitmq_data:
 
 networks:
   app_network:

@@ -1,7 +1,5 @@
 from django.db import models
-from django.db.models.signals import pre_delete, pre_save
 import os
-from django.dispatch import receiver
 from rest_framework.exceptions import ValidationError
 from ..users.models import User
 from django.db.models import Sum
@@ -82,25 +80,6 @@ class Course(models.Model):
         return self.title
 
 
-@receiver(pre_save, sender=Course)
-def handle_course_image_update(sender, instance, **kwargs):
-    if not instance.pk:
-        return
-
-    try:
-        old_instance = sender.objects.get(pk=instance.pk)
-        if (old_instance.image and old_instance.image.name != DEFAULT_COURSE_IMAGE and
-                instance.image and instance.image != old_instance.image):
-            old_instance.image.delete(save=False)
-    except sender.DoesNotExist:
-        pass
-
-
-@receiver(pre_delete, sender=Course)
-def delete_course_image(sender, instance, **kwargs):
-    if instance.image and instance.image.name != DEFAULT_COURSE_IMAGE:
-        instance.image.delete(save=False)
-
 
 class Lesson(models.Model):
     lesson_id = models.AutoField(primary_key=True)
@@ -170,7 +149,7 @@ class Question(models.Model):
         ]
 
     def __str__(self):
-        return self.description
+        return self.text
 
 
 class Task(models.Model):
@@ -190,7 +169,7 @@ class Task(models.Model):
         ]
 
     def __str__(self):
-        return self.question
+        return self.text
 
 
 class Users_Homeworks_Attempts(models.Model):

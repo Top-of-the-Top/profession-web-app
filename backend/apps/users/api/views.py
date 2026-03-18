@@ -96,7 +96,7 @@ class LoginView(APIView):
         request=LoginSerializer,
         responses={
             200: TokenResponseSerializer,
-            403: {"description": "Валидация: неверная пара контакт/пароль или не указан контакт. Тело — объект с полями ошибок.", "schema": SCHEMA_VALIDATION_ERROR},
+            400: {"description": "Валидация: неверная пара контакт/пароль или не указан контакт. Тело — объект с полями ошибок.", "schema": SCHEMA_VALIDATION_ERROR},
         },
     )
     def post(self, request):
@@ -104,7 +104,7 @@ class LoginView(APIView):
         if not serializer.is_valid():
             return Response(
                 serializer.errors,
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_400_BAD_REQUEST
             )
         user = serializer.validated_data['user']
         return Response(get_tokens_for_user(user), status=status.HTTP_200_OK)

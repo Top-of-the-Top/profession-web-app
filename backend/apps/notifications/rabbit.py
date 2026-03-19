@@ -3,9 +3,9 @@ import os
 from typing import Any, Dict
 import pika
 
-# TODO: настроить тематическую рассылку по очередям, то есть поменять fanout на topic и NOTIFICATIONS_EXCHANGE на group
-NOTIFICATIONS_EXCHANGE = "notifications.broadcast"
-NOTIFICATIONS_EXCHANGE_TYPE = "fanout"
+# Настроили тематическую рассылку: поменяли fanout на topic и имя на notifications.group
+NOTIFICATIONS_EXCHANGE = "notifications.group"
+NOTIFICATIONS_EXCHANGE_TYPE = "topic"
 
 
 def get_connection_parameters() -> pika.ConnectionParameters:
@@ -27,9 +27,9 @@ def get_connection_parameters() -> pika.ConnectionParameters:
     )
 
 
-def publish_broadcast_event(*, payload: Dict[str, Any]) -> None:
+def publish_event(*, routing_key: str, payload: Dict[str, Any]) -> None:
     """
-    Публикует одно событие для всех подписчиков (fanout).
+    Публикует событие с использованием тематической маршрутизации (topic).
     """
     connection = pika.BlockingConnection(get_connection_parameters()) # Это одно TCP соединение front - back
     channel = connection.channel() # А это канал внутри TCP соединения
@@ -44,11 +44,11 @@ def publish_broadcast_event(*, payload: Dict[str, Any]) -> None:
 
     channel.basic_publish(
         exchange=NOTIFICATIONS_EXCHANGE,
-        routing_key="",
+        routing_key=routing_key, # Теперь используем ключ (напр. "user.1" или "course.5")
         body=body,
         properties=pika.BasicProperties(
             content_type="application/json",
-            delivery_mode=1,
+            delivery_mode=2, # Сообщение станет устойчивым к перезагрузкам брокера
         ),
     )
 

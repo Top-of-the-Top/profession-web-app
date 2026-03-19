@@ -9,6 +9,28 @@ from slugify import slugify
 
 DEFAULT_COURSE_IMAGE = "courses/default_course.png"
 
+class TrackedModel(models.Model):
+    """Абстрактная модель для отслеживания автора изменений"""
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата изменения")
+    last_modified_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Кто изменил",
+        related_name="%(class)s_modifications"
+    )
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        user = get_current_user()
+        # Если юзер авторизован, записываем его как автора правки
+        if user and not user.is_anonymous:
+            self.last_modified_by = user
+        super().save(*args, **kwargs)
 
 def course_image_path(instance, filename):
     ext = filename.split('.')[-1].lower()
@@ -24,8 +46,13 @@ def generate_unique_slug(instance, title, slug_field='slug'):
     return f"{base_slug}-{uuid_part}"
 
 
-class Course(models.Model):
+class Course(TrackedModel):
     course_id = models.AutoField(primary_key=True)
+    authors = models.ManyToManyField(
+        User,
+        related_name='authored_courses',
+        verbose_name='Авторы курса'
+    )
     title = models.CharField(max_length=50, verbose_name='Название курса')
     sub_title = models.CharField(max_length=75, verbose_name='Краткое описание курса')
     description = models.TextField(verbose_name="Описание курса")
@@ -38,7 +65,6 @@ class Course(models.Model):
         verbose_name='Изображение курса',
         default=DEFAULT_COURSE_IMAGE,
     )
-    created_at = models.DateTimeField(auto_now_add=True)
 
     @property
     def image_url(self):
@@ -81,7 +107,7 @@ class Course(models.Model):
 
 
 
-class Lesson(models.Model):
+class Lesson(TrackedModel):
     lesson_id = models.AutoField(primary_key=True)
     course_id = models.ForeignKey(Course, on_delete=models.CASCADE)
     title = models.CharField(max_length=120, verbose_name='Название урока')
@@ -104,14 +130,13 @@ class Lesson(models.Model):
         ordering = ['date']
 
 
-class Homework(models.Model):
+class Homework(TrackedModel):
     homework_id = models.AutoField(primary_key=True)
     lesson_id = models.ForeignKey(Lesson, on_delete=models.CASCADE)
     title = models.CharField(max_length=120, verbose_name='Название домашнего задания')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
     deadline = models.DateTimeField(verbose_name='Дедлайн')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -129,7 +154,7 @@ class Homework(models.Model):
         return self.title
 
 
-class Question(models.Model):
+class Question(TrackedModel):
     question_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
     # Пока работаем только с текстовыми вопросами. Без картинок и так далее
@@ -137,8 +162,7 @@ class Question(models.Model):
     # Пока считаем, что всего может быть только 1 правильный ответ
     correct_ans = models.CharField(verbose_name='Правильный ответ на вопрос')
     answer_options = models.JSONField(verbose_name='Варианты ответов')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
 
     class Meta:
         verbose_name = 'Вопрос'
@@ -152,13 +176,12 @@ class Question(models.Model):
         return self.text
 
 
-class Task(models.Model):
+class Task(TrackedModel):
     task_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
     text = models.CharField(max_length=200, verbose_name='Текст задания')
     max_points = models.PositiveIntegerField(default=0, verbose_name='Максимальное количество баллов за задание')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
 
     class Meta:
         verbose_name = 'Задача'

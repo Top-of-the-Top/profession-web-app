@@ -38,7 +38,7 @@ services:
       - ./backend/.env
     volumes:
       - ./backend:/app
-    command: celery -A project worker --loglevel=info -P solo
+    command: celery -A project worker --loglevel=info --concurrency=3
     depends_on:
       - rabbitmq
       - backend
@@ -67,6 +67,21 @@ services:
       - RABBITMQ_DEFAULT_PASS=guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app_network
+
+  flower:
+    image: mher/flower:0.9.7
+    container_name: flower
+    command: celery -A project flower
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      - rabbitmq
+      - celery_worker
     networks:
       - app_network
 

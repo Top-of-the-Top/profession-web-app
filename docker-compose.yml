@@ -30,23 +30,6 @@ services:
     networks:
       - app_network
 
-  celery_worker:
-    build: ./backend
-    container_name: profession_web_app_celery
-    restart: unless-stopped
-    env_file:
-      - ./backend/.env
-    volumes:
-      - ./backend:/app
-    command: celery -A project worker --loglevel=info --concurrency=3
-    depends_on:
-      - rabbitmq
-      - backend
-    environment:
-      - RABBITMQ_HOST=rabbitmq
-    networks:
-      - app_network
-
   redis:
     image: redis:alpine
     ports:
@@ -55,6 +38,8 @@ services:
       - redis_data:/data
     networks:
       - app_network
+
+  # Блок с асинхронной распределенной очередью celery
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -70,18 +55,41 @@ services:
     networks:
       - app_network
 
-  flower:
-    image: mher/flower:0.9.7
-    container_name: flower
-    command: celery -A project flower
+  celery_worker:
+    build: ./backend
+    restart: unless-stopped
+    working_dir: /app
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+    command: celery -A project worker --loglevel=info --concurrency=3
+    depends_on:
+      - rabbitmq
+      - redis
+      - backend
     environment:
+      - PYTHONPATH=/app
+      - RABBITMQ_HOST=rabbitmq
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+    networks:
+      - app_network
+
+  flower:
+    build: ./backend
+    container_name: flower
+    working_dir: /app
+    command: celery -A project flower --port=5555
+    environment:
+      - PYTHONPATH=/app
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./backend:/app
     ports:
       - "5555:5555"
     depends_on:
       - rabbitmq
-      - celery_worker
     networks:
       - app_network
 

@@ -5,7 +5,7 @@ from ..users.models import User
 from django.db.models import Sum
 import uuid
 from slugify import slugify
-
+from crum import get_current_user
 
 DEFAULT_COURSE_IMAGE = "courses/default_course.png"
 

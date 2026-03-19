@@ -7,6 +7,8 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+ASGI_APPLICATION = "project.asgi.application"
+
 SECRET_KEY = os.getenv(
     'SECRET_KEY',
     'django-insecure-ci-secret-key-for-tests-only')
@@ -15,6 +17,7 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -31,6 +34,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'storages',
     'django_celery_results',
+    'apps.notifications.apps.NotificationsConfig',
 ]
 
 USE_S3 = os.environ.get('USE_S3', 'False') == 'True'
@@ -45,6 +49,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'crum.CurrentRequestUserMiddleware',
 ]
 
 REST_FRAMEWORK = {
@@ -171,7 +176,9 @@ else:
     MEDIA_URL = '/media/'
     STATIC_URL = '/static/'
 
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/1')
+
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'

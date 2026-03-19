@@ -1,4 +1,3 @@
-from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from ..models import Notification
 import pika
@@ -7,10 +6,13 @@ import json
 import asyncio
 from django.http import StreamingHttpResponse
 from asgiref.sync import sync_to_async
-
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
 
 logger = logging.getLogger(__name__)
 
+@api_view(['GET']) # Разрешаем ТОЛЬКО GET
+@permission_classes([IsAuthenticated])
 def sse_notifications(request):
     """Функция для просмотра текущих уведомлений"""
     async def event_stream():

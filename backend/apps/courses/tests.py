@@ -9,9 +9,15 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.courses.models import (
     Course, PurchasedCourse, generate_unique_slug,
-    course_image_path, delete_course_image, handle_course_image_update,
+    course_image_path,
     DEFAULT_COURSE_IMAGE
 )
+
+from apps.courses.signals import (
+    delete_course_image,
+    handle_course_image_update,
+)
+
 from apps.courses.api.views import (
     CourseDTOList, CourseDTOListAuthenticated,
     CourseDetail, PurchasedCoursesView

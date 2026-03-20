@@ -1,18 +1,27 @@
-from rest_framework.response import Response
-from ..models import Notification
-from .serializers import NotificationSerializer
-import pika
-import logging
-mport asyncio
 import json
+import asyncio
 import aio_pika
-from django.http import StreamingHttpResponse
+import logging
+
+from django.http import StreamingHttpResponse, HttpResponse
 from django.conf import settings
+from django.core.cache import cache
+from django.contrib.auth import get_user_model
+
+# Инструменты для работы асинхронного кода с синхронной ORM Django
 from asgiref.sync import sync_to_async
-from rest_framework.permissions import IsAuthenticated
+
+# Декораторы для API (DRF)
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+
+# Импорты твоих моделей
+# (Пути могут немного отличаться в зависимости от твоей структуры)
+from apps.courses.models import PurchasedCourse
+from ..rabbit import NOTIFICATIONS_EXCHANGE, NOTIFICATIONS_EXCHANGE_TYPE
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 @api_view(['GET']) # Решил проще данную штуку точечно сделать функцией. Введение cbv для этого избыточно
 @permission_classes([IsAuthenticated])
@@ -25,9 +34,16 @@ def get_notifications_for_user(request):
 
     serializer = NotificationSerializer(user_notifications, many=True)
 
-    return Response(serializer.data)
+    return HttpResponse(serializer.data)
 
-
+async def get_user_courses(user):
+    cache_key = f"user_courses_{user.id}"
+    courses = await cache.aget(cache_key) # Асинхронный кэш
+    if courses is None:
+        qs = PurchasedCourse.objects.filter(user=user).values_list('course_id', flat=True)
+        courses = await sync_to_async(list)(qs)
+        await cache.aset(cache_key, courses, timeout=3600)
+    return courses
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

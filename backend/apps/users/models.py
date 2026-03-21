@@ -4,6 +4,7 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.dispatch import receiver
 from django.db.models.signals import pre_delete, pre_save
 import os
+from asgiref.sync import sync_to_async
 
 
 class UserManager(BaseUserManager):
@@ -111,6 +112,12 @@ class User(AbstractUser):
     REQUIRED_FIELDS = []
 
     objects = UserManager()
+
+    def get_purchased_courses_ids(self):
+        return list(self.purchased_courses.values_list('course_id', flat=True))
+
+    async def aget_purchased_course_ids(self):
+        return await sync_to_async(self.get_purchased_course_ids)()
 
     class Meta:
         verbose_name = 'Пользователь'

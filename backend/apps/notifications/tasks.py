@@ -27,7 +27,6 @@ def send_course_notification(course_id, title, message, html_body=None, send_ema
     payload = {
         "id": notif.id,
         "type": "course_update",
-        "course_id": course_id,
         "title": title,
         "message": message,
         "created_at": timezone.now().isoformat()

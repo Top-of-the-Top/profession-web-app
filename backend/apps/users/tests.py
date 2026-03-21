@@ -25,7 +25,7 @@ class UsersApiUnitTests(SimpleTestCase):
     def test_register_success(self):
         request = self.factory.post(
             "/api/auth/register/",
-            {"email": "student@example.com", "pass_hash": "StrongPass123!"},
+            {"email": "student@example.com", "password": "StrongPass123!"},
             format="json",
         )
         view = RegisterView.as_view()
@@ -35,7 +35,7 @@ class UsersApiUnitTests(SimpleTestCase):
         serializer.validated_data = {
             "email_cipher": "enc_email",
             "phone_cipher": None,
-            "pass_hash": "StrongPass123!",
+            "password": "StrongPass123!",
         }
         mock_user = MagicMock()
         tokens = {"access_token": "a", "refresh_token": "r"}
@@ -71,7 +71,7 @@ class UsersApiUnitTests(SimpleTestCase):
     def test_login_success(self):
         request = self.factory.post(
             "/api/auth/login/",
-            {"email": "student@example.com", "pass_hash": "StrongPass123!"},
+            {"email": "student@example.com", "password": "StrongPass123!"},
             format="json",
         )
         view = LoginView.as_view()

@@ -1,10 +1,16 @@
 from celery import shared_task
 from django.utils import timezone
-from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
 from .rabbit import publish_event
 from .models import Notification
+from apps.users.api.utils import decrypt_data
+from apps.users.models import User
+from django.conf import settings
 
-User = get_user_model()
+import logging
+
+# Создаем экземпляр логгера для текущего модуля
+logger = logging.getLogger(__name__)
 
 @shared_task
 def send_course_notification(course_id, title, message, html_body=None, send_email=False):
@@ -13,9 +19,9 @@ def send_course_notification(course_id, title, message, html_body=None, send_ema
     notif = Notification.objects.create(
         course_id=course_id,
         title=title,
+        notification_type=Notification.COURSE,
         message=message,
         html_message=html_body,
-        is_system=True
     )
 
     payload = {
@@ -40,9 +46,9 @@ def send_personal_notification(user_id, title, message, html_body=None, send_ema
     notif = Notification.objects.create(
         user_id=user_id,
         title=title,
+        notification_type=Notification.PERSONAL,
         message=message,
         html_message=html_body,
-        is_system=False
     )
 
     payload = {
@@ -58,13 +64,59 @@ def send_personal_notification(user_id, title, message, html_body=None, send_ema
     if send_email and html_body:
         send_single_email.delay(user_id, title, html_body)
 
+@shared_task
+def send_system_notification(title, message, html_body=None):
+    """Общесистемные уведомления: запись в БД + RabbitMQ + Почта"""
+
+    notif = Notification.objects.create(
+        title=title,
+        notification_type=Notification.SYSTEM,
+        message=message,
+        html_message=html_body,
+    )
+
+    payload = {
+        "id": notif.id,
+        "type": "system",
+        "title": title,
+        "message": message,
+        "created_at": timezone.now().isoformat()
+    }
+
+    publish_event(routing_key="system.all", payload=payload)
+
 
 @shared_task
 def send_single_email(user_id, subject, html_content):
     """Отдельная задача для отправки письма, чтобы не блокировать основной поток"""
     try:
         user = User.objects.get(pk=user_id)
-        if user.email:
-            pass
+        user_email = decrypt_data(user.email_cipher)
+        if user_email:
+            send_mail(
+                subject=subject,
+                html_message=html_content,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user_email],
+            )
     except User.DoesNotExist:
-        pass
+        logger.error(f"User {user_id} not found")
+    except Exception as e:
+        logger.error(f"Error sending email to user {user_id}: {e}")
+
+
+@shared_task
+def send_mass_course_email(course_id, subject, html_content):
+    """Отдельная жирная задача для отправки писем всем, кто зарегистрирован на курс"""
+    users = User.aget_purchased_course_ids(course_id)
+
+    for user in users:
+        send_single_email(user.id, subject, html_content)
+
+
+@shared_task
+def send_mass_system_email(subject, html_content):
+    """Отдельная жирная задача для отправки все пользователям системы"""
+
+    for user in User.objects.all():
+        send_single_email(user.id, subject, html_content)

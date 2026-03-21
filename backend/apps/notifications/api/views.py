@@ -3,53 +3,48 @@ import asyncio
 import aio_pika
 import logging
 
-from django.http import StreamingHttpResponse, HttpResponse
+from django.http import StreamingHttpResponse, HttpResponse, HttpResponseNotAllowed
+from rest_framework.response import Response
 from django.conf import settings
-from django.core.cache import cache
 from django.contrib.auth import get_user_model
-
-# Инструменты для работы асинхронного кода с синхронной ORM Django
 from asgiref.sync import sync_to_async
-
-# Декораторы для API (DRF)
+from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from .serializers import NotificationSerializer
+from ..models import Notification
 
-# Импорты твоих моделей
-# (Пути могут немного отличаться в зависимости от твоей структуры)
 from apps.courses.models import PurchasedCourse
-from ..rabbit import NOTIFICATIONS_EXCHANGE, NOTIFICATIONS_EXCHANGE_TYPE
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
 @api_view(['GET']) # Решил проще данную штуку точечно сделать функцией. Введение cbv для этого избыточно
 @permission_classes([IsAuthenticated])
+
 def get_notifications_for_user(request):
-    """Посмотреть уведомления для текущего пользователя из request"""
-
     user = request.user
-    user_notifications = Notification.objects.filter(user=user)
+
+    purchased_course_ids = user.get_purchased_courses_ids()
+
+    notifications = Notification.objects.filter(
+        Q(user=user) | Q(course_id__in=purchased_course_ids) | Q(notification_type=Notification.SYSTEM)
+    ).distinct()
+
+    serializer = NotificationSerializer(notifications, many=True)
+    return Response(serializer.data)
 
 
-    serializer = NotificationSerializer(user_notifications, many=True)
-
-    return HttpResponse(serializer.data)
-
-async def get_user_courses(user):
-    cache_key = f"user_courses_{user.id}"
-    courses = await cache.aget(cache_key) # Асинхронный кэш
-    if courses is None:
-        qs = PurchasedCourse.objects.filter(user=user).values_list('course_id', flat=True)
-        courses = await sync_to_async(list)(qs)
-        await cache.aset(cache_key, courses, timeout=3600)
-    return courses
-
-@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 async def sse_notifications(request):
     # async - функция корутина, которая умеет приостанавливать свое выполнение ( замораживаться в ожидании )
     # Под капотом async - создает state machine, которая умеет сохранять локальные переменные и контекст и соответственно состояние
+
+    if request.method != 'GET':
+        return HttpResponseNotAllowed(['GET'])
+
+    user = request.user
+
     async def event_stream():
         # В этой точке await сигнализирует что операция занимает какое-то время
         # В этой точке мы идем заниматься своими вещами, когда мы получаем отсюда сообщение что "готово", то продолжаем с этого места
@@ -60,11 +55,14 @@ async def sse_notifications(request):
 
         queue = await channel.declare_queue(exclusive=True)
 
-        await queue.bind(exchange, routing_key=f"user.{request.user.id}")
+        await queue.bind(exchange, routing_key=f"user.{user.pk}")
 
-        user_course_ids = await get_user_courses(request.user)
+        user_course_ids = await user.aget_purchased_course_ids()
+
         for c_id in user_course_ids:
             await queue.bind(exchange, routing_key=f"course.{c_id}")
+
+        await queue.bind(exchange, routing_key="system.all")
 
         try:
             async with queue.iterator() as queue_iter:

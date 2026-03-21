@@ -38,15 +38,12 @@ class Notification(models.Model):
     message = models.TextField()
     html_message = models.TextField(null=True, blank=True)
 
-    is_read = models.BooleanField(default=False)
-    is_system = models.BooleanField(default=False)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', 'is_read']),
+            models.Index(fields=['user',]),
             models.Index(fields=['course', 'created_at']),
         ]
 

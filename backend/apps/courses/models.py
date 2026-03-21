@@ -25,12 +25,6 @@ class TrackedModel(models.Model):
     class Meta:
         abstract = True
 
-    def save(self, *args, **kwargs):
-        user = get_current_user()
-        # Если юзер авторизован, записываем его как автора правки
-        if user and not user.is_anonymous:
-            self.last_modified_by = user
-        super().save(*args, **kwargs)
 
 def course_image_path(instance, filename):
     ext = filename.split('.')[-1].lower()

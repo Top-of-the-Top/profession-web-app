@@ -51,10 +51,10 @@ const ProfileField = ({
 );
 
 export default function ProfilePage() {
+  const user = useUserStore((state) => state.user);
+  const isLoading = useUserStore((state) => state.isLoading);
   const setUser = useUserStore((state) => state.setUser);
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(user);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const [isChangeNameMenuOpen, setChangeMenuOpen] = useState(false);
@@ -63,20 +63,10 @@ export default function ProfilePage() {
   const [gender, setGender] = useState<string | null>(null);
 
   useEffect(() => {
-    profileApi
-      .getProfile()
-      .then((data) => {
-        setProfile(data);
-        setGender(data.gender || null);
-        setAvatarUrl(data.avatar);
-        setUser(data);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError('Не удалось загрузить профиль');
-      })
-      .finally(() => setLoading(false));
-  }, [setUser]);
+    setProfile(user);
+    setGender(user?.gender || null);
+    setAvatarUrl(user?.avatar || null);
+  }, [user]);
 
   // --- Изменение пола ---
   const updateGender = async (value: string) => {
@@ -115,8 +105,7 @@ export default function ProfilePage() {
   const anyMenuOpen =
     isChangeNameMenuOpen || isEmailMenuOpen || isPhoneMenuOpen;
 
-  if (loading) return <div>Загрузка профиля...</div>;
-  if (error) return <div>{error}</div>;
+  if (isLoading && !profile) return <div>Загрузка профиля...</div>;
   if (!profile) return <div>Профиль недоступен</div>;
 
   const handleNameSave = async (data: {

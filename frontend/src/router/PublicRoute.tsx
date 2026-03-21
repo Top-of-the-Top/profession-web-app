@@ -4,9 +4,9 @@ import { Navigate } from 'react-router-dom';
 import { useUserStore } from '../entities/user/model/userStore';
 
 export const PublicRoute = ({ children }: { children: React.JSX.Element }) => {
-  const { user, isLoading, isAuthChecked } = useUserStore();
+  const { user, isLoading } = useUserStore();
 
-  if (!isAuthChecked || isLoading) {
+  if (isLoading) {
     return <div>Загрузка...</div>;
   }
 

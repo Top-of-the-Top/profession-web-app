@@ -5,8 +5,10 @@
     { "path": "./tsconfig.node.json" },
 		
   ],
+	
 	"compilerOptions": {
     "baseUrl": ".",
+		"types": ["vite/client", "node"],
     "paths": {
       "@app/*": ["src/app/*"],
       "@assets/*": ["src/assets/*"],

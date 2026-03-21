@@ -62,14 +62,25 @@ class LoginSerializer(serializers.Serializer):
                 'Необходимо указать email или phone_number'
             )
         user = None
+
         if email:
             email_cipher = encrypt_data(email)
             user = User.objects.filter(email_cipher=email_cipher).first()
+
+            if not user:
+                raise serializers.ValidationError('Неверная почта')
+
         if not user and phone:
             phone_cipher = encrypt_data(phone)
             user = User.objects.filter(phone_cipher=phone_cipher).first()
-        if not user or not user.check_password(password):
-            raise serializers.ValidationError('Неверная почта/телефон/пароль')
+
+            if not user:
+                raise serializers.ValidationError('Неверный номер телефона')
+
+
+        if not user.check_password(password):
+            raise serializers.ValidationError(f'Неверный пароль - {password}')
+
         attrs['user'] = user
         return attrs
 

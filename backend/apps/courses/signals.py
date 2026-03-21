@@ -3,7 +3,14 @@ from django.dispatch import receiver
 from django.utils import timezone
 from datetime import timedelta
 
-from apps.notifications.tasks import send_course_notification, send_personal_notification
+from apps.notifications.tasks import (
+    send_course_notification,
+    send_personal_notification,
+    send_single_email,
+    send_mass_course_email,
+    send_mass_system_email
+)
+
 from .models import (
     DEFAULT_COURSE_IMAGE,
     Course,
@@ -52,12 +59,17 @@ def course_notification_signal(sender, instance, created, **kwargs):
     notify_author(instance, action)
 
     if not created:
-        send_course_notification.delay(
-            instance.pk,
-            f"Обновление курса: {instance.title}",
-            "В материалы курса внесены изменения."
+        course_id = instance.pk
+        title =  f"Обновление курса: {instance.title}",
+        message =  "В материалы курса внесены изменения."
+        notification = (
+            course_id,
+            title,
+            message,
         )
 
+        send_course_notification.delay(notification)
+        send_mass_course_email.delay(notification)
 
 @receiver(post_save, sender=Homework)
 def homework_deadline_handler(sender, instance, created, **kwargs):
@@ -68,11 +80,14 @@ def homework_deadline_handler(sender, instance, created, **kwargs):
     notify_author(instance, action)
 
     title = f"{'Новое' if created else 'Изменено'} ДЗ: {instance.title}"
-    send_course_notification.delay(
+    message =  f"Дедлайн: {instance.deadline.strftime('%d.%m %H:%M')}"
+
+    notification = (
         course_id,
         title,
-        f"Дедлайн: {instance.deadline.strftime('%d.%m %H:%M')}"
+        message,
     )
+    send_course_notification.delay(notification)
 
     now = timezone.now()
     reminders = [
@@ -86,6 +101,7 @@ def homework_deadline_handler(sender, instance, created, **kwargs):
                 eta=eta,
                 expires=instance.deadline
             )
+            send_mass_course_email.delay(notification)
 
 
 @receiver(post_save, sender=Question)
@@ -98,7 +114,16 @@ def question_notification(sender, instance, created, **kwargs):
 
     title = "Новый вопрос добавлен" if created else "Вопрос обновлен"
     message = f"В ДЗ '{instance.homework_id.title}' {action} вопрос."
-    send_course_notification.delay(course_id, title, message)
+
+    notification = (
+        course_id,
+        title,
+        message,
+    )
+
+    send_course_notification.delay(notification)
+    send_mass_course_email.delay(notification)
+
 
 
 @receiver(post_save, sender=Task)
@@ -111,4 +136,12 @@ def task_notification(sender, instance, created, **kwargs):
 
     title = "Новое задание добавлено" if created else "Задание отредактировано"
     message = f"В ДЗ '{instance.homework_id.title}' {action} задача: {instance.text[:30]}..."
-    send_course_notification.delay(course_id, title, message)
+
+    notification = (
+        course_id,
+        title,
+        message,
+    )
+
+    send_course_notification.delay(notification)
+    send_mass_course_email.delay(notification)

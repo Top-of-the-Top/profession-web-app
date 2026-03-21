@@ -49,7 +49,7 @@ class RegisterView(APIView):
         summary="Регистрация пользователя",
         description=(
             "Создаёт нового пользователя по email и/или номеру телефона и паролю. "
-            "Передайте в теле запроса либо email, либо phone_number (или оба), а также pass_hash (не менее 8 символов). "
+            "Передайте в теле запроса либо email, либо phone_number (или оба), а также password (не менее 8 символов). "
             "При успехе возвращается объект с access_token, access_expires_at, refresh_token, refresh_expires_at — эти токены используются для доступа к защищённым эндпоинтам (заголовок Authorization: Bearer <access_token>). "
             "При ошибке валидации (дубликат email/телефона, не указан контакт, короткий пароль) возвращается 403 и объект с полями-ошибками."
         ),
@@ -70,7 +70,7 @@ class RegisterView(APIView):
         data = serializer.validated_data
         email_cipher = data.get('email_cipher') or None
         phone_cipher = data.get('phone_cipher') or None
-        password = data['pass_hash']
+        password = data['password']
 
         user = User.objects.create_user(
             email_cipher=email_cipher,
@@ -88,7 +88,7 @@ class LoginView(APIView):
         summary="Вход пользователя",
         description=(
             "Аутентификация по email и/или номеру телефона и паролю. "
-            "В теле запроса передайте email или phone_number (или оба) и pass_hash. "
+            "В теле запроса передайте email или phone_number (или оба) и password. "
             "При успехе возвращается объект с access_token, access_expires_at, refresh_token, refresh_expires_at. "
             "При неверной паре контакт/пароль или отсутствии контакта возвращается 403 и объект с ошибками валидации."
         ),
@@ -241,6 +241,7 @@ class RecoverPasswordView(APIView):
             403: {"description": "Нет token/password — «token и password обязательны»; иначе «Невалидный или истёкший токен».", "schema": SCHEMA_403},
         },
     )
+
     def patch(self, request):
         token = request.data.get('token')
         password = request.data.get('password_hash')

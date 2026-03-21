@@ -1,16 +1,13 @@
-// src/widgets/admin-layout/index.tsx
-import { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, Link } from 'react-router-dom';
 import {
   Upload,
   Edit,
   Users,
-  Trash2,
   ArrowRight,
   AlertCircle,
   ShoppingCart,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import {
   Button,
   Alert,
@@ -19,19 +16,36 @@ import {
 } from '../../../shared/ui';
 import { cn } from '../../../shared/lib/utils';
 import { useUserStore } from '../../../entities/user/model/userStore';
+import { useNotificationStore } from '../../../features/notification/model/notification.store';
+import {
+  connectNotificationSSE,
+  disconnectNotificationSSE,
+} from '../../../features/notification/model/notification.sse';
 
 import styles from './AppLayout.module.css';
 
-type ErrorType =
-  | 'forbidden'
-  | 'server_error'
-  | 'network_error'
-  | 'unauthorized'
-  | null;
-
 export default function AppLayout() {
-  const location = useLocation();
   const user = useUserStore((state) => state.user);
+  const status = useNotificationStore((state) => state.status);
+  const error = useNotificationStore((state) => state.error);
+  const hasToken = Boolean(localStorage.getItem('access_token'));
+
+  useEffect(() => {
+    if (hasToken && user) {
+      console.info('[layout] SSE connect', { hasUser: true });
+      connectNotificationSSE();
+      return;
+    }
+
+    console.info('[layout] SSE disconnect', {
+      hasToken,
+      hasUser: Boolean(user),
+    });
+    disconnectNotificationSSE();
+    return () => {
+      disconnectNotificationSSE();
+    };
+  }, [hasToken, user]);
 
   const navItems = [
     { href: '/app/home', label: 'Домашняя', icon: ArrowRight, id: 'home' },
@@ -79,8 +93,6 @@ export default function AppLayout() {
             <p>Меню</p>
             <nav className={styles.nav}>
               {navItems.map(({ href, label, icon: Icon, id }) => {
-                const isActive = location.pathname === href;
-
                 return (
                   <Link
                     key={href}
@@ -121,9 +133,17 @@ export default function AppLayout() {
                 <Alert variant="destructive">
                   <AlertCircle />
                   <AlertTitle>Ошибка подключения</AlertTitle>
-                  <AlertDescription>{}</AlertDescription>
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
-                <Button onClick={() => {}}>Переподключиться</Button>
+                <Button
+                  onClick={() => {
+                    if (hasToken && user) {
+                      connectNotificationSSE();
+                    }
+                  }}
+                >
+                  Переподключиться
+                </Button>
               </>
             )}
           </div>

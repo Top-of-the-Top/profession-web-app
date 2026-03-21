@@ -1,7 +1,7 @@
 import { authApi } from '../../../shared/api/authApi';
 
 export interface ResetPasswordParams {
-  password_hash: string;
+  password: string;
   token: string;
 }
 

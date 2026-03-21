@@ -117,7 +117,7 @@ class User(AbstractUser):
         return list(self.purchased_courses.values_list('course_id', flat=True))
 
     async def aget_purchased_course_ids(self):
-        return await sync_to_async(self.get_purchased_course_ids)()
+        return await sync_to_async(self.get_purchased_courses_ids)()
 
     class Meta:
         verbose_name = 'Пользователь'

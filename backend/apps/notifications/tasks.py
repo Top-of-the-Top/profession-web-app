@@ -107,7 +107,9 @@ def send_single_email(user_id, subject, html_content):
 @shared_task
 def send_mass_course_email(course_id, subject, html_content):
     """Отдельная жирная задача для отправки писем всем, кто зарегистрирован на курс"""
-    users = User.aget_purchased_course_ids(course_id)
+    users = User.objects.filter(
+        purchased_courses__course_id=course_id
+    ).distinct()
 
     for user in users:
         send_single_email(user.id, subject, html_content)

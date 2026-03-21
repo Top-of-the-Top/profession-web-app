@@ -20,7 +20,6 @@ export const loginUser = async ({
   try {
 		
     const payload = prepareAuthData(emailOrPhone, password, { includePassword: true });
-		// console.log(payload)
     const tokensRaw = await authApi.login(payload);
     // Проверка через Zod
     const tokens = AuthTokensSchema.parse(tokensRaw);
@@ -28,7 +27,6 @@ export const loginUser = async ({
 
 
   } catch (err: any) {
-		console.log(err)
     if (err.message.includes('403')) {
       throw new Error('Неверная почта/телефон или пароль');
     }

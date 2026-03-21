@@ -6,7 +6,7 @@ import pika
 
 logger = logging.getLogger(__name__)
 
-NOTIFICATIONS_EXCHANGE = "notifications_topic"
+NOTIFICATIONS_EXCHANGE = "notifications"
 NOTIFICATIONS_EXCHANGE_TYPE = "topic"
 
 def get_connection_parameters() -> pika.ConnectionParameters:

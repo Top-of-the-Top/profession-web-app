@@ -11,13 +11,18 @@ from asgiref.sync import sync_to_async
 from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import NotificationSerializer
 from ..models import Notification
+from apps.users.models import User
 
 from apps.courses.models import PurchasedCourse
 
 logger = logging.getLogger(__name__)
-User = get_user_model()
+# User = get_user_model()
+
+
 
 @api_view(['GET']) # Решил проще данную штуку точечно сделать функцией. Введение cbv для этого избыточно
 @permission_classes([IsAuthenticated])
@@ -35,7 +40,6 @@ def get_notifications_for_user(request):
     return Response(serializer.data)
 
 
-@permission_classes([IsAuthenticated])
 async def sse_notifications(request):
     # async - функция корутина, которая умеет приостанавливать свое выполнение ( замораживаться в ожидании )
     # Под капотом async - создает state machine, которая умеет сохранять локальные переменные и контекст и соответственно состояние
@@ -43,7 +47,18 @@ async def sse_notifications(request):
     if request.method != 'GET':
         return HttpResponseNotAllowed(['GET'])
 
-    user = request.user
+    token = request.GET.get('token')
+    if not token:
+        return HttpResponse("Missing token", status=401)
+
+    try:
+        access_token = AccessToken(token)
+        user_id = access_token.get('user_id')
+        if not user_id:
+            return HttpResponse("Invalid token payload", status=401)
+        user = await sync_to_async(User.objects.get)(pk=user_id)
+    except (TokenError, User.DoesNotExist):
+        return HttpResponse("Invalid token", status=401)
 
     async def event_stream():
         # В этой точке await сигнализирует что операция занимает какое-то время
@@ -51,7 +66,11 @@ async def sse_notifications(request):
         connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
         channel = await connection.channel()
 
-        exchange = await channel.declare_exchange('notifications', aio_pika.ExchangeType.TOPIC)
+        exchange = await channel.declare_exchange(
+            'notifications',
+            aio_pika.ExchangeType.TOPIC,
+            durable=True,
+        )
 
         queue = await channel.declare_queue(exclusive=True)
 

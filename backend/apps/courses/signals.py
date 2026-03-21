@@ -68,8 +68,8 @@ def course_notification_signal(sender, instance, created, **kwargs):
             message,
         )
 
-        send_course_notification.delay(notification)
-        send_mass_course_email.delay(notification)
+        send_course_notification.delay(*notification)
+        send_mass_course_email.delay(*notification)
 
 @receiver(post_save, sender=Homework)
 def homework_deadline_handler(sender, instance, created, **kwargs):
@@ -87,7 +87,7 @@ def homework_deadline_handler(sender, instance, created, **kwargs):
         title,
         message,
     )
-    send_course_notification.delay(notification)
+    send_course_notification.delay(*notification)
 
     now = timezone.now()
     reminders = [
@@ -101,7 +101,7 @@ def homework_deadline_handler(sender, instance, created, **kwargs):
                 eta=eta,
                 expires=instance.deadline
             )
-            send_mass_course_email.delay(notification)
+            send_mass_course_email.delay(*notification)
 
 
 @receiver(post_save, sender=Question)
@@ -121,8 +121,8 @@ def question_notification(sender, instance, created, **kwargs):
         message,
     )
 
-    send_course_notification.delay(notification)
-    send_mass_course_email.delay(notification)
+    send_course_notification.delay(*notification)
+    send_mass_course_email.delay(*notification)
 
 
 
@@ -143,5 +143,5 @@ def task_notification(sender, instance, created, **kwargs):
         message,
     )
 
-    send_course_notification.delay(notification)
-    send_mass_course_email.delay(notification)
+    send_course_notification.delay(*notification)
+    send_mass_course_email.delay(*notification)

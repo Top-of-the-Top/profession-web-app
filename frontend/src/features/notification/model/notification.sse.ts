@@ -26,7 +26,14 @@ export function connectNotificationSSE() {
   store.setError('idle');
   store.setStatus('connecting');
 
-  const URL = `${API_URL}/api/notifications/sse/`;
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    store.setStatus('error');
+    store.setError('Нет access token для SSE');
+    return;
+  }
+
+  const URL = `${API_URL}/api/notifications/sse/?token=${encodeURIComponent(token)}`;
 
   source = new EventSource(URL);
 

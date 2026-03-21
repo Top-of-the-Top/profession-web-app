@@ -16,7 +16,7 @@ class RegisterSerializer(serializers.Serializer):
     email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     phone_number = serializers.CharField(
         required=False, allow_blank=True, allow_null=True)
-    pass_hash = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=8)
 
     def validate(self, attrs):
         email = (attrs.get('email') or '').strip()
@@ -51,12 +51,12 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     phone_number = serializers.CharField(
         required=False, allow_blank=True, allow_null=True)
-    pass_hash = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
         email = (attrs.get('email') or '').strip()
         phone = (attrs.get('phone_number') or '').strip()
-        password = attrs.get('pass_hash')
+        passw = attrs.get('password')
         if not email and not phone:
             raise serializers.ValidationError(
                 'Необходимо указать email или phone_number'
@@ -78,8 +78,8 @@ class LoginSerializer(serializers.Serializer):
                 raise serializers.ValidationError('Неверный номер телефона')
 
 
-        if not user.check_password(password):
-            raise serializers.ValidationError(f'Неверный пароль - {password}')
+        if not user.check_password(passw):
+            raise serializers.ValidationError('Неверный пароль')
 
         attrs['user'] = user
         return attrs

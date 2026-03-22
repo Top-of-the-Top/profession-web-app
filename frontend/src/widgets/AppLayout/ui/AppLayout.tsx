@@ -1,12 +1,16 @@
 import { useEffect } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
 import {
   Upload,
   Edit,
   Users,
   ArrowRight,
   AlertCircle,
-  ShoppingCart,
+  Sparkles,
+  House,
+  ShoppingBag,
+  CalendarDays,
+  ClipboardList,
 } from 'lucide-react';
 import {
   Button,
@@ -16,6 +20,7 @@ import {
 } from '../../../shared/ui';
 import { cn } from '../../../shared/lib/utils';
 import { useUserStore } from '../../../entities/user/model/userStore';
+import { useCartSummaryStore } from '../../../entities/cart/model/cartSummaryStore';
 import { useNotificationStore } from '../../../features/notification/model/notification.store';
 import {
   connectNotificationSSE,
@@ -25,10 +30,22 @@ import {
 import styles from './AppLayout.module.css';
 
 export default function AppLayout() {
+  const { pathname } = useLocation();
   const user = useUserStore((state) => state.user);
   const status = useNotificationStore((state) => state.status);
   const error = useNotificationStore((state) => state.error);
   const hasToken = Boolean(localStorage.getItem('access_token'));
+  const cartHasItems = useCartSummaryStore((s) => s.hasItems);
+  const refreshCartSummary = useCartSummaryStore((s) => s.refresh);
+  const resetCartSummary = useCartSummaryStore((s) => s.reset);
+
+  useEffect(() => {
+    if (!hasToken) {
+      resetCartSummary();
+      return;
+    }
+    void refreshCartSummary();
+  }, [hasToken, refreshCartSummary, resetCartSummary]);
 
   useEffect(() => {
     if (hasToken && user) {
@@ -48,23 +65,24 @@ export default function AppLayout() {
   }, [hasToken, user]);
 
   const navItems = [
-    { href: '/app/home', label: 'Домашняя', icon: ArrowRight, id: 'home' },
+    { href: '/app', label: 'Тосты', icon: Sparkles, id: 'toasts' },
+    { href: '/app/home', label: 'Домашняя', icon: House, id: 'home' },
     {
       href: '/app/store',
       label: 'Магазин',
-      icon: Upload,
+      icon: ShoppingBag,
       id: 'upload',
     },
     {
       href: '/app/modify',
       label: 'Расписание',
-      icon: Edit,
+      icon: CalendarDays,
       id: 'modify',
     },
     {
       href: '/app/distribute',
       label: 'Задания',
-      icon: Users,
+      icon: ClipboardList,
       id: 'distribute',
     },
   ];
@@ -74,15 +92,19 @@ export default function AppLayout() {
       <header className={styles.topbar}>
         <img src="/profession-logo.svg" alt="Logo" className={styles.logo} />
         <div className={styles.topbarItem}>
-          <Link className={styles.headerLink} to="cart">
-            <ShoppingCart width="20px" height="20px" />
+          <Link className={styles.headerLink} to="cart" aria-label="Корзина">
+            <img
+              src={cartHasItems ? '/cart-full.svg' : '/cart.svg'}
+              alt=""
+              className={styles.cartHeaderIcon}
+              width={20}
+              height={20}
+              decoding="async"
+            />
           </Link>
           <Link to="profile" className={styles.headerLink}>
             <div className={styles.pfp}>
-              <img
-                src={user?.avatar || '/ya.svg'}
-                alt="Profile"
-              />
+              <img src={user?.avatar || '/ya.svg'} alt="Profile" />
             </div>
           </Link>
         </div>
@@ -93,23 +115,34 @@ export default function AppLayout() {
             <p>Меню</p>
             <nav className={styles.nav}>
               {navItems.map(({ href, label, icon: Icon, id }) => {
+                const storeActive =
+                  id === 'upload' &&
+                  (pathname.startsWith('/app/store') ||
+                    pathname.startsWith('/app/courses'));
                 return (
-                  <Link
+                  <NavLink
                     key={href}
                     to={href}
-                    className={cn(styles.navLink, styles[id])}
+                    end={href === '/app'}
+                    className={({ isActive }) =>
+                      cn(
+                        styles.navLink,
+                        styles[id],
+                        (storeActive || isActive) && styles.navLinkActive,
+                      )
+                    }
                   >
                     <Button variant="secondary" className={styles.navButton}>
                       <Icon className={styles.navIcon} strokeWidth={2} />
                       <span>{label}</span>
                     </Button>
-                  </Link>
+                  </NavLink>
                 );
               })}
             </nav>
           </div>
 
-          <div className={styles.statsSection}>
+          {/* <div className={styles.statsSection}>
             {status === 'connecting' && (
               <div className={styles.loading}>Подключение к серверу...</div>
             )}
@@ -146,7 +179,7 @@ export default function AppLayout() {
                 </Button>
               </>
             )}
-          </div>
+          </div> */}
         </div>
 
         <main className={styles.main}>

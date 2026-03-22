@@ -8,12 +8,32 @@ import {
 } from '../../../shared/ui';
 import { useState } from 'react';
 import { Field, FieldGroup, FieldLabel, Input } from '../../../shared/ui';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import styles from './ResetPage.module.css';
 import { Link, useNavigate } from 'react-router-dom';
 import { resetUser } from '../api';
 import { validateEmailOrPhone } from '../../../shared/utils/validation';
-import toast, { Toaster } from 'react-hot-toast';
+import { ZodError } from 'zod';
+import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import {
+  messageForApiFailure,
+  notifyError,
+  notifySuccess,
+} from '../../../shared/lib/sileo/notify';
+
+function notifyResetFailure(err: unknown) {
+  const parsed = parseApiError(err);
+  if (!parsed) {
+    const fb = messageForApiFailure('resetRequest', 0, {});
+    notifyError({
+      title: fb.title,
+      description: err instanceof Error ? err.message : fb.description,
+    });
+    return;
+  }
+  const msg = messageForApiFailure('resetRequest', parsed.status, parsed.body);
+  notifyError({ title: msg.title, description: msg.description });
+}
 
 export default function ResetForm({
   className,
@@ -34,35 +54,30 @@ export default function ResetForm({
     const validation = validateEmailOrPhone(emailOrPhone);
 
     if (!validation.isValid) {
-      toast.error('Введите корректный email или номер телефона');
+      notifyError({
+        title: 'проверьте контакт',
+        description: 'Введите корректный email или номер телефона.',
+      });
       setLoading(false);
       return;
     }
 
     try {
       await resetUser({ emailOrPhone });
-
-      toast.success(
-        'Ссылка для сброса пароля отправлена на вашу почту или телефон',
-        {
-          duration: 5000,
-          icon: <CheckCircle2 className={styles.toastSuccessIcon} />,
-        }
-      );
-
+      notifySuccess({
+        title: 'ссылка отправлена',
+        description: 'Проверьте почту или SMS — там будет ссылка для сброса пароля.',
+      });
       setSuccess(true);
-    } catch (err: any) {
-      if (err.response?.status === 400) {
-        toast.error('Некорректные данные. Проверьте введенные данные');
-      } else if (err.response?.status === 404) {
-        toast.error('Пользователь с такими данными не найден');
-      } else if (err.response?.status === 429) {
-        toast.error('Слишком много попыток. Попробуйте позже');
-      } else if (err.response?.status === 500) {
-        toast.error('Сервер временно недоступен. Попробуйте позже');
-      } else {
-        toast.error(err.message || 'Произошла ошибка при отправке запроса');
+    } catch (err) {
+      if (err instanceof ZodError) {
+        notifyError({
+          title: 'некорректный ответ сервера',
+          description: 'Обновите страницу или попробуйте позже.',
+        });
+        return;
       }
+      notifyResetFailure(err);
     } finally {
       setLoading(false);
     }
@@ -142,33 +157,6 @@ export default function ResetForm({
         </Card>
         <div className={styles.copyright}>&copy; 2026 Профессия</div>
       </div>
-
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-            borderRadius: '8px',
-            fontSize: '14px',
-          },
-          success: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
-            },
-          },
-        }}
-      />
     </div>
   );
 }

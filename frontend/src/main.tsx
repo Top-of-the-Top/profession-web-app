@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import "../globals.css"
+import "../sileo-tokens.css"
 import './index.css'
 import App from './app/App.tsx'
 import { BrowserRouter } from 'react-router-dom';

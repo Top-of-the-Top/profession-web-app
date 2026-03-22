@@ -3,6 +3,19 @@
   min-height: 100%;
   padding: 54px;
   background-color: #e2e8f0;
+  box-sizing: border-box;
+}
+
+/* Только пустая корзина: колонка + нижний блок растягивается и центрирует иконку/текст */
+.cartPageEmpty {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.cartPageEmpty .emptyState {
+  flex: 1;
+  min-height: 0;
 }
 
 .cartTitle {
@@ -107,7 +120,6 @@
 
 .summaryAmount {
   font-size: 20px;
-  font-weight: 500;
 }
 
 .summaryContent {
@@ -146,14 +158,48 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
-.emptyCard {
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   margin: 0 40px;
+  padding: 32px 24px 64px;
+  min-height: min(58vh, 480px);
 }
 
-.emptyContent {
-  padding: 32px;
-  font-size: 16px;
-  color: #4b5563;
+.emptyIcon {
+  height: auto;
+  margin-bottom: 28px;
+  object-fit: contain;
+}
+
+.emptyHeading {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.25;
+}
+
+.emptySubtext {
+  margin: 0;
+  max-width: 400px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #6b7280;
+}
+
+.emptyStoreLink {
+  color: #191970;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.emptyStoreLink:hover {
+  text-decoration-thickness: 2px;
 }
 
 @media (max-width: 960px) {
@@ -177,6 +223,12 @@
 
   .cartLayout {
     margin: 0;
+  }
+
+  .emptyState {
+    margin: 0;
+    min-height: 50vh;
+    padding: 24px 16px 48px;
   }
 
   .cartItem {

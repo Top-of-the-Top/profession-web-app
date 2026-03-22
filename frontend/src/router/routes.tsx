@@ -9,6 +9,7 @@ import {
   CourseDetailPage,
   CartPage,
 	CreateLesson,
+  ToastPlaygroundPage,
 } from '../pages';
 import AppLayout from '../widgets/AppLayout/ui/AppLayout';
 
@@ -40,7 +41,7 @@ export const routes: AppRoute[] = [
     element: <AppLayout />,
     protected: true,
     children: [
-      // { path: '', element: <Navigate to="" replace /> },
+      { index: true, element: <ToastPlaygroundPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'store', element: <CourseStorePage /> },
       {

@@ -80,13 +80,8 @@ export const prepareAuthData = (
 
 export const prepareResetPasswordData = (
   password: string,
-  token: string
-): {
-  password: string;
-  token: string;
-} => {
-  return {
-    password,
-    token: token
-  };
-};
+  token: string,
+): { password_hash: string; token: string } => ({
+  password_hash: password,
+  token,
+});

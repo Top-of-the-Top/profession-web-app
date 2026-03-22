@@ -9,22 +9,38 @@ import React from 'react';
 import { NotFoundPage } from '../pages';
 
 const renderRoutes = (routes: AppRoute[], basePath = '') =>
-  routes.map(({ path, element, protected: isProtected, publicOnly, children }) => {
-    console.log(`Рендер маршрута: ${basePath + path}`, { isProtected, publicOnly });
+  routes.map(
+    ({
+      path,
+      index: routeIndex,
+      element,
+      protected: isProtected,
+      publicOnly,
+      children,
+    }) => {
+      let wrappedElement = element as React.JSX.Element;
 
-    let wrappedElement = element as React.JSX.Element;
+      if (isProtected) wrappedElement = <ProtectedRoute>{wrappedElement}</ProtectedRoute>;
+      if (publicOnly) wrappedElement = <PublicRoute>{wrappedElement}</PublicRoute>;
 
-    if (isProtected) wrappedElement = <ProtectedRoute>{wrappedElement}</ProtectedRoute>;
-    if (publicOnly) wrappedElement = <PublicRoute>{wrappedElement}</PublicRoute>;
+      if (routeIndex) {
+        return (
+          <Route key={`${basePath || 'root'}::index`} index element={wrappedElement}>
+            {children && renderRoutes(children, basePath)}
+          </Route>
+        );
+      }
 
-    const fullPath = basePath + (path.startsWith('/') ? path : '/' + path);
+      const segment = path ?? '';
+      const fullPath = basePath + (segment.startsWith('/') ? segment : '/' + segment);
 
-    return (
-      <Route key={fullPath} path={fullPath} element={wrappedElement}>
-        {children && renderRoutes(children, fullPath)}
-      </Route>
-    );
-  });
+      return (
+        <Route key={fullPath} path={fullPath} element={wrappedElement}>
+          {children && renderRoutes(children, fullPath)}
+        </Route>
+      );
+    },
+  );
 
 export const AppRouter = () => (
   <AuthProvider>

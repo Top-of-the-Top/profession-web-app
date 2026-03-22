@@ -54,6 +54,13 @@
   transition: transform 0.2s ease;
 }
 
+.cartHeaderIcon {
+  width: 25px;
+  height: 25px;
+  display: block;
+  object-fit: contain;
+}
+
 .headerLink:hover {
   transform: scale(1.05);
 }
@@ -115,6 +122,11 @@
   gap: 10px;
   align-items: center;
   text-decoration: none;
+  border-radius: var(--radius-md, 8px);
+}
+
+.navLinkActive .navButton {
+  background-color: #eeeef0 !important;
 }
 
 .delete Button {

@@ -1,0 +1,141 @@
+.page {
+  padding: 24px 28px 48px;
+  max-width: 960px;
+  margin: 0 auto;
+  font-family: 'Golos Text', 'Inter', system-ui, sans-serif;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.lead {
+  margin: 0 0 24px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #5c5c5c;
+  max-width: 72ch;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+  margin: 0 0 12px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.schemaTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.schemaTable th,
+.schemaTable td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+
+.schemaTable th {
+  font-weight: 600;
+  color: #333;
+  width: 22%;
+}
+
+.schemaTable td {
+  color: #444;
+  line-height: 1.45;
+}
+
+.schemaTable tr:last-child th,
+.schemaTable tr:last-child td {
+  border-bottom: 0;
+}
+
+.controlsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px 20px;
+  align-items: end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.select,
+.numberInput {
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #d8d8d8;
+  background: #fafafa;
+  color: #111;
+}
+
+.numberInput {
+  max-width: 120px;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 4px;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.note {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  color: #666;
+  line-height: 1.45;
+}
+
+.docLink {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.docLink:hover {
+  text-decoration: underline;
+}

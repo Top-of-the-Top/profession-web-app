@@ -6,6 +6,8 @@ const API_URL = import.meta.env.VITE_API_URL;
 export type TokensResponse = {
   access_token: string;
   refresh_token: string;
+  access_expires_at?: string;
+  refresh_expires_at?: string;
 };
 
 export class ApiClient {
@@ -44,6 +46,8 @@ export class ApiClient {
   private logout() {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('access_expires_at');
+    localStorage.removeItem('refresh_expires_at');
     authEvents.dispatchEvent(new Event('logout'));
   }
 
@@ -51,7 +55,9 @@ export class ApiClient {
     const refresh_token = localStorage.getItem('refresh_token');
     if (!refresh_token) return null;
 
-    const response = await fetch(`${API_URL}/api/auth/token/refresh`, {
+    // Слэш в конце обязателен: в urls.py путь `auth/token/refresh/`. Без слэша Django
+    // отдаёт редирект, и POST при следовании за редиректом часто превращается в GET без тела.
+    const response = await fetch(`${API_URL}/api/auth/token/refresh/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token }),
@@ -62,6 +68,12 @@ export class ApiClient {
     const tokens: TokensResponse = await response.json();
     localStorage.setItem('access_token', tokens.access_token);
     localStorage.setItem('refresh_token', tokens.refresh_token);
+    if (tokens.access_expires_at) {
+      localStorage.setItem('access_expires_at', tokens.access_expires_at);
+    }
+    if (tokens.refresh_expires_at) {
+      localStorage.setItem('refresh_expires_at', tokens.refresh_expires_at);
+    }
 
     return tokens;
   }

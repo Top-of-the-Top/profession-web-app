@@ -5,38 +5,61 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../../../shared/ui';
-import { useState, useContext } from 'react';
-
-import {
   Field,
   FieldGroup,
-  FieldLabel, Input
+  FieldLabel,
+  Input,
 } from '../../../shared/ui';
-
+import { useState, useContext } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { cn } from '../../../shared/lib/utils';
 import styles from './RegistrationPage.module.css';
 import { registerUser } from '../api';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../../context/AuthContext';
+import { ZodError } from 'zod';
+import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
+
+function notifyRegisterFailure(err: unknown) {
+  if (
+    err instanceof Error &&
+    err.message === 'Invalid email or phone number'
+  ) {
+    notifyError({
+      title: 'проверьте контакт',
+      description: 'Введите корректный email или номер телефона.',
+    });
+    return;
+  }
+
+  const parsed = parseApiError(err);
+  if (!parsed) {
+    const fb = messageForApiFailure('register', 0, {});
+    notifyError({
+      title: fb.title,
+      description: err instanceof Error ? err.message : fb.description,
+    });
+    return;
+  }
+
+  const msg = messageForApiFailure('register', parsed.status, parsed.body);
+  notifyError({ title: msg.title, description: msg.description });
+}
 
 export default function RegistrationForm({
   className,
   ...props
 }: React.ComponentProps<'div'>) {
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const authContext = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setLoading(true);
 
     const form = e.currentTarget as HTMLFormElement;
-
     const emailOrPhone = (form.elements.namedItem('email') as HTMLInputElement)
       .value;
     const password = (form.elements.namedItem('password') as HTMLInputElement)
@@ -46,7 +69,10 @@ export default function RegistrationForm({
     ).value;
 
     if (password !== repeatPassword) {
-      setError('Пароли не совпадают');
+      notifyError({
+        title: 'пароли не совпадают',
+        description: 'Введите одинаковый пароль в оба поля.',
+      });
       setLoading(false);
       return;
     }
@@ -55,8 +81,15 @@ export default function RegistrationForm({
       const tokens = await registerUser({ emailOrPhone, password });
       authContext?.login(tokens);
       navigate('/app', { replace: true });
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      if (err instanceof ZodError) {
+        notifyError({
+          title: 'некорректный ответ сервера',
+          description: 'Обновите страницу или попробуйте позже.',
+        });
+        return;
+      }
+      notifyRegisterFailure(err);
     } finally {
       setLoading(false);
     }
@@ -65,11 +98,7 @@ export default function RegistrationForm({
   return (
     <div className={styles.loginPage} {...props}>
       <div className={styles.loginWrapper}>
-        <img
-          className={styles.logo}
-          src="profession-logo.svg"
-          alt=""
-        />
+        <img className={styles.logo} src="profession-logo.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
             <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>
@@ -89,7 +118,7 @@ export default function RegistrationForm({
                   <Input
                     id="email"
                     type="text"
-										autoComplete="email"
+                    autoComplete="email"
                     placeholder="Почта/телефон"
                     required
                     className={styles.input}
@@ -103,13 +132,13 @@ export default function RegistrationForm({
                   <Input
                     id="password"
                     type="password"
-										autoComplete="password"
+                    autoComplete="password"
                     placeholder="Пароль"
                     required
                     className={styles.input}
                   />
                   <CardDescription>
-                    Длина должна быть не меньше 6 символов
+                    Не меньше 8 символов
                   </CardDescription>
                 </Field>
 
@@ -122,16 +151,11 @@ export default function RegistrationForm({
                   <Input
                     id="repeatPassword"
                     type="password"
-                    placeholder="••••••••••••••"
-										autoComplete="password"
+                    placeholder="Пароль"
+                    autoComplete="password"
                     required
                     className={styles.input}
                   />
-                  {error && (
-                    <CardDescription style={{ color: 'red' }}>
-                      {error}
-                    </CardDescription>
-                  )}
                 </Field>
 
                 <Field>
@@ -185,9 +209,7 @@ export default function RegistrationForm({
           </CardContent>
         </Card>
 
-        <div className={styles.copyright}>
-          &copy; 2026 Профессия
-        </div>
+        <div className={styles.copyright}>&copy; 2026 Профессия</div>
       </div>
     </div>
   );

@@ -22,6 +22,29 @@ import {
   type UpdateProfilePayload,
 } from '../../../shared/api/profileApi';
 import { useUserStore } from '../../../entities/user/model/userStore';
+import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
+
+function notifyProfileSaveError(err: unknown) {
+  if (err instanceof Error && err.message === 'AUTH_EXPIRED') {
+    notifyError({
+      title: 'нужен повторный вход',
+      description: 'Сессия истекла. Войдите в аккаунт снова.',
+    });
+    return;
+  }
+  const parsed = parseApiError(err);
+  if (!parsed) {
+    const fb = messageForApiFailure('profileUpdate', 0, {});
+    notifyError({
+      title: fb.title,
+      description: err instanceof Error ? err.message : fb.description,
+    });
+    return;
+  }
+  const msg = messageForApiFailure('profileUpdate', parsed.status, parsed.body);
+  notifyError({ title: msg.title, description: msg.description });
+}
 
 interface ProfileFieldProps {
   icon: React.ReactNode;
@@ -70,6 +93,7 @@ export default function ProfilePage() {
 
   // --- Изменение пола ---
   const updateGender = async (value: string) => {
+    const previous = gender;
     setGender(value);
     try {
       await profileApi.updateProfile({ gender: value });
@@ -81,7 +105,8 @@ export default function ProfilePage() {
         return next;
       });
     } catch (err) {
-      console.error('Ошибка обновления пола', err);
+      notifyProfileSaveError(err);
+      setGender(previous);
     }
   };
 
@@ -143,7 +168,7 @@ export default function ProfilePage() {
 
       setChangeMenuOpen(false);
     } catch (err) {
-      console.error('Ошибка обновления имени', err);
+      notifyProfileSaveError(err);
       setAvatarUrl(profile.avatar);
     }
   };
@@ -175,7 +200,7 @@ export default function ProfilePage() {
         setPhoneMenuOpen(false);
       }
     } catch (err) {
-      console.error(`Ошибка обновления ${type}`, err);
+      notifyProfileSaveError(err);
     }
   };
 

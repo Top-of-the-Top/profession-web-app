@@ -3,14 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../shared/lib/utils';
 import { Menu, X } from 'lucide-react';
-import {
-  Button,
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '../../../shared/ui';
+import { Button, Card, CardTitle } from '../../../shared/ui';
 import { ArrowUpRight } from 'lucide-react';
 import CollapsibleSection from './CollapsibleSection';
 import Footer from './Footer';
@@ -205,58 +198,63 @@ export default function LandingPage() {
               ) : (
                 tracks.map((track) => (
                   <Card
-									onClick={() => {navigate('/register')}}
                     key={track.id}
                     className={styles.trackCard}
                     style={{ backgroundColor: track.bgColor }}
+                    onClick={() => navigate('/register')}
                   >
-                    <CardHeader>
-                      <div className={styles.trackHeader}>
-                        <CardTitle
-                          className={styles.trackTitle}
-                          style={{
-                            color: track.titleColor,
-                            backgroundColor: track.accentColor,
-                          }}
-                        >
-                          {track.title}
-                        </CardTitle>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent>
-                      <div
-                        className={styles.trackPrice}
-                        style={{ color: track.subtitleColor }}
-                      >
-                        от {track.price} ₽
-                      </div>
-                    </CardContent>
-
-                    <CardFooter className={styles.trackFooter}>
-                      <Button
-                        style={{ backgroundColor: 'transparent' }}
-                        className={styles.moreButton}
-                        variant="ghost"
-                        onClick={() => navigate('/register')}
-                      >
-                        <div
-                          className={styles.trackButton}
-                          style={{
-                            backgroundColor: track.arrowBgColor,
-                            color: track.arrowColor,
-                          }}
-                        >
-                          <ArrowUpRight size={30} />
+                    <div className={styles.trackCardLayout}>
+                      <div className={styles.trackCardLeft}>
+                        <div className={styles.trackCardTop}>
+                          <div className={styles.trackHeader}>
+                            <CardTitle
+                              className={styles.trackTitle}
+                              style={{
+                                color: track.titleColor,
+                                backgroundColor: track.accentColor,
+                              }}
+                            >
+                              {track.title}
+                            </CardTitle>
+                          </div>
+                          <div
+                            className={styles.trackPrice}
+                            style={{ color: track.subtitleColor }}
+                          >
+                            от {track.price} ₽
+                          </div>
                         </div>
-                        <p style={{ color: track.moreColor }}>Подробнее</p>
-                      </Button>
-                      <img
-                        src={track.image}
-                        alt={track.title}
-                        className={styles.trackImage}
-                      />
-                    </CardFooter>
+                        <div className={styles.trackCardActions}>
+                          <Button
+                            style={{ backgroundColor: 'transparent' }}
+                            className={styles.moreButton}
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate('/register');
+                            }}
+                          >
+                            <div
+                              className={styles.trackButton}
+                              style={{
+                                backgroundColor: track.arrowBgColor,
+                                color: track.arrowColor,
+                              }}
+                            >
+                              <ArrowUpRight size={30} />
+                            </div>
+                            <p style={{ color: track.moreColor }}>Подробнее</p>
+                          </Button>
+                        </div>
+                      </div>
+                      <div className={styles.trackImageCol}>
+                        <img
+                          src={track.image}
+                          alt={track.title}
+                          className={styles.trackImage}
+                        />
+                      </div>
+                    </div>
                   </Card>
                 ))
               )}

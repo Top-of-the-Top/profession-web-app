@@ -2,7 +2,36 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../../../shared/ui';
 import { courseApi, type Course } from '../../../shared/api/courseApi';
+import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import {
+  messageForApiFailure,
+  notifyError,
+  notifyWarning,
+} from '../../../shared/lib/sileo/notify';
 import styles from './CourseDetailPage.module.css';
+
+function isAuthLike(err: unknown) {
+  const msg = err instanceof Error ? err.message : '';
+  return msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401');
+}
+
+function notifyCourseDetailError(err: unknown) {
+  if (isAuthLike(err)) {
+    notifyWarning({
+      title: 'нужна авторизация',
+      description: 'Войдите, чтобы просмотреть страницу курса.',
+    });
+    return;
+  }
+  const parsed = parseApiError(err);
+  if (parsed) {
+    const m = messageForApiFailure('courseDetail', parsed.status, parsed.body);
+    notifyError({ title: m.title, description: m.description });
+    return;
+  }
+  const fb = messageForApiFailure('courseDetail', 0, {});
+  notifyError({ title: fb.title, description: fb.description });
+}
 
 export default function CourseDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -13,29 +42,54 @@ export default function CourseDetailPage() {
 
   useEffect(() => {
     if (!slug) {
-      setError('Курс не найден');
+      setError('Курс не указан в адресе');
       setLoading(false);
+      notifyWarning({
+        title: 'неверная ссылка',
+        description: 'Откройте курс из каталога.',
+      });
       return;
     }
 
     const fetchCourse = async () => {
       try {
         setLoading(true);
+        setError(null);
         const data = await courseApi.getCourseBySlug(slug);
-				console.log(data)
         setCourse(data.course);
       } catch (err) {
-        setError('Не удалось загрузить курс');
+        notifyCourseDetailError(err);
+        setError(
+          isAuthLike(err)
+            ? 'Нужна авторизация'
+            : 'Не удалось загрузить курс',
+        );
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCourse();
+    void fetchCourse();
   }, [slug]);
 
-  if (loading) return <div className={styles.container}>Загрузка...</div>;
-  if (error || !course) return <div className={styles.container}>Ошибка: {error}</div>;
+  if (loading) {
+    return <div className={styles.container}>Загрузка...</div>;
+  }
+
+  if (error || !course) {
+    return (
+      <div className={styles.container}>
+        <p>{error ?? 'Курс недоступен'}</p>
+        <Button
+          style={{ marginTop: 16 }}
+          variant="secondary"
+          onClick={() => navigate('/app/store')}
+        >
+          В каталог
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
@@ -43,10 +97,9 @@ export default function CourseDetailPage() {
 
       <div className={styles.contentWrapper}>
         <div className={styles.mainContent}>
-          {/* Изображение курса */}
           <div className={styles.imageSection}>
-            <img 
-              src={course.image_url} 
+            <img
+              src={course.image_url}
               alt={course.title}
               className={styles.courseImage}
             />

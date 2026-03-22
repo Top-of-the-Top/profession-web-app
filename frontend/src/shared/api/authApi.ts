@@ -14,7 +14,10 @@ export const authApi = {
     return apiClient.request('/api/auth/reset/', { method: 'POST', body: JSON.stringify(data) });
   },
 
-  resetPassword(data: { password: string; token: string }) {
-    return apiClient.request('/api/auth/recover/set/', { method: 'PATCH', body: JSON.stringify(data) });
+  resetPassword(data: { password_hash: string; token: string }) {
+    return apiClient.request('/api/auth/recover/set/', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
   },
 };

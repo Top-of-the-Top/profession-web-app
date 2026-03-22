@@ -2,10 +2,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
 import { Button } from '../../../shared/ui';
 import { courseApi, type CourseDTO } from '../../../shared/api/courseApi';
 import { cartApi } from '../../../shared/api/cartApi';
+import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import {
+  messageForApiFailure,
+  notifyCartCourseAdded,
+  notifyError,
+  notifyWarning,
+} from '../../../shared/lib/sileo/notify';
+import { useCartSummaryStore } from '../../../entities/cart/model/cartSummaryStore';
 import styles from './CourseStorePage.module.css';
 
 interface CourseCardProps {
@@ -102,6 +109,9 @@ export default function CourseStorePage() {
           setInCartSlugs(
             new Set(cartResponse.courses.map((course) => course.slug)),
           );
+          useCartSummaryStore
+            .getState()
+            .setHasItems(cartResponse.courses.length > 0);
         } else {
           setInCartSlugs(new Set());
         }
@@ -124,23 +134,34 @@ export default function CourseStorePage() {
     setAddingSlug(slug);
     try {
       await cartApi.addCourse(slug);
-      toast.success(`Курс «${title}» добавлен в корзину`);
-
+      notifyCartCourseAdded({
+        title: 'курс добавлен в корзину',
+        description: `«${title}» — можно перейти к оформлению.`,
+        onGoToCart: () => navigate('/app/cart'),
+      });
       setInCartSlugs((prev) => {
         const next = new Set(prev);
         next.add(slug);
         return next;
       });
-    } catch (err: any) {
-      const message: string = err?.message ?? '';
-
-      if (message === 'AUTH_EXPIRED' || message.includes('API_ERROR_401')) {
-        toast.error('Авторизуйтесь, чтобы добавить курс в корзину');
-      } else if (message.includes('API_ERROR_400')) {
-        toast.error('Курс уже в корзине');
-      } else {
-        toast.error('Не удалось добавить курс в корзину');
+      useCartSummaryStore.getState().setHasItems(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401')) {
+        notifyWarning({
+          title: 'нужна авторизация',
+          description: 'Войдите в аккаунт, чтобы добавить курс в корзину.',
+        });
+        return;
       }
+      const parsed = parseApiError(err);
+      if (parsed) {
+        const m = messageForApiFailure('cartAdd', parsed.status, parsed.body);
+        notifyError({ title: m.title, description: m.description });
+        return;
+      }
+      const fb = messageForApiFailure('cartAdd', 0, {});
+      notifyError({ title: fb.title, description: fb.description });
     } finally {
       setAddingSlug(null);
     }
@@ -173,30 +194,27 @@ export default function CourseStorePage() {
   }
 
   return (
-    <>
-      <Toaster position="top-right" />
-      <div className={styles.catalog}>
-        <h2 className={styles.catalogTitle}>Каталог курсов</h2>
+    <div className={styles.catalog}>
+      <h2 className={styles.catalogTitle}>Каталог курсов</h2>
 
-        {courses.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p>Курсы не найдены</p>
-          </div>
-        ) : (
-          <div className={styles.coursesGrid}>
-            {courses.map((course) => (
-              <CourseCard
-                key={course.course_id}
-                course={course}
-                onClick={() => handleCourseClick(course.slug)}
-                onAddToCart={() => handleAddToCart(course.slug, course.title)}
-                disabled={addingSlug === course.slug}
-                inCart={inCartSlugs.has(course.slug)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </>
+      {courses.length === 0 ? (
+        <div className={styles.emptyState}>
+          <p>Курсы не найдены</p>
+        </div>
+      ) : (
+        <div className={styles.coursesGrid}>
+          {courses.map((course) => (
+            <CourseCard
+              key={course.course_id}
+              course={course}
+              onClick={() => handleCourseClick(course.slug)}
+              onAddToCart={() => handleAddToCart(course.slug, course.title)}
+              disabled={addingSlug === course.slug}
+              inCart={inCartSlugs.has(course.slug)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

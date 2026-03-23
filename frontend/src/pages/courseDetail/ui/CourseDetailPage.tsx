@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '../../../shared/ui';
+import { Button, Spinner, PageTransition } from '../../../shared/ui';
 import { courseApi, type Course } from '../../../shared/api/courseApi';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
 import {
@@ -73,7 +73,7 @@ export default function CourseDetailPage() {
   }, [slug]);
 
   if (loading) {
-    return <div className={styles.container}>Загрузка...</div>;
+    return <div className={styles.container}><Spinner full /></div>;
   }
 
   if (error || !course) {
@@ -92,7 +92,7 @@ export default function CourseDetailPage() {
   }
 
   return (
-    <div className={styles.container}>
+    <PageTransition className={styles.container}>
       <h1 className={styles.pageTitle}>{course.title}</h1>
 
       <div className={styles.contentWrapper}>
@@ -121,6 +121,6 @@ export default function CourseDetailPage() {
           </div>
         </aside>
       </div>
-    </div>
+    </PageTransition>
   );
 }

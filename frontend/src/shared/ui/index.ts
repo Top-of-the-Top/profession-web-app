@@ -88,6 +88,9 @@
 
 	export { Switch } from './Switch'
 
+	export { Spinner } from './Spinner'
+	export { PageTransition } from './PageTransition'
+
 
 	export { RadioGroup, RadioGroupItem } from './RadioGroup'
 

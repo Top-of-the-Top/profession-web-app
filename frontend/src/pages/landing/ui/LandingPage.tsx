@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../shared/lib/utils';
 import { Menu, X } from 'lucide-react';
-import { Button, Card, CardTitle } from '../../../shared/ui';
+import { Button, Card, CardTitle, Spinner } from '../../../shared/ui';
 import { ArrowUpRight } from 'lucide-react';
 import CollapsibleSection from './CollapsibleSection';
 import Footer from './Footer';
@@ -194,7 +194,7 @@ export default function LandingPage() {
 
             <div className={styles.tracksGrid}>
               {loading ? (
-                <div>Загрузка курсов...</div>
+                <Spinner />
               ) : (
                 tracks.map((track) => (
                   <Card

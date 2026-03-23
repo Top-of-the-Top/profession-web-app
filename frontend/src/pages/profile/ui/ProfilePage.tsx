@@ -10,6 +10,8 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Spinner,
+  PageTransition,
 } from '../../../shared/ui';
 import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars } from 'lucide-react';
 import styles from './ProfilePage.module.css';
@@ -130,7 +132,7 @@ export default function ProfilePage() {
   const anyMenuOpen =
     isChangeNameMenuOpen || isEmailMenuOpen || isPhoneMenuOpen;
 
-  if (isLoading && !profile) return <div>Загрузка профиля...</div>;
+  if (isLoading && !profile) return <Spinner full />;
   if (!profile) return <div>Профиль недоступен</div>;
 
   const handleNameSave = async (data: {
@@ -211,7 +213,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className={styles.profilePage}>
+    <PageTransition className={styles.profilePage}>
       {anyMenuOpen && (
         <div className={styles.overlay} onClick={closeAllMenus} />
       )}
@@ -350,6 +352,6 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageTransition>
   );
 }

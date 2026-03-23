@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { Button } from '../../../shared/ui';
+import { Button, Spinner, PageTransition } from '../../../shared/ui';
 import { courseApi, type CourseDTO } from '../../../shared/api/courseApi';
 import { cartApi } from '../../../shared/api/cartApi';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
@@ -171,10 +171,7 @@ export default function CourseStorePage() {
     return (
       <div className={styles.catalog}>
         <h2 className={styles.catalogTitle}>Каталог курсов</h2>
-        <div className={styles.loadingState}>
-          <div className={styles.spinner} />
-          <p>Загрузка курсов...</p>
-        </div>
+        <Spinner />
       </div>
     );
   }
@@ -194,7 +191,7 @@ export default function CourseStorePage() {
   }
 
   return (
-    <div className={styles.catalog}>
+    <PageTransition className={styles.catalog}>
       <h2 className={styles.catalogTitle}>Каталог курсов</h2>
 
       {courses.length === 0 ? (
@@ -215,6 +212,6 @@ export default function CourseStorePage() {
           ))}
         </div>
       )}
-    </div>
+    </PageTransition>
   );
 }

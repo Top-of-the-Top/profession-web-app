@@ -6,6 +6,8 @@ import {
   CardHeader,
   CardTitle,
   Button,
+  Spinner,
+  PageTransition,
 } from '../../shared/ui';
 import { cartApi, type CartResponse } from '../../shared/api/cartApi';
 import { useCartSummaryStore } from '../../entities/cart/model/cartSummaryStore';
@@ -121,6 +123,7 @@ export default function CartPage() {
   if (loading) {
     return (
       <div className={styles.cartPage}>
+        <Spinner full />
       </div>
     );
   }
@@ -172,7 +175,7 @@ export default function CartPage() {
   const formattedTotal = formatPrice(total);
 
   return (
-    <div className={styles.cartPage}>
+    <PageTransition className={styles.cartPage}>
       <h1 className={styles.cartTitle}>Корзина</h1>
 
       <div className={styles.cartLayout}>
@@ -217,6 +220,6 @@ export default function CartPage() {
           </Card>
         </aside>
       </div>
-    </div>
+    </PageTransition>
   );
 }

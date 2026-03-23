@@ -1,0 +1,259 @@
+.renderer {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+  color: var(--foreground);
+}
+
+/* ── Lesson header ── */
+.lessonTitle {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--text-3xl--line-height);
+  margin-bottom: 32px;
+}
+
+/* ── Block grid ── */
+.blockGrid {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 4px;
+  margin-bottom: 48px;
+}
+
+.blockCell {
+  min-height: 60px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* ── Text block ── */
+.textBlock {
+  line-height: 1.6;
+  padding: 12px 16px;
+}
+
+.textBlock p {
+  margin: 0 0 8px 0;
+}
+
+.textBlock blockquote {
+  margin: 8px 0;
+  padding-left: 16px;
+  border-left: 3px solid var(--primary);
+  font-style: italic;
+}
+
+.textBlock ul,
+.textBlock ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.textBlock li {
+  margin: 4px 0;
+}
+
+.textBlock h1 {
+  font-size: 2em;
+  font-weight: var(--font-weight-bold);
+  margin: 0.67em 0;
+}
+
+.textBlock h2 {
+  font-size: 1.5em;
+  font-weight: var(--font-weight-bold);
+  margin: 0.75em 0;
+}
+
+.textBlock h3 {
+  font-size: 1.17em;
+  font-weight: var(--font-weight-bold);
+  margin: 0.83em 0;
+}
+
+/* ── Photo block ── */
+.photoBlock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--muted);
+  height: 100%;
+}
+
+.photoBlock img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+}
+
+.mediaPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  padding: 24px;
+  height: 100%;
+  min-height: 120px;
+  background: var(--muted);
+  border-radius: var(--radius-lg);
+}
+
+/* ── Video block ── */
+.videoBlock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.videoBlock video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ── Divider ── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0 32px;
+}
+
+/* ── Homework section ── */
+.homeworkSection {
+  margin-top: 16px;
+}
+
+.homeworkTitle {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--text-2xl--line-height);
+  margin-bottom: 24px;
+}
+
+.questionList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.questionCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  box-shadow: var(--shadow-xs);
+}
+
+.questionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.questionNumber {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.questionTitleText {
+  flex: 1;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
+}
+
+.questionScore {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+  padding: 2px 8px;
+  background: var(--muted);
+  border-radius: var(--radius-rounded);
+}
+
+.questionDescription {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  margin-bottom: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* ── Options (single-choice) ── */
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.optionRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.optionRadio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+
+.optionText {
+  flex: 1;
+}
+
+/* ── File / text answer placeholders ── */
+.answerPlaceholder {
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* ── Empty state ── */
+.emptyState {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 768px) {
+  .renderer {
+    padding: 16px 12px 48px;
+  }
+
+  .lessonTitle {
+    font-size: var(--text-2xl);
+  }
+
+  .blockGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .blockCell {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+}

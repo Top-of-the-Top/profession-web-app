@@ -222,6 +222,7 @@
 /* grid-based editor */
 .gridWrapper {
   flex: 1;
+	width: fit-content !important;
   padding: 60px 0px 0px;
   border-radius: 12px;
   background: linear-gradient(

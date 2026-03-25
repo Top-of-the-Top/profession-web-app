@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DefaultEditor } from 'react-simple-wysiwyg';
 import { ImageUp, PictureInPicture, Trash2 } from 'lucide-react';
-import GridLayout, { WidthProvider } from 'react-grid-layout';
+import GridLayout from 'react-grid-layout';
 import type { Layout, LayoutItem } from 'react-grid-layout';
 import { useLessonBuilderStore } from '../../model/store';
 import type { Block, BlockType } from '../../model/types';
@@ -39,7 +39,6 @@ const GRID_ROWS_BASE = 50;
 /** Фиксированная ширина сетки: один лейаут независимо от разрешения */
 const GRID_FIXED_WIDTH = GRID_COLS * 80;
 
-const FixedGridLayout = WidthProvider(GridLayout);
 
 function blocksToLayout(blocks: Block[]): Layout {
   return blocks.map((b) => ({
@@ -361,8 +360,9 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                   className={styles.gridFixedWidth}
                   style={{ width: GRID_FIXED_WIDTH, minWidth: GRID_FIXED_WIDTH }}
                 >
-                  <FixedGridLayout
+                  <GridLayout
                     className={styles.gridLayout}
+                    width={GRID_FIXED_WIDTH}
                     style={{
                       minHeight: GRID_ROWS_BASE * ROW_HEIGHT,
                       background: 'transparent',
@@ -436,7 +436,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                         {renderBlockBody(block)}
                       </div>
                     ))}
-                  </FixedGridLayout>
+                  </GridLayout>
                 </div>
               </div>
 

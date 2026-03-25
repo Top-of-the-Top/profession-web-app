@@ -7,10 +7,10 @@ import {
   ProfilePage,
   AppHomePage,
   CourseStorePage,
-  CourseDetailPage,
+  CoursePreviewPage,
   CourseLessonsPage,
   CartPage,
-  CreateLesson,
+  CreateLessonPage,
   LessonPreviewPage,
   LessonViewPage,
   ToastPlaygroundPage,
@@ -59,11 +59,11 @@ export const routes: AppRoute[] = [
       },
       {
         path: 'courses/:slug',
-        element: <CourseDetailPage />,
+        element: <CoursePreviewPage />,
       },
       {
         path: 'create',
-        element: <CreateLesson />,
+        element: <CreateLessonPage />,
       },
       {
         path: 'lesson/preview',

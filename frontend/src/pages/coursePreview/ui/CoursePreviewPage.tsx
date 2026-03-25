@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Spinner, PageTransition } from '../../../shared/ui';
 import { courseApi, type Course } from '../../../shared/api/courseApi';
+import { cartApi } from '../../../shared/api/cartApi';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
+  notifyCartCourseAdded,
   notifyError,
   notifyWarning,
 } from '../../../shared/lib/sileo/notify';
-import styles from './CourseDetailPage.module.css';
+import { useCartSummaryStore } from '../../../entities/cart/model/cartSummaryStore';
+import styles from './CoursePreviewPage.module.css';
 
 function isAuthLike(err: unknown) {
   const msg = err instanceof Error ? err.message : '';
@@ -33,12 +36,15 @@ function notifyCourseDetailError(err: unknown) {
   notifyError({ title: fb.title, description: fb.description });
 }
 
-export default function CourseDetailPage() {
+export default function CoursePreviewPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [inCart, setInCart] = useState(false);
+  const [checkingCart, setCheckingCart] = useState(false);
 
   useEffect(() => {
     if (!slug) {
@@ -71,6 +77,66 @@ export default function CourseDetailPage() {
 
     void fetchCourse();
   }, [slug]);
+
+  useEffect(() => {
+    if (!slug) return;
+
+    const fetchCartState = async () => {
+      setCheckingCart(true);
+      try {
+        const cart = await cartApi.getCart();
+        setInCart((cart.courses ?? []).some((c) => c.slug === slug));
+      } catch (err: unknown) {
+        // Если не авторизован — просто считаем, что курс не в корзине,
+        // а при клике "Выбрать" покажем нужное сообщение.
+        if (!isAuthLike(err)) {
+          console.error('Failed to fetch cart state:', err);
+        }
+        setInCart(false);
+      } finally {
+        setCheckingCart(false);
+      }
+    };
+
+    void fetchCartState();
+  }, [slug]);
+
+  const handleAddToCart = async () => {
+    if (!slug) return;
+    if (!course) return;
+    if (inCart) return;
+
+    setAddingToCart(true);
+    try {
+      await cartApi.addCourse(slug);
+      setInCart(true);
+      notifyCartCourseAdded({
+        title: 'курс добавлен в корзину',
+        description: `«${course.title}» — можно перейти к оформлению.`
+      });
+      useCartSummaryStore.getState().setHasItems(true);
+    } catch (err: unknown) {
+      if (isAuthLike(err)) {
+        notifyWarning({
+          title: 'нужна авторизация',
+          description: 'Войдите в аккаунт, чтобы добавить курс в корзину.',
+        });
+        return;
+      }
+
+      const parsed = parseApiError(err);
+      if (parsed) {
+        const m = messageForApiFailure('cartAdd', parsed.status, parsed.body);
+        notifyError({ title: m.title, description: m.description });
+        return;
+      }
+
+      const fb = messageForApiFailure('cartAdd', 0, {});
+      notifyError({ title: fb.title, description: fb.description });
+    } finally {
+      setAddingToCart(false);
+    }
+  };
 
   if (loading) {
     return <div className={styles.container}><Spinner full /></div>;
@@ -117,7 +183,13 @@ export default function CourseDetailPage() {
               <span>Сумма</span>
               <span className={styles.price}>{course.price} ₽</span>
             </div>
-            <Button className={styles.selectButton}>Выбрать</Button>
+            <Button
+              className={styles.selectButton}
+              disabled={addingToCart || inCart || checkingCart}
+              onClick={handleAddToCart}
+            >
+              {inCart ? 'В корзине' : addingToCart ? 'Добавляем...' : 'Выбрать'}
+            </Button>
           </div>
         </aside>
       </div>

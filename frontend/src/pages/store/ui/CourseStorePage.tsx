@@ -136,8 +136,7 @@ export default function CourseStorePage() {
       await cartApi.addCourse(slug);
       notifyCartCourseAdded({
         title: 'курс добавлен в корзину',
-        description: `«${title}» — можно перейти к оформлению.`,
-        onGoToCart: () => navigate('/app/cart'),
+        description: `«${title}» — можно перейти к оформлению.`
       });
       setInCartSlugs((prev) => {
         const next = new Set(prev);

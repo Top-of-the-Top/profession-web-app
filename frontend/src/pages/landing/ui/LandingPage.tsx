@@ -105,7 +105,7 @@ export default function LandingPage() {
         <div className={styles.headerWrapper}>
           <div>
             <div className={styles.logo}>
-              <img src="profession-logo.svg" alt="" />
+              <img src="profession-logo-blue.svg" alt="" />
             </div>
           </div>
 

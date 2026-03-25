@@ -48,9 +48,13 @@ export default function ConfirmContact({
       return;
     }
 
-    if (type === 'phone' && contact.replace(/\D/g, '').length < 10) {
+    if (type === 'phone') {
+      const digits = contact.replace(/\D/g, '');
+      // Валидация проекта: допустимы только 10 или 11 цифр телефона
+      if (digits.length !== 10 && digits.length !== 11) {
       setError('Введите корректный номер телефона');
       return;
+      }
     }
 
     setError('');
@@ -93,7 +97,16 @@ export default function ConfirmContact({
   };
 
   const handleContactChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    setContact(e.target.value);
+    const raw = e.target.value;
+
+    if (type === 'phone') {
+      // Для телефона разрешаем только цифры и ограничиваем длину по кол-ву цифр.
+      const digits = raw.replace(/\D/g, '').slice(0, 11);
+      setContact(digits);
+      return;
+    }
+
+    setContact(raw);
     if (error) setError('');
   };
 
@@ -131,6 +144,10 @@ export default function ConfirmContact({
               id="contact"
               value={contact}
               type={type === 'email' ? 'email' : 'tel'}
+              inputMode={type === 'email' ? 'email' : 'numeric'}
+              pattern={type === 'email' ? undefined : '[0-9]*'}
+              // Для формата "+7..." нужен лимит на 1 символ больше из-за "+"
+              maxLength={type === 'email' ? undefined : 12}
               onChange={handleContactChange}
               className={cn(styles.input, error && styles.inputError)}
               placeholder={

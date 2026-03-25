@@ -43,10 +43,19 @@
   height: 35px;
   border-radius: 50%;
   border: 2px solid rgb(231, 231, 231);
+	background-color: 191970;
+	color: white;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.pfpFallback {
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+  user-select: none;
 }
 .headerLink {
   display: inline-flex;

@@ -10,7 +10,6 @@ import {
   BreadcrumbSeparator,
   Button,
   PageTransition,
-  Separator,
   Spinner,
 } from '../../../shared/ui';
 import {

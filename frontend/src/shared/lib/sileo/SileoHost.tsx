@@ -23,7 +23,7 @@ const toasterBaseOptions: Partial<SileoOptions> = {
 };
 
 const defaultConfig: SileoHostConfig = {
-  position: 'top-right',
+  position: 'bottom-right',
   theme: 'system',
   edgeInsetPx: 12,
   defaultToastOptions: {

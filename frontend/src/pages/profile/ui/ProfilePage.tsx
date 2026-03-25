@@ -140,38 +140,48 @@ export default function ProfilePage() {
     lastName: string;
     avatar?: File | null;
   }) => {
+    const prevAvatar = profile.avatar;
+
     try {
       const updateData: UpdateProfilePayload = {
         first_name: data.firstName,
         last_name: data.lastName,
       };
 
+      let blobUrl: string | null = null;
       if (data.avatar instanceof File) {
         updateData.avatar = data.avatar;
-        const tempUrl = URL.createObjectURL(data.avatar);
-        setAvatarUrl(tempUrl);
+        blobUrl = URL.createObjectURL(data.avatar);
       }
+
+      const optimistic: ProfileData = {
+        ...profile,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        ...(blobUrl ? { avatar: blobUrl } : {}),
+      };
+
+      setProfile(optimistic);
+      setAvatarUrl(blobUrl ?? prevAvatar);
+      setUser(optimistic);
+      setChangeMenuOpen(false);
 
       await profileApi.updateProfile(updateData);
 
-      setProfile((prev) => {
-        const next = prev
-          ? {
-              ...prev,
-              first_name: data.firstName,
-              last_name: data.lastName,
-            }
-          : prev;
-        if (next) {
-          setUser(next);
-        }
-        return next;
-      });
+      const fresh = await profileApi.getProfile();
+      setProfile(fresh);
+      setAvatarUrl(fresh.avatar);
+      setUser(fresh);
 
-      setChangeMenuOpen(false);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
     } catch (err) {
       notifyProfileSaveError(err);
-      setAvatarUrl(profile.avatar);
+      setAvatarUrl(prevAvatar);
+      const reverted = await profileApi.getProfile().catch(() => null);
+      if (reverted) {
+        setProfile(reverted);
+        setUser(reverted);
+      }
     }
   };
 
@@ -264,8 +274,13 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div className={styles.profileFieldAction}>
-                  <Button variant="ghost" size="icon" onClick={toggleNameMenu}>
-                    <Pencil size={16} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={styles.pencilEditButton}
+                    onClick={toggleNameMenu}
+                  >
+                    <Pencil className={styles.pencilIcon} size={16} />
                   </Button>
                 </div>
               </div>
@@ -279,8 +294,13 @@ export default function ProfilePage() {
                 value={profile.email}
                 onClick={toggleEmailMenu}
                 actionButton={
-                  <Button variant="ghost" size="icon" onClick={toggleEmailMenu}>
-                    <Pencil size={16} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={styles.pencilEditButton}
+                    onClick={toggleEmailMenu}
+                  >
+                    <Pencil className={styles.pencilIcon} size={16} />
                   </Button>
                 }
               />
@@ -290,8 +310,13 @@ export default function ProfilePage() {
                 value={profile.phone_number}
                 onClick={togglePhoneMenu}
                 actionButton={
-                  <Button variant="ghost" size="icon" onClick={togglePhoneMenu}>
-                    <Plus size={16} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={styles.pencilEditButton}
+                    onClick={togglePhoneMenu}
+                  >
+                    <Plus className={styles.plusIcon} size={16} />
                   </Button>
                 }
               />
@@ -306,8 +331,12 @@ export default function ProfilePage() {
                 label="Дата рождения"
                 value={profile.birthday}
                 actionButton={
-                  <Button variant="ghost" size="icon">
-                    <Plus size={16} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={styles.pencilEditButton}
+                  >
+                    <Plus className={styles.plusIcon} size={16} />
                   </Button>
                 }
               />
@@ -335,7 +364,7 @@ export default function ProfilePage() {
                       </span>
                     </div>
                     <div className={styles.profileFieldAction}>
-                      <Pencil size={16} />
+                      <Pencil className={styles.pencilIcon} size={16} />
                     </div>
                   </div>
                 </SelectTrigger>

@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CourseRenderer } from '../../features/course-builder';
-import type { CoursePage } from '../../features/course-builder';
+import { CourseRenderer } from '../../../features/course-builder';
+import type { CoursePage } from '../../../features/course-builder';
 import styles from './LessonPreviewPage.module.css';
 
 export default function LessonPreviewPage() {

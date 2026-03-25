@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, PageTransition, Spinner } from '../../../shared/ui';
-import { courseApi, type PurchasedCourseItem } from '../../../shared/api/courseApi';
+import type { PurchasedCourseItem } from '../../../shared/api/courseApi';
+import { useCoursesForHome } from '../../../shared/api/queries/courses';
 import styles from './AppHomePage.module.css';
 
 const PLACEHOLDER_IMG =
@@ -46,46 +46,13 @@ function CourseCard({
 
 export default function AppHomePage() {
   const navigate = useNavigate();
-  const [items, setItems] = useState<PurchasedCourseItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const run = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await courseApi.getCoursesForAppHome();
-        if (!cancelled) {
-          setItems(Array.isArray(data) ? data : []);
-        }
-      } catch (err) {
-        console.error('Ошибка загрузки моих курсов:', err);
-        if (!cancelled) {
-          setError(
-            'Не удалось загрузить курсы. Пожалуйста, попробуйте позже.',
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { data: items = [], isLoading, error, refetch } = useCoursesForHome();
 
   const openCourse = (slug: string) => {
     navigate(`/app/courses/${slug}/lessons`);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={styles.page}>
         <div className={styles.headerRow}>
@@ -105,8 +72,10 @@ export default function AppHomePage() {
           <h1 className={styles.title}>Курсы</h1>
         </div>
         <div className={styles.errorBox}>
-          <p className={styles.errorText}>{error}</p>
-          <Button onClick={() => window.location.reload()}>Попробовать снова</Button>
+          <p className={styles.errorText}>
+            Не удалось загрузить курсы. Пожалуйста, попробуйте позже.
+          </p>
+          <Button onClick={() => void refetch()}>Попробовать снова</Button>
         </div>
       </div>
     );

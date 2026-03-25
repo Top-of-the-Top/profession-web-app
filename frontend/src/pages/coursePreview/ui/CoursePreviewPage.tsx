@@ -1,8 +1,5 @@
-import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Spinner, PageTransition } from '../../../shared/ui';
-import { courseApi, type Course } from '../../../shared/api/courseApi';
-import { cartApi } from '../../../shared/api/cartApi';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
@@ -10,7 +7,9 @@ import {
   notifyError,
   notifyWarning,
 } from '../../../shared/lib/sileo/notify';
-import { useCartSummaryStore } from '../../../entities/cart/model/cartSummaryStore';
+import { useCourseBySlug } from '../../../shared/api/queries/courses';
+import { useCart } from '../../../shared/api/queries/cart';
+import { useAddToCart } from '../../../shared/api/mutations/cart';
 import styles from './CoursePreviewPage.module.css';
 
 function isAuthLike(err: unknown) {
@@ -18,134 +17,55 @@ function isAuthLike(err: unknown) {
   return msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401');
 }
 
-function notifyCourseDetailError(err: unknown) {
-  if (isAuthLike(err)) {
-    notifyWarning({
-      title: 'нужна авторизация',
-      description: 'Войдите, чтобы просмотреть страницу курса.',
-    });
-    return;
-  }
-  const parsed = parseApiError(err);
-  if (parsed) {
-    const m = messageForApiFailure('courseDetail', parsed.status, parsed.body);
-    notifyError({ title: m.title, description: m.description });
-    return;
-  }
-  const fb = messageForApiFailure('courseDetail', 0, {});
-  notifyError({ title: fb.title, description: fb.description });
-}
-
 export default function CoursePreviewPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [addingToCart, setAddingToCart] = useState(false);
-  const [inCart, setInCart] = useState(false);
-  const [checkingCart, setCheckingCart] = useState(false);
 
-  useEffect(() => {
-    if (!slug) {
-      setError('Курс не указан в адресе');
-      setLoading(false);
-      notifyWarning({
-        title: 'неверная ссылка',
-        description: 'Откройте курс из каталога.',
-      });
-      return;
-    }
+  const { data: courseData, isLoading, error } = useCourseBySlug(slug);
+  const { data: cart, isLoading: cartLoading } = useCart();
+  const addToCart = useAddToCart();
 
-    const fetchCourse = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await courseApi.getCourseBySlug(slug);
-        setCourse(data);
-      } catch (err) {
-        notifyCourseDetailError(err);
-        setError(
-          isAuthLike(err)
-            ? 'Нужна авторизация'
-            : 'Не удалось загрузить курс',
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+  const course = courseData?.course ?? null;
+  const inCart = cart?.courses?.some((c) => c.slug === slug) ?? false;
 
-    void fetchCourse();
-  }, [slug]);
+  const handleAddToCart = () => {
+    if (!slug || !course || inCart) return;
 
-  useEffect(() => {
-    if (!slug) return;
-
-    const fetchCartState = async () => {
-      setCheckingCart(true);
-      try {
-        const cart = await cartApi.getCart();
-        setInCart((cart.courses ?? []).some((c) => c.slug === slug));
-      } catch (err: unknown) {
-        // Если не авторизован — просто считаем, что курс не в корзине,
-        // а при клике "Выбрать" покажем нужное сообщение.
-        if (!isAuthLike(err)) {
-          console.error('Failed to fetch cart state:', err);
-        }
-        setInCart(false);
-      } finally {
-        setCheckingCart(false);
-      }
-    };
-
-    void fetchCartState();
-  }, [slug]);
-
-  const handleAddToCart = async () => {
-    if (!slug) return;
-    if (!course) return;
-    if (inCart) return;
-
-    setAddingToCart(true);
-    try {
-      await cartApi.addCourse(slug);
-      setInCart(true);
-      notifyCartCourseAdded({
-        title: 'курс добавлен в корзину',
-        description: `«${course.title}» — можно перейти к оформлению.`
-      });
-      useCartSummaryStore.getState().setHasItems(true);
-    } catch (err: unknown) {
-      if (isAuthLike(err)) {
-        notifyWarning({
-          title: 'нужна авторизация',
-          description: 'Войдите в аккаунт, чтобы добавить курс в корзину.',
+    addToCart.mutate(slug, {
+      onSuccess: () => {
+        notifyCartCourseAdded({
+          title: 'курс добавлен в корзину',
+          description: `«${course.title}» — можно перейти к оформлению.`,
         });
-        return;
-      }
-
-      const parsed = parseApiError(err);
-      if (parsed) {
-        const m = messageForApiFailure('cartAdd', parsed.status, parsed.body);
-        notifyError({ title: m.title, description: m.description });
-        return;
-      }
-
-      const fb = messageForApiFailure('cartAdd', 0, {});
-      notifyError({ title: fb.title, description: fb.description });
-    } finally {
-      setAddingToCart(false);
-    }
+      },
+      onError: (err: unknown) => {
+        if (isAuthLike(err)) {
+          notifyWarning({
+            title: 'нужна авторизация',
+            description: 'Войдите в аккаунт, чтобы добавить курс в корзину.',
+          });
+          return;
+        }
+        const parsed = parseApiError(err);
+        if (parsed) {
+          const m = messageForApiFailure('cartAdd', parsed.status, parsed.body);
+          notifyError({ title: m.title, description: m.description });
+          return;
+        }
+        const fb = messageForApiFailure('cartAdd', 0, {});
+        notifyError({ title: fb.title, description: fb.description });
+      },
+    });
   };
 
-  if (loading) {
+  if (isLoading) {
     return <div className={styles.container}><Spinner full /></div>;
   }
 
   if (error || !course) {
     return (
       <div className={styles.container}>
-        <p>{error ?? 'Курс недоступен'}</p>
+        <p>{error ? 'Не удалось загрузить курс' : 'Курс недоступен'}</p>
         <Button
           style={{ marginTop: 16 }}
           variant="secondary"
@@ -185,10 +105,10 @@ export default function CoursePreviewPage() {
             </div>
             <Button
               className={styles.selectButton}
-              disabled={addingToCart || inCart || checkingCart}
+              disabled={addToCart.isPending || inCart || cartLoading}
               onClick={handleAddToCart}
             >
-              {inCart ? 'В корзине' : addingToCart ? 'Добавляем...' : 'Выбрать'}
+              {inCart ? 'В корзине' : addToCart.isPending ? 'Добавляем...' : 'Выбрать'}
             </Button>
           </div>
         </aside>

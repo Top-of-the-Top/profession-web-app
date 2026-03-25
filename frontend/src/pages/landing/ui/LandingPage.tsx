@@ -16,31 +16,19 @@ import {
 } from '../../../shared/ui/Pagination';
 import CollapsibleSection from './CollapsibleSection';
 import Footer from './Footer';
-import { type Track } from '../../../schemas/types';
-import { internalLandingApi } from '../api';
+import { useLandingCourses } from '../../../shared/api/queries/landing';
 
 export default function LandingPage() {
   const navigate = useNavigate();
 
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { data: landingData, isLoading: loading } = useLandingCourses();
+  const tracks = landingData?.data ?? [];
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 6;
 
   const toggleMenu = () => setIsMenuOpen((prev) => !prev);
-  useEffect(() => {
-    internalLandingApi
-      .getCourses()
-      .then((data) => {
-        setTracks(data.data);
-        setCurrentPage(1);
-      })
-      .catch((error) => {
-        console.error('Ошибка загрузки курсов:', error);
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   const totalPages = Math.ceil(tracks.length / PAGE_SIZE);
   const pagedTracks = tracks.slice(

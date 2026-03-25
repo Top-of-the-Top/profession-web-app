@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Home } from 'lucide-react';
 import {
@@ -13,24 +12,14 @@ import {
   Spinner,
 	Separator
 } from '../../../shared/ui';
-import { courseApi, type Course, type Lesson } from '../../../shared/api/courseApi';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
-import {
-  messageForApiFailure,
-  notifyError,
-  notifyWarning,
-} from '../../../shared/lib/sileo/notify';
+import type { Lesson } from '../../../shared/api/courseApi';
+import { useCourseBySlug, useLessons } from '../../../shared/api/queries/courses';
 import styles from './CourseLessonsPage.module.css';
 import {
   USE_MOCK,
   MOCK_COURSE,
   MOCK_LESSONS,
 } from './mockCourseLessonsData';
-
-function isAuthLike(err: unknown) {
-  const msg = err instanceof Error ? err.message : '';
-  return msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401');
-}
 
 function lessonCardDescription(lesson: Lesson): string {
   try {
@@ -43,88 +32,17 @@ function lessonCardDescription(lesson: Lesson): string {
   }
 }
 
-function notifyLoadError(err: unknown) {
-  if (isAuthLike(err)) {
-    notifyWarning({
-      title: 'нужна авторизация',
-      description: 'Войдите, чтобы открыть уроки курса.',
-    });
-    return;
-  }
-  const parsed = parseApiError(err);
-  if (parsed) {
-    const m = messageForApiFailure('courseDetail', parsed.status, parsed.body);
-    notifyError({ title: m.title, description: m.description });
-    return;
-  }
-  const fb = messageForApiFailure('courseDetail', 0, {});
-  notifyError({ title: fb.title, description: fb.description });
-}
-
 export default function CourseLessonsPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!slug) {
-      setError('Курс не указан в адресе');
-      setLoading(false);
-      notifyWarning({
-        title: 'неверная ссылка',
-        description: 'Откройте курс из списка.',
-      });
-      return;
-    }
+  const courseQuery = useCourseBySlug(USE_MOCK ? undefined : slug);
+  const lessonsQuery = useLessons(USE_MOCK ? undefined : slug);
 
-    if (USE_MOCK) {
-      setCourse(MOCK_COURSE);
-      setLessons(MOCK_LESSONS);
-      setError(null);
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const run = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const [courseRes, lessonsRes] = await Promise.all([
-          courseApi.getCourseBySlug(slug),
-          courseApi.getLessons(slug),
-        ]);
-        if (!cancelled) {
-          setCourse(courseRes.course);
-          setLessons(Array.isArray(lessonsRes) ? lessonsRes : []);
-        }
-      } catch (err) {
-        notifyLoadError(err);
-        if (!cancelled) {
-          setError(
-            isAuthLike(err)
-              ? 'Нужна авторизация'
-              : 'Не удалось загрузить уроки',
-          );
-          setCourse(null);
-          setLessons([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
+  const course = USE_MOCK ? MOCK_COURSE : (courseQuery.data?.course ?? null);
+  const lessons = USE_MOCK ? MOCK_LESSONS : (lessonsQuery.data ?? []);
+  const loading = !USE_MOCK && (courseQuery.isLoading || lessonsQuery.isLoading);
+  const error = courseQuery.error || lessonsQuery.error;
 
   if (loading) {
     return (
@@ -140,7 +58,7 @@ export default function CourseLessonsPage() {
     return (
       <div className={styles.page}>
         <div className={styles.errorBox}>
-          <p className={styles.errorText}>{error ?? 'Курс недоступен'}</p>
+          <p className={styles.errorText}>{error ? 'Не удалось загрузить уроки' : 'Курс недоступен'}</p>
           <Button variant="secondary" onClick={() => navigate('/app/home')}>
             К курсам
           </Button>

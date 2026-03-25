@@ -12,7 +12,7 @@ import {
 } from '../../../shared/ui';
 import { cn } from '../../../shared/lib/utils';
 import { useUserStore } from '../../../entities/user/model/userStore';
-import { useCartSummaryStore } from '../../../entities/cart/model/cartSummaryStore';
+import { useCart } from '../../../shared/api/queries/cart';
 import {
   connectNotificationSSE,
   disconnectNotificationSSE,
@@ -24,21 +24,13 @@ export default function AppLayout() {
   const { pathname } = useLocation();
   const user = useUserStore((state) => state.user);
   const hasToken = Boolean(localStorage.getItem('access_token'));
-  const cartHasItems = useCartSummaryStore((s) => s.hasItems);
-  const refreshCartSummary = useCartSummaryStore((s) => s.refresh);
-  const resetCartSummary = useCartSummaryStore((s) => s.reset);
+
+  const { data: cart } = useCart();
+  const cartHasItems = (cart?.courses?.length ?? 0) > 0;
 
   const initials = [user?.first_name?.at(0), user?.last_name?.at(-1)]
     .filter(Boolean)
     .join('');
-
-  useEffect(() => {
-    if (!hasToken) {
-      resetCartSummary();
-      return;
-    }
-    void refreshCartSummary();
-  }, [hasToken, refreshCartSummary, resetCartSummary]);
 
   useEffect(() => {
     if (hasToken && user) {

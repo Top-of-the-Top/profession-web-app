@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Home, Clock3, PenTool, Video, CircleCheck } from 'lucide-react';
 import {
@@ -12,22 +12,13 @@ import {
   PageTransition,
   Spinner,
 } from '../../../shared/ui';
-import {
-  courseApi,
-  type LessonDetail,
-} from '../../../shared/api/courseApi';
 import type { LessonLayout, Block } from '../../../features/course-builder';
 import {
   FONT_SIZE_STEPS,
   DEFAULT_FONT_SIZE_INDEX,
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayout } from '../../../features/course-builder/model/types';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
-import {
-  messageForApiFailure,
-  notifyError,
-  notifyWarning,
-} from '../../../shared/lib/sileo/notify';
+import { useCourseBySlug, useLessonBySlug } from '../../../shared/api/queries/courses';
 import { USE_MOCK, MOCK_LESSON, MOCK_COURSE_TITLE } from './mockLessonData';
 import styles from './LessonViewPage.module.css';
 
@@ -160,7 +151,6 @@ const HomeworkWidget: React.FC<{
 };
 
 const ProgressWidget: React.FC = () => {
-  // Заглушка (реальные данные вернем позже)
   const passedLessons = { done: 12, total: 24 };
   const submittedHomeworks = { done: 8, total: 11 };
 
@@ -322,31 +312,6 @@ const WebinarLinksWidget: React.FC<{
   </div>
 );
 
-/* ── Error handling ── */
-
-function isAuthLike(err: unknown) {
-  const msg = err instanceof Error ? err.message : '';
-  return msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401');
-}
-
-function notifyLoadError(err: unknown) {
-  if (isAuthLike(err)) {
-    notifyWarning({
-      title: 'нужна авторизация',
-      description: 'Войдите, чтобы открыть урок.',
-    });
-    return;
-  }
-  const parsed = parseApiError(err);
-  if (parsed) {
-    const m = messageForApiFailure('courseDetail', parsed.status, parsed.body);
-    notifyError({ title: m.title, description: m.description });
-    return;
-  }
-  const fb = messageForApiFailure('courseDetail', 0, {});
-  notifyError({ title: fb.title, description: fb.description });
-}
-
 /* ── Page ── */
 
 export default function LessonViewPage() {
@@ -356,77 +321,35 @@ export default function LessonViewPage() {
   }>();
   const navigate = useNavigate();
 
-  const [courseTitle, setCourseTitle] = useState<string | null>(null);
-  const [lessonDetail, setLessonDetail] = useState<LessonDetail | null>(null);
-  const [lessonLayout, setLessonLayout] = useState<LessonLayout | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const courseQuery = useCourseBySlug(
+    USE_MOCK ? undefined : courseSlug,
+  );
+  const lessonQuery = useLessonBySlug(
+    USE_MOCK ? undefined : courseSlug,
+    USE_MOCK ? undefined : lessonSlug,
+  );
 
-  useEffect(() => {
-    if (USE_MOCK) {
-      setLessonDetail(MOCK_LESSON);
-      setCourseTitle(MOCK_COURSE_TITLE);
-      try {
-        setLessonLayout(parseLessonLayout(MOCK_LESSON.content));
-      } catch {
-        setLessonLayout({ id: 'mock', title: MOCK_LESSON.title, blocks: [] });
-      }
-      setLoading(false);
-      return;
+  const courseTitle = USE_MOCK
+    ? MOCK_COURSE_TITLE
+    : (courseQuery.data?.course.title ?? null);
+
+  const lessonDetail = USE_MOCK ? MOCK_LESSON : (lessonQuery.data ?? null);
+
+  const lessonLayout = useMemo<LessonLayout | null>(() => {
+    if (!lessonDetail) return null;
+    try {
+      return parseLessonLayout(lessonDetail.content);
+    } catch {
+      return {
+        id: String(lessonDetail.lesson_id),
+        title: lessonDetail.title,
+        blocks: [],
+      };
     }
+  }, [lessonDetail]);
 
-    if (!courseSlug || !lessonSlug) {
-      setError('Урок не указан в адресе');
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const run = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [courseRes, lesson] = await Promise.all([
-          courseApi.getCourseBySlug(courseSlug),
-          courseApi.getLessonBySlug(courseSlug, lessonSlug),
-        ]);
-
-        if (cancelled) return;
-
-        setCourseTitle(courseRes.course.title);
-        setLessonDetail(lesson);
-
-        try {
-          const layout = parseLessonLayout(lesson.content);
-          setLessonLayout(layout);
-        } catch {
-          setLessonLayout({
-            id: String(lesson.lesson_id),
-            title: lesson.title,
-            blocks: [],
-          });
-        }
-      } catch (err) {
-        notifyLoadError(err);
-        if (!cancelled) {
-          setError(
-            isAuthLike(err)
-              ? 'Нужна авторизация'
-              : 'Не удалось загрузить урок',
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [courseSlug, lessonSlug]);
+  const loading = !USE_MOCK && (courseQuery.isLoading || lessonQuery.isLoading);
+  const error = courseQuery.error || lessonQuery.error;
 
   if (loading) {
     return (
@@ -442,7 +365,9 @@ export default function LessonViewPage() {
     return (
       <div className={styles.page}>
         <div className={styles.errorBox}>
-          <p className={styles.errorText}>{error ?? 'Урок недоступен'}</p>
+          <p className={styles.errorText}>
+            {error ? 'Не удалось загрузить урок' : 'Урок недоступен'}
+          </p>
           <Button variant="secondary" onClick={() => navigate(-1)}>
             Назад
           </Button>

@@ -33,17 +33,13 @@ const CART_TOAST_BUTTON_SHIFT_CLASS = 'sileo-cart-toast-button-shift';
 export function notifyCartCourseAdded({
   title,
   description,
-  onGoToCart,
-  duration = DURATION_OK,
-}: NotifyBase & { onGoToCart: () => void }) {
+  duration = DURATION_OK
+}: NotifyBase) {
   sileo.success({
     title: titleOk(title),
     description,
     duration,
-    button: {
-      title: 'В корзину',
-      onClick: onGoToCart,
-    },
+    
     styles: {
       button: CART_TOAST_BUTTON_SHIFT_CLASS,
     },

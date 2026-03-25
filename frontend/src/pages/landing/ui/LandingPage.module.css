@@ -191,6 +191,11 @@ html {
   box-sizing: border-box;
 }
 
+.tracksPagination {
+  margin-top: 32px;
+  margin-bottom: 24px;
+}
+
 .trackCard {
   width: 100%;
   aspect-ratio: 2 / 1;

@@ -41,6 +41,7 @@ declare module 'react-grid-layout' {
     onBreakpointChange?: (breakpoint: string) => void;
     onDrop?: (layout: Layout, layoutItem: LayoutItem, event: DragEvent) => void;
     isDroppable?: boolean;
+    draggableHandle?: string;
     droppingItem?: LayoutItem;
     containerPadding?: [number, number] | number[];
     margin?: [number, number];
@@ -62,6 +63,7 @@ declare module 'react-grid-layout' {
     onLayoutChange?: (layout: Layout) => void;
     onDrop?: (layout: Layout, layoutItem: LayoutItem, event: DragEvent) => void;
     isDroppable?: boolean;
+    draggableHandle?: string;
     droppingItem?: LayoutItem;
     containerPadding?: [number, number] | number[];
     margin?: [number, number];

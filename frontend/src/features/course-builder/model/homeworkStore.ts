@@ -69,19 +69,24 @@ const insertItem = <T,>(list: T[], item: T, index?: number): T[] => {
 export const useHomeworkStore = create<HomeworkStore>((set, get) => ({
   layout: createEmptyLayout(''),
 
-  initialize: (lessonId, layout) =>
+  initialize: (lessonId, layout) => {
+    const current = get().layout;
+    if (!layout && current.lessonId === lessonId && current.questions.length > 0) {
+      return;
+    }
     set(() => ({
       layout: layout ?? createEmptyLayout(lessonId),
-    })),
+    }));
+  },
 
-  addQuestion: (type, index) => // Изменено: добавлен параметр index
+  addQuestion: (type, index) =>
     set((state) => {
       const base: HomeworkQuestion = {
         id: nanoid(),
         type,
         title: '',
         score: 0,
-        ...(type === 'single' ? { options: [] } : {}),
+        ...(type === 'single' ? { options: [] } : { description: '' }),
       } as HomeworkQuestion;
 
       return {

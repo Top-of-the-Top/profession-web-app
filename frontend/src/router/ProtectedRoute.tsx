@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '../entities/user/model/userStore';
+import { Spinner } from '../shared/ui';
 
 export const ProtectedRoute = ({ children }: { children: React.JSX.Element }) => {
   const { user, isLoading, isAuthChecked, fetchUser } = useUserStore();
@@ -26,7 +27,7 @@ export const ProtectedRoute = ({ children }: { children: React.JSX.Element }) =>
   }, [hasToken, isAuthChecked, isLoading, location.pathname, user]);
 
   if (hasToken && (!isAuthChecked || isLoading)) {
-    return <div>Загрузка...</div>;
+    return <Spinner full />;
   }
 
   if (!hasToken || !user) {

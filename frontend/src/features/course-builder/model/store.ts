@@ -23,6 +23,7 @@ interface LessonBuilderActions {
   addBlock: (type: BlockType) => void;
   addBlockAt: (type: BlockType, x: number, y: number, w: number, h: number) => void;
   updateBlock: (blockId: string, patch: Partial<Block>) => void;
+  removeBlock: (blockId: string) => void;
   moveBlock: (blockId: string, x: number, y: number) => void;
   resizeBlock: (blockId: string, w: number, h: number) => void;
   toJSON: () => LessonLayout;
@@ -165,6 +166,14 @@ export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
         blocks: state.layout.blocks.map((block) =>
           block.id === blockId ? ({ ...block, ...(patch as Block) } as Block) : block,
         ),
+      },
+    })),
+
+  removeBlock: (blockId) =>
+    set((state) => ({
+      layout: {
+        ...state.layout,
+        blocks: state.layout.blocks.filter((block) => block.id !== blockId),
       },
     })),
 

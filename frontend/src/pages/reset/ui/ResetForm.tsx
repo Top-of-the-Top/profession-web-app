@@ -86,7 +86,7 @@ export default function ResetForm({
   return (
     <div className={styles.loginPage} {...props}>
       <div className={styles.loginWrapper}>
-        <img className={styles.logo} src="landing/profession-logo.svg" alt="" />
+        <img className={styles.logo} src="landing/profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
             <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>

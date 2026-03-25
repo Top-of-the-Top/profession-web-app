@@ -66,7 +66,7 @@ function PaginationPrevious({
       className={`${styles.paginationPrevious} ${className ?? ""}`.trim()}
       {...props}>
       <ChevronLeftIcon />
-      <span>Previous</span>
+      <span>Назад</span>
     </PaginationLink>
   );
 }
@@ -81,7 +81,7 @@ function PaginationNext({
       size="md"
       className={`${styles.paginationNext} ${className ?? ""}`.trim()}
       {...props}>
-      <span>Next</span>
+      <span>Вперед</span>
       <ChevronRightIcon />
     </PaginationLink>
   );

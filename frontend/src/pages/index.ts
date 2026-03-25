@@ -4,9 +4,13 @@ export { default as RegistrationPage } from "./register/ui/RegistrationPage";
 export { default as ResetPage } from "./reset/ui/ResetPage";
 export { default as RecoverPage } from "./recover/ui/RecoverPage";
 export { default as ProfilePage } from "./profile/ui/ProfilePage";
+export { default as AppHomePage } from './home/ui/AppHomePage';
 export { default as CourseStorePage } from './store/ui/CourseStorePage'
-export { default as CourseDetailPage } from './courseDetail/ui/CourseDetailPage'
+export { default as CoursePreviewPage } from './coursePreview/ui/CoursePreviewPage'
+export { default as CourseLessonsPage } from './courseLessons/ui/CourseLessonsPage'
 export { default as CartPage } from './cart/Cart';
 export { default as NotFoundPage } from './notfound/NotFoundPage'
-export { default as CreateLesson } from './lesson/CreateLesson'
+export { default as CreateLessonPage } from './lessonCreate/ui/CreateLessonPage'
+export { default as LessonPreviewPage } from './lessonPreview/ui/LessonPreviewPage'
+export { default as LessonViewPage } from './lessonView/ui/LessonViewPage'
 export { default as ToastPlaygroundPage } from './toast-playground/ui/ToastPlaygroundPage'

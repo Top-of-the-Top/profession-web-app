@@ -8,6 +8,6 @@ export const MIN_TEXT_BLOCK_H = 1;
 export const MIN_MEDIA_BLOCK_W = 2;
 export const MIN_MEDIA_BLOCK_H = 2;
 
-export const FONT_SIZE_STEPS = [14, 18, 24];
+export const FONT_SIZE_STEPS = [12, 16, 22];
 export const DEFAULT_FONT_SIZE_INDEX = 1;
 

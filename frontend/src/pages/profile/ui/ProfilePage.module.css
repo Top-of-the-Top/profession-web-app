@@ -141,6 +141,41 @@
   align-items: center;
 }
 
+.pencilEditButton {
+  /* Button может перетирать color на :hover; управляем цветом через .pencilIcon */
+}
+
+.pencilEditButton:hover {
+  /* keep for hover selector */
+}
+
+.pencilIcon {
+  /* Force pencil color; Button sets `color` on the button */
+  color: #64748b !important;
+}
+
+.pencilEditButton:hover .pencilIcon {
+  color: #0f172a !important;
+}
+
+.genderTrigger:hover .pencilIcon {
+  color: #0f172a !important;
+}
+
+.plusIcon {
+  /* Force plus color; Button sets `color` на кнопку для ghost */
+  color: #64748b !important;
+}
+
+.pencilEditButton:hover .plusIcon {
+  color: #0f172a !important;
+}
+
+.profileFieldAction button:hover {
+	background-color: transparent !important;
+	
+}
+
 .profileFieldButton {
   width: 36px;
   height: 36px;
@@ -149,7 +184,7 @@
 }
 
 .profileFieldButton:hover {
-  background-color: transparent !important;
+  /* background-color: transparent !important; */
   color: #1e293b;
 }
 

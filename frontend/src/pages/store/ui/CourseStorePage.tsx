@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { Button } from '../../../shared/ui';
+import { Button, Spinner, PageTransition } from '../../../shared/ui';
 import { courseApi, type CourseDTO } from '../../../shared/api/courseApi';
 import { cartApi } from '../../../shared/api/cartApi';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
@@ -66,7 +66,7 @@ const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart }: CourseCa
             onAddToCart();
           }}
         >
-          {inCart ? 'В корзине' : 'Выбрать'}
+          {inCart ? 'В корзине' : 'В коризну'}
         </Button>
       </div>
     </div>
@@ -136,8 +136,7 @@ export default function CourseStorePage() {
       await cartApi.addCourse(slug);
       notifyCartCourseAdded({
         title: 'курс добавлен в корзину',
-        description: `«${title}» — можно перейти к оформлению.`,
-        onGoToCart: () => navigate('/app/cart'),
+        description: `«${title}» — можно перейти к оформлению.`
       });
       setInCartSlugs((prev) => {
         const next = new Set(prev);
@@ -171,10 +170,7 @@ export default function CourseStorePage() {
     return (
       <div className={styles.catalog}>
         <h2 className={styles.catalogTitle}>Каталог курсов</h2>
-        <div className={styles.loadingState}>
-          <div className={styles.spinner} />
-          <p>Загрузка курсов...</p>
-        </div>
+        <Spinner />
       </div>
     );
   }
@@ -194,7 +190,7 @@ export default function CourseStorePage() {
   }
 
   return (
-    <div className={styles.catalog}>
+    <PageTransition className={styles.catalog}>
       <h2 className={styles.catalogTitle}>Каталог курсов</h2>
 
       {courses.length === 0 ? (
@@ -215,6 +211,6 @@ export default function CourseStorePage() {
           ))}
         </div>
       )}
-    </div>
+    </PageTransition>
   );
 }

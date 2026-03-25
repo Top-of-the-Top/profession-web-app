@@ -1,4 +1,4 @@
-from .models import Course, Lesson, Homework, Task, Question, Users_tasks_answers, Users_Homeworks_Attempts, Users_questions_answers, PurchasedCourse
+from .models import Course, Section, Lesson, Homework, Task, Question, Users_tasks_answers, Users_Homeworks_Attempts, Users_questions_answers, PurchasedCourse
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -31,6 +31,9 @@ class CourseAdmin(admin.ModelAdmin):
 
     image_preview.short_description = 'Изображение'
 
+@admin.register(Section)
+class SectionAdmin(admin.ModelAdmin):
+    prepopulated_fields = {"slug": ("title",)}
 
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):

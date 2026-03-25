@@ -99,11 +99,42 @@ class Course(TrackedModel):
     def __str__(self):
         return self.title
 
+class Section(TrackedModel):
+    section_id = models.PositiveIntegerField(verbose_name='Номер секции', default=0)
+    course_id = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name='ID курса')
+    title = models.CharField(max_length=120, verbose_name='Название секции')
+    slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.section_id:
+            last_section = Section.objects.filter(
+                course=self.course
+            ).order_by('section_id').last()
+
+        if last_section:
+            self.section_id = last_section.section_id + 1
+        else:
+            self.section_id = 1
+
+        if not self.slug:
+            self.slug = generate_unique_slug(self, self.title)
+            super().save(update_fields=['slug'])
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name = 'Секция'
+        verbose_name_plural = 'Секции'
+        ordering = ['course_id','section_id']
+        unique_together = [['course_id', 'section_id']]
 
 
 class Lesson(TrackedModel):
     lesson_id = models.AutoField(primary_key=True)
-    course_id = models.ForeignKey(Course, on_delete=models.CASCADE)
+    section_id = models.ForeignKey(Section, on_delete=models.CASCADE)
     title = models.CharField(max_length=120, verbose_name='Название урока')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
     date = models.DateTimeField(verbose_name='Дата проведения урока')
@@ -122,6 +153,7 @@ class Lesson(TrackedModel):
         verbose_name = 'Урок'
         verbose_name_plural = 'Уроки'
         ordering = ['date']
+        unique_together = [['course', 'section_id']]
 
 
 class Homework(TrackedModel):

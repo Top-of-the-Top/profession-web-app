@@ -21,6 +21,11 @@ import {
   notifyWarning,
 } from '../../../shared/lib/sileo/notify';
 import styles from './CourseLessonsPage.module.css';
+import {
+  USE_MOCK,
+  MOCK_COURSE,
+  MOCK_LESSONS,
+} from './mockCourseLessonsData';
 
 function isAuthLike(err: unknown) {
   const msg = err instanceof Error ? err.message : '';
@@ -72,6 +77,14 @@ export default function CourseLessonsPage() {
         title: 'неверная ссылка',
         description: 'Откройте курс из списка.',
       });
+      return;
+    }
+
+    if (USE_MOCK) {
+      setCourse(MOCK_COURSE);
+      setLessons(MOCK_LESSONS);
+      setError(null);
+      setLoading(false);
       return;
     }
 

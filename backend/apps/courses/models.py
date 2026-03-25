@@ -106,6 +106,7 @@ class Section(TrackedModel):
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
 
     def save(self, *args, **kwargs):
+        last_section = None
         if not self.section_id:
             last_section = Section.objects.filter(
                 course=self.course

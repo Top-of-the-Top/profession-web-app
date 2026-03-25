@@ -1,4 +1,4 @@
-from ..models import Course, PurchasedCourse, Lesson, Homework
+from ..models import Course, PurchasedCourse, Lesson, Homework, Section, Question, Task
 from rest_framework import serializers
 
 
@@ -49,22 +49,27 @@ class PurchasedCourseSerializer(serializers.ModelSerializer):
             'is_active',
         ]
 
+class SectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section
+        fields = '__all__'
+
 class LessonSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = Lesson
-    fields = '__all__'
+    class Meta:
+        model = Lesson
+        fields = '__all__'
 
 class HomeworkSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = Homework
-    fields = '__all__'
+    class Meta:
+        model = Homework
+        fields = '__all__'
 
 class QuestionSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = Homework
-    fields = '__all__'
-    
+    class Meta:
+        model = Question
+        fields = '__all__'
+
 class TaskSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = Homework
-    fields = '__all__'
+    class Meta:
+        model = Task
+        fields = '__all__'

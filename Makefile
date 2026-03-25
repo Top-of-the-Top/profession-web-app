@@ -7,9 +7,9 @@
 #
 
 # Переменные (можно переопределить при вызове: make up COMPOSE=podman-compose)
-COMPOSE    = docker compose
+COMPOSE    = docker-compose
 BACKEND    = $(COMPOSE) exec backend
-MANAGE     = $(BACKEND) python manage.py
+MANAGE     = $(BACKEND) python3 manage.py
 CELERY_SVC = celery_worker
 
 # ─── Основные команды ────────────────────────

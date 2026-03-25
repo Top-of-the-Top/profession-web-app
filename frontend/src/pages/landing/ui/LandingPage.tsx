@@ -5,6 +5,15 @@ import { cn } from '../../../shared/lib/utils';
 import { Menu, X } from 'lucide-react';
 import { Button, Card, CardTitle, Spinner } from '../../../shared/ui';
 import { ArrowUpRight } from 'lucide-react';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '../../../shared/ui/Pagination';
 import CollapsibleSection from './CollapsibleSection';
 import Footer from './Footer';
 import { type Track } from '../../../schemas/types';
@@ -16,6 +25,8 @@ export default function LandingPage() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 6;
 
   const toggleMenu = () => setIsMenuOpen((prev) => !prev);
   useEffect(() => {
@@ -23,13 +34,50 @@ export default function LandingPage() {
       .getCourses()
       .then((data) => {
         setTracks(data.data);
-        console.log(data);
+        setCurrentPage(1);
       })
       .catch((error) => {
         console.error('Ошибка загрузки курсов:', error);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const totalPages = Math.ceil(tracks.length / PAGE_SIZE);
+  const pagedTracks = tracks.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const visiblePageNumbers = (() => {
+    if (totalPages <= 1) return [];
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+    const left = currentPage - 1;
+    const right = currentPage + 1;
+
+    const result: Array<number | 'ellipsis'> = [1];
+
+    if (left > 2) result.push('ellipsis');
+
+    for (let p = left; p <= right; p += 1) {
+      if (p > 1 && p < totalPages) result.push(p);
+    }
+
+    if (right < totalPages - 1) result.push('ellipsis');
+
+    result.push(totalPages);
+    return result;
+  })();
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   // Скролл по якорям
   useEffect(() => {
@@ -196,7 +244,7 @@ export default function LandingPage() {
               {loading ? (
                 <Spinner />
               ) : (
-                tracks.map((track) => (
+                pagedTracks.map((track) => (
                   <Card
                     key={track.id}
                     className={styles.trackCard}
@@ -259,6 +307,55 @@ export default function LandingPage() {
                 ))
               )}
             </div>
+
+            {!loading && totalPages > 1 && (
+              <Pagination className={styles.tracksPagination}>
+                <PaginationContent>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage <= 1) return;
+                      handlePageChange(currentPage - 1);
+                    }}
+                  />
+
+                  {visiblePageNumbers.map((item, idx) => {
+                    if (item === 'ellipsis') {
+                      return (
+                        <PaginationItem key={`ellipsis-${idx}`}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      );
+                    }
+
+                    return (
+                      <PaginationItem key={item}>
+                        <PaginationLink
+                          href="#"
+                          isActive={item === currentPage}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(item);
+                          }}
+                        >
+                          {item}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage >= totalPages) return;
+                      handlePageChange(currentPage + 1);
+                    }}
+                  />
+                </PaginationContent>
+              </Pagination>
+            )}
           </section>
 
           <section className={styles.section} id="ways">

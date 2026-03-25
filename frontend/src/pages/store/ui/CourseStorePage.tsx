@@ -66,7 +66,7 @@ const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart }: CourseCa
             onAddToCart();
           }}
         >
-          {inCart ? 'В корзине' : 'Выбрать'}
+          {inCart ? 'В корзине' : 'В коризну'}
         </Button>
       </div>
     </div>

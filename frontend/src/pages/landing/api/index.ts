@@ -15,7 +15,7 @@ const TRACKS_COLOR_SCHEMES: Omit<Track, 'id' | 'title' | 'price' | 'image'>[] =
     },
     {
       bgColor: '#191970',
-      accentColor: '#FFFFFF',
+      accentColor: '#F3F3F3',
       titleColor: '#000000',
       subtitleColor: '#E5E7EB',
       arrowColor: '#E5E7EB',
@@ -24,7 +24,7 @@ const TRACKS_COLOR_SCHEMES: Omit<Track, 'id' | 'title' | 'price' | 'image'>[] =
     },
     {
       bgColor: '#191A23',
-      accentColor: '#FFFFFF',
+      accentColor: '#F3F3F3',
       titleColor: '#000000',
       subtitleColor: '#E5E7EB',
       arrowColor: '#000000',
@@ -42,7 +42,7 @@ const TRACKS_COLOR_SCHEMES: Omit<Track, 'id' | 'title' | 'price' | 'image'>[] =
     },
     {
       bgColor: '#191970',
-      accentColor: '#FFFFFF',
+      accentColor: '#F3F3F3',
       titleColor: '#000000',
       subtitleColor: '#E5E7EB',
       arrowColor: '#E5E7EB',
@@ -51,7 +51,7 @@ const TRACKS_COLOR_SCHEMES: Omit<Track, 'id' | 'title' | 'price' | 'image'>[] =
     },
     {
       bgColor: '#191A23',
-      accentColor: '#E5E7EB',
+      accentColor: '#F3F3F3',
       titleColor: '#000000',
       subtitleColor: '#E5E7EB',
       arrowColor: '#000000',

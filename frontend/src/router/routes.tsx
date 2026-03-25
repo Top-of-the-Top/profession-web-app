@@ -5,11 +5,14 @@ import {
   RecoverPage,
   ResetPage,
   ProfilePage,
+  AppHomePage,
   CourseStorePage,
   CourseDetailPage,
+  CourseLessonsPage,
   CartPage,
   CreateLesson,
   LessonPreviewPage,
+  LessonViewPage,
   ToastPlaygroundPage,
 } from '../pages';
 import AppLayout from '../widgets/AppLayout/ui/AppLayout';
@@ -43,10 +46,19 @@ export const routes: AppRoute[] = [
     protected: true,
     children: [
       { index: true, element: <ToastPlaygroundPage /> },
+      { path: 'home', element: <AppHomePage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'store', element: <CourseStorePage /> },
       {
-        path: 'courses/:slug', // Динамический параметр :slug
+        path: 'courses/:slug/lessons',
+        element: <CourseLessonsPage />,
+      },
+      {
+        path: 'courses/:slug/lessons/:lessonSlug',
+        element: <LessonViewPage />,
+      },
+      {
+        path: 'courses/:slug',
         element: <CourseDetailPage />,
       },
       {

@@ -47,7 +47,7 @@ export const useUserStore = create<UserStoreState>((set) => ({
 
     try {
       const user = await profileApi.getProfile();
-      console.info('[auth] fetchUser success', { userId: user.id });
+      console.info('[auth] fetchUser success', { userId: user.first_name });
 
       set({
         user,

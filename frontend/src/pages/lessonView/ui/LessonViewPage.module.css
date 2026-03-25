@@ -1,0 +1,531 @@
+.page {
+  width: 100%;
+  min-height: 100%;
+  padding: 32px 48px 48px;
+  background-color: #f0f2f5;
+  box-sizing: border-box;
+}
+
+/* ── Breadcrumbs ── */
+
+.breadcrumbWrap {
+  margin-bottom: 20px;
+}
+
+.homeLink {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+/* ── Two-column layout ── */
+
+.layout {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.mainColumn {
+  flex: 1;
+  min-width: 0;
+	/* border-radius: 20px; */
+}
+
+.main {
+  background: #fff;
+  border-radius: 14px;
+  padding: 22px 36px 40px;
+}
+
+.sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 43px;
+}
+
+/* ── Lesson title ── */
+
+
+.lessonHeader {
+  display: flex;
+  padding-left: 29px;
+  margin-bottom: 0;
+}
+
+.lessonHeaderTrapezoid {
+  position: relative;
+  padding: 6px 24px;
+  background: #ffffff;
+  border-radius: 12px 12px 0 0;
+  clip-path: polygon(0 100%, 5% 0, 95% 0, 100% 100%);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-bottom: none;
+
+	margin: 0;
+  font-size: 11px;
+  color: #1a1a1a;
+  /* line-height: 1.25; */
+  letter-spacing: -0.01em;
+}
+
+.lessonHeaderTrapezoid h1 {
+	font-weight: 500;
+}
+
+
+.titleSeparator {
+  margin-bottom: 24px;
+}
+
+/* ── Block grid (same as CourseRenderer) ── */
+
+.blockGrid {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 4px;
+}
+
+.blockCell {
+  min-height: 60px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ── Text block ── */
+
+.textBlock {
+  line-height: 1.7;
+  padding: 8px 4px;
+  color: #1a1a1a;
+}
+
+.textBlock p {
+  margin: 0 0 10px;
+}
+
+.textBlock p:last-child {
+  margin-bottom: 0;
+}
+
+.textBlock blockquote {
+  margin: 10px 0;
+  padding-left: 16px;
+  border-left: 3px solid #2d3a8c;
+  font-style: italic;
+  color: #475569;
+}
+
+.textBlock ul,
+.textBlock ol {
+  margin: 10px 0;
+  padding-left: 24px;
+}
+
+.textBlock li {
+  margin: 4px 0;
+}
+
+.textBlock h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin: 0.67em 0;
+}
+
+.textBlock h2 {
+  font-size: 1.5em;
+  font-weight: 700;
+  margin: 0.75em 0;
+}
+
+.textBlock h3 {
+  font-size: 1.17em;
+  font-weight: 700;
+  margin: 0.83em 0;
+}
+
+/* ── Photo block ── */
+
+.photoBlock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.photoBlock img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+/* ── Video block ── */
+
+.videoBlock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.videoBlock video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.mediaPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 14px;
+  padding: 24px;
+  height: 100%;
+  min-height: 120px;
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.emptyContent {
+  text-align: center;
+  padding: 48px 24px;
+  color: #94a3b8;
+  font-size: 15px;
+}
+
+/* ── Sidebar cards ── */
+
+.sidebarCard {
+  background: #fff;
+  border-radius: 14px;
+  padding: 15px 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.timerCard {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.timerCard .sidebarCardHeader {
+  margin-bottom: 12px;
+}
+
+.timerCard .sidebarCardTitle {
+  font-size: 16px;
+  /* font-weight: 700;	 */
+}
+
+.sidebarCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: #1a1a1a;
+}
+
+.sidebarCardTitle {
+  font-size: 16px;
+  /* font-weight: 700; */
+}
+
+/* ── Timer widget ── */
+
+.timerGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.timerCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.timerCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: #191970;
+  color: #fff;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
+}
+
+.timerValue {
+  font-size: 25px;
+  line-height: 1.1;
+  /* font-weight: 600; */
+}
+
+.timerLabel {
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+/* ── Webinar quick links ── */
+
+.linksRow {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 10px;
+  justify-content: center;
+  width: 80%;
+  margin: 0 auto;
+	margin-bottom: 20px;
+}
+
+.quickLinkButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #fff;
+  color: #191970;
+  border-radius: 8px;
+  padding: 8px 20px;
+  text-decoration: none;
+  font-size: 16px;
+  line-height: 1;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.14);
+  transition: 0.2s;
+}
+
+.quickLinkButton:hover {
+  background-color: #191970;
+	box-shadow: 0 2px 6px rgba(15, 23, 42, 0.24);
+	color: white;
+}
+
+.quickLinkDisabled {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+/* ── Homework widget ── */
+
+.deadlineText {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 14px;
+}
+
+.homeworkButton {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 10px 0;
+  background: #191970;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 16px;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+
+.homeworkButton:hover {
+  background: #1e2a6e;
+}
+
+.noHomework {
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* ── Progress widget ── */
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.progressRow:last-child {
+  margin-bottom: 0;
+}
+
+.progressLabel {
+  font-size: 13px;
+  color: #475569;
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+.progressRoundIcon {
+	width: 10px;
+	height: 10px;
+	background-color: #CDE8CB;
+	border-radius: 50%;
+	
+}
+
+.progressBarWrap {
+  flex: 1;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: #191970;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progressValue {
+  font-size: 13px;
+  color: #64748b;
+  white-space: nowrap;
+  min-width: 36px;
+  text-align: right;
+}
+
+.progressSection {
+  margin-top: 16px;
+}
+
+.progressSection:first-of-type {
+  margin-top: 0;
+}
+
+.progressHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.progressHeaderLabel {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.progressHeaderValue {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.progressBarTrack {
+  margin-top: 8px;
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: #111827;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* ── Loading / Error ── */
+
+.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+}
+
+.errorBox {
+  padding: 24px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #fecaca;
+  max-width: 480px;
+}
+
+.errorText {
+  margin: 0 0 16px;
+  color: #991b1b;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 960px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 0;
+  }
+
+  .sidebarCard {
+    flex: 1;
+    min-width: 260px;
+  }
+
+  .timerCell {
+    width: 52px;
+    height: 52px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 20px 16px 32px;
+  }
+
+  .layout {
+    gap: 20px;
+  }
+
+  .main {
+    padding: 20px 18px 28px;
+  }
+
+  .lessonTitle {
+    font-size: 22px;
+  }
+
+  .blockGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .blockCell {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .linksRow {
+    grid-template-columns: 1fr;
+  }
+}

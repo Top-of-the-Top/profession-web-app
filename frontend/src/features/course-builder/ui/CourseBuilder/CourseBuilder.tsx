@@ -51,6 +51,25 @@ function blocksToLayout(blocks: Block[]): Layout {
   }));
 }
 
+/**
+ * react-simple-wysiwyg при вставке из clipboard/Figma может тащить служебные поля
+ * (`data-buffer`, `data-metadata` и т.п.), которые раздувают JSON черновика.
+ * Чистим это перед сохранением в состоянии.
+ */
+function sanitizeWysiwygHtml(html: string): string {
+  if (!html) return html;
+
+  return html
+    // Убираем span-ы со служебными атрибутами
+    .replace(
+      /<span[^>]*(?:data-metadata|data-buffer)="[^"]*"[^>]*>[\s\S]*?<\/span>/g,
+      '',
+    )
+    // На всякий случай — убираем figma-комментарии, если они попали в HTML
+    .replace(/<!--\s*\(figmeta\)[\s\S]*?\(\/figmeta\)\s*-->/g, '')
+    .replace(/<!--\s*\(figma\)[\s\S]*?\(\/figma\)\s*-->/g, '');
+}
+
 export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
   const navigate = useNavigate();
   const { layout, setTitle, addBlockAt, updateBlock, removeBlock, toJSON } =
@@ -134,8 +153,10 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
   };
 
   const handleCourseTitleChange = (title: string) => setTitle(title);
-  const handleTextChange = (blockId: string, html: string) =>
-    updateBlock(blockId, { html } as Block);
+  const handleTextChange = (blockId: string, html: string) => {
+    const cleaned = sanitizeWysiwygHtml(html);
+    updateBlock(blockId, { html: cleaned } as Block);
+  };
 
   const createDragImage = (type: BlockType) => {
     const el = document.createElement('div');

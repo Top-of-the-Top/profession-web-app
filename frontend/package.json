@@ -35,7 +35,6 @@
     "lodash": "^4.17.21",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
-    "react-avatar": "^5.0.4",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^19.2.0",
@@ -46,7 +45,6 @@
     "react-simple-wysiwyg": "^3.4.1",
     "sileo": "^0.1.5",
     "tailwind-merge": "^3.4.0",
-    "tamagui": "^2.0.0-rc.22",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },

@@ -24,7 +24,6 @@ def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
     access = refresh.access_token
 
-    # Добавляем роль пользователя в токен
     user_role = getattr(user, 'role', 'student')
     refresh['role'] = user_role
     access['role'] = user_role

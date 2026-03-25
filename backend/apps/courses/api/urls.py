@@ -7,17 +7,17 @@ app_name = 'courses'
 urlpatterns = [
     path('landing/courses/', views.CourseDTOList.as_view(),
          name='course-list-preview'),
-    path('app/store/', views.CourseDTOListAuthenticated.as_view(),
-         name='course-list-store'),
-    path('app/courses/<slug:slug>/', views.CourseDetail.as_view(),
-         name='course-detail'),
     path('app/my-courses/', views.PurchasedCoursesView.as_view(),
          name='my-courses'),
-    path('app/lessons/', views.LessonListView.as_view(),
-         name='all-lessons'),
 ]
 
 router = SimpleRouter()
+
+router.register(
+    r'app/courses',
+    views.CourseViewSet,
+    basename='courses'
+)
 
 router.register(
     r'courses/(?P<course_slug>[^/.]+)/sections',

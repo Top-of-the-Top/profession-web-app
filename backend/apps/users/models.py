@@ -41,6 +41,16 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractUser):
+    ROLE_STUDENT = 'student'
+    ROLE_TEACHER = 'teacher'
+    ROLE_MODERATOR = 'moderator'
+
+    ROLE_CHOICES = [
+        (ROLE_STUDENT, 'Студент'),
+        (ROLE_TEACHER, 'Преподаватель'),
+        (ROLE_MODERATOR, 'Модератор'),
+    ]
+
     username = None
 
     groups = models.ManyToManyField(
@@ -70,6 +80,13 @@ class User(AbstractUser):
         max_length=30,
         null=True,
         blank=True
+    )
+
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default=ROLE_STUDENT,
+        verbose_name='Роль'
     )
 
     email_cipher = models.CharField(
@@ -118,6 +135,21 @@ class User(AbstractUser):
 
     async def aget_purchased_course_ids(self):
         return await sync_to_async(self.get_purchased_courses_ids)()
+
+    def is_student(self):
+        return self.role == self.ROLE_STUDENT
+
+    def is_teacher(self):
+        return self.role == self.ROLE_TEACHER
+
+    def is_moderator(self):
+        return self.role == self.ROLE_MODERATOR
+
+    def is_course_author(self, course):
+        return course.author == self or self in course.authors.all()
+
+    def has_purchased_course(self, course):
+        return self.purchased_courses.filter(course_id=course).exists()
 
     class Meta:
         verbose_name = 'Пользователь'

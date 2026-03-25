@@ -100,7 +100,7 @@ class Course(TrackedModel):
         return self.title
 
 class Section(TrackedModel):
-    section_id = models.PositiveIntegerField(verbose_name='Номер секции', default=0)
+    section_id = models.PositiveIntegerField(verbose_name='Номер секции')
     course_id = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name='ID курса')
     title = models.CharField(max_length=120, verbose_name='Название секции')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
@@ -134,7 +134,7 @@ class Section(TrackedModel):
 
 class Lesson(TrackedModel):
     lesson_id = models.AutoField(primary_key=True)
-    section_id = models.ForeignKey(Section, on_delete=models.CASCADE)
+    section_id = models.ForeignKey(Section, on_delete=models.CASCADE, null=True, verbose_name='ID секции')
     title = models.CharField(max_length=120, verbose_name='Название урока')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
     date = models.DateTimeField(verbose_name='Дата проведения урока')
@@ -153,7 +153,6 @@ class Lesson(TrackedModel):
         verbose_name = 'Урок'
         verbose_name_plural = 'Уроки'
         ordering = ['date']
-        unique_together = [['course', 'section_id']]
 
 
 class Homework(TrackedModel):

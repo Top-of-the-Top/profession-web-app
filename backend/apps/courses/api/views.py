@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.views import APIView
-from ..models import Course, PurchasedCourse, Lesson, Task, Homework, Question
+from ..models import Course, PurchasedCourse, Lesson, Task, Homework, Question, Section
 from .serializers import (
     CourseDTOSerializer,
     CourseSerializer,
@@ -14,7 +14,8 @@ from .serializers import (
     LessonSerializer,
     HomeworkSerializer,
     QuestionSerializer,
-    TaskSerializer
+    TaskSerializer,
+    SectionSerializer
 )
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
@@ -115,6 +116,28 @@ SCHEMA_QUESTION_404 = {
     },
 }
 SCHEMA_QUESTION_500 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Внутренняя ошибка сервера.",
+            "example": "Произошла ошибка при обработке запроса.",
+        }
+    },
+}
+
+SCHEMA_SECTION_404 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Секция не найдена.",
+            "example": "Секция не найдена",
+        }
+    },
+}
+
+SCHEMA_SECTION_500 = {
     "type": "object",
     "properties": {
         "detail": {
@@ -259,6 +282,121 @@ class PurchasedCoursesView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class LessonListView(generics.ListAPIView):
+    """Endpoint to list all lessons without course filter"""
+    permission_classes = (IsAuthenticated,)
+    serializer_class = LessonSerializer
+    queryset = Lesson.objects.all()
+
+    @extend_schema(
+        summary="Получить список всех уроков",
+        description="Возвращает список всех уроков без фильтрации по курсу или секции.",
+        tags=["Lessons"],
+        responses={
+            200: LessonSerializer(many=True),
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
+class SectionViewSet(viewsets.ModelViewSet):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'post', 'patch', 'delete']
+    serializer_class = SectionSerializer
+    lookup_field = 'slug'
+
+    def get_queryset(self):
+        course_slug = self.kwargs['course_slug']
+        return Section.objects.filter(course_id__slug=course_slug)
+
+    @extend_schema(
+        summary="Получить список секций курса",
+        tags=["Sections"],
+        responses={
+            200: SectionSerializer(many=True),
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+        }
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Создать новую секцию",
+        tags=["Sections"],
+        responses={
+            201: SectionSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Получить информацию о секции",
+        tags=["Sections"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug секции'),
+        ],
+        responses={
+            200: SectionSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Секция не найдена.", "schema": SCHEMA_SECTION_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+        }
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Обновить секцию",
+        tags=["Sections"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug секции'),
+        ],
+        responses={
+            200: SectionSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Секция не найдена.", "schema": SCHEMA_SECTION_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+        }
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Удалить секцию",
+        tags=["Sections"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug секции'),
+        ],
+        responses={
+            204: None,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Секция не найдена.", "schema": SCHEMA_SECTION_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+        }
+    )
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
+
 class LessonViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post', 'patch', 'delete']
@@ -266,8 +404,10 @@ class LessonViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
 
     def get_queryset(self):
-       course_slug = self.kwargs['course_slug']
-       return Lesson.objects.filter(course_id__slug=course_slug)
+        section_slug = self.kwargs.get('section_slug')
+        if section_slug:
+            return Lesson.objects.filter(section_id__slug=section_slug)
+        return Lesson.objects.all()
 
     @extend_schema(
       summary="Получить список уроков",
@@ -361,10 +501,12 @@ class HomeworkViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         course_slug = self.kwargs['course_slug']
+        section_slug = self.kwargs['section_slug']
         lesson_slug = self.kwargs['lesson_slug']
         return Homework.objects.filter(
             lesson_id__slug=lesson_slug,
-            lesson_id__course_id__slug=course_slug
+            lesson_id__section_id__slug=section_slug,
+            lesson_id__section_id__course_id__slug=course_slug
         )
 
     @extend_schema(
@@ -459,12 +601,14 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         course_slug = self.kwargs['course_slug']
+        section_slug = self.kwargs['section_slug']
         lesson_slug = self.kwargs['lesson_slug']
         homework_slug = self.kwargs['homework_slug']
         return Task.objects.filter(
             homework_id__slug=homework_slug,
-            homework__id__lesson_id__slug=lesson_slug,
-            homework__id__lesson_id__course_id__slug=course_slug
+            homework_id__lesson_id__slug=lesson_slug,
+            homework_id__lesson_id__section_id__slug=section_slug,
+            homework_id__lesson_id__section_id__course_id__slug=course_slug
         )
 
     @extend_schema(
@@ -559,13 +703,15 @@ class QuestionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         course_slug = self.kwargs['course_slug']
+        section_slug = self.kwargs['section_slug']
         lesson_slug = self.kwargs['lesson_slug']
         homework_slug = self.kwargs['homework_slug']
-      
+
         return Question.objects.filter(
             homework_id__slug=homework_slug,
             homework_id__lesson_id__slug=lesson_slug,
-            homework_id__lesson_id__course_id__slug=course_slug
+            homework_id__lesson_id__section_id__slug=section_slug,
+            homework_id__lesson_id__section_id__course_id__slug=course_slug
         )
 
     @extend_schema(

@@ -56,20 +56,39 @@ def create_test_homework(lesson, **kwargs):
     defaults.update(kwargs)
     return Homework.objects.create(**defaults)
 
-@override_settings(
-    CELERY_TASK_ALWAYS_EAGER=True,
-    CELERY_BROKER_URL='memory://',
-)
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class HandleCourseImageUpdateSignalTest(TestCase):
+class BaseTestCase(TestCase):
+
+    CELERY_TASKS_TO_MOCK = [
+        'apps.courses.signals.send_course_notification.delay',
+        'apps.courses.signals.send_course_notification.apply_async',
+        'apps.courses.signals.send_personal_notification.delay',
+        'apps.courses.signals.send_mass_course_email.delay',
+        'apps.courses.signals.send_mass_system_email.delay',
+        'apps.courses.signals.send_single_email.delay',
+    ]
 
     def setUp(self):
+        self.celery_patchers = [
+            patch(task) for task in self.CELERY_TASKS_TO_MOCK
+        ]
+        self.celery_mocks = [p.start() for p in self.celery_patchers]
+
+    def tearDown(self):
+        for patcher in self.celery_patchers:
+            patcher.stop()
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class HandleCourseImageUpdateSignalTest(BaseTestCase):
+
+    def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
         self.storage_patcher.start()
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     @patch('django.core.files.storage.default_storage.delete')
@@ -114,20 +133,19 @@ class HandleCourseImageUpdateSignalTest(TestCase):
 
         mock_delete.assert_not_called()
 
-@override_settings(
-    CELERY_TASK_ALWAYS_EAGER=True,
-    CELERY_BROKER_URL='memory://',
-)
+
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class DeleteCourseImageSignalTest(TestCase):
+class DeleteCourseImageSignalTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
         self.storage_patcher.start()
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     @patch('django.core.files.storage.default_storage.delete')
@@ -143,14 +161,12 @@ class DeleteCourseImageSignalTest(TestCase):
 
         course.delete()
 
-@override_settings(
-    CELERY_TASK_ALWAYS_EAGER=True,
-    CELERY_BROKER_URL='memory://',
-)
+
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class CourseNotificationSignalTest(TestCase):
+class CourseNotificationSignalTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
@@ -171,6 +187,7 @@ class CourseNotificationSignalTest(TestCase):
         self.mock_send_mass_email = self.send_mass_email_patcher.start()
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
         self.send_personal_patcher.stop()
         self.send_course_patcher.stop()
@@ -234,14 +251,12 @@ class CourseNotificationSignalTest(TestCase):
         self.mock_send_course.assert_not_called()
         self.mock_send_mass_email.assert_not_called()
 
-@override_settings(
-    CELERY_TASK_ALWAYS_EAGER=True,
-    CELERY_BROKER_URL='memory://',
-)
+
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class HomeworkDeadlineHandlerSignalTest(TestCase):
+class HomeworkDeadlineHandlerSignalTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
@@ -270,6 +285,7 @@ class HomeworkDeadlineHandlerSignalTest(TestCase):
         self.lesson = create_test_lesson(self.section)
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
         self.send_personal_patcher.stop()
         self.send_course_patcher.stop()
@@ -377,14 +393,12 @@ class HomeworkDeadlineHandlerSignalTest(TestCase):
 
         self.assertTrue(found_1h)
 
-@override_settings(
-    CELERY_TASK_ALWAYS_EAGER=True,
-    CELERY_BROKER_URL='memory://',
-)
+
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class QuestionNotificationSignalTest(TestCase):
+class QuestionNotificationSignalTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
@@ -410,6 +424,7 @@ class QuestionNotificationSignalTest(TestCase):
         self.homework = create_test_homework(self.lesson)
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
         self.send_personal_patcher.stop()
         self.send_course_patcher.stop()
@@ -470,14 +485,12 @@ class QuestionNotificationSignalTest(TestCase):
         course_args = self.mock_send_course.call_args[0]
         self.assertEqual(course_args[0], self.course.course_id)
 
-@override_settings(
-    CELERY_TASK_ALWAYS_EAGER=True,
-    CELERY_BROKER_URL='memory://',
-)
+
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class TaskNotificationSignalTest(TestCase):
+class TaskNotificationSignalTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
@@ -503,6 +516,7 @@ class TaskNotificationSignalTest(TestCase):
         self.homework = create_test_homework(self.lesson)
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
         self.send_personal_patcher.stop()
         self.send_course_patcher.stop()

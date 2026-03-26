@@ -149,7 +149,7 @@ class User(AbstractUser):
         return course.author == self or self in course.authors.all()
 
     def is_enrolled(self, course):
-        return self.get_purchased_courses_ids().filter(course_id=course.id).exists()
+        return course in self.get_purchased_courses_ids()
 
     class Meta:
         verbose_name = 'Пользователь'
@@ -198,10 +198,15 @@ class Profile(models.Model):
         return f'https://storage.yandexcloud.net/{bucket}/{DEFAULT_PROFILE_IMAGE}'
 
     def save(self, *args, **kwargs):
+
         is_new = self.pk is None
-        if is_new and self.avatar and hasattr(
-                self.avatar, 'file') and self.avatar.name != DEFAULT_PROFILE_IMAGE:
-            image_file = self.avatar.file
+        if is_new and self.avatar and self.avatar.name != DEFAULT_PROFILE_IMAGE:
+            try :
+                image_file = self.avatar.file
+            except (FileNotFoundError, ValueError, OSError):
+                super().save(*args, **kwargs)
+                return
+
             original_name = getattr(self.avatar, 'name', 'image.jpg')
 
             self.avatar = None

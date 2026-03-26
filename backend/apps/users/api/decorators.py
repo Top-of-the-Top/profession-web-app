@@ -18,6 +18,8 @@ from apps.courses.models import Course
 
 
 
+
+
 def _extract_request(args):
     if not args:
         return None

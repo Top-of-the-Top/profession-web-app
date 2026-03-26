@@ -227,7 +227,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
         }
     )
-    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -253,7 +252,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
         }
     )
-    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 

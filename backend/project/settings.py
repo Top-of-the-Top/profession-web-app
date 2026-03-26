@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+ALLOWED_HOSTS = ['professionkid.ru', 'https://professionkid.ru']
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 ASGI_APPLICATION = "project.asgi.application"

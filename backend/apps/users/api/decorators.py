@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.core.exceptions import PermissionDenied
 from apps.courses.models import Course
-
+import json
 # TODO: Семен у меня это упало при /app/courses, отдал нейронке логи, она точечно только тут поправила. Откати назад если не то что то
 
 #
@@ -14,7 +14,7 @@ from apps.courses.models import Course
 # - Я переделал `require_moderator`, `require_course_author`, `require_course_enrollment` на универсальную сигнатуру `wrapper(*args, **kwargs)` и добавил извлечение `request` через helper `_extract_request(args)`.
 # - Вызов оборачиваемой функции теперь идёт как `view_func(*args, **kwargs)`, чтобы корректно работало и для методов класса, и для function-based view.
 # - Добавил защиту на случай, если `request` не удалось определить (возвращается `400` вместо крэша).
-# 
+#
 
 
 
@@ -23,15 +23,13 @@ from apps.courses.models import Course
 def _extract_request(args):
     if not args:
         return None
+    if (hasattr(args[0], 'user')):
+        request = args[0]
+    else :
+        request = args[1]
 
-    first_arg = args[0]
-    if hasattr(first_arg, "user"):
-        return first_arg
+    return request
 
-    if len(args) > 1 and hasattr(args[1], "user"):
-        return args[1]
-
-    return None
 
 def require_moderator(view_func):
 
@@ -75,36 +73,45 @@ def require_course_author(view_func):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        if request.user.is_moderator(): # им можно все
+        if request.user.is_moderator():
             return view_func(*args, **kwargs)
 
-        if not request.user.is_teacher(): # сразу кик студентов
+        if not request.user.is_teacher():
             return Response(
                 {'detail': 'Доступ запрещен. Требуется роль преподавателя'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        course_id = kwargs.get('course_id') or kwargs.get('pk')
-        if not course_id and args:
-            course_id = args[0] if len(args) > 0 else None
+        course_slug = kwargs.get('course_slug') or kwargs.get('slug') or kwargs.get('pk')
 
-        if not course_id:
-            return Response(
-                {'detail': 'Не указан ID курса'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            course = Course.objects.get(id=course_id)
-            if not request.user.is_course_author(course):
+        if not course_slug:
+            course_id = kwargs.get('course_id')
+            if course_id:
+                try:
+                    course = Course.objects.get(course_id=course_id)
+                except Course.DoesNotExist:
+                    return Response(
+                        {'detail': 'Курс не найден'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
                 return Response(
-                    {'detail': 'Доступ запрещен. Требуется роль автора курса'},
-                    status=status.HTTP_403_FORBIDDEN
+                    {'detail': 'Не указан ID или slug курса'},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
-        except Course.DoesNotExist:
+        else:
+            try:
+                course = Course.objects.get(slug=course_slug)
+            except Course.DoesNotExist:
+                return Response(
+                    {'detail': 'Курс не найден'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        if not request.user.is_course_author(course):
             return Response(
-                {'detail': 'Курс не найден'},
-                status=status.HTTP_404_NOT_FOUND
+                {'detail': 'Доступ запрещен. Требуется роль автора курса'},
+                status=status.HTTP_403_FORBIDDEN
             )
 
         return view_func(*args, **kwargs)

@@ -137,15 +137,7 @@ class RefreshTokenView(APIView):
         try:
             refresh = RefreshToken(refresh_token)
             user = User.objects.get(id=refresh['user_id'])
-            new_refresh = RefreshToken.for_user(user)
-            access = new_refresh.access_token
-            from datetime import datetime, timezone
-            return Response({
-                'access_token': str(new_refresh.access_token),
-                'access_expires_at': datetime.fromtimestamp(access['exp'], tz=timezone.utc).isoformat(),
-                'refresh_token': str(new_refresh),
-                'refresh_expires_at': datetime.fromtimestamp(new_refresh['exp'], tz=timezone.utc).isoformat(),
-            }, status=status.HTTP_200_OK)
+            return Response(get_tokens_for_user(user), status=status.HTTP_200_OK)
         except Exception:
             return Response(
                 {'detail': 'Невалидный или истекший refresh_token'},

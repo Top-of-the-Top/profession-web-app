@@ -19,7 +19,7 @@ from .serializers import (
 )
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
-
+from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
 
 SCHEMA_401 = {
     "type": "object",
@@ -148,20 +148,40 @@ SCHEMA_SECTION_500 = {
     },
 }
 
+SCHEMA_403 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Доступ запрещен.",
+            "example": "Доступ запрещен. Требуется роль: moderator",
+        }
+    },
+}
 
-class CourseDTOListBase(generics.ListAPIView):
+SCHEMA_COURSE_500 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Внутренняя ошибка сервера.",
+            "example": "Произошла ошибка при обработке запроса.",
+        }
+    },
+}
+
+
+class CourseDTOList(generics.ListAPIView):
+    permission_classes = (AllowAny,)
     serializer_class = CourseDTOSerializer
-
 
     def get_queryset(self):
         return Course.objects.all()
-
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
-
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -171,62 +191,51 @@ class CourseDTOListBase(generics.ListAPIView):
             'data': serializer.data,
         })
 
-
-
-class CourseDTOList(CourseDTOListBase):
-    permission_classes = (AllowAny,)
-
-
     @extend_schema(
         summary="Список курсов (лендинг)",
         description=(
             "Публичный список всех курсов для лендинга. Авторизация не требуется. "
             "Возвращается объект: number_of_courses (число курсов) и data — массив курсов в формате DTO (course_id, title, sub_title, image_url, price, slug)."
         ),
-        tags=["Courses"],
+        tags=["Landing"],
         responses={200: CourseListResponseSerializer},
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
 
-
-class CourseDTOListAuthenticated(CourseDTOListBase):
+class CourseViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
+    serializer_class = CourseSerializer
+    queryset = Course.objects.all()
+    lookup_field = 'slug'
+    http_method_names = ['get', 'post', 'patch', 'delete']
 
+    def get_queryset(self):
+        return Course.objects.all()
 
     @extend_schema(
-        summary="Список курсов (store)",
+        summary="Список всех курсов",
         description=(
-            "Список всех курсов для магазина приложения. Требуется Authorization: Bearer <access_token>. "
-            "Формат ответа тот же, что и у списка для лендинга: number_of_courses и data (массив курсов: course_id, title, sub_title, image_url, price, slug). "
-            "При невалидном токене — 401 с полем detail."
+            "Возвращает список всех курсов. Доступно всем авторизованным пользователям. "
+            "Права доступа: Студент - просмотр, Учитель - просмотр, Модератор - просмотр."
         ),
         tags=["Courses"],
         responses={
-            200: CourseListResponseSerializer,
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
-        },
+            200: CourseSerializer(many=True),
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
+        }
     )
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-
-
-
-class CourseDetail(RetrieveAPIView):
-    queryset = Course.objects.all()
-    serializer_class = CourseSerializer
-    lookup_url_kwarg = 'slug'
-    lookup_field = 'slug'
-
+    @require_course_enrollment
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     @extend_schema(
         summary="Детали курса",
         description=(
-            "Возвращает полную информацию о курсе по slug (в пути URL). Требуется Authorization: Bearer <access_token>. "
-            "В ответе объект с единственным полем course — полная модель курса (все поля из БД плюс вычисляемое image_url). "
-            "Если курс с указанным slug не найден — 404 с полем detail: «Курс не найден». "
-            "При невалидном токене — 401."
+            "Возвращает полную информацию о курсе по slug. Доступно всем авторизованным пользователям. "
+            "Права доступа: Студент - просмотр, Учитель - просмотр, Модератор - просмотр."
         ),
         tags=["Courses"],
         parameters=[
@@ -234,23 +243,91 @@ class CourseDetail(RetrieveAPIView):
                 name='slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug курса'),
+                description='slug курса'
+            ),
         ],
         responses={
-            200: CourseDetailResponseSerializer,
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
-            404: {"description": "Тело: { detail: 'Курс не найден' }.", "schema": SCHEMA_COURSE_404},
-        },
+            200: CourseSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Курс не найден.", "schema": SCHEMA_COURSE_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
+        }
     )
-    def get(self, request, *args, **kwargs):
-        course = Course.objects.filter(slug=kwargs.get('slug')).first()
-        if course is None:
-            return Response(
-                {'detail': 'Курс не найден'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        serializer = self.get_serializer(course)
-        return Response({'course': serializer.data})
+    @require_course_enrollment
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Создать новый курс",
+        description=(
+            "Создает новый курс. Доступно только модераторам. "
+            "Права доступа: Студент - запрещено, Учитель - запрещено, Модератор - разрешено."
+        ),
+        tags=["Courses"],
+        responses={
+            201: CourseSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен. Требуется роль модератора.", "schema": SCHEMA_403},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
+        }
+    )
+    @require_moderator
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Обновить курс",
+        description=(
+            "Обновляет курс. Модераторы могут обновлять любые курсы, учителя - только свои. "
+            "Права доступа: Студент - запрещено, Учитель - только свои курсы (где он в authors), Модератор - все курсы."
+        ),
+        tags=["Courses"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug курса'
+            ),
+        ],
+        responses={
+            200: CourseSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен. Требуется быть автором курса.", "schema": SCHEMA_403},
+            404: {"description": "Курс не найден.", "schema": SCHEMA_COURSE_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
+        }
+    )
+    @require_course_author
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Удалить курс",
+        description=(
+            "Удаляет курс. Модераторы могут удалять любые курсы, учителя - только свои. "
+            "Права доступа: Студент - запрещено, Учитель - только свои курсы (где он в authors), Модератор - все курсы."
+        ),
+        tags=["Courses"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug курса'
+            ),
+        ],
+        responses={
+            204: None,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен. Требуется быть автором курса.", "schema": SCHEMA_403},
+            404: {"description": "Курс не найден.", "schema": SCHEMA_COURSE_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
+        }
+    )
+    @require_course_author
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
 
 
 
@@ -266,7 +343,7 @@ class PurchasedCoursesView(APIView):
             "Каждый элемент: id, course (DTO курса), payment (id платежа), access_expires_at, is_active (доступ активен или истёк). "
             "При невалидном токене — 401 с полем detail."
         ),
-        tags=["Courses"],
+        tags=["My Courses"],
         responses={
             200: PurchasedCourseSerializer(many=True),
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
@@ -280,26 +357,6 @@ class PurchasedCoursesView(APIView):
 
         serializer = PurchasedCourseSerializer(purchased, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class LessonListView(generics.ListAPIView):
-    """Endpoint to list all lessons without course filter"""
-    permission_classes = (IsAuthenticated,)
-    serializer_class = LessonSerializer
-    queryset = Lesson.objects.all()
-
-    @extend_schema(
-        summary="Получить список всех уроков",
-        description="Возвращает список всех уроков без фильтрации по курсу или секции.",
-        tags=["Lessons"],
-        responses={
-            200: LessonSerializer(many=True),
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
-        }
-    )
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
 
 
 class SectionViewSet(viewsets.ModelViewSet):
@@ -321,6 +378,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
         }
     )
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -333,6 +391,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
         }
     )
+    @require_course_author
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
 
@@ -353,6 +412,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
         }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -373,6 +433,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
         }
     )
+    @require_course_author
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
@@ -393,6 +454,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
         }
     )
+    @require_course_author
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
@@ -418,6 +480,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -430,6 +493,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
+    @require_course_author
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
 
@@ -450,6 +514,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -470,6 +535,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
+    @require_course_author
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
@@ -490,6 +556,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
+    @require_course_author
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
@@ -518,6 +585,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -530,6 +598,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
+    @require_course_author
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
 
@@ -550,6 +619,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -570,6 +640,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
+    @require_course_author
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
@@ -590,6 +661,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
+    @require_course_author
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
@@ -620,6 +692,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -632,6 +705,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
+    @require_course_author
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
 
@@ -652,6 +726,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -672,6 +747,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
+    @require_course_author
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
@@ -692,6 +768,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
+    @require_course_author
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
@@ -723,6 +800,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -735,6 +813,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
+    @require_course_author
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
 
@@ -755,6 +834,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -775,6 +855,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
+    @require_course_author
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
@@ -795,5 +876,6 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
+    @require_course_author
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)

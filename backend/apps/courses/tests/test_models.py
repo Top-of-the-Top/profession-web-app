@@ -63,8 +63,29 @@ def create_test_homework(lesson, **kwargs):
     defaults.update(kwargs)
     return Homework.objects.create(**defaults)
 
+class BaseTestCase(TestCase):
 
-class GenerateUniqueSlugTest(TestCase):
+    CELERY_TASKS_TO_MOCK = [
+        'apps.courses.signals.send_course_notification.delay',
+        'apps.courses.signals.send_course_notification.apply_async',
+        'apps.courses.signals.send_personal_notification.delay',
+        'apps.courses.signals.send_mass_course_email.delay',
+        'apps.courses.signals.send_mass_system_email.delay',
+        'apps.courses.signals.send_single_email.delay',
+    ]
+
+    def setUp(self):
+        self.celery_patchers = [
+            patch(task) for task in self.CELERY_TASKS_TO_MOCK
+        ]
+        self.celery_mocks = [p.start() for p in self.celery_patchers]
+
+    def tearDown(self):
+        for patcher in self.celery_patchers:
+            patcher.stop()
+
+
+class GenerateUniqueSlugTest(BaseTestCase):
 
     def test_slug_generation_from_title(self):
         mock_instance = Mock()
@@ -111,7 +132,7 @@ class GenerateUniqueSlugTest(TestCase):
         self.assertLessEqual(len(slug), 89)
 
 
-class CourseImagePathTest(TestCase):
+class CourseImagePathTest(BaseTestCase):
 
     def test_image_path_generation_with_jpg(self):
         mock_instance = Mock()
@@ -147,15 +168,17 @@ class CourseImagePathTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class CourseSlugTest(TestCase):
+class CourseSlugTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
         self.storage_patcher.start()
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_slug_auto_generated_on_create(self):
@@ -193,15 +216,17 @@ class CourseSlugTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class CourseImageUrlTest(TestCase):
+class CourseImageUrlTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
         self.storage_patcher.start()
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_image_url_returns_s3_url_for_default_image(self):
@@ -229,15 +254,17 @@ class CourseImageUrlTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class CourseSaveTest(TestCase):
+class CourseSaveTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
         self.storage_patcher.start()
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_slug_auto_generation_on_creation(self):
@@ -278,9 +305,10 @@ class CourseSaveTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class SectionSaveTest(TestCase):
+class SectionSaveTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
@@ -288,6 +316,7 @@ class SectionSaveTest(TestCase):
         self.course = create_test_course()
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_first_section_gets_section_id_1(self):
@@ -356,9 +385,10 @@ class SectionSaveTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class LessonSaveTest(TestCase):
+class LessonSaveTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
@@ -367,6 +397,7 @@ class LessonSaveTest(TestCase):
         self.section = create_test_section(self.course)
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_slug_auto_generation(self):
@@ -386,9 +417,10 @@ class LessonSaveTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class HomeworkSaveTest(TestCase):
+class HomeworkSaveTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
@@ -398,6 +430,7 @@ class HomeworkSaveTest(TestCase):
         self.lesson = create_test_lesson(self.section)
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_slug_auto_generation(self):
@@ -417,9 +450,10 @@ class HomeworkSaveTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class UsersHomeworksAttemptsGradeTest(TestCase):
+class UsersHomeworksAttemptsGradeTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
@@ -432,6 +466,7 @@ class UsersHomeworksAttemptsGradeTest(TestCase):
         self.homework = create_test_homework(self.lesson)
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_grade_returns_none_when_status_not_reviewed(self):
@@ -614,9 +649,10 @@ class UsersHomeworksAttemptsGradeTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class UsersTasksAnswersValidationTest(TestCase):
+class UsersTasksAnswersValidationTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
@@ -639,6 +675,7 @@ class UsersTasksAnswersValidationTest(TestCase):
         )
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_validation_passes_when_points_within_limit(self):
@@ -685,9 +722,10 @@ class UsersTasksAnswersValidationTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class PurchasedCourseIsActiveTest(TestCase):
+class PurchasedCourseIsActiveTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
@@ -703,6 +741,7 @@ class PurchasedCourseIsActiveTest(TestCase):
         )
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_is_active_returns_true_when_not_expired(self):
@@ -743,15 +782,17 @@ class PurchasedCourseIsActiveTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class CoursePriceValidationTest(TestCase):
+class CoursePriceValidationTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
         self.storage_patcher.start()
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_negative_price_fails_validation(self):
@@ -766,15 +807,17 @@ class CoursePriceValidationTest(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class CourseLastModifiedByTest(TestCase):
+class CourseLastModifiedByTest(BaseTestCase):
 
     def setUp(self):
+        super().setUp()
         self.storage_patcher = patch(
             'django.core.files.storage.default_storage._wrapped'
         )
         self.storage_patcher.start()
 
     def tearDown(self):
+        super().tearDown()
         self.storage_patcher.stop()
 
     def test_last_modified_by_null_on_create(self):

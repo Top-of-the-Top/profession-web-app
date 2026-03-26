@@ -176,8 +176,6 @@ class CourseDTOList(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_authenticated:
-            return user.purchased_courses()
         return Course.objects.all()
 
     def get_serializer_context(self):

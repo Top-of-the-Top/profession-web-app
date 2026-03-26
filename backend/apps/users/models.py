@@ -200,8 +200,7 @@ class Profile(models.Model):
     def save(self, *args, **kwargs):
 
         is_new = self.pk is None
-        if is_new and self.avatar and hasattr(
-                self.avatar, 'file') and self.avatar.name != DEFAULT_PROFILE_IMAGE:
+        if is_new and self.avatar and self.avatar.name != DEFAULT_PROFILE_IMAGE:
             try :
                 image_file = self.avatar.file
             except (FileNotFoundError, ValueError, OSError):

@@ -74,7 +74,7 @@ def course_notification_signal(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Homework)
 def homework_deadline_handler(sender, instance, created, **kwargs):
     """Уведомление о ДЗ и планирование дедлайнов"""
-    course_id = instance.lesson_id.course_id_id
+    course_id = instance.lesson_id.section_id.course_id_id
     action = "создано" if created else "изменено"
 
     notify_author(instance, action)
@@ -107,7 +107,7 @@ def homework_deadline_handler(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Question)
 def question_notification(sender, instance, created, **kwargs):
     """Уведомление о вопросе"""
-    course_id = instance.homework_id.lesson_id.course_id_id
+    course_id = instance.homework_id.lesson_id.section_id.course_id_id
     action = "добавлен" if created else "отредактирован"
 
     notify_author(instance, action)
@@ -129,7 +129,7 @@ def question_notification(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Task)
 def task_notification(sender, instance, created, **kwargs):
     """Уведомление о задаче"""
-    course_id = instance.homework_id.lesson_id.course_id_id
+    course_id = instance.homework_id.lesson_id.section_id.course_id_id
     action = "добавлена" if created else "изменена"
 
     notify_author(instance, action)

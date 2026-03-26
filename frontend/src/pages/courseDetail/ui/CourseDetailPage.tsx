@@ -56,7 +56,7 @@ export default function CourseDetailPage() {
         setLoading(true);
         setError(null);
         const data = await courseApi.getCourseBySlug(slug);
-        setCourse(data.course);
+        setCourse(data);
       } catch (err) {
         notifyCourseDetailError(err);
         setError(

@@ -9,18 +9,44 @@ export interface CourseDTO {
   price: number;
   slug: string;
 }
-export interface Course extends CourseDTO{
-	created_at: string,
-	description: string
+
+export interface Course extends CourseDTO {
+  created_at: string;
+  updated_at: string;
+  description: string;
+  image: string;
+  last_modified_by: number;
+  authors: number[];
 }
 
 export interface CourseApiAnswer {
-	number_of_courses: string,
-	data: CourseDTO[]
+  number_of_courses: number;
+  data: CourseDTO[];
 }
-// TODO: ЭТО КОСТЫЛЬ! ПОГОВОРИТЬ С СЕМЕНОМ
-export interface CourseBySlugAnswer {
-	course: Course;
+
+type RawCoursesResponse = Course[] | CourseApiAnswer;
+type RawCourseBySlugResponse = Course | { course: Course };
+
+function normalizeCoursesResponse(raw: RawCoursesResponse): CourseApiAnswer {
+  if (Array.isArray(raw)) {
+    return {
+      number_of_courses: raw.length,
+      data: raw,
+    };
+  }
+
+  return {
+    number_of_courses: Number(raw.number_of_courses ?? 0),
+    data: Array.isArray(raw.data) ? raw.data : [],
+  };
+}
+
+function normalizeCourseBySlugResponse(raw: RawCourseBySlugResponse): Course {
+  if ('course' in raw) {
+    return raw.course;
+  }
+
+  return raw;
 }
 
 export const courseApi = {
@@ -28,17 +54,21 @@ export const courseApi = {
    * Получить список всех курсов
    */
   getCourses(): Promise<CourseApiAnswer> {
-    return apiClient.request<CourseApiAnswer>('/api/app/store/', {
+    return apiClient
+      .request<RawCoursesResponse>('/api/app/courses/', {
       method: 'GET',
-    });
+      })
+      .then(normalizeCoursesResponse);
   },
 
   /**
    * Получить курс по slug
    */
-  getCourseBySlug(slug: string): Promise<CourseBySlugAnswer> {
-    return apiClient.request<CourseBySlugAnswer>(`/api/app/courses/${slug}/`, {
-      method: 'GET',
-    });
+  getCourseBySlug(slug: string): Promise<Course> {
+    return apiClient
+      .request<RawCourseBySlugResponse>(`/api/app/courses/${slug}/`, {
+        method: 'GET',
+      })
+      .then(normalizeCourseBySlugResponse);
   },
 };

@@ -7,7 +7,7 @@ import tempfile
 from apps.users.models import User
 from apps.users.api.utils import encrypt_data
 from ..models import Course, Section, Lesson, Homework, Question, Task, DEFAULT_COURSE_IMAGE
-from test_models import BaseTestCase
+from .test_models import BaseTestCase
 
 def create_test_user(email='test@test.com', role='teacher'):
     return User.objects.create_user(

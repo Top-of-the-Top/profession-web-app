@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
 import {
   Sparkles,
@@ -9,9 +9,11 @@ import {
 } from 'lucide-react';
 import {
   Button,
+  Spinner,
 } from '../../../shared/ui';
 import { cn } from '../../../shared/lib/utils';
 import { useUserStore } from '../../../entities/user/model/userStore';
+import { tokenService } from '../../../shared/lib/auth/tokenService';
 import { useCart } from '../../../shared/api/queries/cart';
 import {
   connectNotificationSSE,
@@ -174,7 +176,9 @@ export default function AppLayout() {
         </div>
 
         <main className={styles.main}>
-          <Outlet />
+          <Suspense fallback={<Spinner full />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

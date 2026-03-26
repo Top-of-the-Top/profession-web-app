@@ -14,8 +14,8 @@ import {
   LessonPreviewPage,
   LessonViewPage,
   ToastPlaygroundPage,
-} from '../pages';
-import AppLayout from '../widgets/AppLayout/ui/AppLayout';
+  AppLayout,
+} from './lazyPages';
 
 import type { AppRoute } from './types';
 
@@ -77,9 +77,4 @@ export const routes: AppRoute[] = [
       // { path: 'distribute', element: <DistributePage /> },
     ],
   },
-  // {
-  //   path: '/cart',
-  //   element: <CartPage />,
-  //   protected: true,
-  // },
 ];

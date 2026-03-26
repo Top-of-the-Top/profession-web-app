@@ -12,8 +12,8 @@ import {
 } from '../../../shared/ui';
 import { cn } from '../../../shared/lib/utils';
 import styles from './LoginPage.module.css';
-import { useContext, useState } from 'react';
-import { AuthContext } from '../../../context/AuthContext';
+import { useState } from 'react';
+import { useUserStore } from '../../../entities/user/model/userStore';
 import { loginUser } from '../api';
 import { Link, useNavigate } from 'react-router-dom';
 import { ZodError } from 'zod';
@@ -43,7 +43,7 @@ function notifyLoginFailure(err: unknown) {
 
 export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
   const navigate = useNavigate();
-  const authContext = useContext(AuthContext);
+  const login = useUserStore((s) => s.login);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,7 +54,7 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
     try {
       const tokens = await loginUser({ emailOrPhone, password });
-      authContext?.login(tokens);
+      await login(tokens);
       navigate('/app', { replace: true });
     } catch (err) {
       if (err instanceof ZodError) {

@@ -10,13 +10,13 @@ import {
   FieldLabel,
   Input,
 } from '../../../shared/ui';
-import { useState, useContext } from 'react';
+import { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { cn } from '../../../shared/lib/utils';
 import styles from './RegistrationPage.module.css';
 import { registerUser } from '../api';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../../context/AuthContext';
+import { useUserStore } from '../../../entities/user/model/userStore';
 import { ZodError } from 'zod';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
 import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
@@ -52,7 +52,7 @@ export default function RegistrationForm({
   ...props
 }: React.ComponentProps<'div'>) {
   const [loading, setLoading] = useState(false);
-  const authContext = useContext(AuthContext);
+  const login = useUserStore((s) => s.login);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,7 +79,7 @@ export default function RegistrationForm({
 
     try {
       const tokens = await registerUser({ emailOrPhone, password });
-      authContext?.login(tokens);
+      await login(tokens);
       navigate('/app', { replace: true });
     } catch (err) {
       if (err instanceof ZodError) {

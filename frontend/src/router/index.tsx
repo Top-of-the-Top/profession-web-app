@@ -1,12 +1,12 @@
-// router/index.tsx
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Suspense } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 import { routes } from './routes';
+import { NotFoundPage } from './lazyPages';
+import { Spinner } from '../shared/ui';
 import type { AppRoute } from './types';
-import React from 'react';
-import { NotFoundPage } from '../pages';
 
 const renderRoutes = (routes: AppRoute[], basePath = '') =>
   routes.map(
@@ -44,9 +44,11 @@ const renderRoutes = (routes: AppRoute[], basePath = '') =>
 
 export const AppRouter = () => (
   <AuthProvider>
-    <Routes>
-      {renderRoutes(routes)}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+    <Suspense fallback={<Spinner full />}>
+      <Routes>
+        {renderRoutes(routes)}
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Suspense>
   </AuthProvider>
 );

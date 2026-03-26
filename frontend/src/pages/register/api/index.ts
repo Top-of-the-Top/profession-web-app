@@ -1,6 +1,6 @@
 import { authApi } from '../../../shared/api/authApi';
 import { prepareAuthData } from '../../../shared/utils/validation';
-import type { Tokens } from '../../../context/AuthContext';
+import type { Tokens } from '../../../shared/lib/auth/tokenService';
 import { RegisterTokensSchema } from '../../../schemas/auth/register.schema';
 
 interface RegisterParams {

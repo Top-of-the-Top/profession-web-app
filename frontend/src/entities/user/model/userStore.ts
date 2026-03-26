@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { profileApi, type ProfileData } from '../../../shared/api/profileApi';
 import { authEvents } from '../../../shared/events/authEvents';
+import { tokenService, type Tokens } from '../../../shared/lib/auth/tokenService';
 
 export type User = ProfileData;
 
@@ -10,11 +11,12 @@ export interface UserStoreState {
   isAuthChecked: boolean;
   setUser: (user: User | null) => void;
   fetchUser: () => Promise<void>;
+  login: (tokens: Tokens) => Promise<void>;
   logout: () => void;
   clearUser: () => void;
 }
 
-export const useUserStore = create<UserStoreState>((set) => ({
+export const useUserStore = create<UserStoreState>((set, get) => ({
   user: null,
   isLoading: false,
   isAuthChecked: false,
@@ -29,73 +31,42 @@ export const useUserStore = create<UserStoreState>((set) => ({
     }),
 
   fetchUser: async () => {
-    const accessToken = localStorage.getItem('access_token');
-    console.info('[auth] fetchUser start', { hasToken: Boolean(accessToken) });
-
-    if (!accessToken) {
-      console.info('[auth] fetchUser skip: no token');
-      set({
-        user: null,
-        isLoading: false,
-        isAuthChecked: true,
-      });
+    if (!tokenService.hasToken()) {
+      set({ user: null, isLoading: false, isAuthChecked: true });
       return;
     }
 
     set({ isLoading: true });
-    console.info('[auth] fetchUser loading=true');
 
     try {
       const user = await profileApi.getProfile();
-      console.info('[auth] fetchUser success', { userId: user.first_name });
-
-      set({
-        user,
-        isLoading: false,
-        isAuthChecked: true,
-      });
+      set({ user, isLoading: false, isAuthChecked: true });
     } catch (error) {
       const err = error as Error;
-      console.error('[auth] fetchUser failed', { message: err?.message });
 
-      // 401 и истёкший токен — очищаем токены на всякий случай
       if (
         err?.message === 'AUTH_EXPIRED' ||
         err?.message?.includes('API_ERROR_401')
       ) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('access_expires_at');
-        localStorage.removeItem('refresh_expires_at');
+        tokenService.clearTokens();
       }
 
-      set({
-        user: null,
-        isLoading: false,
-        isAuthChecked: true,
-      });
-      console.info('[auth] fetchUser done with empty user');
-
+      set({ user: null, isLoading: false, isAuthChecked: true });
       throw error;
     }
   },
 
-  logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('access_expires_at');
-    localStorage.removeItem('refresh_expires_at');
+  login: async (tokens: Tokens) => {
+    tokenService.setTokens(tokens);
+    await get().fetchUser();
+  },
 
-    set({
-      user: null,
-      isLoading: false,
-      isAuthChecked: true,
-    });
+  logout: () => {
+    tokenService.clearTokens();
+    set({ user: null, isLoading: false, isAuthChecked: true });
   },
 }));
 
-// Глобальная реакция на logout из ApiClient (401 и т.п.)
 authEvents.addEventListener('logout', () => {
   useUserStore.getState().clearUser();
 });
-

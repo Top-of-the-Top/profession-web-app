@@ -10,6 +10,8 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Spinner,
+  PageTransition,
 } from '../../../shared/ui';
 import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars } from 'lucide-react';
 import styles from './ProfilePage.module.css';
@@ -22,6 +24,29 @@ import {
   type UpdateProfilePayload,
 } from '../../../shared/api/profileApi';
 import { useUserStore } from '../../../entities/user/model/userStore';
+import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
+
+function notifyProfileSaveError(err: unknown) {
+  if (err instanceof Error && err.message === 'AUTH_EXPIRED') {
+    notifyError({
+      title: 'нужен повторный вход',
+      description: 'Сессия истекла. Войдите в аккаунт снова.',
+    });
+    return;
+  }
+  const parsed = parseApiError(err);
+  if (!parsed) {
+    const fb = messageForApiFailure('profileUpdate', 0, {});
+    notifyError({
+      title: fb.title,
+      description: err instanceof Error ? err.message : fb.description,
+    });
+    return;
+  }
+  const msg = messageForApiFailure('profileUpdate', parsed.status, parsed.body);
+  notifyError({ title: msg.title, description: msg.description });
+}
 
 interface ProfileFieldProps {
   icon: React.ReactNode;
@@ -51,10 +76,10 @@ const ProfileField = ({
 );
 
 export default function ProfilePage() {
+  const user = useUserStore((state) => state.user);
+  const isLoading = useUserStore((state) => state.isLoading);
   const setUser = useUserStore((state) => state.setUser);
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(user);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const [isChangeNameMenuOpen, setChangeMenuOpen] = useState(false);
@@ -63,23 +88,14 @@ export default function ProfilePage() {
   const [gender, setGender] = useState<string | null>(null);
 
   useEffect(() => {
-    profileApi
-      .getProfile()
-      .then((data) => {
-        setProfile(data);
-        setGender(data.gender || null);
-        setAvatarUrl(data.avatar);
-        setUser(data);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError('Не удалось загрузить профиль');
-      })
-      .finally(() => setLoading(false));
-  }, [setUser]);
+    setProfile(user);
+    setGender(user?.gender || null);
+    setAvatarUrl(user?.avatar || null);
+  }, [user]);
 
   // --- Изменение пола ---
   const updateGender = async (value: string) => {
+    const previous = gender;
     setGender(value);
     try {
       await profileApi.updateProfile({ gender: value });
@@ -91,7 +107,8 @@ export default function ProfilePage() {
         return next;
       });
     } catch (err) {
-      console.error('Ошибка обновления пола', err);
+      notifyProfileSaveError(err);
+      setGender(previous);
     }
   };
 
@@ -115,8 +132,7 @@ export default function ProfilePage() {
   const anyMenuOpen =
     isChangeNameMenuOpen || isEmailMenuOpen || isPhoneMenuOpen;
 
-  if (loading) return <div>Загрузка профиля...</div>;
-  if (error) return <div>{error}</div>;
+  if (isLoading && !profile) return <Spinner full />;
   if (!profile) return <div>Профиль недоступен</div>;
 
   const handleNameSave = async (data: {
@@ -124,38 +140,48 @@ export default function ProfilePage() {
     lastName: string;
     avatar?: File | null;
   }) => {
+    const prevAvatar = profile.avatar;
+
     try {
       const updateData: UpdateProfilePayload = {
         first_name: data.firstName,
         last_name: data.lastName,
       };
 
+      let blobUrl: string | null = null;
       if (data.avatar instanceof File) {
         updateData.avatar = data.avatar;
-        const tempUrl = URL.createObjectURL(data.avatar);
-        setAvatarUrl(tempUrl);
+        blobUrl = URL.createObjectURL(data.avatar);
       }
+
+      const optimistic: ProfileData = {
+        ...profile,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        ...(blobUrl ? { avatar: blobUrl } : {}),
+      };
+
+      setProfile(optimistic);
+      setAvatarUrl(blobUrl ?? prevAvatar);
+      setUser(optimistic);
+      setChangeMenuOpen(false);
 
       await profileApi.updateProfile(updateData);
 
-      setProfile((prev) => {
-        const next = prev
-          ? {
-              ...prev,
-              first_name: data.firstName,
-              last_name: data.lastName,
-            }
-          : prev;
-        if (next) {
-          setUser(next);
-        }
-        return next;
-      });
+      const fresh = await profileApi.getProfile();
+      setProfile(fresh);
+      setAvatarUrl(fresh.avatar);
+      setUser(fresh);
 
-      setChangeMenuOpen(false);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      console.error('Ошибка обновления имени', err);
-      setAvatarUrl(profile.avatar);
+      notifyProfileSaveError(err);
+      setAvatarUrl(prevAvatar);
+      const reverted = await profileApi.getProfile().catch(() => null);
+      if (reverted) {
+        setProfile(reverted);
+        setUser(reverted);
+      }
     }
   };
 
@@ -186,7 +212,7 @@ export default function ProfilePage() {
         setPhoneMenuOpen(false);
       }
     } catch (err) {
-      console.error(`Ошибка обновления ${type}`, err);
+      notifyProfileSaveError(err);
     }
   };
 
@@ -197,7 +223,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className={styles.profilePage}>
+    <PageTransition className={styles.profilePage}>
       {anyMenuOpen && (
         <div className={styles.overlay} onClick={closeAllMenus} />
       )}
@@ -248,8 +274,13 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div className={styles.profileFieldAction}>
-                  <Button variant="ghost" size="icon" onClick={toggleNameMenu}>
-                    <Pencil size={16} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={styles.pencilEditButton}
+                    onClick={toggleNameMenu}
+                  >
+                    <Pencil className={styles.pencilIcon} size={16} />
                   </Button>
                 </div>
               </div>
@@ -263,8 +294,13 @@ export default function ProfilePage() {
                 value={profile.email}
                 onClick={toggleEmailMenu}
                 actionButton={
-                  <Button variant="ghost" size="icon" onClick={toggleEmailMenu}>
-                    <Pencil size={16} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={styles.pencilEditButton}
+                    onClick={toggleEmailMenu}
+                  >
+                    <Pencil className={styles.pencilIcon} size={16} />
                   </Button>
                 }
               />
@@ -274,8 +310,13 @@ export default function ProfilePage() {
                 value={profile.phone_number}
                 onClick={togglePhoneMenu}
                 actionButton={
-                  <Button variant="ghost" size="icon" onClick={togglePhoneMenu}>
-                    <Plus size={16} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={styles.pencilEditButton}
+                    onClick={togglePhoneMenu}
+                  >
+                    <Plus className={styles.plusIcon} size={16} />
                   </Button>
                 }
               />
@@ -290,8 +331,12 @@ export default function ProfilePage() {
                 label="Дата рождения"
                 value={profile.birthday}
                 actionButton={
-                  <Button variant="ghost" size="icon">
-                    <Plus size={16} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={styles.pencilEditButton}
+                  >
+                    <Plus className={styles.plusIcon} size={16} />
                   </Button>
                 }
               />
@@ -319,7 +364,7 @@ export default function ProfilePage() {
                       </span>
                     </div>
                     <div className={styles.profileFieldAction}>
-                      <Pencil size={16} />
+                      <Pencil className={styles.pencilIcon} size={16} />
                     </div>
                   </div>
                 </SelectTrigger>
@@ -336,6 +381,6 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageTransition>
   );
 }

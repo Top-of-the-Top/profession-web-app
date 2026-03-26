@@ -2,11 +2,11 @@
 import { apiClient } from './interceptor';
 
 export const authApi = {
-  login(data: { email: string | null; phone_number: string | null; pass_hash: string; date_time: string }) {
+  login(data: { email: string | null; phone_number: string | null; password: string; date_time: string }) {
     return apiClient.request('/api/auth/login/', { method: 'POST', body: JSON.stringify(data) });
   },
 
-  register(data: { email: string | null; phone_number: string | null; pass_hash: string; date_time: string }) {
+  register(data: { email: string | null; phone_number: string | null; password: string; date_time: string }) {
     return apiClient.request('/api/auth/register/', { method: 'POST', body: JSON.stringify(data) });
   },
 
@@ -15,6 +15,9 @@ export const authApi = {
   },
 
   resetPassword(data: { password_hash: string; token: string }) {
-    return apiClient.request('/api/auth/recover/set/', { method: 'PATCH', body: JSON.stringify(data) });
+    return apiClient.request('/api/auth/recover/set/', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
   },
 };

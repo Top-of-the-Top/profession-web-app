@@ -36,8 +36,8 @@ html {
   justify-content: center;
   padding: 0 24px;
   position: sticky;
-	top: 0;
-	left: 0;
+  top: 0;
+  left: 0;
   background-image: linear-gradient(
     to bottom,
     #ffffff,
@@ -191,25 +191,75 @@ html {
   box-sizing: border-box;
 }
 
+.tracksPagination {
+  margin-top: 32px;
+  margin-bottom: 24px;
+}
+
 .trackCard {
-  height: 100%;
-  gap: 15px !important;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  gap: 0 !important;
   border: 1px solid black !important;
   box-shadow: 1px 3px 0 0 black !important;
   border-radius: 40px !important;
-  padding: 30px 20px 20px 10px !important;
-  position: relative; /* для позиционирования изображения */
+  padding: 34px 30px 30px 34px !important;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex !important;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+/* Ряд: слева текст (верх/низ), справа картинка к низу */
+.trackCardLayout {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  gap: 16px;
+}
+
+.trackCardLeft {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.trackCardTop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trackCardActions {
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.trackImageCol {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  flex: 0 0 clamp(100px, 36%, 220px);
+  min-width: 0;
 }
 
 .trackHeader {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 1px !important;
+  margin-bottom: 0 !important;
 }
 
 .trackPrice {
   font-size: 30px;
+  line-height: 1.15;
 }
 
 .trackTitle {
@@ -218,22 +268,19 @@ html {
   padding: 5px;
   border-radius: 8px;
   width: fit-content;
-}
-
-.trackFooter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 16px;
-  position: relative;
+  max-width: 100%;
 }
 
 .trackImage {
-  width: 150px;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: right bottom;
   border-radius: 12px;
-  position: absolute;
-  right: 0;
-  bottom: 0px;
+  display: block;
+  pointer-events: none;
 }
 
 .trackButton {
@@ -295,6 +342,9 @@ html {
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
+.collapsibleTrigger[data-state='open'] .collapsibleTitle, .collapsibleTrigger[data-state='open'] .collapsibleNumber {
+	color: white !important;
+}
 
 .collapsibleTrigger:hover {
   background-color: var(--color-surface-hover);
@@ -317,15 +367,14 @@ html {
 .collapsibleTitleWrapper {
   flex: 1;
   text-align: left;
-	
 }
 
 .collapsibleTitle {
   font-size: 25px;
   font-weight: 500;
   color: black;
-	 -webkit-appearance: none;
-	 appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .collapsibleIcon {
@@ -438,7 +487,7 @@ html {
 
   .burgerButton {
     display: flex;
-		z-index: 100;
+    z-index: 100;
   }
 
   .headerWrapper {
@@ -447,31 +496,30 @@ html {
     align-items: flex-start;
   }
 
-	
   .heroTitle {
     font-size: 32px;
   }
 
-  .heroTitle, .heroHighlight {
-		text-align: left;
-		font-size: 55px;
-		font-weight: 700;
-	}
-	.heroText {
-		text-align: left;
-	}
+  .heroTitle,
+  .heroHighlight {
+    text-align: left;
+    font-size: 55px;
+    font-weight: 700;
+  }
+  .heroText {
+    text-align: left;
+  }
 
-	.heroCta p {
-		width: 70%;
-		padding: 30px 0;
-		font-size: 20px;
-	}
-	.heroDescription {
-		display: flex;
-		flex-direction: column;
-		gap: 30px;
-
-	}
+  .heroCta p {
+    width: 70%;
+    padding: 30px 0;
+    font-size: 20px;
+  }
+  .heroDescription {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
 
   .hero {
     flex-direction: column; /* ставим текст и картинку в колонку */
@@ -501,11 +549,11 @@ html {
   }
 
   .trackCard {
-    padding: 20px 15px 15px 10px !important;
+    padding: 20px 15px 16px 16px !important;
   }
 
-  .trackImage {
-    width: 120px; /* уменьшаем картинку */
+  .trackImageCol {
+    flex: 0 0 min(108px, 34%);
   }
 
   /* Аккордеон */
@@ -516,13 +564,13 @@ html {
 
   .collapsibleTitle {
     font-size: 20px;
-		 -webkit-appearance: none;
-	 appearance: none;
-
+    -webkit-appearance: none;
+    appearance: none;
   }
-	.collapsibleItem[data-state='open'] .collapsibleTitle, .collapsibleItem[data-state='open'] .collapsibleNumber {
-  color: white;
-}
+  .collapsibleItem[data-state='open'] .collapsibleTitle,
+  .collapsibleItem[data-state='open'] .collapsibleNumber {
+    color: white !important;
+  }
 
   .collapsibleTrigger {
     padding: 20px;
@@ -548,7 +596,6 @@ html {
   .header {
     /* height: auto; */
     padding: 10px 16px;
-		
   }
 
   .headerWrapper {
@@ -573,26 +620,26 @@ html {
     font-size: 32px;
   }
 
-  .heroTitle, .heroHighlight {
-		text-align: left;
-		font-size: 55px;
-		font-weight: 700;
-	}
-	.heroText {
-		text-align: left;
-	}
+  .heroTitle,
+  .heroHighlight {
+    text-align: left;
+    font-size: 55px;
+    font-weight: 700;
+  }
+  .heroText {
+    text-align: left;
+  }
 
-	.heroCta p {
-		width: 70%;
-		padding: 30px 0;
-		font-size: 20px;
-	}
-	.heroDescription {
-		display: flex;
-		flex-direction: column;
-		gap: 30px;
-
-	}
+  .heroCta p {
+    width: 70%;
+    padding: 30px 0;
+    font-size: 20px;
+  }
+  .heroDescription {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
   .hero {
     margin-top: 120px;
     background-size: 250px auto;
@@ -604,14 +651,13 @@ html {
 
   .sectionTitle {
     font-size: 25px;
-		padding: 5px 10px 5px 10px;
-		font-weight: 500;
+    padding: 5px 10px 5px 10px;
+    font-weight: 500;
   }
-	.sectionHeader {
-		flex-direction: column;
-		gap: 20px;
-		
-	}
+  .sectionHeader {
+    flex-direction: column;
+    gap: 20px;
+  }
 
   .sectionDescription {
     font-size: 14px;
@@ -625,13 +671,11 @@ html {
     font-size: 20px;
   }
 
-  .trackImage {
-    width: 100px;
-    bottom: 5px;
+  .trackImageCol {
+    flex: 0 0 min(88px, 30%);
   }
 
-  .trackFooter {
-    flex-wrap: wrap;
+  .trackCardLayout {
     gap: 10px;
   }
 
@@ -643,8 +687,8 @@ html {
 
   .collapsibleTitle {
     font-size: 18px;
-		 -webkit-appearance: none;
-	 appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
   }
 
   .collapsibleTriggerContent {
@@ -670,9 +714,9 @@ html {
   background: transparent;
   border: none;
   cursor: pointer;
-	padding: 0;
+  padding: 0;
   z-index: 100;
-	color: black;
+  color: black;
 }
 
 .desktopAuth {
@@ -692,18 +736,20 @@ html {
   padding: 30px;
   background: #fff;
   border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 
   display: flex;
   flex-direction: column;
   gap: 20px;
 
-  transition: transform 0.5s ease, opacity 0.25s ease;
+  transition:
+    transform 0.5s ease,
+    opacity 0.25s ease;
   z-index: 100;
 }
 
 .mobileMenu svg {
-	z-index: 100;
+  z-index: 100;
 }
 .mobileMenu.open {
   transform: translate(-50%, 80px);
@@ -713,23 +759,23 @@ html {
 .menuBackground {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
   z-index: 90;
-	display: none;
+  display: none;
 }
 .bgOpen {
-	display: block;
+  display: block;
 }
 
 .mobileNav {
-	display: flex;
+  display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 .mobileNav a {
-	text-align: left !important;
-	justify-content: flex-start !important;
-	padding: 0 !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  padding: 0 !important;
 }
 .mobileAuth {
   display: flex;
@@ -739,7 +785,7 @@ html {
   gap: 12px;
 }
 .mobileAuth button {
-	width: 100% !important;
+  width: 100% !important;
 }
 
 .mobileNav .navLink,
@@ -757,7 +803,7 @@ html {
 
   .burgerButton {
     display: flex;
-		z-index: 100;
+    z-index: 100;
   }
 
   .headerWrapper {

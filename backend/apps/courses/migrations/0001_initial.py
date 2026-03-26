@@ -28,7 +28,8 @@ class Migration(migrations.Migration):
                 ('title', models.CharField(max_length=120, verbose_name='Название урока')),
                 ('slug', models.SlugField(blank=True, max_length=120, verbose_name='URL')),
                 ('date', models.DateTimeField()),
-                ('course_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.course')),
+                ('course_id', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, to='courses.course')),
             ],
         ),
         migrations.CreateModel(
@@ -37,7 +38,8 @@ class Migration(migrations.Migration):
                 ('homework_id', models.AutoField(primary_key=True, serialize=False)),
                 ('title', models.CharField(max_length=120, verbose_name='Название урока')),
                 ('slug', models.SlugField(blank=True, max_length=120, verbose_name='URL')),
-                ('lesson_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.lesson')),
+                ('lesson_id', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, to='courses.lesson')),
             ],
         ),
     ]

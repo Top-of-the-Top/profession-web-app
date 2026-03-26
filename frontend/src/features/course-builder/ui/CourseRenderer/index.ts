@@ -1,0 +1,1 @@
+export { CourseRenderer } from './CourseRenderer';

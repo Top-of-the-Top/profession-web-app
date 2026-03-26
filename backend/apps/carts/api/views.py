@@ -85,7 +85,6 @@ class AddToCartView(APIView):
             404: {"description": "Тело: { detail: 'Курс с таким slug не найден в списке курсов.' }.", "schema": SCHEMA_404},
         },
     )
-
     def post(self, request, slug):
         cart, _ = Cart.objects.get_or_create(user=request.user)
         course = Course.objects.filter(slug=slug).first()
@@ -96,7 +95,8 @@ class AddToCartView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if CartItem.objects.filter(cart_id=cart.cart_id, course_id=course.course_id).exists():
+        if CartItem.objects.filter(cart_id=cart.cart_id,
+                                   course_id=course.course_id).exists():
             return Response(
                 {'error': 'Курс уже в корзине'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -109,7 +109,6 @@ class AddToCartView(APIView):
 
         serializer = CartItemSerializer(cart_item)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
 
 
 class CartItemView(APIView):

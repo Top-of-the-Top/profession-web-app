@@ -1,56 +1,81 @@
-// src/widgets/admin-layout/index.tsx
-import { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
 import {
-  Upload,
-  Edit,
-  Users,
-  Trash2,
-  ArrowRight,
-  AlertCircle,
-  ShoppingCart,
+  Sparkles,
+  House,
+  ShoppingBag,
+  CalendarDays,
+  ClipboardList,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import {
   Button,
-  Alert,
-  AlertDescription,
-  AlertTitle,
 } from '../../../shared/ui';
 import { cn } from '../../../shared/lib/utils';
 import { useUserStore } from '../../../entities/user/model/userStore';
+import { useCartSummaryStore } from '../../../entities/cart/model/cartSummaryStore';
+import {
+  connectNotificationSSE,
+  disconnectNotificationSSE,
+} from '../../../features/notification/model/notification.sse';
 
 import styles from './AppLayout.module.css';
 
-type ErrorType =
-  | 'forbidden'
-  | 'server_error'
-  | 'network_error'
-  | 'unauthorized'
-  | null;
-
 export default function AppLayout() {
-  const location = useLocation();
+  const { pathname } = useLocation();
   const user = useUserStore((state) => state.user);
+  const hasToken = Boolean(localStorage.getItem('access_token'));
+  const cartHasItems = useCartSummaryStore((s) => s.hasItems);
+  const refreshCartSummary = useCartSummaryStore((s) => s.refresh);
+  const resetCartSummary = useCartSummaryStore((s) => s.reset);
+
+  const initials = [user?.first_name?.at(0), user?.last_name?.at(-1)]
+    .filter(Boolean)
+    .join('');
+
+  useEffect(() => {
+    if (!hasToken) {
+      resetCartSummary();
+      return;
+    }
+    void refreshCartSummary();
+  }, [hasToken, refreshCartSummary, resetCartSummary]);
+
+  useEffect(() => {
+    if (hasToken && user) {
+      console.info('[layout] SSE connect', { hasUser: true });
+      connectNotificationSSE();
+      return;
+    }
+
+    console.info('[layout] SSE disconnect', {
+      hasToken,
+      hasUser: Boolean(user),
+    });
+    disconnectNotificationSSE();
+    return () => {
+      disconnectNotificationSSE();
+    };
+  }, [hasToken, user]);
 
   const navItems = [
-    { href: '/app/home', label: 'Домашняя', icon: ArrowRight, id: 'home' },
+    { href: '/app', label: 'Тосты', icon: Sparkles, id: 'toasts' },
+    { href: '/app/home', label: 'Домашняя', icon: House, id: 'home' },
     {
       href: '/app/store',
       label: 'Магазин',
-      icon: Upload,
+      icon: ShoppingBag,
       id: 'upload',
     },
     {
       href: '/app/modify',
       label: 'Расписание',
-      icon: Edit,
+      icon: CalendarDays,
       id: 'modify',
     },
     {
       href: '/app/distribute',
       label: 'Задания',
-      icon: Users,
+      icon: ClipboardList,
       id: 'distribute',
     },
   ];
@@ -58,17 +83,27 @@ export default function AppLayout() {
   return (
     <div className={styles.container}>
       <header className={styles.topbar}>
-        <img src="/profession-logo.svg" alt="Logo" className={styles.logo} />
+        <img src="/profession-logo-blue.svg" alt="Logo" className={styles.logo} />
         <div className={styles.topbarItem}>
-          <Link className={styles.headerLink} to="cart">
-            <ShoppingCart width="20px" height="20px" />
+          <Link className={styles.headerLink} to="cart" aria-label="Корзина">
+            <img
+              src={cartHasItems ? '/cart-full.svg' : '/cart.svg'}
+              alt=""
+              className={styles.cartHeaderIcon}
+              width={20}
+              height={20}
+              decoding="async"
+            />
           </Link>
           <Link to="profile" className={styles.headerLink}>
             <div className={styles.pfp}>
-              <img
-                src={user?.avatar || '/ya.svg'}
-                alt="Profile"
-              />
+              {user?.avatar ? (
+                <img src={user.avatar} alt="Profile" />
+              ) : (
+                <span className={styles.pfpFallback}>
+                  {initials || 'U'}
+                </span>
+              )}
             </div>
           </Link>
         </div>
@@ -79,25 +114,34 @@ export default function AppLayout() {
             <p>Меню</p>
             <nav className={styles.nav}>
               {navItems.map(({ href, label, icon: Icon, id }) => {
-                const isActive = location.pathname === href;
-
+                const storeActive =
+                  id === 'upload' &&
+                  (pathname.startsWith('/app/store') ||
+                    pathname.startsWith('/app/courses'));
                 return (
-                  <Link
+                  <NavLink
                     key={href}
                     to={href}
-                    className={cn(styles.navLink, styles[id])}
+                    end={href === '/app'}
+                    className={({ isActive }) =>
+                      cn(
+                        styles.navLink,
+                        styles[id],
+                        (storeActive || isActive) && styles.navLinkActive,
+                      )
+                    }
                   >
                     <Button variant="secondary" className={styles.navButton}>
                       <Icon className={styles.navIcon} strokeWidth={2} />
                       <span>{label}</span>
                     </Button>
-                  </Link>
+                  </NavLink>
                 );
               })}
             </nav>
           </div>
 
-          <div className={styles.statsSection}>
+          {/* <div className={styles.statsSection}>
             {status === 'connecting' && (
               <div className={styles.loading}>Подключение к серверу...</div>
             )}
@@ -121,12 +165,20 @@ export default function AppLayout() {
                 <Alert variant="destructive">
                   <AlertCircle />
                   <AlertTitle>Ошибка подключения</AlertTitle>
-                  <AlertDescription>{}</AlertDescription>
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
-                <Button onClick={() => {}}>Переподключиться</Button>
+                <Button
+                  onClick={() => {
+                    if (hasToken && user) {
+                      connectNotificationSSE();
+                    }
+                  }}
+                >
+                  Переподключиться
+                </Button>
               </>
             )}
-          </div>
+          </div> */}
         </div>
 
         <main className={styles.main}>

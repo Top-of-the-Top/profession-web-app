@@ -30,9 +30,10 @@ export const useUserStore = create<UserStoreState>((set) => ({
 
   fetchUser: async () => {
     const accessToken = localStorage.getItem('access_token');
+    console.info('[auth] fetchUser start', { hasToken: Boolean(accessToken) });
 
-    // Если токена нет — просто помечаем, что проверка завершена
     if (!accessToken) {
+      console.info('[auth] fetchUser skip: no token');
       set({
         user: null,
         isLoading: false,
@@ -42,9 +43,11 @@ export const useUserStore = create<UserStoreState>((set) => ({
     }
 
     set({ isLoading: true });
+    console.info('[auth] fetchUser loading=true');
 
     try {
       const user = await profileApi.getProfile();
+      console.info('[auth] fetchUser success', { userId: user.first_name });
 
       set({
         user,
@@ -53,6 +56,7 @@ export const useUserStore = create<UserStoreState>((set) => ({
       });
     } catch (error) {
       const err = error as Error;
+      console.error('[auth] fetchUser failed', { message: err?.message });
 
       // 401 и истёкший токен — очищаем токены на всякий случай
       if (
@@ -70,8 +74,8 @@ export const useUserStore = create<UserStoreState>((set) => ({
         isLoading: false,
         isAuthChecked: true,
       });
+      console.info('[auth] fetchUser done with empty user');
 
-      // Ошибку не игнорируем — пробрасываем выше
       throw error;
     }
   },

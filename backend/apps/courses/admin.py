@@ -1,4 +1,4 @@
-from .models import Course, Lesson, Homework, Task, Question, Users_tasks_answers, Users_Homeworks_Attempts, Users_questions_answers, PurchasedCourse
+from .models import Course, Section, Lesson, Homework, Task, Question, Users_tasks_answers, Users_Homeworks_Attempts, Users_questions_answers, PurchasedCourse
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -25,13 +25,15 @@ class CourseAdmin(admin.ModelAdmin):
     def image_preview(self, obj):
         """Миниатюра картинки"""
         if obj.image_url:
-            return format_html('<img src="{}" style="max-height: 50px;" />', obj.image_url)
+            return format_html(
+                '<img src="{}" style="max-height: 50px;" />', obj.image_url)
         return "Нет картинки"
 
     image_preview.short_description = 'Изображение'
 
-
-
+@admin.register(Section)
+class SectionAdmin(admin.ModelAdmin):
+    prepopulated_fields = {"slug": ("title",)}
 
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
@@ -42,9 +44,11 @@ class LessonAdmin(admin.ModelAdmin):
 class HomeworkAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("title",)}
 
+
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     pass
+
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
@@ -55,9 +59,11 @@ class QuestionAdmin(admin.ModelAdmin):
 class AttemptAdmin(admin.ModelAdmin):
     pass
 
+
 @admin.register(Users_questions_answers)
 class QuestionAnswerAdmin(admin.ModelAdmin):
     pass
+
 
 @admin.register(Users_tasks_answers)
 class TaskAnswerAdmin(admin.ModelAdmin):
@@ -66,7 +72,11 @@ class TaskAnswerAdmin(admin.ModelAdmin):
 
 @admin.register(PurchasedCourse)
 class PurchasedCourseAdmin(admin.ModelAdmin):
-    list_display = ('user', 'course', 'payment', 'access_expires_at', 'is_active')
+    list_display = (
+        'user',
+        'course',
+        'payment',
+        'access_expires_at',
+        'is_active')
     list_filter = ('access_expires_at',)
     search_fields = ('user__email_cipher', 'course__title')
-

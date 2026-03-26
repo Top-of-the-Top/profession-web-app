@@ -8,6 +8,7 @@ frontend/.vite
 .DS_Store
 .idea
 .vscode
+.cursor
 .env
 
 # Виртуальное окружение
@@ -29,3 +30,5 @@ __pycache__/
 
 # Логи
 *.log
+
+.cursor/

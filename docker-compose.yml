@@ -11,6 +11,10 @@ services:
       - frontend_node_modules:/app/node_modules
     environment:
       - VITE_ADMINKA_GATEWAY_URL=${VITE_ADMINKA_GATEWAY_URL:-http://localhost:9000}
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=300
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_PORT=0
     networks:
       - app_network
 
@@ -20,27 +24,13 @@ services:
     restart: unless-stopped
     env_file:
       - ./backend/.env
+    command: python manage.py runserver 0.0.0.0:9000
     volumes:
       - ./backend:/app
       - static_volume:/app/static
       - media_volume:/app/media
     ports:
       - "${BACKEND_PORT:-9000}:9000"
-    networks:
-      - app_network
-
-  celery_worker:
-    build: ./backend
-    container_name: profession_web_app_celery
-    restart: unless-stopped
-    env_file:
-      - ./backend/.env
-    volumes:
-      - ./backend:/app
-    command: celery -A project worker --loglevel=info
-    depends_on:
-      - redis
-      - backend
     networks:
       - app_network
 
@@ -53,12 +43,66 @@ services:
     networks:
       - app_network
 
+  # Блок с асинхронной распределенной очередью celery
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    hostname: rabbitmq
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app_network
+
+  celery_worker:
+    build: ./backend
+    restart: unless-stopped
+    working_dir: /app
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+    command: celery -A project worker --loglevel=info --concurrency=3
+    depends_on:
+      - rabbitmq
+      - redis
+      - backend
+    environment:
+      - PYTHONPATH=/app
+      - RABBITMQ_HOST=rabbitmq
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+    networks:
+      - app_network
+
+  flower:
+    build: ./backend
+    container_name: flower
+    working_dir: /app
+    command: celery -A project flower --port=5555
+    environment:
+      - PYTHONPATH=/app
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    ports:
+      - "5555:5555"
+    depends_on:
+      - rabbitmq
+    networks:
+      - app_network
 
 volumes:
   static_volume:
   media_volume:
   frontend_node_modules:
   redis_data:
+  rabbitmq_data:
 
 networks:
   app_network:

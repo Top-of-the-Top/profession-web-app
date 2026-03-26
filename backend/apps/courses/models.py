@@ -1,15 +1,29 @@
 from django.db import models
-from django.db.models.signals import pre_delete, pre_save
 import os
-from django.dispatch import receiver
-from rest_framework.exceptions import ValidationError
+from django.core.exceptions import ValidationError
 from ..users.models import User
 from django.db.models import Sum
 import uuid
 from slugify import slugify
-
+from crum import get_current_user
 
 DEFAULT_COURSE_IMAGE = "courses/default_course.png"
+
+class TrackedModel(models.Model):
+    """Абстрактная модель для отслеживания автора изменений"""
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата изменения")
+    last_modified_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Кто изменил",
+        related_name="%(class)s_modifications"
+    )
+
+    class Meta:
+        abstract = True
 
 
 def course_image_path(instance, filename):
@@ -26,13 +40,18 @@ def generate_unique_slug(instance, title, slug_field='slug'):
     return f"{base_slug}-{uuid_part}"
 
 
-class Course(models.Model):
+class Course(TrackedModel):
     course_id = models.AutoField(primary_key=True)
+    authors = models.ManyToManyField(
+        User,
+        related_name='authored_courses',
+        verbose_name='Авторы курса'
+    )
     title = models.CharField(max_length=50, verbose_name='Название курса')
     sub_title = models.CharField(max_length=75, verbose_name='Краткое описание курса')
     description = models.TextField(verbose_name="Описание курса")
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
-    price = models.PositiveIntegerField()
+    price = models.PositiveIntegerField(verbose_name='Цена')
     image = models.ImageField(
         upload_to=course_image_path,
         blank=True,
@@ -40,7 +59,6 @@ class Course(models.Model):
         verbose_name='Изображение курса',
         default=DEFAULT_COURSE_IMAGE,
     )
-    created_at = models.DateTimeField(auto_now_add=True)
 
     @property
     def image_url(self):
@@ -50,13 +68,18 @@ class Course(models.Model):
         return f'https://storage.yandexcloud.net/{bucket}/{DEFAULT_COURSE_IMAGE}'
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+
         if not self.slug:
             self.slug = generate_unique_slug(self, self.title)
-            super().save(update_fields=['slug'])
 
-        is_new = self.pk is None
-        if is_new and self.image and hasattr(self.image, 'file') and self.image.name != DEFAULT_COURSE_IMAGE:
-            image_file = self.image.file
+        if is_new and self.image and self.image.name != DEFAULT_COURSE_IMAGE:
+            try:
+                image_file = self.image.file
+            except (FileNotFoundError, ValueError, OSError):
+                super().save(*args, **kwargs)
+                return
+
             original_name = getattr(self.image, 'name', 'image.jpg')
 
             self.image = None
@@ -71,6 +94,7 @@ class Course(models.Model):
         else:
             super().save(*args, **kwargs)
 
+
     class Meta:
         verbose_name = 'Курс'
         verbose_name_plural = 'Курсы'
@@ -78,32 +102,45 @@ class Course(models.Model):
 
     def __str__(self):
         return self.title
-@receiver(pre_save, sender=Course)
-def handle_course_image_update(sender, instance, **kwargs):
-    if not instance.pk:
-        return
 
-    try:
-        old_instance = sender.objects.get(pk=instance.pk)
-        if (old_instance.image and old_instance.image.name != DEFAULT_COURSE_IMAGE and
-                instance.image and instance.image != old_instance.image):
-            old_instance.image.delete(save=False)
-    except sender.DoesNotExist:
-        pass
+class Section(TrackedModel):
+    section_id = models.PositiveIntegerField(verbose_name='Номер секции')
+    course_id = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name='ID курса')
+    title = models.CharField(max_length=120, verbose_name='Название секции')
+    slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.section_id:
+            last_section = Section.objects.filter(
+                course_id=self.course_id
+            ).order_by('section_id').last()
+
+            if last_section:
+                self.section_id = last_section.section_id + 1
+            else:
+                self.section_id = 1
+
+        if not self.slug:
+            self.slug = generate_unique_slug(self, self.title)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name = 'Секция'
+        verbose_name_plural = 'Секции'
+        ordering = ['course_id','section_id']
+        unique_together = [['course_id', 'section_id']]
 
 
-@receiver(pre_delete, sender=Course)
-def delete_course_image(sender, instance, **kwargs):
-    if instance.image and instance.image.name != DEFAULT_COURSE_IMAGE:
-        instance.image.delete(save=False)
-
-
-class Lesson(models.Model):
+class Lesson(TrackedModel):
     lesson_id = models.AutoField(primary_key=True)
-    course_id = models.ForeignKey(Course, on_delete=models.CASCADE)
+    section_id = models.ForeignKey(Section, on_delete=models.CASCADE, null=True, verbose_name='ID секции')
     title = models.CharField(max_length=120, verbose_name='Название урока')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
-    date = models.DateTimeField()
+    date = models.DateTimeField(verbose_name='Дата проведения урока')
 
     def __str__(self):
         return self.title
@@ -111,7 +148,6 @@ class Lesson(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = generate_unique_slug(self, self.title)
-            super().save(update_fields=['slug'])
 
         super().save(*args, **kwargs)
 
@@ -121,19 +157,17 @@ class Lesson(models.Model):
         ordering = ['date']
 
 
-class Homework(models.Model):
+class Homework(TrackedModel):
     homework_id = models.AutoField(primary_key=True)
     lesson_id = models.ForeignKey(Lesson, on_delete=models.CASCADE)
-    title = models.CharField(max_length=120, verbose_name='Название урока')
+    title = models.CharField(max_length=120, verbose_name='Название домашнего задания')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
-    deadline = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    deadline = models.DateTimeField(verbose_name='Дедлайн')
+
 
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = generate_unique_slug(self, self.title)
-            super().save(update_fields=['slug'])
 
         super().save(*args, **kwargs)
 
@@ -145,14 +179,16 @@ class Homework(models.Model):
     def __str__(self):
         return self.title
 
-class Question(models.Model):
+
+class Question(TrackedModel):
     question_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    text = models.CharField(max_length=200) # Пока работаем только с текстовыми вопросами. Без картинок и так далее
-    correct_ans = models.CharField() # Пока считаем, что всего может быть только 1 правильный ответ
-    answer_options = models.JSONField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    # Пока работаем только с текстовыми вопросами. Без картинок и так далее
+    text = models.CharField(max_length=200, verbose_name='Текст вопроса')
+    # Пока считаем, что всего может быть только 1 правильный ответ
+    correct_ans = models.CharField(verbose_name='Правильный ответ на вопрос')
+    answer_options = models.JSONField(verbose_name='Варианты ответов')
+
 
     class Meta:
         verbose_name = 'Вопрос'
@@ -163,15 +199,16 @@ class Question(models.Model):
         ]
 
     def __str__(self):
-        return self.description
+        return self.text
 
-class Task(models.Model):
+
+class Task(TrackedModel):
     task_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    text = models.CharField(max_length=200)
-    max_points = models.PositiveIntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    text = models.CharField(max_length=200, verbose_name='Текст задания')
+    max_points = models.PositiveIntegerField(default=0, verbose_name='Максимальное количество баллов за задание')
+
+
     class Meta:
         verbose_name = 'Задача'
         verbose_name_plural = 'Задачи'
@@ -181,7 +218,8 @@ class Task(models.Model):
         ]
 
     def __str__(self):
-        return self.question
+        return self.text
+
 
 class Users_Homeworks_Attempts(models.Model):
 
@@ -195,11 +233,11 @@ class Users_Homeworks_Attempts(models.Model):
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
     user_id = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name='Статус')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    send_at = models.DateTimeField(null=True, blank=True)
+    send_at = models.DateTimeField(null=True, blank=True, verbose_name='Отправлено в')
 
     @property
     def grade(self):
@@ -223,7 +261,7 @@ class Users_Homeworks_Attempts(models.Model):
         total_max = task_max + question_max
         total_points = task_points + question_points
 
-        percentage: float = (total_points / (total_max * 100.0)) if total_max > 0 else 0
+        percentage: float = (total_points / total_max * 100.0) if total_max > 0 else 0
 
         return max(1, min(10, round(percentage / 10)))
 
@@ -231,7 +269,8 @@ class Users_Homeworks_Attempts(models.Model):
         verbose_name = 'Попытка'
         verbose_name_plural = 'Попытки'
         ordering = ['created_at']
-        unique_together = ('homework_id', 'user_id') # Уникальная пара ключей, при submit просто обновляем через PUT/PATCH
+        # Уникальная пара ключей, при submit просто обновляем через PUT/PATCH
+        unique_together = ('homework_id', 'user_id')
         indexes = [
             models.Index(fields=['user_id', 'homework_id', 'status'])
         ]
@@ -243,10 +282,13 @@ class Users_Homeworks_Attempts(models.Model):
 class Users_questions_answers(models.Model):
     answer_id = models.AutoField(primary_key=True)
     question_id = models.ForeignKey(Question, on_delete=models.CASCADE)
-    attempt_id = models.ForeignKey(Users_Homeworks_Attempts, on_delete=models.CASCADE, related_name='question_answers')
+    attempt_id = models.ForeignKey(
+        Users_Homeworks_Attempts,
+        on_delete=models.CASCADE,
+        related_name='question_answers')
 
     is_correct = models.BooleanField(default=False)
-    user_answer = models.CharField(max_length=120)
+    user_answer = models.CharField(max_length=120, verbose_name='Ответ пользователя')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -261,6 +303,7 @@ class Users_questions_answers(models.Model):
 
     def __str__(self):
         return self.answer_id
+
 
 class PurchasedCourse(models.Model):
 
@@ -298,7 +341,8 @@ class PurchasedCourse(models.Model):
 
 class Users_tasks_answers(models.Model):
     TASK_STATUS_CHOICES = [
-        # Начали отвечать -> draft -> отправили всю домашку -> submitted -> эту проверили -> reviewed
+        # Начали отвечать -> draft -> отправили всю домашку -> submitted -> эту
+        # проверили -> reviewed
         ('draft', 'Draft'),
         ('submitted', 'Submitted'),
         ('reviewed', 'Reviewed'),
@@ -306,21 +350,29 @@ class Users_tasks_answers(models.Model):
     answer_id = models.AutoField(primary_key=True)
 
     task_id = models.ForeignKey(Task, on_delete=models.CASCADE)
-    attempt_id = models.ForeignKey(Users_Homeworks_Attempts, on_delete=models.CASCADE, related_name='task_answers')
+    attempt_id = models.ForeignKey(
+        Users_Homeworks_Attempts,
+        on_delete=models.CASCADE,
+        related_name='task_answers')
 
-    points = models.PositiveIntegerField(default=0) # Как то проверять, что не больше чем max_points у соответствующего вопроса
+    # Как то проверять, что не больше чем max_points у соответствующего вопроса
+    points = models.PositiveIntegerField(default=0)
 
-    user_answer = models.TextField() # Пока не понятно, что загружаем в качестве ответа. Пока будет Text без ограничений.
+    # Пока не понятно, что загружаем в качестве ответа. Пока будет Text без ограничений.
+    user_answer = models.TextField()
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    task_status = models.CharField(max_length=20, choices=TASK_STATUS_CHOICES, default='submitted')
+    task_status = models.CharField(
+        max_length=20,
+        choices=TASK_STATUS_CHOICES,
+        default='submitted')
 
     def clean(self):
-        if self.points > self.task_id.max_points: # Проверяем что выставлено корректное количество баллов
+        if self.points > self.task_id.max_points:  # Проверяем что выставлено корректное количество баллов
             raise ValidationError({
-                'points' : f'За задание {self.task_id} можно получить максимум {self.task_id.max_points}'
+                'points': f'За задание {self.task_id} можно получить максимум {self.task_id.max_points}'
             })
 
     def save(self, *args, **kwargs):

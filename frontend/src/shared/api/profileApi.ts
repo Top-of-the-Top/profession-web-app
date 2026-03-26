@@ -29,7 +29,6 @@ export const profileApi = {
         if (key === 'avatar' && value instanceof File) {
           formData.append(key, value);
         } else if (key === 'avatar' && value === null) {
-          // Если нужно удалить аватар
           formData.append(key, '');
         } else {
           formData.append(key, String(value));

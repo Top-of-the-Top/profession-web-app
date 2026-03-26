@@ -1,9 +1,5 @@
 // shared/utils/validation.ts
 
-import { encryptData } from "./encryption";
-import { hashPassword } from "./hashing";
-
-
 export const validateEmailOrPhone = (value: string): {
   isValid: boolean;
   isEmail: boolean;
@@ -72,7 +68,7 @@ export const prepareAuthData = (
   };
 
   if (password && options.includePassword) {
-    result.pass_hash = hashPassword(password);
+    result.password = password;
   }
 
   if (options.includeToken && options.token) {
@@ -84,13 +80,8 @@ export const prepareAuthData = (
 
 export const prepareResetPasswordData = (
   password: string,
-  token: string
-): {
-  password_hash: string;
-  token: string;
-} => {
-  return {
-    password_hash: hashPassword(password),
-    token: token
-  };
-};
+  token: string,
+): { password_hash: string; token: string } => ({
+  password_hash: password,
+  token,
+});

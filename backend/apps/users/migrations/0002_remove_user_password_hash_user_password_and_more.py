@@ -18,17 +18,32 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='user',
             name='password',
-            field=models.CharField(default='', max_length=128, verbose_name='password'),
+            field=models.CharField(
+                default='',
+                max_length=128,
+                verbose_name='password'),
             preserve_default=False,
         ),
         migrations.AlterField(
             model_name='user',
             name='groups',
-            field=models.ManyToManyField(blank=True, help_text='The groups this user belongs to.', related_name='users_user_set', related_query_name='user', to='auth.group', verbose_name='groups'),
+            field=models.ManyToManyField(
+                blank=True,
+                help_text='The groups this user belongs to.',
+                related_name='users_user_set',
+                related_query_name='user',
+                to='auth.group',
+                verbose_name='groups'),
         ),
         migrations.AlterField(
             model_name='user',
             name='user_permissions',
-            field=models.ManyToManyField(blank=True, help_text='Specific permissions for this user.', related_name='users_user_set', related_query_name='user', to='auth.permission', verbose_name='user permissions'),
+            field=models.ManyToManyField(
+                blank=True,
+                help_text='Specific permissions for this user.',
+                related_name='users_user_set',
+                related_query_name='user',
+                to='auth.permission',
+                verbose_name='user permissions'),
         ),
     ]

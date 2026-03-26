@@ -2,10 +2,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
-import { Button } from '../../../shared/ui';
+import { Button, Spinner, PageTransition } from '../../../shared/ui';
 import { courseApi, type CourseDTO } from '../../../shared/api/courseApi';
 import { cartApi } from '../../../shared/api/cartApi';
+import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import {
+  messageForApiFailure,
+  notifyCartCourseAdded,
+  notifyError,
+  notifyWarning,
+} from '../../../shared/lib/sileo/notify';
+import { useCartSummaryStore } from '../../../entities/cart/model/cartSummaryStore';
 import styles from './CourseStorePage.module.css';
 
 interface CourseCardProps {
@@ -13,16 +20,10 @@ interface CourseCardProps {
   onClick: () => void;
   onAddToCart: () => void;
   disabled?: boolean;
+  inCart?: boolean;
 }
 
-const CourseCard = ({ course, onClick, onAddToCart, disabled }: CourseCardProps) => {
-  const formattedPrice = new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(course.price);
-
+const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart }: CourseCardProps) => {
   return (
     <div className={styles.courseCard}>
       <div className={styles.courseHeader}>
@@ -59,13 +60,13 @@ const CourseCard = ({ course, onClick, onAddToCart, disabled }: CourseCardProps)
 
         <Button
           className={styles.selectButton}
-          disabled={disabled}
+          disabled={disabled || inCart}
           onClick={(e) => {
             e.stopPropagation();
             onAddToCart();
           }}
         >
-          Выбрать
+          {inCart ? 'В корзине' : 'В коризну'}
         </Button>
       </div>
     </div>
@@ -78,17 +79,42 @@ export default function CourseStorePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingSlug, setAddingSlug] = useState<string | null>(null);
+  const [inCartSlugs, setInCartSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await courseApi.getCourses();
-        
-        console.log('Courses data:', data);
-        
-        setCourses(data.data)
+        const [coursesResponse, cartResponse] = await Promise.all([
+          courseApi.getCourses(),
+          cartApi.getCart().catch((err: unknown) => {
+            const message = (err as Error)?.message ?? '';
+
+            // Если не авторизованы / токен протух — просто считаем, что корзина пустая
+            if (
+              message === 'AUTH_EXPIRED' ||
+              message.includes('API_ERROR_401')
+            ) {
+              return null;
+            }
+
+            throw err;
+          }),
+        ]);
+
+        setCourses(coursesResponse.data);
+
+        if (cartResponse && Array.isArray(cartResponse.courses)) {
+          setInCartSlugs(
+            new Set(cartResponse.courses.map((course) => course.slug)),
+          );
+          useCartSummaryStore
+            .getState()
+            .setHasItems(cartResponse.courses.length > 0);
+        } else {
+          setInCartSlugs(new Set());
+        }
       } catch (err) {
         console.error('Ошибка загрузки курсов:', err);
         setError('Не удалось загрузить курсы. Пожалуйста, попробуйте позже.');
@@ -97,7 +123,7 @@ export default function CourseStorePage() {
       }
     };
 
-    fetchCourses();
+    fetchData();
   }, []);
 
   const handleCourseClick = (slug: string) => {
@@ -108,17 +134,33 @@ export default function CourseStorePage() {
     setAddingSlug(slug);
     try {
       await cartApi.addCourse(slug);
-      toast.success(`Курс «${title}» добавлен в корзину`);
-    } catch (err: any) {
-      const message: string = err?.message ?? '';
-
-      if (message === 'AUTH_EXPIRED' || message.includes('API_ERROR_401')) {
-        toast.error('Авторизуйтесь, чтобы добавить курс в корзину');
-      } else if (message.includes('API_ERROR_400')) {
-        toast.error('Курс уже в корзине');
-      } else {
-        toast.error('Не удалось добавить курс в корзину');
+      notifyCartCourseAdded({
+        title: 'курс добавлен в корзину',
+        description: `«${title}» — можно перейти к оформлению.`
+      });
+      setInCartSlugs((prev) => {
+        const next = new Set(prev);
+        next.add(slug);
+        return next;
+      });
+      useCartSummaryStore.getState().setHasItems(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401')) {
+        notifyWarning({
+          title: 'нужна авторизация',
+          description: 'Войдите в аккаунт, чтобы добавить курс в корзину.',
+        });
+        return;
       }
+      const parsed = parseApiError(err);
+      if (parsed) {
+        const m = messageForApiFailure('cartAdd', parsed.status, parsed.body);
+        notifyError({ title: m.title, description: m.description });
+        return;
+      }
+      const fb = messageForApiFailure('cartAdd', 0, {});
+      notifyError({ title: fb.title, description: fb.description });
     } finally {
       setAddingSlug(null);
     }
@@ -128,10 +170,7 @@ export default function CourseStorePage() {
     return (
       <div className={styles.catalog}>
         <h2 className={styles.catalogTitle}>Каталог курсов</h2>
-        <div className={styles.loadingState}>
-          <div className={styles.spinner} />
-          <p>Загрузка курсов...</p>
-        </div>
+        <Spinner />
       </div>
     );
   }
@@ -151,29 +190,27 @@ export default function CourseStorePage() {
   }
 
   return (
-    <>
-      <Toaster position="top-right" />
-      <div className={styles.catalog}>
-        <h2 className={styles.catalogTitle}>Каталог курсов</h2>
+    <PageTransition className={styles.catalog}>
+      <h2 className={styles.catalogTitle}>Каталог курсов</h2>
 
-        {courses.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p>Курсы не найдены</p>
-          </div>
-        ) : (
-          <div className={styles.coursesGrid}>
-            {courses.map((course) => (
-              <CourseCard
-                key={course.course_id}
-                course={course}
-                onClick={() => handleCourseClick(course.slug)}
-                onAddToCart={() => handleAddToCart(course.slug, course.title)}
-                disabled={addingSlug === course.slug}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </>
+      {courses.length === 0 ? (
+        <div className={styles.emptyState}>
+          <p>Курсы не найдены</p>
+        </div>
+      ) : (
+        <div className={styles.coursesGrid}>
+          {courses.map((course) => (
+            <CourseCard
+              key={course.course_id}
+              course={course}
+              onClick={() => handleCourseClick(course.slug)}
+              onAddToCart={() => handleAddToCart(course.slug, course.title)}
+              disabled={addingSlug === course.slug}
+              inCart={inCartSlugs.has(course.slug)}
+            />
+          ))}
+        </div>
+      )}
+    </PageTransition>
   );
 }

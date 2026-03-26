@@ -1,4 +1,4 @@
-from ..models import Course, PurchasedCourse
+from ..models import Course, PurchasedCourse, Lesson, Homework, Section, Question, Task
 from rest_framework import serializers
 
 
@@ -9,12 +9,19 @@ class CourseSerializer(serializers.ModelSerializer):
         model = Course
         fields = '__all__'
 
+
 class CourseDTOSerializer(serializers.ModelSerializer):
     image_url = serializers.ReadOnlyField()
 
     class Meta:
         model = Course
-        fields = ['course_id', 'title', 'sub_title', 'image_url', 'price', 'slug']
+        fields = [
+            'course_id',
+            'title',
+            'sub_title',
+            'image_url',
+            'price',
+            'slug']
 
 
 class CourseListResponseSerializer(serializers.Serializer):
@@ -41,3 +48,28 @@ class PurchasedCourseSerializer(serializers.ModelSerializer):
             'access_expires_at',
             'is_active',
         ]
+
+class SectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section
+        fields = '__all__'
+
+class LessonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = '__all__'
+
+class HomeworkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Homework
+        fields = '__all__'
+
+class QuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = '__all__'
+
+class TaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = '__all__'

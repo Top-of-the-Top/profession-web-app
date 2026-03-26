@@ -1,0 +1,31 @@
+/*
+ * Sileo — глобальные CSS-переменные (как в доках).
+ * Тёмный корпус тоста и текст — через <Toaster options={{ fill, styles }} /> в SileoHost.
+ */
+
+:root {
+  --sileo-state-success: var(--color-green-600);
+  --sileo-state-loading: var(--color-neutral-500);
+  --sileo-state-error: var(--destructive);
+  --sileo-state-warning: var(--color-amber-500);
+  --sileo-state-info: var(--color-sky-600);
+  --sileo-state-action: var(--color-blue-600);
+
+  --sileo-width: 350px;
+  --sileo-height: 40px;
+  --sileo-duration: 600ms;
+}
+
+
+[data-sileo-viewport] [data-sileo-title] {
+  text-transform: none;
+}
+
+.dark {
+  --sileo-state-success: var(--color-green-500);
+  --sileo-state-loading: var(--color-neutral-400);
+  --sileo-state-error: var(--destructive);
+  --sileo-state-warning: var(--color-amber-400);
+  --sileo-state-info: var(--color-sky-500);
+  --sileo-state-action: var(--color-blue-500);
+}

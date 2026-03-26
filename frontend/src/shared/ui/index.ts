@@ -69,6 +69,7 @@
 		CommandShortcut,
 	} from './Command'
 
+	export { Separator } from './Separator' 
 
 	export { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs'
 	export { Label } from './Label'
@@ -87,6 +88,19 @@
 	} from './Select'
 
 	export { Switch } from './Switch'
+
+	export { Spinner } from './Spinner'
+	export { PageTransition } from './PageTransition'
+
+	export {
+		Breadcrumb,
+		BreadcrumbList,
+		BreadcrumbItem,
+		BreadcrumbLink,
+		BreadcrumbPage,
+		BreadcrumbSeparator,
+		BreadcrumbEllipsis,
+	} from './Breadcrumb'
 
 
 	export { RadioGroup, RadioGroupItem } from './RadioGroup'

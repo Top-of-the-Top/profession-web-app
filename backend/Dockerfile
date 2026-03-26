@@ -16,4 +16,4 @@ COPY . .
 
 EXPOSE 9000
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:9000"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "9000", "project.asgi:application"]

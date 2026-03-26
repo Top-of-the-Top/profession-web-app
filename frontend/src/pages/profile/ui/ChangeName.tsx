@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, useRef } from 'react';
+import { useState, useEffect, type ChangeEvent, useRef } from 'react';
 import { Button, Input, Label, Avatar, AvatarFallback, AvatarImage } from '../../../shared/ui';
 import { X, Camera } from 'lucide-react';
 import styles from './ChangeName.module.css';
@@ -30,6 +30,16 @@ export default function ChangeName({
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(currentAvatar);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isVisible) {
+      setFirstName(currentFirstName);
+      setLastName(currentLastName);
+      if (!avatarFile) {
+        setAvatarPreview(currentAvatar);
+      }
+    }
+  }, [isVisible, currentFirstName, currentLastName, currentAvatar]);
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -86,7 +96,10 @@ export default function ChangeName({
       <div className={styles.header}>
         <div className={styles.avatarContainer}>
           <Avatar className={styles.avatar}>
-            <AvatarImage src={avatarPreview || ''} />
+            <AvatarImage
+              src={avatarPreview || ''}
+              className={styles.avatarImage}
+            />
             <AvatarFallback className={styles.avatarFallback}>
               {firstName?.[0] || lastName?.[0] || 'U'}
             </AvatarFallback>

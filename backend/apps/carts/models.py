@@ -2,6 +2,7 @@ from django.db import models
 from ..users.models import User
 from ..courses.models import Course
 
+
 class Cart(models.Model):
     cart_id = models.AutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -23,8 +24,3 @@ class CartItem(models.Model):
         verbose_name_plural = 'Курсы в корзине'
         unique_together = ('cart_id', 'course_id')
         db_table = 'courses_by_cart'
-
-
-
-
-

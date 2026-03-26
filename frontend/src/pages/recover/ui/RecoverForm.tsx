@@ -7,28 +7,56 @@ import {
   CardTitle,
 } from '../../../shared/ui';
 import { useState } from 'react';
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,Input
-} from '../../../shared/ui';
+import { Field, FieldGroup, FieldLabel, Input } from '../../../shared/ui';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import styles from './RecoverPage.module.css';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { resetPassword } from '../api';
 import { prepareResetPasswordData } from '../../../shared/utils/validation';
-import toast, { Toaster } from 'react-hot-toast';
+import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
 
-export default function RecoverForm({
-  className,
-  ...props
-}: React.ComponentProps<'div'>) {
+const RECOVER_CHECKS: Array<{
+  when: (ctx: { token: string | null; password: string; confirm: string }) => boolean;
+  title: string;
+  description: string;
+}> = [
+  {
+    when: ({ token }) => !token,
+    title: 'ссылка недействительна',
+    description: 'Откройте ссылку из письма или запросите новую на странице сброса пароля.',
+  },
+  {
+    when: ({ password }) => password.length < 6,
+    title: 'короткий пароль',
+    description: 'Пароль должен быть не короче 6 символов.',
+  },
+  {
+    when: ({ password, confirm }) => password !== confirm,
+    title: 'пароли не совпадают',
+    description: 'Введите одинаковый пароль в оба поля.',
+  },
+];
+
+function notifyRecoverFailure(err: unknown) {
+  const parsed = parseApiError(err);
+  if (!parsed) {
+    const fb = messageForApiFailure('recoverSet', 0, {});
+    notifyError({
+      title: fb.title,
+      description: err instanceof Error ? err.message : fb.description,
+    });
+    return;
+  }
+  const msg = messageForApiFailure('recoverSet', parsed.status, parsed.body);
+  notifyError({ title: msg.title, description: msg.description });
+}
+
+export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
-  // Получаем токен из URL
   const token = searchParams.get('token');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,70 +67,30 @@ export default function RecoverForm({
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
     const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value;
 
-    // Базовые валидации
-    if (!token) {
-      toast.error('Ссылка для восстановления недействительна');
-      setLoading(false);
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error('Пароль должен содержать минимум 6 символов');
-      setLoading(false);
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error('Пароли не совпадают');
+    const ctx = { token, password, confirm: confirmPassword };
+    const failed = RECOVER_CHECKS.find((c) => c.when(ctx));
+    if (failed) {
+      notifyError({ title: failed.title, description: failed.description });
       setLoading(false);
       return;
     }
 
     try {
-      const payload = prepareResetPasswordData(password, token);
-      
-      await resetPassword(payload);
-      
-      toast.success('Пароль успешно изменен! Теперь вы можете войти с новым паролем.', {
-        duration: 5000,
-        icon: <CheckCircle2 className={styles.toastSuccessIcon} />,
-      });
-      
+      await resetPassword(prepareResetPasswordData(password, token!));
       setSuccess(true);
-      
-      // Перенаправляем на страницу входа через 3 секунды
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
-      
-    } catch (err: any) {
-      // Обработка различных ошибок сервера
-      if (err.response?.status === 400) {
-        toast.error('Некорректные данные для смены пароля');
-      } else if (err.response?.status === 403) {
-        toast.error('Действие ссылки истекло. Запросите новую ссылку для восстановления');
-      } else if (err.response?.status === 404) {
-        toast.error('Ссылка для восстановления не найдена или устарела');
-      } else if (err.response?.status === 410) {
-        toast.error('Время действия ссылки истекло. Запросите новую ссылку');
-      } else if (err.response?.status === 429) {
-        toast.error('Слишком много попыток. Попробуйте позже');
-      } else if (err.response?.status === 500) {
-        toast.error('Сервер временно недоступен. Попробуйте позже');
-      } else {
-        toast.error(err.message || 'Произошла ошибка при смене пароля');
-      }
+      setTimeout(() => navigate('/login'), 3000);
+    } catch (err) {
+      notifyRecoverFailure(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Если пароль успешно изменен
   if (success) {
     return (
       <div className={styles.loginPage} {...props}>
         <div className={styles.loginWrapper}>
-          <img className={styles.logo} src="landing/profession-logo.svg" alt="" />
+          <img className={styles.logo} src="landing/profession-logo-blue.svg" alt="" />
           <Card className={styles.card}>
             <CardHeader className={styles.cardHeader}>
               <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>
@@ -120,7 +108,6 @@ export default function RecoverForm({
                 <p style={{ textAlign: 'center', marginBottom: '20px' }}>
                   Перенаправляем на страницу входа...
                 </p>
-                
                 <Button
                   style={{ fontSize: '14px', marginTop: '20px' }}
                   type="button"
@@ -134,25 +121,6 @@ export default function RecoverForm({
           </Card>
           <div className={styles.copyright}>&copy; 2026 Профессия</div>
         </div>
-        <Toaster 
-          position="top-center"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-              borderRadius: '8px',
-              fontSize: '14px',
-            },
-            success: {
-              duration: 5000,
-              iconTheme: {
-                primary: '#10b981',
-                secondary: '#fff',
-              },
-            },
-          }}
-        />
       </div>
     );
   }
@@ -160,15 +128,13 @@ export default function RecoverForm({
   return (
     <div className={styles.loginPage} {...props}>
       <div className={styles.loginWrapper}>
-        <img className={styles.logo} src="landing/profession-logo.svg" alt="" />
+        <img className={styles.logo} src="landing/profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
             <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>
               Установите новый пароль
             </CardTitle>
-            <CardDescription>
-              Введите новый пароль для вашего аккаунта
-            </CardDescription>
+            <CardDescription>Введите новый пароль для вашего аккаунта</CardDescription>
           </CardHeader>
           <CardContent className={styles.cardContent}>
             <form onSubmit={handleSubmit}>
@@ -191,7 +157,6 @@ export default function RecoverForm({
                     Должен содержать минимум 6 символов
                   </CardDescription>
                 </Field>
-                
                 <Field className={styles.field}>
                   <div className={styles.passwordHeader}>
                     <FieldLabel htmlFor="confirmPassword">Подтвердите пароль</FieldLabel>
@@ -207,16 +172,14 @@ export default function RecoverForm({
                     disabled={loading || !token}
                   />
                 </Field>
-
                 {!token && (
                   <div className={styles.tokenError}>
                     <p>Ссылка для восстановления недействительна или отсутствует</p>
-                    <Link to="/forgot-password" className={styles.link}>
+                    <Link to="/reset" className={styles.link}>
                       Запросить новую ссылку
                     </Link>
                   </div>
                 )}
-
                 <Button
                   style={{ fontSize: '14px' }}
                   type="submit"
@@ -225,7 +188,6 @@ export default function RecoverForm({
                 >
                   {loading ? 'Смена пароля...' : 'Установить новый пароль'}
                 </Button>
-
                 <div className={styles.linksContainer}>
                   <div className={styles.linkRow}>
                     <Link to="/login" className={styles.link}>
@@ -239,33 +201,6 @@ export default function RecoverForm({
         </Card>
         <div className={styles.copyright}>&copy; 2026 Профессия</div>
       </div>
-      
-      <Toaster 
-        position="top-center"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-            borderRadius: '8px',
-            fontSize: '14px',
-          },
-          success: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
-            },
-          },
-        }}
-      />
     </div>
   );
 }

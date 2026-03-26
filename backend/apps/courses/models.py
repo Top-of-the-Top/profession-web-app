@@ -1,6 +1,6 @@
 from django.db import models
 import os
-from rest_framework.exceptions import ValidationError
+from django.core.exceptions import ValidationError
 from ..users.models import User
 from django.db.models import Sum
 import uuid
@@ -68,21 +68,24 @@ class Course(TrackedModel):
         return f'https://storage.yandexcloud.net/{bucket}/{DEFAULT_COURSE_IMAGE}'
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+
         if not self.slug:
             self.slug = generate_unique_slug(self, self.title)
-            super().save(update_fields=['slug'])
 
-        is_new = self.pk is None
-        if is_new and self.image and hasattr(
-                self.image, 'file') and self.image.name != DEFAULT_COURSE_IMAGE:
-            image_file = self.image.file
+        if is_new and self.image and self.image.name != DEFAULT_COURSE_IMAGE:
+            try:
+                image_file = self.image.file
+            except (FileNotFoundError, ValueError, OSError):
+                super().save(*args, **kwargs)
+                return
+
             original_name = getattr(self.image, 'name', 'image.jpg')
 
             self.image = None
             super().save(*args, **kwargs)
 
-            ext = original_name.split(
-                '.')[-1].lower() if '.' in original_name else 'jpg'
+            ext = original_name.split('.')[-1].lower() if '.' in original_name else 'jpg'
             new_name = f'courses/course_{self.pk}.{ext}'
 
             image_file.seek(0)
@@ -90,6 +93,7 @@ class Course(TrackedModel):
             super().save(update_fields=['image'])
         else:
             super().save(*args, **kwargs)
+
 
     class Meta:
         verbose_name = 'Курс'
@@ -106,20 +110,18 @@ class Section(TrackedModel):
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
 
     def save(self, *args, **kwargs):
-        last_section = None
         if not self.section_id:
             last_section = Section.objects.filter(
-                course=self.course
+                course_id=self.course_id
             ).order_by('section_id').last()
 
-        if last_section:
-            self.section_id = last_section.section_id + 1
-        else:
-            self.section_id = 1
+            if last_section:
+                self.section_id = last_section.section_id + 1
+            else:
+                self.section_id = 1
 
         if not self.slug:
             self.slug = generate_unique_slug(self, self.title)
-            super().save(update_fields=['slug'])
 
         super().save(*args, **kwargs)
 
@@ -146,7 +148,6 @@ class Lesson(TrackedModel):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = generate_unique_slug(self, self.title)
-            super().save(update_fields=['slug'])
 
         super().save(*args, **kwargs)
 
@@ -167,7 +168,6 @@ class Homework(TrackedModel):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = generate_unique_slug(self, self.title)
-            super().save(update_fields=['slug'])
 
         super().save(*args, **kwargs)
 
@@ -261,7 +261,7 @@ class Users_Homeworks_Attempts(models.Model):
         total_max = task_max + question_max
         total_points = task_points + question_points
 
-        percentage: float = (total_points / (total_max * 100.0)) if total_max > 0 else 0
+        percentage: float = (total_points / total_max * 100.0) if total_max > 0 else 0
 
         return max(1, min(10, round(percentage / 10)))
 

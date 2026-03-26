@@ -148,8 +148,8 @@ class User(AbstractUser):
     def is_course_author(self, course):
         return course.author == self or self in course.authors.all()
 
-    def has_purchased_course(self, course):
-        return self.purchased_courses.filter(course_id=course).exists()
+    def is_enrolled(self, course):
+        return self.get_purchased_courses_ids().filter(course_id=course.id).exists()
 
     class Meta:
         verbose_name = 'Пользователь'

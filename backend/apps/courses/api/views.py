@@ -19,7 +19,7 @@ from .serializers import (
 )
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
-from apps.users.api.roles_permission import require_role, require_object_owner, require_course_author, require_moderator
+from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
 
 SCHEMA_401 = {
     "type": "object",
@@ -197,7 +197,7 @@ class CourseDTOList(generics.ListAPIView):
             "Публичный список всех курсов для лендинга. Авторизация не требуется. "
             "Возвращается объект: number_of_courses (число курсов) и data — массив курсов в формате DTO (course_id, title, sub_title, image_url, price, slug)."
         ),
-        tags=["Courses"],
+        tags=["Landing"],
         responses={200: CourseListResponseSerializer},
     )
     def get(self, request, *args, **kwargs):
@@ -227,6 +227,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
         }
     )
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -252,6 +253,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
         }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -269,7 +271,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
         }
     )
-    @require_role('moderator')
+    @require_moderator
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
 
@@ -341,7 +343,7 @@ class PurchasedCoursesView(APIView):
             "Каждый элемент: id, course (DTO курса), payment (id платежа), access_expires_at, is_active (доступ активен или истёк). "
             "При невалидном токене — 401 с полем detail."
         ),
-        tags=["Courses"],
+        tags=["My Courses"],
         responses={
             200: PurchasedCourseSerializer(many=True),
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
@@ -376,7 +378,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
         }
     )
-    #TODO: чекать что у пользователя есть доступ к курсу
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -410,6 +412,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
         }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -477,6 +480,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -510,6 +514,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -580,6 +585,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -613,6 +619,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -685,6 +692,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -718,6 +726,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -791,6 +800,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
+    @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -824,6 +834,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
+    @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 

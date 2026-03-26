@@ -1,5 +1,6 @@
 import { useNotificationStore } from './notification.store';
 import { notifyInfo } from '../../../shared/lib/sileo/notify';
+import { tokenService } from '../../../shared/lib/auth/tokenService';
 
 let source: EventSource | null = null;
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -26,7 +27,7 @@ export function connectNotificationSSE() {
   store.setError('idle');
   store.setStatus('connecting');
 
-  const token = localStorage.getItem('access_token');
+  const token = tokenService.getAccessToken();
   if (!token) {
     store.setStatus('error');
     store.setError('Нет access token для SSE');

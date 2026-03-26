@@ -25,7 +25,7 @@ import styles from './AppLayout.module.css';
 export default function AppLayout() {
   const { pathname } = useLocation();
   const user = useUserStore((state) => state.user);
-  const hasToken = Boolean(localStorage.getItem('access_token'));
+  const hasToken = tokenService.hasToken();
 
   const { data: cart } = useCart();
   const cartHasItems = (cart?.courses?.length ?? 0) > 0;

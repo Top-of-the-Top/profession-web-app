@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { cartApi } from '../cartApi';
+import { tokenService } from '../../lib/auth/tokenService';
 
 export const cartKeys = {
   all: ['cart'] as const,
 };
 
 export function useCart(options?: { enabled?: boolean }) {
-  const hasToken = Boolean(localStorage.getItem('access_token'));
+  const hasToken = tokenService.hasToken();
 
   return useQuery({
     queryKey: cartKeys.all,

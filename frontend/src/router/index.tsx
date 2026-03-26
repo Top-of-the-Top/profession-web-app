@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '../context/AuthContext';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 import { routes } from './routes';
@@ -43,12 +42,10 @@ const renderRoutes = (routes: AppRoute[], basePath = '') =>
   );
 
 export const AppRouter = () => (
-  <AuthProvider>
-    <Suspense fallback={<Spinner full />}>
-      <Routes>
-        {renderRoutes(routes)}
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </Suspense>
-  </AuthProvider>
+  <Suspense fallback={<Spinner full />}>
+    <Routes>
+      {renderRoutes(routes)}
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  </Suspense>
 );

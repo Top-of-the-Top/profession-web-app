@@ -169,11 +169,19 @@ export default function ProfilePage() {
       await profileApi.updateProfile(updateData);
 
       const fresh = await profileApi.getProfile();
-      setProfile(fresh);
-      setAvatarUrl(fresh.avatar);
-      setUser(fresh);
 
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      if (blobUrl && fresh.avatar === prevAvatar) {
+        // Сервер ещё не обработал новый аватар — сохраняем blob URL
+        const merged = { ...fresh, avatar: blobUrl };
+        setProfile(merged);
+        setAvatarUrl(blobUrl);
+        setUser(merged);
+      } else {
+        setProfile(fresh);
+        setAvatarUrl(fresh.avatar);
+        setUser(fresh);
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+      }
     } catch (err) {
       notifyProfileSaveError(err);
       setAvatarUrl(prevAvatar);

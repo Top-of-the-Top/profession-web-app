@@ -211,7 +211,7 @@ export default function LandingPage() {
                 </Button>
               </div>
             </div>
-            <div className={styles.children}></div>
+            {/* <div className={styles.children}></div> */}
           </section>
 
           <section className={styles.section}>

@@ -198,10 +198,16 @@ class Profile(models.Model):
         return f'https://storage.yandexcloud.net/{bucket}/{DEFAULT_PROFILE_IMAGE}'
 
     def save(self, *args, **kwargs):
+
         is_new = self.pk is None
         if is_new and self.avatar and hasattr(
                 self.avatar, 'file') and self.avatar.name != DEFAULT_PROFILE_IMAGE:
-            image_file = self.avatar.file
+            try :
+                image_file = self.avatar.file
+            except (FileNotFoundError, ValueError, OSError):
+                super().save(*args, **kwargs)
+                return
+
             original_name = getattr(self.avatar, 'name', 'image.jpg')
 
             self.avatar = None

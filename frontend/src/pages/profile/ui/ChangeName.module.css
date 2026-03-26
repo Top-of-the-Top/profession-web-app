@@ -182,6 +182,14 @@
   object-fit: cover;
 }
 
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
 .removeAvatarButton {
   position: absolute;
   top: -5px;

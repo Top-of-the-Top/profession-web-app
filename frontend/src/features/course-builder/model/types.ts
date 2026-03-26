@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import type { HomeworkLayout } from './homeworkTypes';
+import { HomeworkLayoutSchema } from './homeworkTypes';
+
+export const COURSE_PAGE_VERSION = 1 as const;
 
 export const blockTypes = ['text', 'photo', 'video'] as const;
 
@@ -58,11 +62,35 @@ export type LessonLayout = z.infer<typeof LessonLayoutSchema>;
 
 export type LessonLayoutDTO = z.infer<typeof LessonLayoutSchema>;
 
+export const CoursePageSchema = z.object({
+  version: z.literal(COURSE_PAGE_VERSION),
+  lesson: LessonLayoutSchema,
+  homework: HomeworkLayoutSchema.nullable(),
+});
+
+export type CoursePage = z.infer<typeof CoursePageSchema>;
+export type CoursePageDTO = z.infer<typeof CoursePageSchema>;
+
 export const parseLessonLayout = (data: unknown): LessonLayout => {
   return LessonLayoutSchema.parse(data);
 };
 
 export const serializeLessonLayout = (layout: LessonLayout): LessonLayoutDTO => {
   return LessonLayoutSchema.parse(layout);
+};
+
+export const serializeCoursePage = (
+  lesson: LessonLayout,
+  homework: HomeworkLayout | null,
+): CoursePageDTO => {
+  return CoursePageSchema.parse({
+    version: COURSE_PAGE_VERSION,
+    lesson,
+    homework,
+  });
+};
+
+export const parseCoursePage = (data: unknown): CoursePage => {
+  return CoursePageSchema.parse(data);
 };
 

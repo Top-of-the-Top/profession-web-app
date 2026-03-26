@@ -73,7 +73,7 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
   return (
     <div className={styles.loginPage} {...props}>
       <div className={styles.loginWrapper}>
-        <img className={styles.logo} src="profession-logo.svg" alt="" />
+        <img className={styles.logo} src="profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
             <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>Войти</CardTitle>

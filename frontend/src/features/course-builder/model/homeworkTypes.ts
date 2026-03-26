@@ -25,10 +25,12 @@ export const HomeworkQuestionSingleSchema = HomeworkQuestionBaseSchema.extend({
 
 export const HomeworkQuestionFileSchema = HomeworkQuestionBaseSchema.extend({
   type: z.literal('file'),
+  description: z.string().default(''),
 });
 
 export const HomeworkQuestionTextSchema = HomeworkQuestionBaseSchema.extend({
   type: z.literal('text'),
+  description: z.string().default(''),
 });
 
 export const HomeworkQuestionSchema = z.discriminatedUnion('type', [

@@ -205,11 +205,18 @@ export const HomeworkBuilder: React.FC = () => {
                                 <textarea
                                   className={styles.homeworkLongAnswer}
                                   placeholder="Опишите задание"
-                                  value={question.title}
+                                  value={
+                                    (
+                                      question as Extract<
+                                        HomeworkQuestion,
+                                        { type: 'text' } | { type: 'file' }
+                                      >
+                                    ).description ?? ''
+                                  }
                                   onChange={(e) =>
                                     updateQuestion(question.id, {
-                                      title: e.target.value,
-                                    })
+                                      description: e.target.value,
+                                    } as unknown as Partial<HomeworkQuestion>)
                                   }
                                 />
                               )}

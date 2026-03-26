@@ -222,9 +222,16 @@
 /* grid-based editor */
 .gridWrapper {
   flex: 1;
-	padding: 5px;
+	width: fit-content !important;
+  padding: 60px 0px 0px;
   border-radius: 12px;
-  background-color: white;
+  background: linear-gradient(
+    to bottom,
+    #eef2f7 0,
+    #eef2f7 60px,
+    #ffffff 60px,
+    #ffffff 100%
+  );
   position: relative;
   overflow: auto;
   min-height: 320px;
@@ -257,6 +264,15 @@
   flex-direction: column;
   direction: ltr !important;
   text-align: left !important;
+  transition: opacity 0.22s ease, transform 0.22s ease, filter 0.22s ease;
+  transform-origin: center top;
+}
+
+.gridBlockDeleting {
+  opacity: 0;
+  transform: scale(0.97);
+  filter: blur(1px);
+  pointer-events: none;
 }
 
 .blockHeader {
@@ -267,12 +283,24 @@
   font-size: 11px;
   background-color: #f9fafb;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.blockHeader:active {
+  cursor: grabbing;
 }
 
 .blockType {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #6b7280;
+}
+
+.blockHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .blockToggle {
@@ -284,10 +312,31 @@
   color: #6b7280;
 }
 
+.blockDeleteBtn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+  color: #9ca3af;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.blockDeleteBtn:hover {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
 .blockBody {
   flex: 1;
+  min-height: 0;
   padding: 6px 8px;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .textEditorToolbar {
@@ -550,17 +599,21 @@
 /* Стили для WYSIWYG редактора */
 .wysiwygEditor {
   width: 100%;
-	overflow: visible;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
   direction: ltr !important;
   text-align: left !important;
 }
 
 .wysiwygEditor :global(.rsw-editor) {
-	overflow: visible;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   border: none !important;
   direction: ltr !important;
 }
@@ -620,13 +673,12 @@
 
 .wysiwygEditor :global(.rsw-content-editor) {
   flex: 1;
+  min-height: 0;
   padding: 12px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-top: none;
   border-radius: 0 0 6px 6px;
-  overflow-y: auto;
-  min-height: 100px;
-  max-height: 400px;
+  overflow: hidden;
   outline: none;
   font-size: 13px;
   line-height: 1.5;
@@ -698,8 +750,7 @@
   font-size: 13px;
   color: #374151;
   cursor: pointer;
-  margin-bottom: 8px;
-	height: 90%;
+  height: 100%;
 }
 
 .fileInput {
@@ -745,7 +796,7 @@
 
 .blockVideoPreview {
   width: 100%;
-  max-height: 200px;
+  height: 100%;
   border-radius: 4px;
   object-fit: contain;
   background: #000;
@@ -754,8 +805,8 @@
 /* Стили для изображений в блоках */
 .blockImage {
   width: 100%;
-  max-height: 200px;
-  object-fit: cover;
+  height: 100%;
+  object-fit: contain;
   border-radius: 4px;
   margin-bottom: 0;
 }

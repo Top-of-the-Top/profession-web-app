@@ -1,13 +1,25 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DefaultEditor } from 'react-simple-wysiwyg';
-import { ImageUp, PictureInPicture } from 'lucide-react';
-import GridLayout, { WidthProvider } from 'react-grid-layout';
+import { ImageUp, PictureInPicture, Trash2 } from 'lucide-react';
+import GridLayout from 'react-grid-layout';
 import type { Layout, LayoutItem } from 'react-grid-layout';
 import { useLessonBuilderStore } from '../../model/store';
 import type { Block, BlockType } from '../../model/types';
+import { serializeCoursePage } from '../../model/types';
 import { GRID_COLS } from '../../lib/constants';
 import { HomeworkBuilder } from '../HomeworkBuilder';
 import { useHomeworkStore } from '../../model/homeworkStore';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '../../../../shared/ui';
 import styles from './CourseBuilder.module.css';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -27,7 +39,6 @@ const GRID_ROWS_BASE = 50;
 /** Фиксированная ширина сетки: один лейаут независимо от разрешения */
 const GRID_FIXED_WIDTH = GRID_COLS * 80;
 
-const FixedGridLayout = WidthProvider(GridLayout);
 
 function blocksToLayout(blocks: Block[]): Layout {
   return blocks.map((b) => ({
@@ -39,16 +50,38 @@ function blocksToLayout(blocks: Block[]): Layout {
   }));
 }
 
+/**
+ * react-simple-wysiwyg при вставке из clipboard/Figma может тащить служебные поля
+ * (`data-buffer`, `data-metadata` и т.п.), которые раздувают JSON черновика.
+ * Чистим это перед сохранением в состоянии.
+ */
+function sanitizeWysiwygHtml(html: string): string {
+  if (!html) return html;
+
+  return html
+    // Убираем span-ы со служебными атрибутами
+    .replace(
+      /<span[^>]*(?:data-metadata|data-buffer)="[^"]*"[^>]*>[\s\S]*?<\/span>/g,
+      '',
+    )
+    // На всякий случай — убираем figma-комментарии, если они попали в HTML
+    .replace(/<!--\s*\(figmeta\)[\s\S]*?\(\/figmeta\)\s*-->/g, '')
+    .replace(/<!--\s*\(figma\)[\s\S]*?\(\/figma\)\s*-->/g, '');
+}
+
 export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
-  const { layout, setTitle, addBlockAt, updateBlock, toJSON } =
+  const navigate = useNavigate();
+  const { layout, setTitle, addBlockAt, updateBlock, removeBlock, toJSON } =
     useLessonBuilderStore();
-  const { initialize: initHomework } = useHomeworkStore();
+  const { initialize: initHomework, toJSON: homeworkToJSON } = useHomeworkStore();
 
   const [mounted, setMounted] = useState(false);
   const [collapsedEditors, setCollapsedEditors] = useState<
     Record<string, boolean>
   >({});
   const [activeTab, setActiveTab] = useState<'layout' | 'homework'>('layout');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deletingBlocks, setDeletingBlocks] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setMounted(true);
@@ -59,6 +92,9 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
   }, [courseId, initHomework]);
 
   const gridLayout = blocksToLayout(layout.blocks);
+  const draggableHandleProps = {
+    draggableHandle: '.block-drag-handle',
+  } as const;
 
   const onLayoutChange = useCallback(
     (currentLayout: Layout) => {
@@ -97,9 +133,29 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
     [addBlockAt]
   );
 
+  const blockHasContent = (block: Block): boolean => {
+    if (block.type === 'text') return !!block.html.replace(/<[^>]*>/g, '').trim();
+    return !!block.url;
+  };
+
+  const handleDeleteBlock = (blockId: string) => {
+    if (deletingBlocks[blockId]) return;
+    setDeletingBlocks((prev) => ({ ...prev, [blockId]: true }));
+    window.setTimeout(() => {
+      removeBlock(blockId);
+      setDeletingBlocks((prev) => {
+        const next = { ...prev };
+        delete next[blockId];
+        return next;
+      });
+    }, 220);
+  };
+
   const handleCourseTitleChange = (title: string) => setTitle(title);
-  const handleTextChange = (blockId: string, html: string) =>
-    updateBlock(blockId, { html } as Block);
+  const handleTextChange = (blockId: string, html: string) => {
+    const cleaned = sanitizeWysiwygHtml(html);
+    updateBlock(blockId, { html: cleaned } as Block);
+  };
 
   const createDragImage = (type: BlockType) => {
     const el = document.createElement('div');
@@ -304,8 +360,9 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                   className={styles.gridFixedWidth}
                   style={{ width: GRID_FIXED_WIDTH, minWidth: GRID_FIXED_WIDTH }}
                 >
-                  <FixedGridLayout
+                  <GridLayout
                     className={styles.gridLayout}
+                    width={GRID_FIXED_WIDTH}
                     style={{
                       minHeight: GRID_ROWS_BASE * ROW_HEIGHT,
                       background: 'transparent',
@@ -321,44 +378,65 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                     onLayoutChange={onLayoutChange}
                     onDrop={onDrop}
                     isDroppable
+                    {...draggableHandleProps}
                     droppingItem={{ i: '__drop__', x: 0, y: 0, w: 2, h: 2 }}
                     containerPadding={[0, 0]}
                   >
                     {layout.blocks.map((block) => (
                       <div
                         key={block.id}
-                        className={styles.gridBlock}
+                        className={`${styles.gridBlock} ${deletingBlocks[block.id] ? styles.gridBlockDeleting : ''}`}
                         dir="ltr"
                       >
-                        <div className={styles.blockHeader}>
+                        <div className={`${styles.blockHeader} block-drag-handle`}>
                           <span className={styles.blockType}>
                             {BLOCK_LABELS[block.type]}
                           </span>
-                          {block.type === 'text' && (
+                          <div className={styles.blockHeaderActions}>
+                            {block.type === 'text' && (
+                              <button
+                                type="button"
+                                className={styles.blockToggle}
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCollapsedEditors((prev) => ({
+                                    ...prev,
+                                    [block.id]: !(prev[block.id] ?? true),
+                                  }));
+                                }}
+                                aria-label="Свернуть/развернуть редактор"
+                              >
+                                {(collapsedEditors[block.id] ?? true) ? '▲' : '▼'}
+                              </button>
+                            )}
                             <button
                               type="button"
-                              className={styles.blockToggle}
-                              onMouseDown={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                              }}
+                              className={styles.blockDeleteBtn}
+                              disabled={deletingBlocks[block.id]}
+                              onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setCollapsedEditors((prev) => ({
-                                  ...prev,
-                                  [block.id]: !(prev[block.id] ?? true),
-                                }));
+                                if (deletingBlocks[block.id]) return;
+                                if (blockHasContent(block)) {
+                                  setDeleteTarget(block.id);
+                                } else {
+                                  handleDeleteBlock(block.id);
+                                }
                               }}
-                              aria-label="Свернуть/развернуть редактор"
+                              aria-label="Удалить блок"
                             >
-                              {(collapsedEditors[block.id] ?? true) ? '▲' : '▼'}
+                              <Trash2 size={12} />
                             </button>
-                          )}
+                          </div>
                         </div>
                         {renderBlockBody(block)}
                       </div>
                     ))}
-                  </FixedGridLayout>
+                  </GridLayout>
                 </div>
               </div>
 
@@ -381,11 +459,12 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                     type="button"
                     className={`${styles.button} ${styles.buttonSecondary}`}
                     onClick={() => {
+                      const lessonData = toJSON();
+                      const homeworkData = homeworkToJSON();
+                      const hw = homeworkData.questions.length > 0 ? homeworkData : null;
+                      const page = serializeCoursePage(lessonData, hw);
                       // eslint-disable-next-line no-console
-                      console.log(
-                        'Lesson layout JSON (manual dump):',
-                        toJSON(),
-                      );
+                      console.log('CoursePageDTO (draft):', JSON.stringify(page));
                     }}
                   >
                     Сохранить черновик
@@ -394,14 +473,14 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                     type="button"
                     className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={() => {
-                      // eslint-disable-next-line no-console
-                      console.log(
-                        'Lesson layout JSON (manual dump):',
-                        toJSON(),
-                      );
+                      const lessonData = toJSON();
+                      const homeworkData = homeworkToJSON();
+                      const hw = homeworkData.questions.length > 0 ? homeworkData : null;
+                      const page = serializeCoursePage(lessonData, hw);
+                      navigate('/app/lesson/preview', { state: page });
                     }}
                   >
-                    Опубликовать урок
+                    Предпросмотр
                   </button>
                 </div>
               </div>
@@ -411,6 +490,28 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
           {activeTab === 'homework' && <HomeworkBuilder />}
         </div>
       </div>
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить блок?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Блок содержит данные. Это действие нельзя отменить.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) handleDeleteBlock(deleteTarget);
+                setDeleteTarget(null);
+              }}
+            >
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

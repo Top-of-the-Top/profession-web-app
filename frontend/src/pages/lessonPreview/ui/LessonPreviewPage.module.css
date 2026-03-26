@@ -1,0 +1,51 @@
+.page {
+  width: 100%;
+  min-height: 100%;
+  background: var(--background);
+}
+
+.previewBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 24px;
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.previewLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.backButton {
+  padding: 6px 14px;
+  border-radius: var(--radius-rounded);
+  border: 1px solid var(--border);
+  background: var(--background);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  color: var(--foreground);
+  transition: background-color 0.15s;
+}
+
+.backButton:hover {
+  background: var(--accent);
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 64px 24px;
+  color: var(--muted-foreground);
+  font-size: var(--text-base);
+}

@@ -56,7 +56,10 @@ def create_test_homework(lesson, **kwargs):
     defaults.update(kwargs)
     return Homework.objects.create(**defaults)
 
-
+@override_settings(
+    CELERY_TASK_ALWAYS_EAGER=True,
+    CELERY_BROKER_URL='memory://',
+)
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class HandleCourseImageUpdateSignalTest(TestCase):
 
@@ -111,7 +114,10 @@ class HandleCourseImageUpdateSignalTest(TestCase):
 
         mock_delete.assert_not_called()
 
-
+@override_settings(
+    CELERY_TASK_ALWAYS_EAGER=True,
+    CELERY_BROKER_URL='memory://',
+)
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class DeleteCourseImageSignalTest(TestCase):
 
@@ -137,7 +143,10 @@ class DeleteCourseImageSignalTest(TestCase):
 
         course.delete()
 
-
+@override_settings(
+    CELERY_TASK_ALWAYS_EAGER=True,
+    CELERY_BROKER_URL='memory://',
+)
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CourseNotificationSignalTest(TestCase):
 
@@ -225,7 +234,10 @@ class CourseNotificationSignalTest(TestCase):
         self.mock_send_course.assert_not_called()
         self.mock_send_mass_email.assert_not_called()
 
-
+@override_settings(
+    CELERY_TASK_ALWAYS_EAGER=True,
+    CELERY_BROKER_URL='memory://',
+)
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class HomeworkDeadlineHandlerSignalTest(TestCase):
 
@@ -365,7 +377,10 @@ class HomeworkDeadlineHandlerSignalTest(TestCase):
 
         self.assertTrue(found_1h)
 
-
+@override_settings(
+    CELERY_TASK_ALWAYS_EAGER=True,
+    CELERY_BROKER_URL='memory://',
+)
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class QuestionNotificationSignalTest(TestCase):
 
@@ -455,7 +470,10 @@ class QuestionNotificationSignalTest(TestCase):
         course_args = self.mock_send_course.call_args[0]
         self.assertEqual(course_args[0], self.course.course_id)
 
-
+@override_settings(
+    CELERY_TASK_ALWAYS_EAGER=True,
+    CELERY_BROKER_URL='memory://',
+)
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class TaskNotificationSignalTest(TestCase):
 

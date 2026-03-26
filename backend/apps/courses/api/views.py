@@ -8,9 +8,8 @@ from ..models import Course, PurchasedCourse, Lesson, Task, Homework, Question, 
 from .serializers import (
     CourseDTOSerializer,
     CourseSerializer,
-    CourseListResponseSerializer,
-    CourseDetailResponseSerializer,
     PurchasedCourseSerializer,
+    CourseListResponseSerializer,
     LessonSerializer,
     HomeworkSerializer,
     QuestionSerializer,
@@ -176,6 +175,7 @@ class CourseDTOList(generics.ListAPIView):
     serializer_class = CourseDTOSerializer
 
     def get_queryset(self):
+        user = self.request.user
         return Course.objects.all()
 
     def get_serializer_context(self):

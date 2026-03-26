@@ -7,7 +7,7 @@ import tempfile
 from apps.users.models import User
 from apps.users.api.utils import encrypt_data
 from ..models import Course, Section, Lesson, Homework, Question, Task, DEFAULT_COURSE_IMAGE
-
+from test_models import BaseTestCase
 
 def create_test_user(email='test@test.com', role='teacher'):
     return User.objects.create_user(
@@ -56,26 +56,7 @@ def create_test_homework(lesson, **kwargs):
     defaults.update(kwargs)
     return Homework.objects.create(**defaults)
 
-class BaseTestCase(TestCase):
 
-    CELERY_TASKS_TO_MOCK = [
-        'apps.courses.signals.send_course_notification.delay',
-        'apps.courses.signals.send_course_notification.apply_async',
-        'apps.courses.signals.send_personal_notification.delay',
-        'apps.courses.signals.send_mass_course_email.delay',
-        'apps.courses.signals.send_mass_system_email.delay',
-        'apps.courses.signals.send_single_email.delay',
-    ]
-
-    def setUp(self):
-        self.celery_patchers = [
-            patch(task) for task in self.CELERY_TASKS_TO_MOCK
-        ]
-        self.celery_mocks = [p.start() for p in self.celery_patchers]
-
-    def tearDown(self):
-        for patcher in self.celery_patchers:
-            patcher.stop()
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class HandleCourseImageUpdateSignalTest(BaseTestCase):

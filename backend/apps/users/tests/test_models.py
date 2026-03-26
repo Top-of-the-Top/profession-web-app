@@ -1,8 +1,11 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from unittest.mock import patch
 from django.utils import timezone
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.exceptions import ValidationError
 from ..models import User, Profile
 from ..api.utils import encrypt_data
+import tempfile
 
 
 class UserModelTest(TestCase):
@@ -202,7 +205,7 @@ class UserModelTest(TestCase):
         self.assertEqual(users[0].id, user2.id)
         self.assertEqual(users[1].id, user1.id)
 
-
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class ProfileModelTest(TestCase):
 
     def setUp(self):
@@ -211,7 +214,16 @@ class ProfileModelTest(TestCase):
             password='testpass123'
         )
 
+        self.storage_patcher = patch(
+            'django.core.files.storage.default_storage._wrapped'
+        )
+        self.storage_patcher.start()
+
+    def tearDown(self):
+        self.storage_patcher.stop()
+
     def test_profile_creation(self):
+
         profile = Profile.objects.create(user=self.user)
 
         self.assertIsNotNone(profile)

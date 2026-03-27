@@ -6,7 +6,6 @@ import logging
 from django.http import StreamingHttpResponse, HttpResponse, HttpResponseNotAllowed
 from rest_framework.response import Response
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from asgiref.sync import sync_to_async
 from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
@@ -20,7 +19,6 @@ from apps.users.models import User
 from apps.courses.models import PurchasedCourse
 
 logger = logging.getLogger(__name__)
-# User = get_user_model()
 
 
 

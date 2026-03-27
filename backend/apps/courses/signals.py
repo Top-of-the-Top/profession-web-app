@@ -74,7 +74,7 @@ def course_notification_signal(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Homework)
 def homework_deadline_handler(sender, instance, created, **kwargs):
     """Уведомление о ДЗ и планирование дедлайнов"""
-    course_id = instance.lesson_id.section_id.course_id_id
+    course = instance.lesson_id.section_id.course_id
     action = "создано" if created else "изменено"
 
     notify_author(instance, action)
@@ -83,7 +83,7 @@ def homework_deadline_handler(sender, instance, created, **kwargs):
     message =  f"Дедлайн: {instance.deadline.strftime('%d.%m %H:%M')}"
 
     notification = (
-        course_id,
+        course.course_id,
         title,
         message,
     )
@@ -97,7 +97,7 @@ def homework_deadline_handler(sender, instance, created, **kwargs):
     for eta, text in reminders:
         if eta > now:
             send_course_notification.apply_async(
-                args=[course_id, f"Напоминание: {instance.title}", text],
+                args=[course.course_id, f"Напоминание: {instance.title}", text],
                 eta=eta,
                 expires=instance.deadline
             )
@@ -107,7 +107,7 @@ def homework_deadline_handler(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Question)
 def question_notification(sender, instance, created, **kwargs):
     """Уведомление о вопросе"""
-    course_id = instance.homework_id.lesson_id.section_id.course_id_id
+    course = instance.homework_id.lesson_id.section_id.course_id
     action = "добавлен" if created else "отредактирован"
 
     notify_author(instance, action)
@@ -116,7 +116,7 @@ def question_notification(sender, instance, created, **kwargs):
     message = f"В ДЗ '{instance.homework_id.title}' {action} вопрос."
 
     notification = (
-        course_id,
+        course.course_id,
         title,
         message,
     )
@@ -129,7 +129,7 @@ def question_notification(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Task)
 def task_notification(sender, instance, created, **kwargs):
     """Уведомление о задаче"""
-    course_id = instance.homework_id.lesson_id.section_id.course_id_id
+    course = instance.homework_id.lesson_id.section_id.course_id
     action = "добавлена" if created else "изменена"
 
     notify_author(instance, action)
@@ -138,7 +138,7 @@ def task_notification(sender, instance, created, **kwargs):
     message = f"В ДЗ '{instance.homework_id.title}' {action} задача: {instance.text[:30]}..."
 
     notification = (
-        course_id,
+        course.course_id,
         title,
         message,
     )

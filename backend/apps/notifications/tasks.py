@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 @shared_task
-def send_course_notification(course_id, title, message, html_body=None, send_email=False):
+def send_course_notification(course_id, title, message):
     """Рассылка на весь курс: запись в БД + RabbitMQ + (опционально) Почта"""
 
     notif = Notification.objects.create(
@@ -21,7 +21,6 @@ def send_course_notification(course_id, title, message, html_body=None, send_ema
         title=title,
         notification_type=Notification.COURSE,
         message=message,
-        html_message=html_body,
     )
 
     payload = {
@@ -34,12 +33,8 @@ def send_course_notification(course_id, title, message, html_body=None, send_ema
 
     publish_event(routing_key=f"course.{course_id}", payload=payload)
 
-    if send_email and html_body:
-        send_mass_course_email.delay(course_id, title, html_body)
-
-
 @shared_task
-def send_personal_notification(user_id, title, message, html_body=None, send_email=True):
+def send_personal_notification(user_id, title, message):
     """Личное уведомление: запись в БД + RabbitMQ + Почта"""
 
     notif = Notification.objects.create(
@@ -47,7 +42,6 @@ def send_personal_notification(user_id, title, message, html_body=None, send_ema
         title=title,
         notification_type=Notification.PERSONAL,
         message=message,
-        html_message=html_body,
     )
 
     payload = {
@@ -60,18 +54,14 @@ def send_personal_notification(user_id, title, message, html_body=None, send_ema
 
     publish_event(routing_key=f"user.{user_id}", payload=payload)
 
-    if send_email and html_body:
-        send_single_email.delay(user_id, title, html_body)
-
 @shared_task
-def send_system_notification(title, message, html_body=None):
+def send_system_notification(title, message):
     """Общесистемные уведомления: запись в БД + RabbitMQ + Почта"""
 
     notif = Notification.objects.create(
         title=title,
         notification_type=Notification.SYSTEM,
         message=message,
-        html_message=html_body,
     )
 
     payload = {
@@ -86,7 +76,7 @@ def send_system_notification(title, message, html_body=None):
 
 
 @shared_task
-def send_single_email(user_id, subject, html_content):
+def send_single_email(user_id, subject, message):
     """Отдельная задача для отправки письма, чтобы не блокировать основной поток"""
     try:
         user = User.objects.get(pk=user_id)
@@ -94,7 +84,7 @@ def send_single_email(user_id, subject, html_content):
         if user_email:
             send_mail(
                 subject=subject,
-                html_message=html_content,
+                message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[user_email],
             )
@@ -105,19 +95,19 @@ def send_single_email(user_id, subject, html_content):
 
 
 @shared_task
-def send_mass_course_email(course_id, subject, html_content):
+def send_mass_course_email(course_id, subject, message):
     """Отдельная жирная задача для отправки писем всем, кто зарегистрирован на курс"""
     users = User.objects.filter(
         purchased_courses__course_id=course_id
     ).distinct()
 
     for user in users:
-        send_single_email(user.id, subject, html_content)
+        send_single_email(user.id, subject, message)
 
 
 @shared_task
-def send_mass_system_email(subject, html_content):
+def send_mass_system_email(subject, message):
     """Отдельная жирная задача для отправки все пользователям системы"""
 
     for user in User.objects.all():
-        send_single_email(user.id, subject, html_content)
+        send_single_email(user.id, subject, message)

@@ -5,7 +5,7 @@ import {
   CardHeader,
   CardTitle,
   Button,
-  Spinner,
+  Skeleton,
   PageTransition,
 } from '../../shared/ui';
 import { parseApiError } from '../../shared/lib/api/parseApiError';
@@ -32,6 +32,42 @@ const formatPrice = (value: number) =>
 function isAuthLike(err: unknown) {
   const msg = err instanceof Error ? err.message : '';
   return msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401');
+}
+
+function CartSkeleton() {
+  return (
+    <PageTransition className={styles.cartPage}>
+      <h1 className={styles.cartTitle}>Корзина</h1>
+      <div className={styles.cartLayout}>
+        <div className={styles.cartList}>
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className={styles.cartItem}>
+              <div className={styles.cartItemInfo}>
+                <Skeleton className={styles.skeletonItemTitle} />
+                <Skeleton className={styles.skeletonItemSubtitle} />
+              </div>
+              <div className={styles.cartItemPriceBlock}>
+                <Skeleton className={styles.skeletonItemPeriod} />
+                <Skeleton className={styles.skeletonItemPrice} />
+                <Skeleton className={styles.skeletonItemHint} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <aside className={styles.cartSummary}>
+          <Card className={styles.summaryCard}>
+            <CardHeader className={styles.summaryHeader}>
+              <Skeleton className={styles.skeletonSummaryTitle} />
+              <Skeleton className={styles.skeletonSummaryAmount} />
+            </CardHeader>
+            <CardContent className={styles.summaryContent}>
+              <Skeleton className={styles.skeletonPayButton} />
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
+    </PageTransition>
+  );
 }
 
 export default function CartPage() {
@@ -61,11 +97,7 @@ export default function CartPage() {
   };
 
   if (loading) {
-    return (
-      <div className={styles.cartPage}>
-        <Spinner full />
-      </div>
-    );
+    return <CartSkeleton />;
   }
 
   if (error) {

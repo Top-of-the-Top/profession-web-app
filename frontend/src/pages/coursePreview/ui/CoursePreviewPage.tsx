@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Spinner, PageTransition } from '../../../shared/ui';
+import { Button, Skeleton, PageTransition } from '../../../shared/ui';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
@@ -35,7 +35,7 @@ export default function CoursePreviewPage() {
       onSuccess: () => {
         notifyCartCourseAdded({
           title: 'курс добавлен в корзину',
-          description: `«${course.title}» — можно перейти к оформлению.`,
+          description: `«Курс "${course.title}" добавлен в корзину`,
         });
       },
       onError: (err: unknown) => {
@@ -58,8 +58,36 @@ export default function CoursePreviewPage() {
     });
   };
 
-  if (isLoading) {
-    return <div className={styles.container}><Spinner full /></div>;
+  const isInitialLoading = isLoading && !course;
+
+  if (isInitialLoading) {
+    return (
+      <PageTransition className={styles.container}>
+        <Skeleton className={styles.skeletonPageTitle} />
+        <div className={styles.contentWrapper}>
+          <div className={styles.mainContent}>
+            <div className={styles.imageSection}>
+              <Skeleton className={styles.skeletonImage} />
+            </div>
+            <section className={styles.section}>
+              <Skeleton className={styles.skeletonSectionTitle} />
+              <Skeleton className={styles.skeletonTextLine} />
+              <Skeleton className={styles.skeletonTextLine} />
+              <Skeleton className={styles.skeletonTextLineShort} />
+            </section>
+          </div>
+          <aside className={styles.sidebar}>
+            <div className={styles.priceCard}>
+              <div className={styles.priceHeader}>
+                <Skeleton className={styles.skeletonPriceLabel} />
+                <Skeleton className={styles.skeletonPriceValue} />
+              </div>
+              <Skeleton className={styles.skeletonSelectButton} />
+            </div>
+          </aside>
+        </div>
+      </PageTransition>
+    );
   }
 
   if (error || !course) {

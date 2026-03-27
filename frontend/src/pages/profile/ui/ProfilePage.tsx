@@ -10,7 +10,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-  Spinner,
+  Skeleton,
   PageTransition,
 } from '../../../shared/ui';
 import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars } from 'lucide-react';
@@ -75,6 +75,62 @@ const ProfileField = ({
   </div>
 );
 
+const ProfileSkeleton = () => (
+  <PageTransition className={styles.profilePage}>
+    <div className={styles.wrapper}>
+      <Skeleton className={styles.skeletonProfileTitle} />
+      <Card className={styles.profilePageCard}>
+        <CardContent className={styles.profilePageContent}>
+          <div className={styles.profileSection}>
+            <div className={styles.profileField}>
+              <div className={styles.profileFieldContent}>
+                <Skeleton shape="circle" className={styles.skeletonAvatar} />
+                <div className={styles.profileFieldInfo}>
+                  <Skeleton className={styles.skeletonLabel} />
+                  <Skeleton className={styles.skeletonValueWide} />
+                </div>
+              </div>
+              <Skeleton shape="circle" className={styles.skeletonActionIcon} />
+            </div>
+          </div>
+
+          <div className={styles.profileSection}>
+            <Skeleton className={styles.skeletonSectionTitle} />
+            {Array.from({ length: 2 }).map((_, idx) => (
+              <div key={idx} className={styles.profileField}>
+                <div className={styles.profileFieldContent}>
+                  <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
+                  <div className={styles.profileFieldInfo}>
+                    <Skeleton className={styles.skeletonLabel} />
+                    <Skeleton className={styles.skeletonValue} />
+                  </div>
+                </div>
+                <Skeleton shape="circle" className={styles.skeletonActionIcon} />
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.profileSection}>
+            <Skeleton className={styles.skeletonSectionTitle} />
+            {Array.from({ length: 2 }).map((_, idx) => (
+              <div key={idx} className={styles.profileField}>
+                <div className={styles.profileFieldContent}>
+                  <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
+                  <div className={styles.profileFieldInfo}>
+                    <Skeleton className={styles.skeletonLabel} />
+                    <Skeleton className={styles.skeletonValue} />
+                  </div>
+                </div>
+                <Skeleton shape="circle" className={styles.skeletonActionIcon} />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  </PageTransition>
+);
+
 export default function ProfilePage() {
   const user = useUserStore((state) => state.user);
   const isLoading = useUserStore((state) => state.isLoading);
@@ -132,7 +188,7 @@ export default function ProfilePage() {
   const anyMenuOpen =
     isChangeNameMenuOpen || isEmailMenuOpen || isPhoneMenuOpen;
 
-  if (isLoading && !profile) return <Spinner full />;
+  if (isLoading && !profile) return <ProfileSkeleton />;
   if (!profile) return <div>Профиль недоступен</div>;
 
   const handleNameSave = async (data: {

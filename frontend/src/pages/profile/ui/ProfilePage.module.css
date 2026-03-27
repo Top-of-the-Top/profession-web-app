@@ -31,6 +31,12 @@
   margin: 0 0 24px 0;
 }
 
+.skeletonProfileTitle {
+  width: 220px;
+  height: 32px;
+  margin-bottom: 24px;
+}
+
 .profilePageCard {
   width: 100%;
 	justify-self: center;
@@ -68,6 +74,12 @@
   font-weight: 600;
   color: #1e293b;
   margin: 0 0 16px 0;
+}
+
+.skeletonSectionTitle {
+  width: 170px;
+  height: 22px;
+  margin-bottom: 16px;
 }
 
 .profileField {
@@ -111,6 +123,16 @@
   color: #64748b;
 }
 
+.skeletonAvatar {
+  width: 40px;
+  height: 40px;
+}
+
+.skeletonFieldIcon {
+  width: 28px;
+  height: 28px;
+}
+
 .icon {
   width: 20px;
   height: 20px;
@@ -130,15 +152,35 @@
   font-weight: 400;
 }
 
+.skeletonLabel {
+  width: 90px;
+  height: 12px;
+}
+
 .profileFieldValue {
   font-size: 16px;
   color: #1e293b;
   font-weight: 500;
 }
 
+.skeletonValue {
+  width: 180px;
+  height: 18px;
+}
+
+.skeletonValueWide {
+  width: 240px;
+  height: 18px;
+}
+
 .profileFieldAction {
   display: flex;
   align-items: center;
+}
+
+.skeletonActionIcon {
+  width: 30px;
+  height: 30px;
 }
 
 .pencilEditButton {

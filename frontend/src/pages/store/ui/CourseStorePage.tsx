@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { Button, Spinner, PageTransition } from '../../../shared/ui';
+import { Button, Skeleton, PageTransition } from '../../../shared/ui';
 import type { CourseDTO } from '../../../shared/api/courseApi';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
 import {
@@ -14,15 +14,19 @@ import { useCart } from '../../../shared/api/queries/cart';
 import { useAddToCart } from '../../../shared/api/mutations/cart';
 import styles from './CourseStorePage.module.css';
 
+const FALLBACK_IMAGE =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial,sans-serif' font-size='18' fill='%2364748b'>Нет фото</text></svg>";
+
 interface CourseCardProps {
   course: CourseDTO;
   onClick: () => void;
   onAddToCart: () => void;
   disabled?: boolean;
   inCart?: boolean;
+  isAdding?: boolean;
 }
 
-const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart }: CourseCardProps) => {
+const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart, isAdding }: CourseCardProps) => {
   return (
     <div className={styles.courseCard}>
       <div className={styles.courseHeader}>
@@ -37,7 +41,10 @@ const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart }: CourseCa
           className={styles.courseImage}
           loading="lazy"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=No+Image';
+            const img = e.target as HTMLImageElement;
+            if (img.src !== FALLBACK_IMAGE) {
+              img.src = FALLBACK_IMAGE;
+            }
           }}
         />
       </div>
@@ -65,12 +72,35 @@ const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart }: CourseCa
             onAddToCart();
           }}
         >
-          {inCart ? 'В корзине' : 'В коризну'}
+          {inCart ? 'В корзине' : isAdding ? 'Добавляем...' : 'В корзину'}
         </Button>
       </div>
     </div>
   );
 };
+
+const StoreSkeleton = () => (
+  <PageTransition className={styles.catalog}>
+    <h2 className={styles.catalogTitle}>Каталог курсов</h2>
+    <div className={styles.coursesGrid}>
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <div key={idx} className={styles.courseCard}>
+          <div className={styles.courseHeader}>
+            <Skeleton className={styles.skeletonTitle} />
+            <Skeleton className={styles.skeletonSubtitle} />
+          </div>
+          <div className={styles.courseImageWrapper}>
+            <Skeleton className={styles.skeletonImage} />
+          </div>
+          <div className={styles.courseActions}>
+            <Skeleton className={styles.skeletonDetailsButton} />
+            <Skeleton className={styles.skeletonSelectButton} />
+          </div>
+        </div>
+      ))}
+    </div>
+  </PageTransition>
+);
 
 function isAuthLike(err: unknown) {
   const msg = err instanceof Error ? err.message : '';
@@ -96,7 +126,7 @@ export default function CourseStorePage() {
       onSuccess: () => {
         notifyCartCourseAdded({
           title: 'курс добавлен в корзину',
-          description: `«${title}» — можно перейти к оформлению.`,
+          description: `«Курс "${title}" добавлен в вашу корзину`,
         });
       },
       onError: (err: unknown) => {
@@ -120,12 +150,7 @@ export default function CourseStorePage() {
   };
 
   if (isLoading) {
-    return (
-      <div className={styles.catalog}>
-        <h2 className={styles.catalogTitle}>Каталог курсов</h2>
-        <Spinner />
-      </div>
-    );
+    return <StoreSkeleton />;
   }
 
   if (error) {
@@ -161,6 +186,7 @@ export default function CourseStorePage() {
               onClick={() => handleCourseClick(course.slug)}
               onAddToCart={() => handleAddToCart(course.slug, course.title)}
               disabled={addToCart.isPending && addToCart.variables === course.slug}
+              isAdding={addToCart.isPending && addToCart.variables === course.slug}
               inCart={inCartSlugs.has(course.slug)}
             />
           ))}

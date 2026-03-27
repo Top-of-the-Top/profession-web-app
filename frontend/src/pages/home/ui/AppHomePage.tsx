@@ -1,11 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Button, PageTransition, Spinner } from '../../../shared/ui';
+import { Button, PageTransition, Skeleton } from '../../../shared/ui';
 import type { PurchasedCourseItem } from '../../../shared/api/courseApi';
 import { useCoursesForHome } from '../../../shared/api/queries/courses';
 import styles from './AppHomePage.module.css';
 
 const PLACEHOLDER_IMG =
-  'https://via.placeholder.com/640x400/f0f2f5/64748b?text=%D0%9D%D0%B5%D1%82+%D1%84%D0%BE%D1%82%D0%BE';
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='400' viewBox='0 0 640 400'><rect width='100%25' height='100%25' fill='%23f0f2f5'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial,sans-serif' font-size='24' fill='%2364748b'>Нет фото</text></svg>";
 
 function CourseCard({
   item,
@@ -36,11 +36,38 @@ function CourseCard({
           className={styles.image}
           loading="lazy"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = PLACEHOLDER_IMG;
+            const img = e.target as HTMLImageElement;
+            if (img.src !== PLACEHOLDER_IMG) {
+              img.src = PLACEHOLDER_IMG;
+            }
           }}
         />
       </div>
     </button>
+  );
+}
+
+function HomeSkeleton() {
+  return (
+    <PageTransition className={styles.page}>
+      <div className={styles.headerRow}>
+        <h1 className={styles.title}>Курсы</h1>
+      </div>
+      <div className={styles.grid}>
+        {Array.from({ length: 6 }).map((_, idx) => (
+          <div key={idx} className={styles.card}>
+            <div className={styles.cardBody}>
+              <Skeleton className={styles.skeletonCardTitle} />
+              <Skeleton className={styles.skeletonCardDescription} />
+              <Skeleton className={styles.skeletonCardDescriptionShort} />
+            </div>
+            <div className={styles.imageWrap}>
+              <Skeleton className={styles.skeletonImage} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </PageTransition>
   );
 }
 
@@ -53,16 +80,7 @@ export default function AppHomePage() {
   };
 
   if (isLoading) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.headerRow}>
-          <h1 className={styles.title}>Курсы</h1>
-        </div>
-        <div className={styles.centered}>
-          <Spinner />
-        </div>
-      </div>
-    );
+    return <HomeSkeleton />;
   }
 
   if (error) {

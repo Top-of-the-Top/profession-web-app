@@ -90,6 +90,7 @@
 	export { Switch } from './Switch'
 
 	export { Spinner } from './Spinner'
+export { Skeleton } from './Skeleton'
 	export { PageTransition } from './PageTransition'
 
 	export {

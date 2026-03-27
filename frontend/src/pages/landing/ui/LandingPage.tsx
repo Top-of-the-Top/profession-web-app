@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../shared/lib/utils';
 import { Menu, X } from 'lucide-react';
-import { Button, Card, CardTitle, Spinner } from '../../../shared/ui';
+import { Button, Card, CardTitle, Skeleton } from '../../../shared/ui';
 import { ArrowUpRight } from 'lucide-react';
 import {
   Pagination,
@@ -66,6 +66,27 @@ export default function LandingPage() {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+
+  const trackSkeletons = Array.from({ length: PAGE_SIZE }).map((_, idx) => (
+    <Card key={`track-skeleton-${idx}`} className={styles.trackCard}>
+      <div className={styles.trackCardLayout}>
+        <div className={styles.trackCardLeft}>
+          <div className={styles.trackCardTop}>
+            <div className={styles.trackHeader}>
+              <Skeleton className={styles.skeletonTrackTitle} />
+            </div>
+            <Skeleton className={styles.skeletonTrackPrice} />
+          </div>
+          <div className={styles.trackCardActions}>
+            <Skeleton className={styles.skeletonTrackButtonRow} />
+          </div>
+        </div>
+        <div className={styles.trackImageCol}>
+          <Skeleton className={styles.skeletonTrackImage} />
+        </div>
+      </div>
+    </Card>
+  ));
 
   // Скролл по якорям
   useEffect(() => {
@@ -230,7 +251,7 @@ export default function LandingPage() {
 
             <div className={styles.tracksGrid}>
               {loading ? (
-                <Spinner />
+                trackSkeletons
               ) : (
                 pagedTracks.map((track) => (
                   <Card

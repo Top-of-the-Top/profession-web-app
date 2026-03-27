@@ -9,10 +9,36 @@ from crum import get_current_user
 
 DEFAULT_COURSE_IMAGE = "courses/default_course.png"
 
-class TrackedModel(models.Model):
+class TimestampedMixin(models.Model):
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+class PublishableMixin(models.Model):
+    DRAFT_STATUS = 'draft'
+    PUBLISHED_STATUS = 'published'
+
+    STATUS_CHOICES = [
+        (DRAFT_STATUS, 'черновик'),
+        (PUBLISHED_STATUS, 'опубликован'),
+    ]
+
+    type = models.CharField(
+        max_length=20,
+        default=DRAFT_STATUS,
+        choices=STATUS_CHOICES,
+        verbose_name='Статус'
+    )
+
+    class Meta:
+        abstract = True
+
+class AbstractComponentModel(PublishableMixin, TimestampedMixin):
     """Абстрактная модель для отслеживания автора изменений"""
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата изменения")
+
     last_modified_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -25,11 +51,9 @@ class TrackedModel(models.Model):
     class Meta:
         abstract = True
 
-
 def course_image_path(instance, filename):
     ext = filename.split('.')[-1].lower()
     return f'courses/course_{instance.pk}.{ext}'
-
 
 def generate_unique_slug(instance, title, slug_field='slug'):
     base_slug = slugify(title[:80])
@@ -40,7 +64,7 @@ def generate_unique_slug(instance, title, slug_field='slug'):
     return f"{base_slug}-{uuid_part}"
 
 
-class Course(TrackedModel):
+class Course(AbstractComponentModel):
     course_id = models.AutoField(primary_key=True)
     authors = models.ManyToManyField(
         User,
@@ -70,16 +94,8 @@ class Course(TrackedModel):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
 
-        if not self.slug:
-            self.slug = generate_unique_slug(self, self.title)
-
-        if is_new and self.image and self.image.name != DEFAULT_COURSE_IMAGE:
-            try:
-                image_file = self.image.file
-            except (FileNotFoundError, ValueError, OSError):
-                super().save(*args, **kwargs)
-                return
-
+        if is_new and self.image and hasattr(self.image, 'file') and self.image.name != DEFAULT_COURSE_IMAGE:
+            image_file = self.image.file
             original_name = getattr(self.image, 'name', 'image.jpg')
 
             self.image = None
@@ -103,7 +119,7 @@ class Course(TrackedModel):
     def __str__(self):
         return self.title
 
-class Section(TrackedModel):
+class Section(AbstractComponentModel):
     section_id = models.PositiveIntegerField(verbose_name='Номер секции')
     course_id = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name='ID курса')
     title = models.CharField(max_length=120, verbose_name='Название секции')
@@ -135,7 +151,7 @@ class Section(TrackedModel):
         unique_together = [['course_id', 'section_id']]
 
 
-class Lesson(TrackedModel):
+class Lesson(AbstractComponentModel):
     lesson_id = models.AutoField(primary_key=True)
     section_id = models.ForeignKey(Section, on_delete=models.CASCADE, null=True, verbose_name='ID секции')
     title = models.CharField(max_length=120, verbose_name='Название урока')
@@ -157,7 +173,7 @@ class Lesson(TrackedModel):
         ordering = ['date']
 
 
-class Homework(TrackedModel):
+class Homework(AbstractComponentModel):
     homework_id = models.AutoField(primary_key=True)
     lesson_id = models.ForeignKey(Lesson, on_delete=models.CASCADE)
     title = models.CharField(max_length=120, verbose_name='Название домашнего задания')
@@ -180,7 +196,7 @@ class Homework(TrackedModel):
         return self.title
 
 
-class Question(TrackedModel):
+class Question(AbstractComponentModel):
     question_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
     # Пока работаем только с текстовыми вопросами. Без картинок и так далее
@@ -202,7 +218,7 @@ class Question(TrackedModel):
         return self.text
 
 
-class Task(TrackedModel):
+class Task(AbstractComponentModel):
     task_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
     text = models.CharField(max_length=200, verbose_name='Текст задания')
@@ -220,24 +236,36 @@ class Task(TrackedModel):
     def __str__(self):
         return self.text
 
-
-class Users_Homeworks_Attempts(models.Model):
+class AttemptStatusMixin(models.Model):
+    DRAFT_STATUS = 'draft'
+    SUBMITTED_STATUS = 'submitted'
+    REVIEWED_STATUS = 'reviewed'
 
     STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('submitted', 'Submitted'),
-        ('reviewed', 'Reviewed'),
+        (DRAFT_STATUS, 'Черновик'),
+        (SUBMITTED_STATUS, 'Отправлено'),
+        (REVIEWED_STATUS, 'Оценено'),
     ]
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=DRAFT_STATUS,
+        verbose_name='Статус',
+    )
+
+    send_at = models.DateTimeField(null=True, blank=True, verbose_name='Отправлено в')
+
+    class Meta:
+        abstract = True
+class GradedMixin(models.Model):
+    pass
+
+class Users_Homeworks_Attempts(AttemptStatusMixin, TimestampedMixin):
 
     attempt_id = models.AutoField(primary_key=True)
     homework_id = models.ForeignKey(Homework, on_delete=models.CASCADE)
     user_id = models.ForeignKey(User, on_delete=models.CASCADE)
-
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name='Статус')
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    send_at = models.DateTimeField(null=True, blank=True, verbose_name='Отправлено в')
 
     @property
     def grade(self):
@@ -278,8 +306,7 @@ class Users_Homeworks_Attempts(models.Model):
     def __str__(self):
         return self.attempt_id
 
-
-class Users_questions_answers(models.Model):
+class Users_questions_answers(TimestampedMixin):
     answer_id = models.AutoField(primary_key=True)
     question_id = models.ForeignKey(Question, on_delete=models.CASCADE)
     attempt_id = models.ForeignKey(
@@ -287,11 +314,11 @@ class Users_questions_answers(models.Model):
         on_delete=models.CASCADE,
         related_name='question_answers')
 
-    is_correct = models.BooleanField(default=False)
     user_answer = models.CharField(max_length=120, verbose_name='Ответ пользователя')
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    @property
+    def is_correct(self):
+        return self.user_answer == self.answer_id.correct_ans
 
     class Meta:
         verbose_name = 'Ответ на вопрос'
@@ -303,52 +330,9 @@ class Users_questions_answers(models.Model):
 
     def __str__(self):
         return self.answer_id
+class Users_tasks_answers(AttemptStatusMixin, TimestampedMixin):
 
-
-class PurchasedCourse(models.Model):
-
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='purchased_courses',
-    )
-    course = models.ForeignKey(
-        Course,
-        on_delete=models.CASCADE,
-        related_name='purchases',
-    )
-    payment = models.ForeignKey(
-        'payments.Payment',
-        on_delete=models.CASCADE,
-        related_name='purchased_courses',
-    )
-    access_expires_at = models.DateTimeField()
-
-    class Meta:
-        db_table = 'courses_by_user'
-        verbose_name = 'Купленный курс'
-        verbose_name_plural = 'Купленные курсы'
-        unique_together = ('user', 'course')
-
-    def __str__(self):
-        return f'{self.user} → {self.course}'
-
-    @property
-    def is_active(self):
-        from django.utils import timezone
-        return timezone.now() < self.access_expires_at
-
-
-class Users_tasks_answers(models.Model):
-    TASK_STATUS_CHOICES = [
-        # Начали отвечать -> draft -> отправили всю домашку -> submitted -> эту
-        # проверили -> reviewed
-        ('draft', 'Draft'),
-        ('submitted', 'Submitted'),
-        ('reviewed', 'Reviewed'),
-    ]
     answer_id = models.AutoField(primary_key=True)
-
     task_id = models.ForeignKey(Task, on_delete=models.CASCADE)
     attempt_id = models.ForeignKey(
         Users_Homeworks_Attempts,
@@ -360,14 +344,6 @@ class Users_tasks_answers(models.Model):
 
     # Пока не понятно, что загружаем в качестве ответа. Пока будет Text без ограничений.
     user_answer = models.TextField()
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    task_status = models.CharField(
-        max_length=20,
-        choices=TASK_STATUS_CHOICES,
-        default='submitted')
 
     def clean(self):
         if self.points > self.task_id.max_points:  # Проверяем что выставлено корректное количество баллов
@@ -388,5 +364,40 @@ class Users_tasks_answers(models.Model):
         ordering = ['created_at']
 
         indexes = [
-            models.Index(fields=['attempt_id', 'task_id', 'task_status'])
+            models.Index(fields=['attempt_id', 'task_id', 'status'])
         ]
+
+class PurchasedCourse(models.Model):
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='purchased_courses',
+    )
+
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='purchases',
+    )
+
+    payment = models.ForeignKey(
+        'payments.Payment',
+        on_delete=models.CASCADE,
+        related_name='purchased_courses',
+    )
+    access_expires_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'courses_by_user'
+        verbose_name = 'Купленный курс'
+        verbose_name_plural = 'Купленные курсы'
+        unique_together = ('user', 'course')
+
+    def __str__(self):
+        return f'{self.user} → {self.course}'
+
+    @property
+    def is_active(self):
+        from django.utils import timezone
+        return timezone.now() < self.access_expires_at

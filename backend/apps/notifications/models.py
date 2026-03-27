@@ -36,7 +36,6 @@ class Notification(models.Model):
 
     title = models.CharField(max_length=255)
     message = models.TextField()
-    html_message = models.TextField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 

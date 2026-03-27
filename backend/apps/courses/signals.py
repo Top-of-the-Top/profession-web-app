@@ -15,11 +15,7 @@ from .models import (
     DEFAULT_COURSE_IMAGE,
     Course,
     Homework,
-    Question,
-    Task
 )
-
-
 
 def notify_author(instance, action_name: str):
     """Отправляет подтверждение тому, кто внес изменения"""
@@ -29,8 +25,6 @@ def notify_author(instance, action_name: str):
             "Система",
             f"Объект '{instance}' успешно {action_name}."
         )
-
-
 
 @receiver(pre_save, sender=Course)
 def handle_course_image_update(sender, instance, **kwargs):
@@ -48,7 +42,6 @@ def handle_course_image_update(sender, instance, **kwargs):
 def delete_course_image(sender, instance, **kwargs):
     if instance.image and instance.image.name != DEFAULT_COURSE_IMAGE:
         instance.image.delete(save=False)
-
 
 
 @receiver(post_save, sender=Course)
@@ -102,46 +95,3 @@ def homework_deadline_handler(sender, instance, created, **kwargs):
                 expires=instance.deadline
             )
             send_mass_course_email.delay(*notification)
-
-
-@receiver(post_save, sender=Question)
-def question_notification(sender, instance, created, **kwargs):
-    """Уведомление о вопросе"""
-    course = instance.homework_id.lesson_id.section_id.course_id
-    action = "добавлен" if created else "отредактирован"
-
-    notify_author(instance, action)
-
-    title = "Новый вопрос добавлен" if created else "Вопрос обновлен"
-    message = f"В ДЗ '{instance.homework_id.title}' {action} вопрос."
-
-    notification = (
-        course.course_id,
-        title,
-        message,
-    )
-
-    send_course_notification.delay(*notification)
-    send_mass_course_email.delay(*notification)
-
-
-
-@receiver(post_save, sender=Task)
-def task_notification(sender, instance, created, **kwargs):
-    """Уведомление о задаче"""
-    course = instance.homework_id.lesson_id.section_id.course_id
-    action = "добавлена" if created else "изменена"
-
-    notify_author(instance, action)
-
-    title = "Новое задание добавлено" if created else "Задание отредактировано"
-    message = f"В ДЗ '{instance.homework_id.title}' {action} задача: {instance.text[:30]}..."
-
-    notification = (
-        course.course_id,
-        title,
-        message,
-    )
-
-    send_course_notification.delay(*notification)
-    send_mass_course_email.delay(*notification)

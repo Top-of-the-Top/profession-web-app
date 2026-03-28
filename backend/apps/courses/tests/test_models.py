@@ -504,14 +504,14 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
             attempt_id=attempt,
             points=8,
             user_answer='Answer 1',
-            task_status='reviewed'
+            status='reviewed'
         )
         Users_tasks_answers.objects.create(
             task_id=task2,
             attempt_id=attempt,
             points=10,
             user_answer='Answer 2',
-            task_status='reviewed'
+            status='reviewed'
         )
 
         grade = attempt.grade
@@ -540,14 +540,11 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
         Users_questions_answers.objects.create(
             question_id=question1,
             attempt_id=attempt,
-            user_answer='A',
-            is_correct=True
-        )
+            user_answer='B',        )
         Users_questions_answers.objects.create(
             question_id=question2,
             attempt_id=attempt,
-            user_answer='A',
-            is_correct=False
+            user_answer='B',
         )
 
         grade = attempt.grade
@@ -577,13 +574,12 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
             attempt_id=attempt,
             points=10,
             user_answer='Answer',
-            task_status='reviewed'
+            status='reviewed'
         )
         Users_questions_answers.objects.create(
             question_id=question,
             attempt_id=attempt,
             user_answer='A',
-            is_correct=True
         )
 
         grade = attempt.grade
@@ -607,7 +603,7 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
             attempt_id=attempt,
             points=0,
             user_answer='Wrong answer',
-            task_status='reviewed'
+            status='reviewed'
         )
 
         grade = attempt.grade
@@ -641,7 +637,7 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
             attempt_id=attempt,
             points=10,
             user_answer='Answer',
-            task_status='submitted'
+            status='submitted'
         )
 
         grade = attempt.grade

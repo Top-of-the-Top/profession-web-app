@@ -94,6 +94,9 @@ class Course(AbstractComponentModel):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
 
+        if not self.slug:
+            self.slug = generate_unique_slug(self, self.title)
+
         if is_new and self.image and hasattr(self.image, 'file') and self.image.name != DEFAULT_COURSE_IMAGE:
             image_file = self.image.file
             original_name = getattr(self.image, 'name', 'image.jpg')
@@ -258,8 +261,6 @@ class AttemptStatusMixin(models.Model):
 
     class Meta:
         abstract = True
-class GradedMixin(models.Model):
-    pass
 
 class Users_Homeworks_Attempts(AttemptStatusMixin, TimestampedMixin):
 
@@ -273,11 +274,11 @@ class Users_Homeworks_Attempts(AttemptStatusMixin, TimestampedMixin):
             return None
 
         task_points = self.task_answers.filter(
-            task_status='reviewed'
+            status='reviewed'
         ).aggregate(points=Sum('points'))['points'] or 0
 
         question_points = self.question_answers.filter(
-            is_correct=True
+            is_correct=True,
         ).count()
 
         task_max = self.homework_id.task_set.aggregate(
@@ -316,9 +317,16 @@ class Users_questions_answers(TimestampedMixin):
 
     user_answer = models.CharField(max_length=120, verbose_name='Ответ пользователя')
 
-    @property
-    def is_correct(self):
-        return self.user_answer == self.answer_id.correct_ans
+    is_correct = models.BooleanField(default=False)
+    def save(self, *args, **kwargs):
+        self.is_correct = (self.user_answer == self.question_id.correct_ans)
+
+        if self.user_answer not in self.question_id.answer_options:
+            raise ValidationError({
+                'user_answer': f'Answer must be one of: {", ".join(self.question_id.answer_options)}'
+            })
+
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Ответ на вопрос'

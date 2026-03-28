@@ -46,6 +46,7 @@ USE_S3 = os.environ.get('USE_S3', 'False') == 'True'
 CORS_ALLOW_ALL_ORIGINS = True
 
 MIDDLEWARE = [
+    'project.middleware.RequestTimingMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -54,7 +55,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'crum.CurrentRequestUserMiddleware',
 ]
 
@@ -200,3 +200,23 @@ else:
     CELERY_TASK_TRACK_STARTED = True
 
 RABBITMQ_URL = os.getenv('RABBITMQ_URL', 'amqp://guest:guest@rabbitmq:5672//')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': {
+        'simple': {'format': '{message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'django.server': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
+        'daphne': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
+        'twisted': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
+    },
+}

@@ -1,3 +1,5 @@
+from datetime import timezone
+
 from django.db import models
 import os
 from django.core.exceptions import ValidationError
@@ -159,7 +161,7 @@ class Lesson(AbstractComponentModel):
     section_id = models.ForeignKey(Section, on_delete=models.CASCADE, null=True, verbose_name='ID секции')
     title = models.CharField(max_length=120, verbose_name='Название урока')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
-    date = models.DateTimeField(verbose_name='Дата проведения урока')
+    date_time = models.DateTimeField(verbose_name='Время проведения урока', null=True, blank=True)
 
     def __str__(self):
         return self.title
@@ -173,7 +175,7 @@ class Lesson(AbstractComponentModel):
     class Meta:
         verbose_name = 'Урок'
         verbose_name_plural = 'Уроки'
-        ordering = ['date']
+        ordering = ['date_time']
 
 
 class Homework(AbstractComponentModel):

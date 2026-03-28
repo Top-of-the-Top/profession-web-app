@@ -97,7 +97,7 @@ def homework_notification(sender, instance, created, **kwargs):
         )
         send_course_notification.delay(course.course_id, title, message)
         send_mass_course_email.delay(course.course_id, title, message)
-    else:
+    elif instance.deadline > timezone.now():
         deadline_changed = getattr(instance, '_deadline_changed', False)
         old_deadline = getattr(instance, '_old_deadline', None)
 

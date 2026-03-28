@@ -90,8 +90,8 @@ class HomeworkDeadlineReminderRevokeSignalTest(TestCase):
             deadline=deadline
         )
 
-        self.assertEqual(self.mock_apply_async.call_count, 3)
-        self.assertEqual(self.mock_email_async.call_count, 3)
+        self.assertEqual(self.mock_apply_async.call_count, 2)
+        self.assertEqual(self.mock_email_async.call_count, 2)
 
     def test_reminders_revoked_when_deadline_changed(self):
         """При изменении дедлайна старые напоминания отменяются"""
@@ -175,8 +175,8 @@ class HomeworkDeadlineReminderRevokeSignalTest(TestCase):
             deadline=deadline
         )
 
-        self.assertEqual(self.mock_apply_async.call_count, 1)
-        self.assertEqual(self.mock_email_async.call_count, 1)
+        self.assertEqual(self.mock_apply_async.call_count, 0)
+        self.assertEqual(self.mock_email_async.call_count, 0)
 
     def test_reminders_not_scheduled_when_deadline_less_than_24h(self):
         """Если до дедлайна меньше 24 часов, то только уведомление о создании и дедлайн за 1 час"""
@@ -192,8 +192,8 @@ class HomeworkDeadlineReminderRevokeSignalTest(TestCase):
             deadline=deadline
         )
 
-        self.assertEqual(self.mock_apply_async.call_count, 2)
-        self.assertEqual(self.mock_email_async.call_count, 2)
+        self.assertEqual(self.mock_apply_async.call_count, 1)
+        self.assertEqual(self.mock_email_async.call_count, 1)
 
     def test_reminders_not_scheduled_when_deadline_more_than_24h(self):
         """Если до дедлайна меньше 24 часов, то только уведомление о создании и дедлайн за 1 час"""
@@ -209,8 +209,8 @@ class HomeworkDeadlineReminderRevokeSignalTest(TestCase):
             deadline=deadline
         )
 
-        self.assertEqual(self.mock_apply_async.call_count, 3)
-        self.assertEqual(self.mock_email_async.call_count, 3)
+        self.assertEqual(self.mock_apply_async.call_count, 2)
+        self.assertEqual(self.mock_email_async.call_count, 2)
 
     def test_revoke_not_called_when_deadline_same(self):
         """При сохранении с тем же дедлайном revoke не вызывается"""

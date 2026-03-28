@@ -382,14 +382,14 @@ class LessonSerializerIntegrationTest(BaseTestCase):
 
         self.assertEqual(data['title'], 'Lesson 1')
         self.assertIn('slug', data)
-        self.assertIn('date', data)
+        self.assertIn('date_time', data)
 
     def test_create_lesson_via_serializer(self):
         future_date = timezone.now() + timedelta(days=7)
         data = {
             'section_id': self.section.pk,
             'title': 'New Lesson',
-            'date': future_date.isoformat(),
+            'date_time': future_date.isoformat(),
         }
 
         serializer = LessonSerializer(data=data)

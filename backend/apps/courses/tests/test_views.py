@@ -284,6 +284,8 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertFalse(Section.objects.filter(slug=new_section.slug).exists())
 
     def test_lesson_crud_operations(self):
+        from datetime import datetime
+
         initial_lesson_count = Lesson.objects.filter(section_id=self.section).count()
         self.assertEqual(initial_lesson_count, 1)
 
@@ -301,8 +303,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.data['slug'], self.lesson.slug)
 
         self.authenticate_user(self.teacher)
-        from datetime import date
-        data = {'section_id': self.section.section_id, 'title': 'New Lesson', 'date': date.today()}
+        data = {'section_id': self.section.section_id, 'title': 'New Lesson', 'date_time': datetime.now ()}
         response = self.client.post(
             f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/',
             data,

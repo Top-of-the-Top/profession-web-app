@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 import sys
 from dotenv import load_dotenv
+import tempfile
 
 load_dotenv()
 
@@ -183,12 +184,19 @@ else:
 
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/1')
 
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
-CELERY_RESULT_BACKEND = 'django-db'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
-CELERY_TASK_TRACK_STARTED = True
+if os.getenv('CI') or 'test' in sys.argv:
+    MEDIA_ROOT=tempfile.mkdtemp()
+    CELERY_TASK_ALWAYS_EAGER=True
+    CELERY_TASK_EAGER_PROPAGATES=True
+    BROKER_BACKEND='memory'
+    CELERY_BROKER_URL='memory://'
+else:
+    CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
+    CELERY_RESULT_BACKEND = 'django-db'
+    CELERY_ACCEPT_CONTENT = ['json']
+    CELERY_TASK_SERIALIZER = 'json'
+    CELERY_RESULT_SERIALIZER = 'json'
+    CELERY_TIMEZONE = TIME_ZONE
+    CELERY_TASK_TRACK_STARTED = True
 
 RABBITMQ_URL = os.getenv('RABBITMQ_URL', 'amqp://guest:guest@rabbitmq:5672//')

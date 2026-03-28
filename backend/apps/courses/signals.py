@@ -2,7 +2,7 @@ from django.db.models.signals import pre_delete, pre_save, post_save
 from django.dispatch import receiver
 from django.utils import timezone
 from datetime import timedelta
-from celery.task.control import revoke
+from project.celery import app as celery_app
 import hashlib
 
 from apps.notifications.tasks import (
@@ -87,7 +87,7 @@ def homework_notification(sender, instance, created, **kwargs):
 
     notify_author(instance, 'прикреплено' if created else 'изменено')
 
-    if created:
+    if created and instance.deadline > timezone.now():
         title = f'Новое домашнее задание: {instance.title}'
         message = (
             f'По курсу "{course.title}" добавлено новое задание.\n'
@@ -95,6 +95,7 @@ def homework_notification(sender, instance, created, **kwargs):
             f'Урок: {instance.lesson_id.title}.'
         )
         send_course_notification.delay(course.course_id, title, message)
+        send_mass_course_email.delay(course.course_id, title, message)
     else:
         deadline_changed = getattr(instance, '_deadline_changed', False)
         old_deadline = getattr(instance, '_old_deadline', None)
@@ -109,6 +110,8 @@ def homework_notification(sender, instance, created, **kwargs):
             )
 
             send_course_notification.delay(course.course_id, title, message)
+            send_mass_course_email.delay(course.course_id, title, message)
+
 
 @receiver(post_save, sender=Homework)
 def handle_deadline_reminders(sender, instance, created, **kwargs):
@@ -119,10 +122,13 @@ def handle_deadline_reminders(sender, instance, created, **kwargs):
         ('24h', timedelta(days=1), 'До дедлайна осталось 24 часа'),
         ('1h', timedelta(hours=1), 'До дедлайна остался 1 час'),
     ]
+    deadline_changed = getattr(instance, '_deadline_changed', False)
+    old_deadline = getattr(instance, '_old_deadline', None)
 
-    if created:
+    if created or (deadline_changed and old_deadline):
         for r_type, delta, base_message in reminder_configs:
             eta = instance.deadline - delta
+
             if eta > now:
                 notif_task_id = get_reminder_task_id(instance.pk, r_type, 'notification')
                 email_task_id = get_reminder_task_id(instance.pk, r_type, 'email')
@@ -145,23 +151,28 @@ def handle_deadline_reminders(sender, instance, created, **kwargs):
                     eta=eta,
                     task_id=email_task_id
                 )
+
+
         return
 
 @receiver(pre_save, sender=Homework)
-def handle_pre_deadline_update(sender, instance, created, **kwargs):
+def handle_pre_deadline_update(sender, instance, **kwargs):
     reminder_configs = [
         ('24h', timedelta(days=1), 'До дедлайна осталось 24 часа'),
         ('1h', timedelta(hours=1), 'До дедлайна остался 1 час'),
     ]
 
-    if not created:
+    deadline_changed = getattr(instance, '_deadline_changed', False)
+    old_deadline = getattr(instance, '_old_deadline', None)
+
+    if deadline_changed and old_deadline :
         for r_type, _, _ in reminder_configs:
             notif_task_id = get_reminder_task_id(instance.pk, r_type, 'notification')
             email_task_id = get_reminder_task_id(instance.pk, r_type, 'email')
 
             try:
-                revoke(notif_task_id, terminate=True)
-                revoke(email_task_id, terminate=True)
+                celery_app.control.revoke(notif_task_id, terminate=True)
+                celery_app.control.revoke(email_task_id, terminate=True)
             except Exception:
                 pass
         return
@@ -178,8 +189,8 @@ def handle_pre_deadline_delete(sender, instance, **kwargs):
         email_task_id = get_reminder_task_id(instance.pk, r_type, 'email')
 
         try:
-            revoke(notif_task_id, terminate=True)
-            revoke(email_task_id, terminate=True)
+            celery_app.control.revoke(notif_task_id, terminate=True)
+            celery_app.control.revoke(email_task_id, terminate=True)
         except Exception:
             pass
 

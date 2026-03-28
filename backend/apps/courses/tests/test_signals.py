@@ -41,7 +41,7 @@ def create_test_lesson(section, **kwargs):
     defaults = {
         'section_id': section,
         'title': 'Тестовый урок',
-        'date': timezone.now() + timedelta(days=1),
+        'date_time': timezone.now() + timedelta(days=1),
     }
     defaults.update(kwargs)
     return Lesson.objects.create(**defaults)
@@ -81,6 +81,8 @@ class HomeworkDeadlineReminderRevokeSignalTest(TestCase):
 
         self.mock_revoke.reset_mock()
 
+        self.mock_apply_async.reset_mock()
+        self.mock_email_async.reset_mock()
 
         homework = Homework.objects.create(
             lesson_id=self.lesson,
@@ -439,3 +441,369 @@ class HomeworkNotificationDeadlineChangeTest(TestCase):
         args = self.mock_send_personal.call_args[0]
         self.assertEqual(args[0], user.id)
         self.assertIn('изменено', args[2])
+
+class LessonReminderSignalTest(TestCase):
+    """Интеграционные тесты для сигналов урока"""
+
+    def setUp(self):
+        self.celery_apply_async_patcher = patch('apps.courses.signals.send_course_notification.apply_async')
+        self.email_apply_async_patcher = patch('apps.courses.signals.send_mass_course_email.apply_async')
+        self.revoke_patcher = patch('celery.current_app.control.revoke')
+
+        self.send_course_patcher = patch('apps.courses.signals.send_course_notification.delay')
+        self.send_personal_patcher = patch('apps.courses.signals.send_personal_notification.delay')
+        self.email_async_patcher = patch('apps.courses.signals.send_mass_course_email.apply_async')
+
+        self.mock_apply_async = self.celery_apply_async_patcher.start()
+        self.mock_email_async = self.email_apply_async_patcher.start()
+        self.mock_revoke = self.revoke_patcher.start()
+
+        self.mock_send_course = self.send_course_patcher.start()
+        self.mock_send_personal = self.send_personal_patcher.start()
+        self.mock_email_async = self.email_async_patcher.start()
+
+        self.course = create_test_course()
+        self.section = create_test_section(self.course)
+        self.lesson = create_test_lesson(self.section)
+
+    def tearDown(self):
+        self.celery_apply_async_patcher.stop()
+        self.email_apply_async_patcher.stop()
+        self.revoke_patcher.stop()
+        self.send_course_patcher.stop()
+        self.email_async_patcher.stop()
+        self.send_personal_patcher.stop()
+
+
+    def test_reminders_scheduled_on_lesson_creation(self):
+        """При создании урока планируются напоминания (24h и 1h)"""
+        date_time = timezone.now() + timedelta(days=2)
+
+        self.mock_apply_async.reset_mock()
+        self.mock_email_async.reset_mock()
+
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=date_time
+        )
+
+        self.assertEqual(self.mock_apply_async.call_count, 2)
+        self.assertEqual(self.mock_email_async.call_count, 2)
+
+    def test_notification_sent_on_lesson_creation(self):
+        """При создании урока отправляется моментальное уведомление"""
+        date_time = timezone.now() + timedelta(days=7)
+
+        self.mock_apply_async.reset_mock()
+        self.mock_email_async.reset_mock()
+
+
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='New Lesson',
+            date_time=date_time
+        )
+
+        self.assertEqual(self.mock_apply_async.call_count, 2)
+        self.assertEqual(self.mock_email_async.call_count, 2)
+
+        args = self.mock_send_course.call_args[0]
+        title = args[1]
+        message = args[2]
+
+        self.assertIn('Новый урок', title)
+        self.assertIn(date_time.strftime('%d.%m %H:%M'), message)
+
+    def test_author_notified_on_lesson_creation(self):
+        """Автор получает уведомление о создании урока"""
+        user = create_test_user()
+
+        date_time = timezone.now() + timedelta(days=7)
+        self.mock_send_personal.reset_mock()
+
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='New Lesson',
+            date_time=date_time,
+            last_modified_by=user
+        )
+
+        self.mock_send_personal.assert_called_once()
+        args = self.mock_send_personal.call_args[0]
+        self.assertEqual(args[0], user.id)
+        self.assertIn('создан', args[2])
+
+    def test_reminders_revoked_when_date_changed(self):
+        """При изменении даты урока старые напоминания отменяются"""
+        old_date = timezone.now() + timedelta(days=2)
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=old_date
+        )
+
+        self.mock_revoke.reset_mock()
+
+        new_date = timezone.now() + timedelta(days=5)
+        lesson.date_time = new_date
+        lesson.save()
+
+        self.assertEqual(self.mock_revoke.call_count, 4)
+
+    def test_new_reminders_scheduled_when_date_changed(self):
+        """При изменении даты урока планируются новые напоминания"""
+        old_date = timezone.now() + timedelta(days=2)
+
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=old_date
+        )
+
+        self.mock_apply_async.reset_mock()
+        self.mock_email_async.reset_mock()
+
+        new_date = timezone.now() + timedelta(days=5)
+        lesson.date_time = new_date
+        lesson.save()
+
+        self.assertEqual(self.mock_apply_async.call_count, 2)
+        self.assertEqual(self.mock_email_async.call_count, 2)
+
+    def test_notification_sent_when_date_moved_later(self):
+        """При переносе даты на позже отправляется уведомление"""
+        old_date = timezone.now() + timedelta(days=2)
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=old_date
+        )
+
+        self.mock_apply_async.reset_mock()
+        self.mock_email_async.reset_mock()
+        self.mock_send_course.reset_mock()
+
+        new_date = timezone.now() + timedelta(days=5)
+        lesson.date_time = new_date
+        lesson.save()
+
+        self.mock_send_course.assert_called_once()
+        self.mock_email_async.assert_called_once()
+
+        args = self.mock_send_course.call_args[0]
+        title = args[1]
+        message = args[2]
+
+        self.assertIn('позже', title)
+        self.assertIn(old_date.strftime('%d.%m %H:%M'), message)
+        self.assertIn(new_date.strftime('%d.%m %H:%M'), message)
+
+    def test_notification_sent_when_date_moved_earlier(self):
+        """При переносе даты на раньше отправляется уведомление"""
+        old_date = timezone.now() + timedelta(days=5)
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=old_date
+        )
+
+        self.mock_send_course.reset_mock()
+        self.mock_email_async.reset_mock()
+        self.mock_apply_async.reset_mock()
+
+        new_date = timezone.now() + timedelta(days=2)
+        lesson.date_time = new_date
+
+        self.assertEqual(self.mock_apply_async.call_count, 0)
+        self.assertEqual(self.mock_email_async.call_count, 0)
+
+        args = self.mock_send_course.call_args[0]
+        title = args[1]
+        message = args[2]
+
+        self.assertIn('раньше', title)
+        self.assertIn(old_date.strftime('%d.%m %H:%M'), message)
+        self.assertIn(new_date.strftime('%d.%m %H:%M'), message)
+
+    def test_author_notified_on_lesson_update(self):
+        """Автор получает уведомление об изменении урока"""
+        user = create_test_user()
+
+        date = timezone.now() + timedelta(days=7)
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Original Title',
+            date_time=date
+        )
+
+        self.mock_send_personal.reset_mock()
+
+        lesson.title = 'Updated Title'
+        lesson.last_modified_by = user
+        lesson.save()
+
+        self.mock_send_personal.assert_called_once()
+        args = self.mock_send_personal.call_args[0]
+        self.assertEqual(args[0], user.id)
+        self.assertIn('изменен', args[2])
+
+    def test_revoke_not_called_when_date_unchanged(self):
+        """При изменении только названия revoke не вызывается"""
+        date = timezone.now() + timedelta(days=2)
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Original Title',
+            date_time=date
+        )
+
+        self.mock_revoke.reset_mock()
+
+        lesson.title = 'New Title'
+        lesson.save()
+
+        self.mock_revoke.assert_not_called()
+
+    def test_notification_not_sent_when_only_title_changed(self):
+        """При изменении только названия уведомление не отправляется"""
+        date = timezone.now() + timedelta(days=2)
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Original Title',
+            date_time=date
+        )
+
+        self.mock_send_course.reset_mock()
+        self.mock_email_async.reset_mock()
+
+        lesson.title = 'New Title'
+        lesson.save()
+
+        self.mock_send_course.assert_not_called()
+        self.mock_email_async.assert_not_called()
+
+    def test_reminders_revoked_when_lesson_deleted(self):
+        """При удалении урока напоминания отменяются"""
+        date_time = timezone.now() + timedelta(days=2)
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=date_time
+        )
+
+        self.mock_revoke.reset_mock()
+
+        lesson.delete()
+
+        self.assertEqual(self.mock_revoke.call_count, 4)
+    def test_reminders_not_scheduled_when_date_in_past(self):
+        """Если дата урока в прошлом, напоминания не планируются"""
+        past_date = timezone.now() - timedelta(days=1)
+
+        self.mock_apply_async.reset_mock()
+        self.mock_email_async.reset_mock()
+
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Past Lesson',
+            date_time=past_date
+        )
+
+        self.mock_apply_async.assert_not_called()
+        self.mock_email_async.assert_not_called()
+
+    def test_no_notification_when_lesson_created_with_past_date(self):
+        """Если урок создается с датой в прошлом, уведомление не отправляется"""
+        past_date = timezone.now() - timedelta(days=1)
+
+        self.mock_send_course.reset_mock()
+        self.mock_email_async.reset_mock()
+
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Past Lesson',
+            date_time=past_date
+        )
+
+        self.mock_send_course.assert_not_called()
+        self.mock_email_async.assert_not_called()
+
+    def test_reminders_only_1h_scheduled_when_date_exactly_24h(self):
+        """Если до урока ровно 24 часа, только 1h напоминание планируется"""
+        date = timezone.now() + timedelta(hours=24)
+
+        self.mock_apply_async.reset_mock()
+        self.mock_email_async.reset_mock()
+
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=date
+        )
+
+        self.assertEqual(self.mock_apply_async.call_count, 1)
+        self.assertEqual(self.mock_email_async.call_count, 1)
+
+    def test_reminders_only_1h_scheduled_when_date_between_1h_and_24h(self):
+        """Если до урока 23 часа, только 1h напоминание планируется"""
+        date = timezone.now() + timedelta(hours=23)
+
+        self.mock_apply_async.reset_mock()
+        self.mock_email_async.reset_mock()
+
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=date
+        )
+
+
+        self.assertEqual(self.mock_apply_async.call_count, 1)
+        self.assertEqual(self.mock_email_async.call_count, 1)
+
+    def test_no_reminders_scheduled_when_date_less_than_1h(self):
+        """Если до урока меньше 1 часа, напоминания не планируются"""
+        date = timezone.now() + timedelta(minutes=30)
+
+        self.mock_apply_async.reset_mock()
+        self.mock_email_async.reset_mock()
+
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=date
+        )
+
+        self.assertEqual(self.mock_apply_async.call_count, 0)
+        self.assertEqual(self.mock_email_async.call_count, 0)
+
+    def test_reminders_scheduled_when_date_more_than_24h(self):
+        """Если до урока больше 24 часов, оба напоминания планируются"""
+        date = timezone.now() + timedelta(days=2)
+
+        self.mock_apply_async.reset_mock()
+        self.mock_email_async.reset_mock()
+
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=date
+        )
+
+        self.assertEqual(self.mock_apply_async.call_count, 2)
+        self.assertEqual(self.mock_email_async.call_count, 2)
+
+    def test_revoke_not_called_when_date_same(self):
+        """При сохранении с той же датой revoke не вызывается"""
+        date = timezone.now() + timedelta(days=2)
+        lesson = Lesson.objects.create(
+            section_id=self.section,
+            title='Test Lesson',
+            date_time=date
+        )
+
+        self.mock_revoke.reset_mock()
+
+        lesson.save()
+
+        self.mock_revoke.assert_not_called()

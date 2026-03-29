@@ -182,7 +182,6 @@ else:
     MEDIA_URL = '/media/'
     STATIC_URL = '/static/'
 
-REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/1')
 
 if os.getenv('CI') or 'test' in sys.argv:
     MEDIA_ROOT=tempfile.mkdtemp()
@@ -218,5 +217,66 @@ LOGGING = {
         'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
         'daphne': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
         'twisted': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
+    },
+}
+
+REDIS_PASS = os.getenv('REDIS_PASS', '')
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # Имя сервиса в docker-compose
+REDIS_PORT = os.getenv('REDIS_PORT', '6379')
+REDIS_KEY_PREFIX = os.getenv('REDIS_KEY_PREFIX', '')
+REDIS_BASE_URL = f'redis://:{REDIS_PASS}@{REDIS_HOST}:{REDIS_PORT}'
+
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f'{REDIS_BASE_URL}/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.ShardedClient',
+            'PASSWORD': REDIS_PASS,
+            'SOCKET_CONNECT_TIMEOUT': 5, # Это таймаут на подключение
+            'SOCKET_TIMEOUT': 5, #  Это таймаут на чтение-запись
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 100,
+                'retry_on_timeout': True,
+                'socket_keepalive': True,
+            }
+        },
+        'KEY_PREFIX': REDIS_KEY_PREFIX,
+        'TIMEOUT': 300, # Время жизни кэша
+    },
+    'hot': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f'{REDIS_BASE_URL}/0',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.ShardedClient',
+            'PASSWORD': REDIS_PASS,
+            'SOCKET_CONNECT_TIMEOUT': 5,  # Это таймаут на подключение
+            'SOCKET_TIMEOUT': 5,  # Это таймаут на чтение-запись
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 100,
+                'retry_on_timeout': True,
+                'socket_keepalive': True,
+            }
+        },
+        'KEY_PREFIX': REDIS_KEY_PREFIX,
+        'TIMEOUT': 60,
+    },
+    'cold': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f'{REDIS_BASE_URL}/2',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.ShardedClient',
+            'PASSWORD': REDIS_PASS,
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 100,
+                'retry_on_timeout': True,
+                'socket_keepalive': True,
+            }
+        },
+        'KEY_PREFIX': REDIS_KEY_PREFIX,
+        'TIMEOUT': 3600,  # Время жизни кэша
     },
 }

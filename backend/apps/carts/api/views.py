@@ -6,6 +6,9 @@ from drf_spectacular.utils import extend_schema
 from ...courses.models import Course
 from ..models import Cart, CartItem
 from .serializers import CartItemSerializer, CartSerializer
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers
 
 SCHEMA_401 = {
     "type": "object",
@@ -57,6 +60,8 @@ class CartView(APIView):
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
         },
     )
+    @method_decorator(cache_page(60 * 5))
+    @vary_on_headers("Authorization")
     def get(self, request):
         cart, _ = Cart.objects.get_or_create(user=request.user)
         serializer = CartSerializer(cart)

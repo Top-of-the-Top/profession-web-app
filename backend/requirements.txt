@@ -16,7 +16,8 @@ django-storages==1.14.6
 boto3==1.34.130
 drf_yasg
 celery>=5.3
-redis>=5.0
+redis==5.0.1
+django-redis==5.4.0
 django-celery-results>=2.5
 daphne>=4.1
 pika==1.3.2

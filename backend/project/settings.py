@@ -232,7 +232,7 @@ CACHES = {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': f'{REDIS_BASE_URL}/1',
         'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.ShardedClient',
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'PASSWORD': REDIS_PASS,
             'SOCKET_CONNECT_TIMEOUT': 5, # Это таймаут на подключение
             'SOCKET_TIMEOUT': 5, #  Это таймаут на чтение-запись
@@ -249,7 +249,7 @@ CACHES = {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': f'{REDIS_BASE_URL}/0',
         'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.ShardedClient',
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'PASSWORD': REDIS_PASS,
             'SOCKET_CONNECT_TIMEOUT': 5,  # Это таймаут на подключение
             'SOCKET_TIMEOUT': 5,  # Это таймаут на чтение-запись
@@ -266,7 +266,7 @@ CACHES = {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': f'{REDIS_BASE_URL}/2',
         'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.ShardedClient',
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'PASSWORD': REDIS_PASS,
             'SOCKET_CONNECT_TIMEOUT': 5,
             'SOCKET_TIMEOUT': 5,

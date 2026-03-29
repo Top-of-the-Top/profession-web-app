@@ -226,57 +226,83 @@ REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_KEY_PREFIX = os.getenv('REDIS_KEY_PREFIX', '')
 REDIS_BASE_URL = f'redis://:{REDIS_PASS}@{REDIS_HOST}:{REDIS_PORT}'
 
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': f'{REDIS_BASE_URL}/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PASSWORD': REDIS_PASS,
-            'SOCKET_CONNECT_TIMEOUT': 5, # Это таймаут на подключение
-            'SOCKET_TIMEOUT': 5, #  Это таймаут на чтение-запись
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 100,
-                'retry_on_timeout': True,
-                'socket_keepalive': True,
+if os.getenv('CI') or 'test' in sys.argv:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/tmp/django_test_cache',
+            'TIMEOUT': 60,
+            'OPTIONS': {
+                'MAX_ENTRIES': 100,
             }
         },
-        'KEY_PREFIX': REDIS_KEY_PREFIX,
-        'TIMEOUT': 300, # Время жизни кэша
-    },
-    'hot': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': f'{REDIS_BASE_URL}/0',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PASSWORD': REDIS_PASS,
-            'SOCKET_CONNECT_TIMEOUT': 5,  # Это таймаут на подключение
-            'SOCKET_TIMEOUT': 5,  # Это таймаут на чтение-запись
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 100,
-                'retry_on_timeout': True,
-                'socket_keepalive': True,
-            }
+        'hot': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/tmp/django_test_hot_cache',
+            'TIMEOUT': 10,
         },
-        'KEY_PREFIX': REDIS_KEY_PREFIX,
-        'TIMEOUT': 60,
-    },
-    'cold': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': f'{REDIS_BASE_URL}/2',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PASSWORD': REDIS_PASS,
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 100,
-                'retry_on_timeout': True,
-                'socket_keepalive': True,
-            }
+        'cold': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/tmp/django_test_cold_cache',
+            'TIMEOUT': 300,
         },
-        'KEY_PREFIX': REDIS_KEY_PREFIX,
-        'TIMEOUT': 3600,  # Время жизни кэша
-    },
-}
+        'landing': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/tmp/django_test_landing_cache',
+            'TIMEOUT': 600,
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': f'{REDIS_BASE_URL}/1',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'PASSWORD': REDIS_PASS,
+                'SOCKET_CONNECT_TIMEOUT': 5, # Это таймаут на подключение
+                'SOCKET_TIMEOUT': 5, #  Это таймаут на чтение-запись
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 100,
+                    'retry_on_timeout': True,
+                    'socket_keepalive': True,
+                }
+            },
+            'KEY_PREFIX': REDIS_KEY_PREFIX,
+            'TIMEOUT': 300, # Время жизни кэша
+        },
+        'hot': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': f'{REDIS_BASE_URL}/0',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'PASSWORD': REDIS_PASS,
+                'SOCKET_CONNECT_TIMEOUT': 5,  # Это таймаут на подключение
+                'SOCKET_TIMEOUT': 5,  # Это таймаут на чтение-запись
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 100,
+                    'retry_on_timeout': True,
+                    'socket_keepalive': True,
+                }
+            },
+            'KEY_PREFIX': REDIS_KEY_PREFIX,
+            'TIMEOUT': 60,
+        },
+        'cold': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': f'{REDIS_BASE_URL}/2',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'PASSWORD': REDIS_PASS,
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 100,
+                    'retry_on_timeout': True,
+                    'socket_keepalive': True,
+                }
+            },
+            'KEY_PREFIX': REDIS_KEY_PREFIX,
+            'TIMEOUT': 3600,  # Время жизни кэша
+        },
+    }

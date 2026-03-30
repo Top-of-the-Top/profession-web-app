@@ -239,7 +239,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.storage_patcher.stop()
 
     def test_section_crud_operations(self):
-        initial_section_count = Section.objects.filter(course_id=self.course).count()
+        initial_section_count = Section.objects.filter(course=self.course).count()
         self.assertEqual(initial_section_count, 1)
 
         self.authenticate_user(self.student)
@@ -254,15 +254,15 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.data['slug'], self.section.slug)
 
         self.authenticate_user(self.teacher)
-        data = {'course_id': self.course.course_id, 'title': 'New Section'}
+        data = {'course': self.course.course_id, 'title': 'New Section'}
         response = self.client.post(f'/api/courses/{self.course.slug}/sections/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Section')
 
-        new_section_count = Section.objects.filter(course_id=self.course).count()
+        new_section_count = Section.objects.filter(course=self.course).count()
         self.assertEqual(new_section_count, initial_section_count + 1)
         new_section = Section.objects.get(title='New Section')
-        self.assertEqual(new_section.course_id, self.course)
+        self.assertEqual(new_section.course, self.course)
 
         update_data = {'title': 'Updated Section Title'}
         response = self.client.patch(
@@ -279,14 +279,14 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         response = self.client.delete(f'/api/courses/{self.course.slug}/sections/{new_section.slug}/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-        final_section_count = Section.objects.filter(course_id=self.course).count()
+        final_section_count = Section.objects.filter(course=self.course).count()
         self.assertEqual(final_section_count, initial_section_count)
         self.assertFalse(Section.objects.filter(slug=new_section.slug).exists())
 
     def test_lesson_crud_operations(self):
         from datetime import datetime
 
-        initial_lesson_count = Lesson.objects.filter(section_id=self.section).count()
+        initial_lesson_count = Lesson.objects.filter(section=self.section).count()
         self.assertEqual(initial_lesson_count, 1)
 
         self.authenticate_user(self.student)
@@ -303,7 +303,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.data['slug'], self.lesson.slug)
 
         self.authenticate_user(self.teacher)
-        data = {'section_id': self.section.section_id, 'title': 'New Lesson', 'date_time': datetime.now ()}
+        data = {'section': self.section.section_id, 'title': 'New Lesson', 'date_time': datetime.now ()}
         response = self.client.post(
             f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/',
             data,
@@ -312,10 +312,10 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Lesson')
 
-        new_lesson_count = Lesson.objects.filter(section_id=self.section).count()
+        new_lesson_count = Lesson.objects.filter(section=self.section).count()
         self.assertEqual(new_lesson_count, initial_lesson_count + 1)
         new_lesson = Lesson.objects.get(title='New Lesson')
-        self.assertEqual(new_lesson.section_id, self.section)
+        self.assertEqual(new_lesson.section, self.section)
 
         update_data = {'title': 'Updated Lesson'}
         response = self.client.patch(
@@ -334,12 +334,12 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-        final_lesson_count = Lesson.objects.filter(section_id=self.section).count()
+        final_lesson_count = Lesson.objects.filter(section=self.section).count()
         self.assertEqual(final_lesson_count, initial_lesson_count)
         self.assertFalse(Lesson.objects.filter(slug=new_lesson.slug).exists())
 
     def test_homework_crud_operations(self):
-        initial_homework_count = Homework.objects.filter(lesson_id=self.lesson).count()
+        initial_homework_count = Homework.objects.filter(lesson=self.lesson).count()
         self.assertEqual(initial_homework_count, 1)
 
         self.authenticate_user(self.student)
@@ -359,7 +359,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.authenticate_user(self.teacher)
         data = {
-            'lesson_id': self.lesson.lesson_id,
+            'lesson': self.lesson.lesson_id,
             'title': 'New Homework',
             'deadline': (timezone.now() + timedelta(days=14)).isoformat()
         }
@@ -371,10 +371,10 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Homework')
 
-        new_homework_count = Homework.objects.filter(lesson_id=self.lesson).count()
+        new_homework_count = Homework.objects.filter(lesson=self.lesson).count()
         self.assertEqual(new_homework_count, initial_homework_count + 1)
         new_homework = Homework.objects.get(title='New Homework')
-        self.assertEqual(new_homework.lesson_id, self.lesson)
+        self.assertEqual(new_homework.lesson, self.lesson)
 
         update_data = {'title': 'Updated Homework'}
         response = self.client.patch(
@@ -393,15 +393,15 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-        final_homework_count = Homework.objects.filter(lesson_id=self.lesson).count()
+        final_homework_count = Homework.objects.filter(lesson=self.lesson).count()
         self.assertEqual(final_homework_count, initial_homework_count)
         self.assertFalse(Homework.objects.filter(slug=new_homework.slug).exists())
 
     def test_task_operations(self):
-        initial_task_count = Task.objects.filter(homework_id=self.homework).count()
-        task = Task.objects.create(homework_id=self.homework, text='Task 1', max_points=10)
+        initial_task_count = Task.objects.filter(homework=self.homework).count()
+        task = Task.objects.create(homework=self.homework, text='Task 1', max_points=10)
 
-        self.assertEqual(Task.objects.filter(homework_id=self.homework).count(), initial_task_count + 1)
+        self.assertEqual(Task.objects.filter(homework=self.homework).count(), initial_task_count + 1)
 
         self.authenticate_user(self.student)
         response = self.client.get(
@@ -413,7 +413,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.data[0]['max_points'], 10)
 
         self.authenticate_user(self.teacher)
-        data = {'homework_id': self.homework.homework_id, 'text': 'New Task', 'max_points': 15}
+        data = {'homework': self.homework.homework_id, 'text': 'New Task', 'max_points': 15}
         response = self.client.post(
             f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/',
             data,
@@ -422,21 +422,21 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['text'], 'New Task')
 
-        self.assertEqual(Task.objects.filter(homework_id=self.homework).count(), initial_task_count + 2)
+        self.assertEqual(Task.objects.filter(homework=self.homework).count(), initial_task_count + 2)
         new_task = Task.objects.get(text='New Task')
-        self.assertEqual(new_task.homework_id, self.homework)
+        self.assertEqual(new_task.homework, self.homework)
         self.assertEqual(new_task.max_points, 15)
 
     def test_question_operations(self):
-        initial_question_count = Question.objects.filter(homework_id=self.homework).count()
+        initial_question_count = Question.objects.filter(homework=self.homework).count()
         question = Question.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Question 1?',
             correct_ans='A',
             answer_options=['A', 'B', 'C']
         )
 
-        self.assertEqual(Question.objects.filter(homework_id=self.homework).count(), initial_question_count + 1)
+        self.assertEqual(Question.objects.filter(homework=self.homework).count(), initial_question_count + 1)
 
         self.authenticate_user(self.student)
         response = self.client.get(
@@ -449,7 +449,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.authenticate_user(self.teacher)
         data = {
-            'homework_id': self.homework.homework_id,
+            'homework': self.homework.homework_id,
             'text': 'New Question?',
             'correct_ans': 'B',
             'answer_options': ['A', 'B', 'C', 'D']
@@ -462,9 +462,9 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['text'], 'New Question?')
 
-        self.assertEqual(Question.objects.filter(homework_id=self.homework).count(), initial_question_count + 2)
+        self.assertEqual(Question.objects.filter(homework=self.homework).count(), initial_question_count + 2)
         new_question = Question.objects.get(text='New Question?')
-        self.assertEqual(new_question.homework_id, self.homework)
+        self.assertEqual(new_question.homework, self.homework)
         self.assertEqual(new_question.correct_ans, 'B')
 
     def test_non_enrolled_student_cannot_access(self):
@@ -505,12 +505,12 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(self.section.title, 'Updated Section')
 
         new_section = create_test_section(self.course, title='Section to Delete')
-        initial_count = Section.objects.filter(course_id=self.course).count()
+        initial_count = Section.objects.filter(course=self.course).count()
 
         response = self.client.delete(f'/api/courses/{self.course.slug}/sections/{new_section.slug}/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-        self.assertEqual(Section.objects.filter(course_id=self.course).count(), initial_count - 1)
+        self.assertEqual(Section.objects.filter(course=self.course).count(), initial_count - 1)
         self.assertFalse(Section.objects.filter(slug=new_section.slug).exists())
 
 

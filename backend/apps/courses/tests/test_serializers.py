@@ -337,7 +337,7 @@ class SectionSerializerIntegrationTest(BaseTestCase):
 
     def test_create_section_via_serializer(self):
         data = {
-            'course_id': self.course.course_id,
+            'course': self.course.course_id,
             'title': 'New Section',
         }
 
@@ -347,7 +347,7 @@ class SectionSerializerIntegrationTest(BaseTestCase):
         section = serializer.save()
         self.assertEqual(section.title, 'New Section')
         self.assertIsNotNone(section.slug)
-        self.assertEqual(section.section_id, 1)
+        self.assertEqual(section.section_number, 1)
 
     def test_update_section_via_serializer(self):
         section = create_test_section(self.course, title='Original')
@@ -387,7 +387,7 @@ class LessonSerializerIntegrationTest(BaseTestCase):
     def test_create_lesson_via_serializer(self):
         future_date = timezone.now() + timedelta(days=7)
         data = {
-            'section_id': self.section.pk,
+            'section': self.section.pk,
             'title': 'New Lesson',
             'date_time': future_date.isoformat(),
         }
@@ -438,7 +438,7 @@ class HomeworkSerializerIntegrationTest(BaseTestCase):
     def test_create_homework_via_serializer(self):
         deadline = timezone.now() + timedelta(days=14)
         data = {
-            'lesson_id': self.lesson.lesson_id,
+            'lesson': self.lesson.lesson_id,
             'title': 'New Homework',
             'deadline': deadline.isoformat(),
         }
@@ -479,7 +479,7 @@ class QuestionSerializerIntegrationTest(BaseTestCase):
 
     def test_serialize_question(self):
         question = Question.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='What is Python?',
             correct_ans='A',
             answer_options=['A', 'B', 'C', 'D']
@@ -494,7 +494,7 @@ class QuestionSerializerIntegrationTest(BaseTestCase):
 
     def test_create_question_via_serializer(self):
         data = {
-            'homework_id': self.homework.homework_id,
+            'homework': self.homework.homework_id,
             'text': 'New Question?',
             'correct_ans': 'B',
             'answer_options': ['A', 'B', 'C']
@@ -509,7 +509,7 @@ class QuestionSerializerIntegrationTest(BaseTestCase):
 
     def test_update_question_via_serializer(self):
         question = Question.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Original?',
             correct_ans='A',
             answer_options=['A', 'B']
@@ -541,7 +541,7 @@ class TaskSerializerIntegrationTest(BaseTestCase):
 
     def test_serialize_task(self):
         task = Task.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Complete the assignment',
             max_points=10
         )
@@ -554,7 +554,7 @@ class TaskSerializerIntegrationTest(BaseTestCase):
 
     def test_create_task_via_serializer(self):
         data = {
-            'homework_id': self.homework.homework_id,
+            'homework': self.homework.homework_id,
             'text': 'New Task',
             'max_points': 15
         }
@@ -568,7 +568,7 @@ class TaskSerializerIntegrationTest(BaseTestCase):
 
     def test_update_task_via_serializer(self):
         task = Task.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Original Task',
             max_points=10
         )
@@ -582,7 +582,7 @@ class TaskSerializerIntegrationTest(BaseTestCase):
 
     def test_task_with_zero_max_points(self):
         data = {
-            'homework_id': self.homework.homework_id,
+            'homework': self.homework.homework_id,
             'text': 'Zero points task',
             'max_points': 0
         }

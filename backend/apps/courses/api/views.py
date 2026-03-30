@@ -365,7 +365,7 @@ class SectionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         course_slug = self.kwargs['course_slug']
-        return Section.objects.filter(course_id__slug=course_slug)
+        return Section.objects.filter(course__slug=course_slug)
 
     @extend_schema(
         summary="Получить список секций курса",
@@ -569,9 +569,9 @@ class HomeworkViewSet(viewsets.ModelViewSet):
         section_slug = self.kwargs['section_slug']
         lesson_slug = self.kwargs['lesson_slug']
         return Homework.objects.filter(
-            lesson_id__slug=lesson_slug,
-            lesson_id__section_id__slug=section_slug,
-            lesson_id__section_id__course_id__slug=course_slug
+            lesson__slug=lesson_slug,
+            lesson__section__slug=section_slug,
+            lesson__section__course__slug=course_slug
         )
 
     @extend_schema(
@@ -675,10 +675,10 @@ class TaskViewSet(viewsets.ModelViewSet):
         lesson_slug = self.kwargs['lesson_slug']
         homework_slug = self.kwargs['homework_slug']
         return Task.objects.filter(
-            homework_id__slug=homework_slug,
-            homework_id__lesson_id__slug=lesson_slug,
-            homework_id__lesson_id__section_id__slug=section_slug,
-            homework_id__lesson_id__section_id__course_id__slug=course_slug
+            homework__slug=homework_slug,
+            homework__lesson__slug=lesson_slug,
+            homework__lesson__section__slug=section_slug,
+            homework__lesson__section__course__slug=course_slug
         )
 
     @extend_schema(
@@ -783,10 +783,10 @@ class QuestionViewSet(viewsets.ModelViewSet):
         homework_slug = self.kwargs['homework_slug']
 
         return Question.objects.filter(
-            homework_id__slug=homework_slug,
-            homework_id__lesson_id__slug=lesson_slug,
-            homework_id__lesson_id__section_id__slug=section_slug,
-            homework_id__lesson_id__section_id__course_id__slug=course_slug
+            homework__slug=homework_slug,
+            homework__lesson__slug=lesson_slug,
+            homework__lesson__section__slug=section_slug,
+            homework__lesson__section__course__slug=course_slug
         )
 
     @extend_schema(

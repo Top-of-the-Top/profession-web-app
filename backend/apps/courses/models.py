@@ -55,7 +55,8 @@ class AbstractComponentModel(PublishableMixin, TimestampedMixin):
 
 def course_image_path(instance, filename):
     ext = filename.split('.')[-1].lower()
-    return f'courses/course_{instance.pk}.{ext}'
+    photo_uuid = uuid.uuid4()
+    return f'courses/course_{photo_uuid}.{ext}'
 
 def generate_unique_slug(instance, title, slug_field='slug'):
     base_slug = slugify(title[:80])

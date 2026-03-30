@@ -29,7 +29,7 @@ def create_test_course(**kwargs):
 
 def create_test_section(course, **kwargs):
     defaults = {
-        'course_id': course,
+        'course': course,
         'title': 'Тестовая секция',
     }
     defaults.update(kwargs)
@@ -38,7 +38,7 @@ def create_test_section(course, **kwargs):
 
 def create_test_lesson(section, **kwargs):
     defaults = {
-        'section_id': section,
+        'section': section,
         'title': 'Тестовый урок',
         'date_time': timezone.now() + timedelta(days=1),
     }
@@ -116,7 +116,7 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Test Homework',
             deadline=deadline
         )
@@ -129,7 +129,7 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
         self.mock_revoke.reset_mock()
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Test Homework',
             deadline=old_deadline
         )
@@ -145,7 +145,7 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
         self.mock_revoke.reset_mock()
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Test Homework',
             deadline=deadline
         )
@@ -159,7 +159,7 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
         self.mock_revoke.reset_mock()
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Original Title',
             deadline=deadline
         )
@@ -176,7 +176,7 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Past Homework',
             deadline=past_deadline
         )
@@ -192,7 +192,7 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Soon Homework',
             deadline=deadline
         )
@@ -208,7 +208,7 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Soon Homework',
             deadline=deadline
         )
@@ -224,7 +224,7 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Soon Homework',
             deadline=deadline
         )
@@ -235,7 +235,7 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
     def test_revoke_not_called_when_deadline_same(self):
         deadline = timezone.now() + timedelta(days=2)
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Test Homework',
             deadline=deadline
         )
@@ -273,7 +273,7 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
         old_deadline = timezone.now() + timedelta(days=2)
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Test Homework',
             deadline=old_deadline
         )
@@ -291,7 +291,7 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
         self.mock_send_course.reset_mock()
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Test Homework',
             deadline=old_deadline
         )
@@ -309,7 +309,7 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
         deadline = timezone.now() + timedelta(days=2)
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Original Title',
             deadline=deadline
         )
@@ -325,7 +325,7 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
         old_deadline = timezone.now() + timedelta(days=2)
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Original Title',
             deadline=old_deadline
         )
@@ -343,7 +343,7 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
         deadline = timezone.now() + timedelta(days=7)
 
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='New Homework',
             deadline=deadline
         )
@@ -353,7 +353,7 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
     def test_notification_sent_when_deadline_extended_with_correct_text(self):
         old_deadline = timezone.now() + timedelta(days=2)
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Test Homework',
             deadline=old_deadline
         )
@@ -371,7 +371,7 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
     def test_notification_contains_old_deadline(self):
         old_deadline = timezone.now() + timedelta(days=2)
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Test Homework',
             deadline=old_deadline
         )
@@ -391,7 +391,7 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
 
         deadline = timezone.now() + timedelta(days=7)
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='New Homework',
             deadline=deadline,
             last_modified_by=user
@@ -406,7 +406,7 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
 
         deadline = timezone.now() + timedelta(days=7)
         homework = Homework.objects.create(
-            lesson_id=self.lesson,
+            lesson=self.lesson,
             title='Original Title',
             deadline=deadline
         )
@@ -451,7 +451,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=date_time
         )
@@ -466,7 +466,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Past Lesson',
             date_time=past_date
         )
@@ -481,7 +481,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=date
         )
@@ -496,7 +496,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=date
         )
@@ -511,7 +511,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=date
         )
@@ -526,7 +526,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=date
         )
@@ -537,7 +537,7 @@ class LessonReminderSignalTest(BaseTestCase):
     def test_reminders_revoked_when_date_changed(self):
         old_date = timezone.now() + timedelta(days=2)
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=old_date
         )
@@ -553,7 +553,7 @@ class LessonReminderSignalTest(BaseTestCase):
     def test_new_reminders_scheduled_when_date_changed(self):
         old_date = timezone.now() + timedelta(days=2)
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=old_date
         )
@@ -571,7 +571,7 @@ class LessonReminderSignalTest(BaseTestCase):
     def test_revoke_not_called_when_date_unchanged(self):
         date = timezone.now() + timedelta(days=2)
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Original Title',
             date_time=date
         )
@@ -586,7 +586,7 @@ class LessonReminderSignalTest(BaseTestCase):
     def test_revoke_not_called_when_date_same(self):
         date = timezone.now() + timedelta(days=2)
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=date
         )
@@ -600,7 +600,7 @@ class LessonReminderSignalTest(BaseTestCase):
     def test_reminders_revoked_when_lesson_deleted(self):
         date_time = timezone.now() + timedelta(days=2)
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=date_time
         )
@@ -619,7 +619,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Soon Lesson',
             date_time=date
         )
@@ -635,7 +635,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Soon Lesson',
             date_time=date
         )
@@ -651,7 +651,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Later Lesson',
             date_time=date
         )
@@ -666,7 +666,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=date
         )
@@ -681,7 +681,7 @@ class LessonReminderSignalTest(BaseTestCase):
         self.mock_email_async.reset_mock()
 
         lesson = Lesson.objects.create(
-            section_id=self.section,
+            section=self.section,
             title='Test Lesson',
             date_time=date
         )

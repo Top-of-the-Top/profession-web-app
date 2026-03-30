@@ -83,7 +83,7 @@ def track_homework_changes(sender, instance, **kwargs):
 @receiver(post_save, sender=Homework)
 def homework_notification(sender, instance, created, **kwargs):
 
-    course = instance.lesson_id.section_id.course_id
+    course = instance.lesson.section.course
     deadline_str = instance.deadline.strftime('%d.%m %H:%M')
 
     notify_author(instance, 'прикреплено' if created else 'изменено')
@@ -93,7 +93,7 @@ def homework_notification(sender, instance, created, **kwargs):
         message = (
             f'По курсу "{course.title}" добавлено новое задание.\n'
             f'Дедлайн: {deadline_str}.\n'
-            f'Урок: {instance.lesson_id.title}.'
+            f'Урок: {instance.lesson.title}.'
         )
         send_course_notification.delay(course.course_id, title, message)
         send_mass_course_email.delay(course.course_id, title, message)
@@ -107,7 +107,7 @@ def homework_notification(sender, instance, created, **kwargs):
             message = (
                 f'В курсе "{course.title}" обновлен дедлайн домашнего задания "{instance.title}"\n'
                 f'Новый дедлайн: {deadline_str}.\n'
-                f'Урок: {instance.lesson_id.title}.'
+                f'Урок: {instance.lesson.title}.'
             )
 
             send_course_notification.delay(course.course_id, title, message)
@@ -116,7 +116,7 @@ def homework_notification(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Homework)
 def handle_deadline_reminders(sender, instance, created, **kwargs):
-    course = instance.lesson_id.section_id.course_id
+    course = instance.lesson.section.course
     now = timezone.now()
 
     reminder_configs = [
@@ -215,7 +215,7 @@ def track_lesson_changes(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Lesson)
 def handle_lesson_reminders(sender, instance, created, **kwargs):
-    course = instance.section_id.course_id
+    cours = instance.section.course
     now = timezone.now()
 
     notify_author(instance, 'создан' if created else 'изменен')
@@ -244,13 +244,13 @@ def handle_lesson_reminders(sender, instance, created, **kwargs):
                 )
 
                 send_course_notification.apply_async(
-                    args=[course.course_id, title, message],
+                    args=[cours, title, message],
                     eta=eta,
                     task_id=notif_task_id
                 )
 
                 send_mass_course_email.apply_async(
-                    args=[course.course_id, title, message],
+                    args=[cours, title, message],
                     eta=eta,
                     task_id=email_task_id
                 )

@@ -1,6 +1,7 @@
 from django.utils import timezone
 import os
 from .utils import set_reset_token, encrypt_data
+from .errors import VerificationError
 from django.conf import settings
 from django.core.mail import send_mail
 from rest_framework import status
@@ -357,75 +358,50 @@ class ProfileView(APIView):
 class VerifyEmailChangeView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        summary="Подтверждение смены email",
-        description="Подтверждает смену email с помощью 6-значного кода",
-        tags=["Users"],
-        request=VerifyCodeSerializer,
-        responses={
-            200: {"description": "Email успешно изменён"},
-            400: {"description": "Неверный код"},
-            401: {"description": "Не авторизован"},
-        },
-    )
     def post(self, request):
         serializer = VerifyCodeSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-        is_valid, new_email = verify_code(
-            user_id=request.user.id,
-            contact_type='email',
-            user_code=serializer.validated_data['code']
-        )
-
-        if not is_valid:
+        try:
+            new_email = verify_code(
+                user_id=request.user.id,
+                contact_type='email',
+                user_code=serializer.validated_data['code']
+            )
+        except VerificationError as e:
             return Response(
-                {'detail': 'Неверный или истёкший код подтверждения'},
+                {'error': e.code, 'detail': e.message},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         request.user.email_cipher = encrypt_data(new_email)
         request.user.save()
 
-        return Response({
-            'status': 'success',
-        }, status=status.HTTP_200_OK)
+        return Response({'status': 'success'}, status=status.HTTP_200_OK)
+
+
 class VerifyPhoneChangeView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        summary="Подтверждение смены номера телефона",
-        description="Подтверждает смену номера телефона с помощью 6-значного кода",
-        tags=["Users"],
-        request=VerifyCodeSerializer,
-        responses={
-            200: {"description": "Номер успешно изменён"},
-            400: {"description": "Неверный код"},
-            401: {"description": "Не авторизован"},
-        },
-    )
     def post(self, request):
         serializer = VerifyCodeSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        is_valid, new_phone = verify_code(
-            user_id=request.user.id,
-            contact_type='phone',
-            user_code=serializer.validated_data['code']
-        )
-
-        if not is_valid:
+        try:
+            new_phone = verify_code(
+                user_id=request.user.id,
+                contact_type='phone',
+                user_code=serializer.validated_data['code']
+            )
+        except VerificationError as e:
             return Response(
-                {'detail': 'Неверный или истёкший код подтверждения'},
+                {'error': e.code, 'detail': e.message},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         request.user.phone_cipher = encrypt_data(new_phone)
         request.user.save()
 
-        return Response({
-            'status': 'success',
-        }, status=status.HTTP_200_OK)
+        return Response({'status': 'success'}, status=status.HTTP_200_OK)

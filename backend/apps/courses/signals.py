@@ -323,7 +323,7 @@ from .api.views import (
 
 @receiver((pre_save, pre_delete), sender=Course)
 def invalidate_cold_course_cache(sender, instance, **kwargs):
-    caches["landing"].delete(landing_courses_cache_key())
+    caches["default"].delete(landing_courses_cache_key())
     caches["default"].delete(course_list_cache_key())
     caches["default"].delete(course_detail_cache_key(instance.slug))
 

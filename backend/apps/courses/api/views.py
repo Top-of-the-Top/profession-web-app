@@ -233,7 +233,7 @@ class CourseDTOList(generics.ListAPIView):
         responses={200: CourseListResponseSerializer},
     )
     def list(self, request, *args, **kwargs):
-        cache = caches["landing"]
+        cache = caches["default"]
         key = landing_courses_cache_key()
         cached = cache.get(key)
         if cached is not None:
@@ -269,7 +269,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         }
     )
     def list(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = course_list_cache_key()
         cached = cache.get(key)
         if cached is not None:
@@ -301,7 +301,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         }
     )
     def retrieve(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = course_detail_cache_key(self.kwargs.get("slug", ""))
         cached = cache.get(key)
         if cached is not None:
@@ -435,7 +435,7 @@ class SectionViewSet(viewsets.ModelViewSet):
     )
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = section_list_cache_key(self.kwargs['course_slug'])
         cached = cache.get(key)
         if cached is not None:
@@ -476,7 +476,7 @@ class SectionViewSet(viewsets.ModelViewSet):
     )
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = section_detail_cache_key(self.kwargs['course_slug'], self.kwargs.get("slug", ""))
         cached = cache.get(key)
         if cached is not None:
@@ -551,7 +551,7 @@ class LessonViewSet(viewsets.ModelViewSet):
     )
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = lesson_list_cache_key(self.kwargs['course_slug'], self.kwargs.get('section_slug', ''))
         cached = cache.get(key)
         if cached is not None:
@@ -592,7 +592,7 @@ class LessonViewSet(viewsets.ModelViewSet):
     )
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = lesson_detail_cache_key(
             self.kwargs['course_slug'], self.kwargs.get('section_slug', ''), self.kwargs.get("slug", "")
         )
@@ -672,7 +672,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
     )
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = homework_list_cache_key(
             self.kwargs['course_slug'], self.kwargs['section_slug'], self.kwargs['lesson_slug']
         )
@@ -715,7 +715,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
     )
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = homework_detail_cache_key(
             self.kwargs['course_slug'], self.kwargs['section_slug'],
             self.kwargs['lesson_slug'], self.kwargs.get("slug", "")
@@ -799,7 +799,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = task_list_cache_key(
             self.kwargs['course_slug'], self.kwargs['section_slug'],
             self.kwargs['lesson_slug'], self.kwargs['homework_slug']
@@ -843,7 +843,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = task_detail_cache_key(
             self.kwargs['course_slug'], self.kwargs['section_slug'],
             self.kwargs['lesson_slug'], self.kwargs['homework_slug'], self.kwargs.get("slug", "")
@@ -927,7 +927,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
     )
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = question_list_cache_key(
             self.kwargs['course_slug'], self.kwargs['section_slug'],
             self.kwargs['lesson_slug'], self.kwargs['homework_slug']
@@ -971,7 +971,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
     )
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
-        cache = caches["cold"]
+        cache = caches["default"]
         key = question_detail_cache_key(
             self.kwargs['course_slug'], self.kwargs['section_slug'],
             self.kwargs['lesson_slug'], self.kwargs['homework_slug'], self.kwargs.get("slug", "")

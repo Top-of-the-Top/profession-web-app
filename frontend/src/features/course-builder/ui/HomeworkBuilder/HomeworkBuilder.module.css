@@ -1,5 +1,18 @@
+.homeworkLayout {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+	justify-content: space-between;
+  flex: 1;
+}
+
 .homeworkWrapper {
   flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 75vh;
+  max-height: 75vh;
   display: flex;
   flex-direction: column;
   border-radius: 12px;
@@ -12,6 +25,7 @@
 
 .homeworkList {
   flex: 1;
+  min-height: 100%;
   padding: 8px 0 12px;
   display: flex;
   flex-direction: column;
@@ -20,10 +34,14 @@
 .homeworkInner {
   display: flex;
   flex-direction: column;
+  flex: 1;
   gap: 10px;
-  width: 60%;
-  min-width: 500px;
+  width: min(920px, 100%);
+  min-width: 0;
+  min-height: 100%;
   margin: 0 auto;
+  padding: 0 8px;
+  box-sizing: border-box;
 }
 
 .homeworkCard {
@@ -31,8 +49,8 @@
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 0 8px rgba(15, 23, 42, 0.18);
-	margin: 0 5px 0 5px;
-	box-sizing: border-box;
+  margin: 0 5px 0 5px;
+  box-sizing: border-box;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
@@ -57,55 +75,77 @@
 
 .homeworkCardHeader {
   display: flex;
-	flex: 1;
-	width: 100%;
-	padding: 0 10px 0 10px;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
 }
 
 .homeworkCardHeaderLeft {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex: 1;
+  gap: 12px;
+  min-width: 0;
 }
+
 .homeworkCardHeaderWrapper {
   display: flex;
-	flex-direction: column;
-  align-items:flex-start;
+  flex-direction: column;
+  align-items: flex-start;
   width: 100%;
   position: relative;
+  gap: 6px;
+  padding-left: 10px;
+  box-sizing: border-box;
+}
+
+.homeworkQuestionTypeBadge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background-color: #edf3ff;
+  color: #396fdb;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  margin-right: 4px;
 }
 
 .homeworkDragHandle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  min-height: 44px;
-  padding: 0 4px 0 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   cursor: grab;
   color: #6b7280;
-  align-self: stretch;
+  flex-shrink: 0;
 }
 
 .homeworkQuestionTitle {
-  /* flex: 1; */
-	width: 100%;
+  width: 100%;
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid #E2E8F0;
   padding: 4px 5px;
   font-size: 14px;
-	transition: 0.3s;
-	border-radius: 8px;
+  line-height: 1.4;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  min-height: 32px;
+  transition: 0.3s;
+  box-sizing: border-box;
 }
 
 .homeworkQuestionTitle:focus {
   outline: none;
   background-color: #EEEEF0;
-	border: none;
+  border: none;
 }
 
 .homeworkIconButton {
@@ -118,11 +158,22 @@
   justify-content: center;
 }
 
+.homeworkOptionRow .homeworkIconButton:first-child {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.homeworkOptionRow:hover .homeworkIconButton:first-child {
+  opacity: 1;
+}
+
 .homeworkCardBody {
   padding-top: 4px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding-left: 10px;
+  box-sizing: border-box;
 }
 
 .homeworkOptions {
@@ -179,6 +230,7 @@
 
 .homeworkOptionInput {
   flex: 1;
+	color: black;
   border: none;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   padding: 2px 0;
@@ -197,7 +249,7 @@
   cursor: pointer;
   padding: 10px 0 10px 0;
   text-align: left;
-	margin-left: 25px;
+  margin-left: 0;
 }
 
 .homeworkLongAnswer {
@@ -217,6 +269,8 @@
   gap: 6px;
   font-size: 12px;
   color: #6b7280;
+  padding-left: 10px;
+  box-sizing: border-box;
 }
 
 .homeworkScoreLabel {
@@ -233,11 +287,16 @@
 
 .homeworkActionsBar {
   margin-top: 12px;
-	padding: 8px 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .homeworkAddButtons {
@@ -248,24 +307,26 @@
 
 .homeworkAddQuestionButton {
   border-radius: 999px;
-	background-color: #191970;
-	color: white;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: #191970;
+  color: white;
   padding: 6px 10px;
   font-size: 13px;
-  cursor: grab;
+  line-height: 1.2;
+  cursor: pointer;
   user-select: none;
-	border: none;
 }
 
 .homeworkAddQuestionButton:active {
-  cursor: grabbing;
+  cursor: pointer;
 }
 
 .homeworkCtaButtons {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
 }
-
 .button {
   border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.12);
@@ -273,18 +334,52 @@
   padding: 6px 10px;
   font-size: 13px;
   cursor: pointer;
+	border-color: transparent;
+	transition: 0.2s;
 }
 
 .buttonPrimary {
-  background-color: #191970;
-  color: white;
-  border-color: transparent;
+  background-color: #EDF3FF;
+  color: #396FDB;
+}
+.buttonPrimary:hover {
+	background-color: #BCCDEE;
+	color: #2A53B5;
 }
 
+
 .buttonSecondary {
-  background-color: #73737382;
-  color: white;
-  border-color: transparent;
+  background-color: #d4d4d4;
+  color: black;
+  
+}
+
+.buttonSecondary:hover {
+	background-color: #979494;
+}
+
+@media (max-width: 768px) {
+  .homeworkWrapper {
+    min-height: 65vh;
+    max-height: 65vh;
+  }
+
+  .homeworkInner {
+    padding: 0 4px;
+  }
+
+  .homeworkActionsBar {
+    align-items: stretch;
+  }
+
+  .homeworkAddButtons,
+  .homeworkCtaButtons {
+    width: 100%;
+  }
+
+  .homeworkCtaButtons {
+    justify-content: flex-end;
+  }
 }
 
 .homeworkDragPreview {

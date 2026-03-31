@@ -25,8 +25,10 @@ export default function CoursePreviewPage() {
   const { data: cart, isLoading: cartLoading } = useCart();
   const addToCart = useAddToCart();
 
-  const course = courseData?.course ?? null;
-  const inCart = cart?.courses?.some((c) => c.slug === slug) ?? false;
+  const course = courseData ?? null;
+  const inCart = slug
+    ? (cart?.courses?.some((c) => c.slug === slug) ?? false)
+    : false;
 
   const handleAddToCart = () => {
     if (!slug || !course || inCart) return;

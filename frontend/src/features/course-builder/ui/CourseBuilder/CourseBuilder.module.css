@@ -6,13 +6,12 @@
   height: 100%;
   padding: 16px;
   box-sizing: border-box;
-	direction: ltr !important;
-	z-index: 10;
-	background-color: #E2E8F0;
+  direction: ltr !important;
+  z-index: 10;
+  background-color: #e2e8f0;
 }
 
 .sidebar {
-  /* flex: 0 0 260px; */
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -68,7 +67,6 @@
   background: #e5e7eb;
   border-left: 3px solid #6b7280;
 }
-
 
 .header {
   display: flex;
@@ -147,8 +145,6 @@
   background-color: rgba(37, 99, 235, 0.12);
 }
 
-/* old palette and vertical list styles removed */
-
 .input {
   width: 100%;
   border-radius: 6px;
@@ -197,21 +193,33 @@
   padding: 6px 10px;
   font-size: 13px;
   cursor: pointer;
+	border-color: transparent;
+	transition: 0.2s;
 }
 
 .buttonPrimary {
-  background-color: #191970;
-  color: white;
-  border-color: transparent;
+  background-color: #EDF3FF;
+  color: #396FDB;
 }
+.buttonPrimary:hover {
+	background-color: #BCCDEE;
+	color: #2A53B5;
+}
+
+
 .buttonSecondary {
-	background-color: #73737382;
-	color: white;
-	border-color: transparent;
+  background-color: #d4d4d4;
+  color: black;
+  
 }
+
+.buttonSecondary:hover {
+	background-color: #979494;
+}
+
 .ctaWrapper {
-	display: flex;
-	gap: 8px;
+  display: flex;
+  gap: 8px;
 }
 
 .emptyState {
@@ -219,37 +227,69 @@
   color: #6b7280;
 }
 
-/* grid-based editor */
+.layoutColumn {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: column;
+  width: fit-content;
+  height: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .gridWrapper {
-  flex: 1;
-	width: fit-content !important;
-  padding: 60px 0px 0px;
-  border-radius: 12px;
-  background: linear-gradient(
-    to bottom,
-    #eef2f7 0,
-    #eef2f7 60px,
-    #ffffff 60px,
-    #ffffff 100%
-  );
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-top: none;
+  border-left: none;
+  background: #ffffff;
   position: relative;
-  overflow: auto;
+  overflow: hidden;
   min-height: 320px;
   max-height: 75vh;
 }
 
-.gridInner {
-	background-size: 80px 80px;
-  background-image: linear-gradient(
-      to right,
-      rgba(0, 0, 0, 0.04) 1px,
-      transparent 1px
-    ),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
-  position: relative;
-  width: calc(80px * 16);
+.gridViewport {
+  width: fit-content;
   max-width: 100%;
-  height: calc(80px * 100);
+  height: 100%;
+  min-width: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gridCanvas {
+  position: relative;
+  min-height: 100%;
+  background-color: #ffffff;
+}
+
+.gridCanvas::before,
+.gridCanvas::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  background: #ffffff;
+  pointer-events: none;
+}
+
+.gridCanvas::before {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.gridCanvas::after {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 1px;
 }
 
 .gridBlock {
@@ -257,14 +297,17 @@
   border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   background-color: #ffffff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  /* box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); */
   box-sizing: border-box;
   overflow: visible;
   display: flex;
   flex-direction: column;
   direction: ltr !important;
   text-align: left !important;
-  transition: opacity 0.22s ease, transform 0.22s ease, filter 0.22s ease;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease,
+    filter 0.22s ease;
   transform-origin: center top;
 }
 
@@ -322,7 +365,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s, background-color 0.15s;
+  transition:
+    color 0.15s,
+    background-color 0.15s;
 }
 
 .blockDeleteBtn:hover {
@@ -376,18 +421,21 @@
 .paletteBar {
   margin-top: 12px;
   padding: 8px 10px;
+  box-sizing: border-box;
   border-radius: 999px;
-	max-width: 100%;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .paletteButtons {
   display: flex;
   gap: 8px;
-	
+  flex-wrap: wrap;
 }
 
 .paletteButton {
@@ -405,7 +453,7 @@
   border: 1px solid rgba(0, 0, 0, 0.12);
   background-color: #191970;
   font-size: 13px;
-	color: white;
+  color: white;
   cursor: grab;
   user-select: none;
 }
@@ -432,15 +480,15 @@
   background: #f9fafb;
 }
 
-.gridFixedWidth {
-  flex-shrink: 0;
-	border: none !important;
-}
-
 .gridLayout {
   width: 100% !important;
-  background-color: white !important;
-	border: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  background-image:
+    linear-gradient(to right, rgba(107, 114, 128, 0.2) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(107, 114, 128, 0.2) 1px, transparent 1px);
+  background-size: 82px 82px;
+  background-position: 0 0;
 }
 
 /* Цвет области, куда встанет блок при перетаскивании (плейсхолдер RGL) */
@@ -454,22 +502,11 @@
   .courseBuilder {
     padding: 12px;
   }
-
-  .gridInner {
-    height: 480px;
-    width: 100%;
-  }
-}
-
-@media (max-width: 960px) {
-  .courseBuilder {
-    padding: 12px;
-  }
 }
 
 .lessonHeader {
   display: flex;
-	padding-left: 45px;
+  padding-left: 45px;
 }
 
 .lessonHeaderTrapezoid {
@@ -478,7 +515,7 @@
   background: #ffffff;
   border-radius: 12px 12px 0 0;
   clip-path: polygon(0 100%, 5% 0, 95% 0, 100% 100%);
-	border: none !important;
+  border: none !important;
 }
 
 .mainArea {
@@ -489,7 +526,7 @@
 .sideTabs {
   display: flex;
   flex-direction: column;
-	padding-top: 20px;
+  padding-top: 20px;
   gap: 8px;
 }
 
@@ -505,14 +542,14 @@
   cursor: pointer;
   position: relative;
   clip-path: polygon(0 0, 100% 0, 100% 95%, 0 100%, 0% 100%);
-	min-height: 180px;
+  min-height: 180px;
 }
 
 .sideTab::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
-  background-color: #EEEEF0;
+  background-color: #eeeef0;
   clip-path: polygon(0 0, 100% 10px, 100% 100%, 0 100%);
   z-index: -1;
 }
@@ -528,10 +565,12 @@
 
 .mainContent {
   flex: 1;
-	max-width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-	justify-content:space-between;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .textSkeleton {
@@ -567,14 +606,13 @@
   width: 60px;
 }
 
-
 .imageSkeleton {
-	width: 100%;
-	
-	display: flex;
-	justify-content: left;
-	padding-left: 10px;
-	align-items: center;
+  width: 100%;
+
+  display: flex;
+  justify-content: left;
+  padding-left: 10px;
+  align-items: center;
 }
 
 .textEditorContent blockquote {
@@ -629,7 +667,36 @@
   direction: ltr !important;
   transform: translateY(-80px);
   position: absolute;
-	z-index: 150;
+  z-index: 150;
+}
+
+@media (max-width: 768px) {
+  .mainArea {
+    gap: 8px;
+  }
+
+  .sideTabs {
+    padding-top: 0;
+  }
+
+  .gridWrapper {
+    max-height: 65vh;
+  }
+
+  .layoutColumn {
+    width: 100%;
+  }
+
+  .paletteBar {
+    border-radius: 18px;
+    padding: 10px;
+  }
+
+  .ctaWrapper {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
 }
 
 .wysiwygEditorCollapsed :global(.rsw-toolbar) {
@@ -652,7 +719,7 @@
   background-color: #e5e7eb;
 }
 
-.wysiwygEditor :global(.rsw-btn[data-active="true"]) {
+.wysiwygEditor :global(.rsw-btn[data-active='true']) {
   background-color: #2563eb;
   color: white;
 }
@@ -771,18 +838,18 @@
 .uploadIconWrap {
   position: relative;
   display: flex;
-	flex-direction: column;
-	gap: 7px;
+  flex-direction: column;
+  gap: 7px;
   align-items: center;
   justify-content: center;
-	height: 100%;
+  height: 100%;
   min-height: 80px;
   background: white;
   border-radius: 8px;
 }
 .uploadIconWrap p {
-	color: rgb(123, 123, 123);
-	font-weight: 500;
+  color: rgb(123, 123, 123);
+  font-weight: 500;
 }
 
 .uploadIcon {
@@ -837,7 +904,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -862,9 +930,8 @@
   text-align: left !important;
 }
 
-
 .wysiwygEditor :global(.rsw-ce:focus) {
-	outline: none !important;
+  outline: none !important;
   border: none !important;
   box-shadow: none !important;
 }

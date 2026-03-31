@@ -7,7 +7,7 @@ import type { Layout, LayoutItem } from 'react-grid-layout';
 import { useLessonBuilderStore } from '../../model/store';
 import type { Block, BlockType } from '../../model/types';
 import { serializeCoursePage } from '../../model/types';
-import { GRID_COLS } from '../../lib/constants';
+import { GRID_CELL_SIZE, GRID_COLS } from '../../lib/constants';
 import { HomeworkBuilder } from '../HomeworkBuilder';
 import { useHomeworkStore } from '../../model/homeworkStore';
 import {
@@ -34,10 +34,11 @@ const BLOCK_LABELS: Record<BlockType, string> = {
   video: 'Видео',
 };
 
-const ROW_HEIGHT = 80;
+const GRID_GAP = 2;
+const ROW_HEIGHT = GRID_CELL_SIZE;
 const GRID_ROWS_BASE = 50;
-/** Фиксированная ширина сетки: один лейаут независимо от разрешения */
-const GRID_FIXED_WIDTH = GRID_COLS * 80;
+const GRID_FIXED_WIDTH = GRID_COLS * GRID_CELL_SIZE + (GRID_COLS - 1) * GRID_GAP;
+const GRID_MIN_HEIGHT = GRID_ROWS_BASE * ROW_HEIGHT + (GRID_ROWS_BASE - 1) * GRID_GAP;
 
 
 function blocksToLayout(blocks: Block[]): Layout {
@@ -354,89 +355,88 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
 
         <div className={styles.mainContent}>
           {activeTab === 'layout' && (
-            <>
+            <div className={styles.layoutColumn}>
               <div className={styles.gridWrapper}>
-                <div
-                  className={styles.gridFixedWidth}
-                  style={{ width: GRID_FIXED_WIDTH, minWidth: GRID_FIXED_WIDTH }}
-                >
-                  <GridLayout
-                    className={styles.gridLayout}
-                    width={GRID_FIXED_WIDTH}
-                    style={{
-                      minHeight: GRID_ROWS_BASE * ROW_HEIGHT,
-                      background: 'transparent',
-                    }}
-                    layout={gridLayout}
-                    cols={GRID_COLS}
-                    rowHeight={ROW_HEIGHT}
-                    margin={[2, 2]}
-                    measureBeforeMount={false}
-                    useCSSTransforms={mounted}
-                    compactType="vertical"
-                    preventCollision={false}
-                    onLayoutChange={onLayoutChange}
-                    onDrop={onDrop}
-                    isDroppable
-                    {...draggableHandleProps}
-                    droppingItem={{ i: '__drop__', x: 0, y: 0, w: 2, h: 2 }}
-                    containerPadding={[0, 0]}
+                <div className={styles.gridViewport}>
+                  <div
+                    className={styles.gridCanvas}
+                    style={{ width: GRID_FIXED_WIDTH, minWidth: GRID_FIXED_WIDTH }}
                   >
-                    {layout.blocks.map((block) => (
-                      <div
-                        key={block.id}
-                        className={`${styles.gridBlock} ${deletingBlocks[block.id] ? styles.gridBlockDeleting : ''}`}
-                        dir="ltr"
-                      >
-                        <div className={`${styles.blockHeader} block-drag-handle`}>
-                          <span className={styles.blockType}>
-                            {BLOCK_LABELS[block.type]}
-                          </span>
-                          <div className={styles.blockHeaderActions}>
-                            {block.type === 'text' && (
+                    <GridLayout
+                      className={styles.gridLayout}
+                      width={GRID_FIXED_WIDTH}
+                      style={{ minHeight: GRID_MIN_HEIGHT }}
+                      layout={gridLayout}
+                      cols={GRID_COLS}
+                      rowHeight={ROW_HEIGHT}
+                      margin={[GRID_GAP, GRID_GAP]}
+                      measureBeforeMount={false}
+                      useCSSTransforms={mounted}
+                      compactType="vertical"
+                      preventCollision={false}
+                      onLayoutChange={onLayoutChange}
+                      onDrop={onDrop}
+                      isDroppable
+                      {...draggableHandleProps}
+                      droppingItem={{ i: '__drop__', x: 0, y: 0, w: 2, h: 2 }}
+                      containerPadding={[0, 0]}
+                    >
+                      {layout.blocks.map((block) => (
+                        <div
+                          key={block.id}
+                          className={`${styles.gridBlock} ${deletingBlocks[block.id] ? styles.gridBlockDeleting : ''}`}
+                          dir="ltr"
+                        >
+                          <div className={`${styles.blockHeader} block-drag-handle`}>
+                            <span className={styles.blockType}>
+                              {BLOCK_LABELS[block.type]}
+                            </span>
+                            <div className={styles.blockHeaderActions}>
+                              {block.type === 'text' && (
+                                <button
+                                  type="button"
+                                  className={styles.blockToggle}
+                                  onMouseDown={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCollapsedEditors((prev) => ({
+                                      ...prev,
+                                      [block.id]: !(prev[block.id] ?? true),
+                                    }));
+                                  }}
+                                  aria-label="Свернуть/развернуть редактор"
+                                >
+                                  {(collapsedEditors[block.id] ?? true) ? '▲' : '▼'}
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                className={styles.blockToggle}
-                                onMouseDown={(e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                }}
+                                className={styles.blockDeleteBtn}
+                                disabled={deletingBlocks[block.id]}
+                                onMouseDown={(e) => e.stopPropagation()}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setCollapsedEditors((prev) => ({
-                                    ...prev,
-                                    [block.id]: !(prev[block.id] ?? true),
-                                  }));
+                                  if (deletingBlocks[block.id]) return;
+                                  if (blockHasContent(block)) {
+                                    setDeleteTarget(block.id);
+                                  } else {
+                                    handleDeleteBlock(block.id);
+                                  }
                                 }}
-                                aria-label="Свернуть/развернуть редактор"
+                                aria-label="Удалить блок"
                               >
-                                {(collapsedEditors[block.id] ?? true) ? '▲' : '▼'}
+                                <Trash2 size={12} />
                               </button>
-                            )}
-                            <button
-                              type="button"
-                              className={styles.blockDeleteBtn}
-                              disabled={deletingBlocks[block.id]}
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (deletingBlocks[block.id]) return;
-                                if (blockHasContent(block)) {
-                                  setDeleteTarget(block.id);
-                                } else {
-                                  handleDeleteBlock(block.id);
-                                }
-                              }}
-                              aria-label="Удалить блок"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            </div>
                           </div>
+                          {renderBlockBody(block)}
                         </div>
-                        {renderBlockBody(block)}
-                      </div>
-                    ))}
-                  </GridLayout>
+                      ))}
+                    </GridLayout>
+                  </div>
                 </div>
               </div>
 
@@ -484,7 +484,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                   </button>
                 </div>
               </div>
-            </>
+            </div>
           )}
 
           {activeTab === 'homework' && <HomeworkBuilder />}

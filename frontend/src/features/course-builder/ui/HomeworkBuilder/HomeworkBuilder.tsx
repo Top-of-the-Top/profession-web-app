@@ -12,6 +12,12 @@ import styles from './HomeworkBuilder.module.css';
 
 type SingleQuestion = Extract<HomeworkQuestion, { type: 'single' }>;
 
+const QUESTION_TYPE_LABELS: Record<HomeworkQuestionType, string> = {
+  single: 'Варианты ответов',
+  text: 'Развернутый ответ',
+  file: 'Файл',
+};
+
 export const HomeworkBuilder: React.FC = () => {
   const {
     layout,
@@ -151,7 +157,7 @@ export const HomeworkBuilder: React.FC = () => {
   };
 
   return (
-    <>
+    <div className={styles.homeworkLayout}>
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className={styles.homeworkWrapper}>
           <Droppable droppableId="questions" type="question">
@@ -176,26 +182,34 @@ export const HomeworkBuilder: React.FC = () => {
                             className={styles.homeworkCard}
                           >
                             <div className={styles.homeworkCardHeaderWrapper}>
-                              <span
-                                className={styles.homeworkDragHandle}
-                                {...dragProvided.dragHandleProps}
-                              >
-                                <GripHorizontal size={14} />
-                              </span>
                               <div className={styles.homeworkCardHeader}>
                                 <div className={styles.homeworkCardHeaderLeft}>
-                                  <input
-                                    className={styles.homeworkQuestionTitle}
-                                    placeholder="Вопрос без заголовка"
-                                    value={question.title}
-                                    onChange={(e) =>
-                                      updateQuestion(question.id, {
-                                        title: e.target.value,
-                                      })
-                                    }
-                                  />
+                                  <span className={styles.homeworkQuestionTypeBadge}>
+                                    {QUESTION_TYPE_LABELS[question.type]}
+                                  </span>
+                                  <span
+                                    className={styles.homeworkDragHandle}
+                                    {...dragProvided.dragHandleProps}
+                                  >
+                                    <GripHorizontal size={14} />
+                                  </span>
                                 </div>
                               </div>
+                              <textarea
+                                className={styles.homeworkQuestionTitle}
+                                placeholder="Вопрос без заголовка"
+                                value={question.title}
+                                rows={1}
+                                onInput={(e) => {
+                                  e.currentTarget.style.height = 'auto';
+                                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                                }}
+                                onChange={(e) =>
+                                  updateQuestion(question.id, {
+                                    title: e.target.value,
+                                  })
+                                }
+                              />
                             </div>
 
                             <div className={styles.homeworkCardBody}>
@@ -310,6 +324,6 @@ export const HomeworkBuilder: React.FC = () => {
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 };

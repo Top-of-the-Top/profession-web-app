@@ -1,9 +1,5 @@
 from django.utils import timezone
 import os
-from .utils import set_reset_token, encrypt_data
-from .errors import VerificationError
-from django.conf import settings
-from django.core.mail import send_mail
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -17,11 +13,19 @@ from .serializers import (
     UserProfileSerializer,
     UpdateProfileSerializer,
     TokenResponseSerializer,
-    RequestEmailChangeSerializer,
     VerifyCodeSerializer,
-    RequestPhoneChangeSerializer
 )
-from .utils import get_tokens_for_user, send_verification_sms, send_verification_email, send_reset_password_email, generate_verification_code_for_user, get_verification_code_for_user, verify_code
+from .utils import (
+    get_tokens_for_user,
+    send_verification_sms,
+    send_verification_email,
+    send_reset_password_email,
+    generate_verification_code_for_user,
+    verify_code,
+    encrypt_data,
+    send_reset_password_sms,
+    set_reset_token,
+)
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
 
@@ -195,10 +199,22 @@ class ResetPasswordView(APIView):
         token = set_reset_token(user)
         frontend_host = os.environ.get('FRONTEND_HOST')
         recover_url = f"{frontend_host}/recover?token={token}"
+        result = None
 
-        recipient_email = email if email else ''
-
-        result = send_reset_password_email(recipient_email, recover_url)
+        if email:
+            result = send_reset_password_email(email, recover_url)
+            if not result:
+                return Response(
+                    {'detail': 'Ошибка отправки письма'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        elif phone:
+            result = send_reset_password_sms(phone, recover_url)
+            if not result:
+                return Response(
+                    {'detail': 'Ошибка отправки SMS'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
         if result:
             return Response(
@@ -207,7 +223,7 @@ class ResetPasswordView(APIView):
             )
 
         return Response(
-            {'detail': f'Ошибка отправки письма: {str(recipient_email)}'},
+            {'detail': f'Ошибка отправки письма: {str(email)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -358,50 +374,75 @@ class ProfileView(APIView):
 class VerifyEmailChangeView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Подтверждение смены email",
+        description="Подтверждает смену email с помощью 6-значного кода",
+        tags=["Users"],
+        request=VerifyCodeSerializer,
+        responses={
+            200: {"description": "Email успешно изменён"},
+            400: {"description": "Неверный код"},
+            401: {"description": "Не авторизован"},
+        },
+    )
     def post(self, request):
         serializer = VerifyCodeSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            new_email = verify_code(
-                user_id=request.user.id,
-                contact_type='email',
-                user_code=serializer.validated_data['code']
-            )
-        except VerificationError as e:
+
+        is_valid, new_email = verify_code(
+            user_id=request.user.id,
+            contact_type='email',
+            user_code=serializer.validated_data['code']
+        )
+
+        if not is_valid:
             return Response(
-                {'error': e.code, 'detail': e.message},
+                {'detail': 'Неверный или истёкший код подтверждения'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         request.user.email_cipher = encrypt_data(new_email)
         request.user.save()
 
-        return Response({'status': 'success'}, status=status.HTTP_200_OK)
-
-
+        return Response({
+            'status': 'success',
+        }, status=status.HTTP_200_OK)
 class VerifyPhoneChangeView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Подтверждение смены номера телефона",
+        description="Подтверждает смену номера телефона с помощью 6-значного кода",
+        tags=["Users"],
+        request=VerifyCodeSerializer,
+        responses={
+            200: {"description": "Номер успешно изменён"},
+            400: {"description": "Неверный код"},
+            401: {"description": "Не авторизован"},
+        },
+    )
     def post(self, request):
         serializer = VerifyCodeSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            new_phone = verify_code(
-                user_id=request.user.id,
-                contact_type='phone',
-                user_code=serializer.validated_data['code']
-            )
-        except VerificationError as e:
+        is_valid, new_phone = verify_code(
+            user_id=request.user.id,
+            contact_type='phone',
+            user_code=serializer.validated_data['code']
+        )
+
+        if not is_valid:
             return Response(
-                {'error': e.code, 'detail': e.message},
+                {'detail': 'Неверный или истёкший код подтверждения'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         request.user.phone_cipher = encrypt_data(new_phone)
         request.user.save()
 
-        return Response({'status': 'success'}, status=status.HTTP_200_OK)
+        return Response({
+            'status': 'success',
+        }, status=status.HTTP_200_OK)

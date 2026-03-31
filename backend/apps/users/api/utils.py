@@ -3,6 +3,7 @@ from django.core.cache import cache
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
+from sms import send_sms
 from datetime import datetime, timezone, timedelta
 import secrets
 from django.utils import timezone as django_timezone
@@ -147,11 +148,15 @@ def send_verification_email(email, code):
 
 
 def send_verification_sms(phone_number, code):
-
     try:
-
-        print(f"[SMS] Отправка кода {code} на номер {phone_number}")
+        send_sms(
+            body=f'Ваш код подтверждения: {code}',
+            originator=settings.DEFAULT_FROM_SMS,
+            recipients=[phone_number],
+            fail_silently=False,
+        )
         return True, "СМС отправлено"
+
     except Exception as e:
         return False, f"Ошибка отправки СМС: {str(e)}"
 
@@ -169,4 +174,20 @@ def send_reset_password_email(email, recover_url):
         return True
     except Exception as e:
         print(f'Ошибка при отправке письма: {type(e).__name__}: {str(e)}')
+        return False
+
+
+def send_reset_password_sms(phone_number, reset_code):
+
+    try:
+        send_sms(
+            body=f'Код для сброса пароля: {reset_code}',
+            originator=settings.DEFAULT_FROM_SMS,
+            recipients=[phone_number],
+            fail_silently=False,
+        )
+
+        return True
+    except Exception as e:
+        print(f'Ошибка отправки SMS: {e}')
         return False

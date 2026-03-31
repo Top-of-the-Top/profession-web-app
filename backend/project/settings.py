@@ -274,7 +274,7 @@ else:
                 }
             },
             'KEY_PREFIX': REDIS_KEY_PREFIX,
-            'TIMEOUT': 300, # Время жизни кэша
+            'TIMEOUT': 600, # Время жизни кэша
         },
         'hot': {
             'BACKEND': 'django_redis.cache.RedisCache',

@@ -1,4 +1,3 @@
-from django.contrib.admin import action
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -19,8 +18,8 @@ from .serializers import (
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
+from django.core.cache import caches
+
 SCHEMA_401 = {
     "type": "object",
     "properties": {
@@ -170,12 +169,53 @@ SCHEMA_COURSE_500 = {
     },
 }
 
+def landing_courses_cache_key():
+    return "default:courses:list"
+
+def course_list_cache_key():
+    return "default:courses:list"
+
+def course_detail_cache_key(slug):
+    return f"default:courses:detail:{slug}"
+
+def purchased_courses_cache_key(user_id):
+    return f"default:courses:purchased:{int(user_id)}"
+
+def section_list_cache_key(course_slug):
+    return f"default:sections:list:{course_slug}"
+
+def section_detail_cache_key(course_slug, slug):
+    return f"default:sections:detail:{course_slug}:{slug}"
+
+def lesson_list_cache_key(course_slug, section_slug):
+    return f"default:lessons:list:{course_slug}:{section_slug}"
+
+def lesson_detail_cache_key(course_slug, section_slug, slug):
+    return f"default:lessons:detail:{course_slug}:{section_slug}:{slug}"
+
+def homework_list_cache_key(course_slug, section_slug, lesson_slug):
+    return f"default:homeworks:list:{course_slug}:{section_slug}:{lesson_slug}"
+
+def homework_detail_cache_key(course_slug, section_slug, lesson_slug, slug):
+    return f"default:homeworks:detail:{course_slug}:{section_slug}:{lesson_slug}:{slug}"
+
+def task_list_cache_key(course_slug, section_slug, lesson_slug, homework_slug):
+    return f"default:tasks:list:{course_slug}:{section_slug}:{lesson_slug}:{homework_slug}"
+
+def task_detail_cache_key(course_slug, section_slug, lesson_slug, homework_slug, slug):
+    return f"default:tasks:detail:{course_slug}:{section_slug}:{lesson_slug}:{homework_slug}:{slug}"
+
+def question_list_cache_key(course_slug, section_slug, lesson_slug, homework_slug):
+    return f"default:questions:list:{course_slug}:{section_slug}:{lesson_slug}:{homework_slug}"
+
+def question_detail_cache_key(course_slug, section_slug, lesson_slug, homework_slug, slug):
+    return f"default:questions:detail:{course_slug}:{section_slug}:{lesson_slug}:{homework_slug}:{slug}"
+
 class CourseDTOList(generics.ListAPIView):
     permission_classes = (AllowAny,)
     serializer_class = CourseDTOSerializer
 
     def get_queryset(self):
-        user = self.request.user
         return Course.objects.all()
 
     def get_serializer_context(self):
@@ -192,14 +232,18 @@ class CourseDTOList(generics.ListAPIView):
         tags=["Landing"],
         responses={200: CourseListResponseSerializer},
     )
-    @method_decorator(cache_page(60 * 10))
     def list(self, request, *args, **kwargs):
+        cache = caches["default"]
+        key = landing_courses_cache_key()
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'number_of_courses': len(serializer.data),
-            'data': serializer.data,
-        })
+        data = {'number_of_courses': len(serializer.data), 'data': serializer.data}
+        cache.set(key, data)
+        return Response(data)
+
 
 class CourseViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
@@ -224,9 +268,15 @@ class CourseViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
         }
     )
-    @method_decorator(cache_page(60 * 10))
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        cache = caches["default"]
+        key = course_list_cache_key()
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
         summary="Детали курса",
@@ -250,9 +300,15 @@ class CourseViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
         }
     )
-    @method_decorator(cache_page(60 * 10))
     def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+        cache = caches["default"]
+        key = course_detail_cache_key(self.kwargs.get("slug", ""))
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().retrieve(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
         summary="Создать новый курс",
@@ -327,10 +383,8 @@ class CourseViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-
 class PurchasedCoursesView(APIView):
     permission_classes = (IsAuthenticated,)
-
 
     @extend_schema(
         summary="Купленные курсы",
@@ -346,14 +400,17 @@ class PurchasedCoursesView(APIView):
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
         },
     )
-    @method_decorator(cache_page(60 * 10))
     def get(self, request):
+        cache = caches["default"]
+        key = purchased_courses_cache_key(request.user.id)
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
         purchased = PurchasedCourse.objects.filter(
             user=request.user,
         ).select_related('course', 'payment')
-
-
         serializer = PurchasedCourseSerializer(purchased, many=True)
+        cache.set(key, serializer.data)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -377,9 +434,15 @@ class SectionViewSet(viewsets.ModelViewSet):
         }
     )
     @require_course_enrollment
-    @method_decorator(cache_page(60 * 60))
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        cache = caches["default"]
+        key = section_list_cache_key(self.kwargs['course_slug'])
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
         summary="Создать новую секцию",
@@ -411,10 +474,16 @@ class SectionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
         }
     )
-    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+        cache = caches["default"]
+        key = section_detail_cache_key(self.kwargs['course_slug'], self.kwargs.get("slug", ""))
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().retrieve(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
         summary="Обновить секцию",
@@ -472,91 +541,105 @@ class LessonViewSet(viewsets.ModelViewSet):
         return Lesson.objects.all()
 
     @extend_schema(
-      summary="Получить список уроков",
-      tags=["Lessons"],
-      responses={
-        200: LessonSerializer(many=True),
-        401: {"description": "Не авторизован", "schema": SCHEMA_401},
-        500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
-      }
+        summary="Получить список уроков",
+        tags=["Lessons"],
+        responses={
+            200: LessonSerializer(many=True),
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
+        }
     )
-    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        cache = caches["default"]
+        key = lesson_list_cache_key(self.kwargs['course_slug'], self.kwargs.get('section_slug', ''))
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
-      summary="Создать новый урок",
-      tags=["Lessons"],
-      responses={
-        201: LessonSerializer,
-        401: {"description": "Не авторизован", "schema": SCHEMA_401},
-        500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
-      }
+        summary="Создать новый урок",
+        tags=["Lessons"],
+        responses={
+            201: LessonSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
+        }
     )
     @require_course_author
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
 
     @extend_schema(
-      summary="Получить информацию о уроке",
-      tags=["Lessons"],
-      parameters=[
-          OpenApiParameter(
-              name='slug',
-              type=OpenApiTypes.STR,
-              location=OpenApiParameter.PATH,
-              description='slug урока'),
-      ],
-      responses={
-        200: LessonSerializer,
-        401: {"description": "Не авторизован", "schema": SCHEMA_401},
-        404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
-        500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
-      }
+        summary="Получить информацию о уроке",
+        tags=["Lessons"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug урока'),
+        ],
+        responses={
+            200: LessonSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
+        }
     )
-    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+        cache = caches["default"]
+        key = lesson_detail_cache_key(
+            self.kwargs['course_slug'], self.kwargs.get('section_slug', ''), self.kwargs.get("slug", "")
+        )
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().retrieve(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
-      summary="Обновить урок",
-      tags=["Lessons"],
-      parameters=[
-          OpenApiParameter(
-              name='slug',
-              type=OpenApiTypes.STR,
-              location=OpenApiParameter.PATH,
-              description='slug урока'),
-      ],
-      responses={
-        200: LessonSerializer,
-        401: {"description": "Не авторизован", "schema": SCHEMA_401},
-        404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
-        500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
-      }
+        summary="Обновить урок",
+        tags=["Lessons"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug урока'),
+        ],
+        responses={
+            200: LessonSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
+        }
     )
     @require_course_author
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
     @extend_schema(
-      summary="Удалить урок",
-      tags=["Lessons"],
-      parameters=[
-          OpenApiParameter(
-              name='slug',
-              type=OpenApiTypes.STR,
-              location=OpenApiParameter.PATH,
-              description='slug урока'),
-      ],
-      responses={
-        204: None,
-        401: {"description": "Не авторизован", "schema": SCHEMA_401},
-        404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
-        500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
-      }
+        summary="Удалить урок",
+        tags=["Lessons"],
+        parameters=[
+            OpenApiParameter(
+                name='slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug урока'),
+        ],
+        responses={
+            204: None,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
+        }
     )
     @require_course_author
     def destroy(self, request, *args, **kwargs):
@@ -587,10 +670,18 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
-    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        cache = caches["default"]
+        key = homework_list_cache_key(
+            self.kwargs['course_slug'], self.kwargs['section_slug'], self.kwargs['lesson_slug']
+        )
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
         summary="Создать новое домашнее задание",
@@ -622,10 +713,19 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
-    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+        cache = caches["default"]
+        key = homework_detail_cache_key(
+            self.kwargs['course_slug'], self.kwargs['section_slug'],
+            self.kwargs['lesson_slug'], self.kwargs.get("slug", "")
+        )
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().retrieve(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
         summary="Обновить домашнее задание",
@@ -669,6 +769,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
+
 class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     serializer_class = TaskSerializer
@@ -696,10 +797,19 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
-    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        cache = caches["default"]
+        key = task_list_cache_key(
+            self.kwargs['course_slug'], self.kwargs['section_slug'],
+            self.kwargs['lesson_slug'], self.kwargs['homework_slug']
+        )
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
         summary="Создать задачу ",
@@ -731,10 +841,19 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
-    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+        cache = caches["default"]
+        key = task_detail_cache_key(
+            self.kwargs['course_slug'], self.kwargs['section_slug'],
+            self.kwargs['lesson_slug'], self.kwargs['homework_slug'], self.kwargs.get("slug", "")
+        )
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().retrieve(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
         summary="Обновить задачу",
@@ -778,6 +897,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
+
 class QuestionViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     serializer_class = QuestionSerializer
@@ -789,7 +909,6 @@ class QuestionViewSet(viewsets.ModelViewSet):
         section_slug = self.kwargs['section_slug']
         lesson_slug = self.kwargs['lesson_slug']
         homework_slug = self.kwargs['homework_slug']
-
         return Question.objects.filter(
             homework__slug=homework_slug,
             homework__lesson__slug=lesson_slug,
@@ -806,10 +925,19 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
-    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        cache = caches["default"]
+        key = question_list_cache_key(
+            self.kwargs['course_slug'], self.kwargs['section_slug'],
+            self.kwargs['lesson_slug'], self.kwargs['homework_slug']
+        )
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
         summary="Создать вопрос",
@@ -841,10 +969,19 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
-    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+        cache = caches["default"]
+        key = question_detail_cache_key(
+            self.kwargs['course_slug'], self.kwargs['section_slug'],
+            self.kwargs['lesson_slug'], self.kwargs['homework_slug'], self.kwargs.get("slug", "")
+        )
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        response = super().retrieve(request, *args, **kwargs)
+        cache.set(key, response.data)
+        return response
 
     @extend_schema(
         summary="Обновить вопрос",

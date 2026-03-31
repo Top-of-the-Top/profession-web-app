@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from ..models import User, Profile
 from .utils import encrypt_data, decrypt_data
+import re
 
 
 class TokenResponseSerializer(serializers.Serializer):
@@ -173,3 +174,46 @@ class UpdateProfileSerializer(serializers.Serializer):
             )
 
         return attrs
+class RequestEmailChangeSerializer(serializers.Serializer):
+    new_email = serializers.EmailField()
+
+    def validate_new_email(self, value):
+        email_cipher = encrypt_data(value)
+        user = self.context.get('user')
+
+        if User.objects.filter(email_cipher=email_cipher).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError("Этот email уже используется")
+
+        if user.email_cipher == email_cipher:
+            raise serializers.ValidationError("Новый email совпадает с текущим")
+
+        return value
+
+class RequestPhoneChangeSerializer(serializers.Serializer):
+    new_phone = serializers.CharField(max_length=20)
+
+    def validate_new_phone(self, value):
+        cleaned_phone = re.sub(r'\D', '', value)
+
+        if len(cleaned_phone) < 10:
+            raise serializers.ValidationError("Неверный формат номера телефона")
+
+        phone_cipher = encrypt_data(cleaned_phone)
+        user = self.context.get('user')
+
+        if User.objects.filter(phone_cipher=phone_cipher).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError("Этот номер телефона уже используется")
+
+        if user.phone_cipher == phone_cipher:
+            raise serializers.ValidationError("Новый номер совпадает с текущим")
+
+        return cleaned_phone
+
+
+class VerifyCodeSerializer(serializers.Serializer):
+    code = serializers.CharField(min_length=6, max_length=6)
+
+    def validate_code(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("Код должен содержать только цифры")
+        return value

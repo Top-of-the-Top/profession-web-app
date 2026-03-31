@@ -10,4 +10,6 @@ urlpatterns = [
     path('auth/reset/', ResetPasswordView.as_view(), name='reset'),
     path('auth/recover/set/', RecoverPasswordView.as_view(), name='recover_set'),
     path('app/profile/', ProfileView.as_view(), name='profile'),
+    path('app/profile/verify-email/', VerifyEmailChangeView.as_view(), name='verify-email'),
+    path('app/profile/verify-phone/', VerifyPhoneChangeView.as_view(), name='verify-phone'),
 ]

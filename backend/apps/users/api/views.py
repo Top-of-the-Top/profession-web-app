@@ -1,6 +1,7 @@
 from django.utils import timezone
 import os
 from .utils import set_reset_token, encrypt_data
+from .errors import VerificationError
 from django.conf import settings
 from django.core.mail import send_mail
 from rest_framework import status
@@ -16,8 +17,11 @@ from .serializers import (
     UserProfileSerializer,
     UpdateProfileSerializer,
     TokenResponseSerializer,
+    RequestEmailChangeSerializer,
+    VerifyCodeSerializer,
+    RequestPhoneChangeSerializer
 )
-from .utils import get_tokens_for_user
+from .utils import get_tokens_for_user, send_verification_sms, send_verification_email, send_reset_password_email, generate_verification_code_for_user, get_verification_code_for_user, verify_code
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
 
@@ -194,24 +198,17 @@ class ResetPasswordView(APIView):
 
         recipient_email = email if email else ''
 
-        try:
-            result = send_mail(
-                subject='Сброс пароля',
-                message=f'Перейдите по ссылке для сброса пароля: {recover_url}',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[recipient_email],
-                fail_silently=False,
-            )
-            print(f'Письмо отправлено успешно. Результат: {result}')
-        except Exception as e:
-            print(f'Ошибка при отправке письма: {type(e).__name__}: {str(e)}')
+        result = send_reset_password_email(recipient_email, recover_url)
+
+        if result:
             return Response(
-                {'detail': f'Ошибка отправки письма: {str(recipient_email)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {'status': 'success'},
+                status=status.HTTP_200_OK
             )
+
         return Response(
-            {'status': 'success'},
-            status=status.HTTP_200_OK
+            {'detail': f'Ошибка отправки письма: {str(recipient_email)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
@@ -319,18 +316,30 @@ class ProfileView(APIView):
         data = serializer.validated_data
         profile, _ = Profile.objects.get_or_create(user=user)
 
+        if 'email' in data and data['email']:
+            new_email = data['email']
+
+            code = generate_verification_code_for_user(
+                user_id=user.id,
+                contact_type='email',
+                new_contact=new_email
+            )
+            send_verification_email(new_email, code)
+
+        if 'phone_number' in data and data['phone_number']:
+            new_phone = data['phone_number']
+
+            code = generate_verification_code_for_user(
+                user_id=user.id,
+                contact_type='phone',
+                new_contact=new_phone
+            )
+            send_verification_sms(new_phone, code)
+
         if 'first_name' in data:
             user.first_name = data['first_name']
         if 'last_name' in data:
             user.last_name = data['last_name']
-        if 'email_cipher' in data:
-            user.email_cipher = data['email_cipher']
-        elif 'email' in data:
-            user.email_cipher = None
-        if 'phone_cipher' in data:
-            user.phone_cipher = data['phone_cipher']
-        elif 'phone_number' in data:
-            user.phone_cipher = None
         user.save()
 
         if 'gender' in data:
@@ -345,3 +354,54 @@ class ProfileView(APIView):
             {'status': 'success'},
             status=status.HTTP_200_OK
         )
+
+class VerifyEmailChangeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = VerifyCodeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            new_email = verify_code(
+                user_id=request.user.id,
+                contact_type='email',
+                user_code=serializer.validated_data['code']
+            )
+        except VerificationError as e:
+            return Response(
+                {'error': e.code, 'detail': e.message},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        request.user.email_cipher = encrypt_data(new_email)
+        request.user.save()
+
+        return Response({'status': 'success'}, status=status.HTTP_200_OK)
+
+
+class VerifyPhoneChangeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = VerifyCodeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            new_phone = verify_code(
+                user_id=request.user.id,
+                contact_type='phone',
+                user_code=serializer.validated_data['code']
+            )
+        except VerificationError as e:
+            return Response(
+                {'error': e.code, 'detail': e.message},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        request.user.phone_cipher = encrypt_data(new_phone)
+        request.user.save()
+
+        return Response({'status': 'success'}, status=status.HTTP_200_OK)

@@ -1,4 +1,8 @@
+import random
+from django.core.cache import cache
+from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.mail import send_mail
 from datetime import datetime, timezone, timedelta
 import secrets
 from django.utils import timezone as django_timezone
@@ -7,7 +11,7 @@ import base64
 import hashlib
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad, pad
-
+from .errors import VerificationError
 
 def generate_reset_token():
     return secrets.token_urlsafe(32)
@@ -81,3 +85,88 @@ def decrypt_data(cipher_text: str) -> str:
         return decrypted.decode('utf-8')
     except Exception:
         return ''
+
+def generate_verification_code_for_user(user_id, contact_type, new_contact):
+    code = f"{random.randint(0, 999999):06d}"
+    cache_key = f'verification_code_{user_id}_{contact_type}'
+
+    data = {
+        'code': code,
+        'new_contact': new_contact,
+        'created_at': django_timezone.now().isoformat()
+    }
+
+    cache.set(cache_key, data, timeout=60)
+
+    return code
+
+def get_verification_code_for_user(user_id, contact_type):
+    cache_key = f'verification_code_{user_id}_{contact_type}'
+    return cache.get(cache_key)
+
+def delete_verification_code(user_id: int, contact_type: str):
+    cache_key = f"verification_code_{user_id}_{contact_type}"
+    cache.delete(cache_key)
+
+
+def verify_code(user_id, contact_type, user_code):
+    data = get_verification_code_for_user(user_id, contact_type)
+
+    if not data:
+        raise VerificationError('not_found', 'Код не найден. Запросите новый.')
+
+    created_at = data.get('created_at')
+    if created_at:
+        if isinstance(created_at, str):
+            from datetime import datetime
+            created_at = datetime.fromisoformat(created_at)
+        elapsed = (django_timezone.now() - created_at).total_seconds()
+        if elapsed > 60:
+            delete_verification_code(user_id, contact_type)
+            raise VerificationError('expired', 'Код истёк. Действителен 60 секунд.')
+
+    if data['code'] == user_code:
+        new_contact = data['new_contact']
+        delete_verification_code(user_id, contact_type)
+        return new_contact
+
+    raise VerificationError('invalid', 'Неверный код.')
+
+def send_verification_email(email, code):
+    try:
+        send_mail(
+            subject='Подтверждение смены email',
+            message=f'Ваш код подтверждения: {code}.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        return True, "Письмо отправлено"
+    except Exception as e:
+        return False, f"Ошибка отправки: {str(e)}"
+
+
+def send_verification_sms(phone_number, code):
+
+    try:
+
+        print(f"[SMS] Отправка кода {code} на номер {phone_number}")
+        return True, "СМС отправлено"
+    except Exception as e:
+        return False, f"Ошибка отправки СМС: {str(e)}"
+
+
+def send_reset_password_email(email, recover_url):
+    try:
+        result = send_mail(
+            subject='Сброс пароля',
+            message=f'Перейдите по ссылке для сброса пароля: {recover_url}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        print(f'Письмо отправлено успешно. Результат: {result}')
+        return True
+    except Exception as e:
+        print(f'Ошибка при отправке письма: {type(e).__name__}: {str(e)}')
+        return False

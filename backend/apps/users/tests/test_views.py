@@ -218,7 +218,7 @@ class ResetPasswordViewUnitTest(SimpleTestCase):
 
         with patch("apps.users.api.views.User.objects.filter") as filter_mock, patch(
             "apps.users.api.views.set_reset_token", return_value="reset-token"
-        ), patch("apps.users.api.views.send_mail", return_value=1) as send_mail_mock:
+        ), patch('apps.users.api.utils.send_mail', return_value=1) as send_mail_mock:
             filter_mock.return_value.first.return_value = mock_user
             response = ResetPasswordView.as_view()(request)
 

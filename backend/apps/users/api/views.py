@@ -1,15 +1,11 @@
 from django.utils import timezone
 import os
-from .utils import set_reset_token, encrypt_data
-from .errors import VerificationError
-from django.conf import settings
-from django.core.mail import send_mail
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-
+from .errors import VerificationError
 from ..models import User, Profile
 from .serializers import (
     RegisterSerializer,
@@ -17,11 +13,19 @@ from .serializers import (
     UserProfileSerializer,
     UpdateProfileSerializer,
     TokenResponseSerializer,
-    RequestEmailChangeSerializer,
     VerifyCodeSerializer,
-    RequestPhoneChangeSerializer
 )
-from .utils import get_tokens_for_user, send_verification_sms, send_verification_email, send_reset_password_email, generate_verification_code_for_user, get_verification_code_for_user, verify_code
+from .utils import (
+    get_tokens_for_user,
+    send_verification_sms,
+    send_verification_email,
+    send_reset_password_email,
+    generate_verification_code_for_user,
+    verify_code,
+    encrypt_data,
+    send_reset_password_sms,
+    set_reset_token,
+)
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
 
@@ -195,10 +199,22 @@ class ResetPasswordView(APIView):
         token = set_reset_token(user)
         frontend_host = os.environ.get('FRONTEND_HOST')
         recover_url = f"{frontend_host}/recover?token={token}"
+        result = None
 
-        recipient_email = email if email else ''
-
-        result = send_reset_password_email(recipient_email, recover_url)
+        if email:
+            result = send_reset_password_email(email, recover_url)
+            if not result:
+                return Response(
+                    {'detail': 'Ошибка отправки письма'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        elif phone:
+            result = send_reset_password_sms(phone, recover_url)
+            if not result:
+                return Response(
+                    {'detail': 'Ошибка отправки SMS'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
         if result:
             return Response(
@@ -207,7 +223,7 @@ class ResetPasswordView(APIView):
             )
 
         return Response(
-            {'detail': f'Ошибка отправки письма: {str(recipient_email)}'},
+            {'detail': f'Ошибка отправки письма: {str(email)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -379,7 +395,6 @@ class VerifyEmailChangeView(APIView):
         request.user.save()
 
         return Response({'status': 'success'}, status=status.HTTP_200_OK)
-
 
 class VerifyPhoneChangeView(APIView):
     permission_classes = [IsAuthenticated]

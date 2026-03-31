@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'storages',
     'django_celery_results',
     'apps.notifications.apps.NotificationsConfig',
+    'sms',
 ]
 
 USE_S3 = os.environ.get('USE_S3', 'False') == 'True'
@@ -148,6 +149,10 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
 SERVER_EMAIL = os.getenv('SERVER_EMAIL', 'webmaster@localhost')
+
+
+SMS_BACKEND = 'sms.backends.console.SmsBackend'
+DEFAULT_FROM_SMS = '+1234567890'
 
 if USE_S3:
     STORAGES = {

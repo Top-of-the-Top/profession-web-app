@@ -415,8 +415,12 @@ class CartViewUnitTests(SimpleTestCase):
         request = self.factory.get('/api/cart/')
         force_authenticate(request, user=self.auth_user)
 
+        mock_hot_cache = MagicMock()
+        mock_hot_cache.get.return_value = None
+
         with patch('apps.carts.api.views.Cart.objects.get_or_create') as mock_get_or_create, \
-                patch('apps.carts.api.views.CartSerializer') as mock_serializer:
+                patch('apps.carts.api.views.CartSerializer') as mock_serializer, \
+                patch('apps.carts.api.views.caches', {'hot': mock_hot_cache}):
             mock_get_or_create.return_value = (self.mock_cart, True)
             mock_serializer.return_value.data = {}
 
@@ -437,8 +441,12 @@ class CartViewUnitTests(SimpleTestCase):
             ]
         }
 
+        mock_hot_cache = MagicMock()
+        mock_hot_cache.get.return_value = None
+
         with patch('apps.carts.api.views.Cart.objects.get_or_create') as mock_get_or_create, \
-                patch('apps.carts.api.views.CartSerializer') as mock_serializer:
+                patch('apps.carts.api.views.CartSerializer') as mock_serializer, \
+                patch('apps.carts.api.views.caches', {'hot': mock_hot_cache}):
             mock_get_or_create.return_value = (self.mock_cart, True)
             mock_serializer.return_value.data = expected_data
 

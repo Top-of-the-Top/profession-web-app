@@ -1,5 +1,5 @@
 from django.db.models.signals import pre_delete, pre_save, post_save, post_delete, m2m_changed
-from django.core.cache import cache
+from django.core.cache import cache, caches
 from django.dispatch import receiver
 from django.utils import timezone
 from datetime import timedelta
@@ -302,167 +302,79 @@ def handle_pre_lesson_delete(sender, instance, **kwargs):
             pass
 
     return
-@receiver(post_save, sender=Course)
-@receiver(post_delete, sender=Course)
-def invalidate_course_cache(sender, instance, **kwargs):
-    """Инвалидация кэша курсов при создании/обновлении/удалении курса"""
-    try:
-        cache_keys = [
-            'course_list',
-            'courses_list',
-        ]
 
-        for key in cache_keys:
-            cache.delete(key)
-
-        if hasattr(instance, 'slug') and instance.slug:
-            detail_key = f'course_detail_{instance.slug}'
-            cache.delete(detail_key)
-
-        if not kwargs.get('created', False) and hasattr(instance, 'slug'):
-            old_slug = getattr(instance, '_old_slug', None)
-            if old_slug and old_slug != instance.slug:
-                old_detail_key = f'course_detail_{old_slug}'
-                cache.delete(old_detail_key)
-
-    except Exception as e:
-        pass
-
-@receiver(m2m_changed, sender=Course.authors.through)
-def invalidate_course_cache_on_authors_change(sender, instance, action, **kwargs):
-    """Инвалидация кэша при изменении авторов курса"""
-    if action in ['post_add', 'post_remove', 'post_clear']:
-        try:
-            cache.delete(f'course_detail_{instance.slug}')
-            cache.delete('course_list')
-            cache.delete('courses_list')
-        except Exception as e:
-            pass
-@receiver(post_save, sender=Section)
-@receiver(post_delete, sender=Section)
-def invalidate_section_cache(sender, instance, **kwargs):
-    """Инвалидация кэша секций при изменениях"""
-    try:
-        course_slug = instance.course_id.slug if instance.course_id else None
-
-        if course_slug:
-            sections_key = f'sections_list_{course_slug}'
-            cache.delete(sections_key)
-
-            if hasattr(instance, 'slug') and instance.slug:
-                detail_key = f'section_detail_{instance.slug}'
-                cache.delete(detail_key)
-
-            cache.delete(f'course_detail_{course_slug}')
-            cache.delete('course_list')
-            cache.delete('courses_list')
-
-    except Exception as e:
-        pass
-@receiver(post_save, sender=Lesson)
-@receiver(post_delete, sender=Lesson)
-def invalidate_lesson_cache(sender, instance, **kwargs):
-    """Инвалидация кэша уроков при изменениях"""
-    try:
-        section_slug = instance.section_id.slug if instance.section_id else None
-        course_slug = instance.section_id.course_id.slug if instance.section_id and instance.section_id.course_id else None
-
-        if section_slug:
-            lessons_key = f'lessons_list_{section_slug}'
-            cache.delete(lessons_key)
-
-            if hasattr(instance, 'slug') and instance.slug:
-                detail_key = f'lesson_detail_{instance.slug}'
-                cache.delete(detail_key)
-
-        if course_slug:
-            cache.delete(f'course_detail_{course_slug}')
-            cache.delete(f'sections_list_{course_slug}')
-            cache.delete('course_list')
-            cache.delete('courses_list')
-
-    except Exception as e:
-        pass
-@receiver(post_save, sender=Homework)
-@receiver(post_delete, sender=Homework)
-def invalidate_homework_cache(sender, instance, **kwargs):
-    """Инвалидация кэша домашних заданий при изменениях"""
-    try:
-        lesson_slug = instance.lesson_id.slug if instance.lesson_id else None
-        section_slug = instance.lesson_id.section_id.slug if instance.lesson_id and instance.lesson_id.section_id else None
-        course_slug = instance.lesson_id.section_id.course_id.slug if instance.lesson_id and instance.lesson_id.section_id and instance.lesson_id.section_id.course_id else None
-
-        if lesson_slug:
-            homeworks_key = f'homeworks_list_{lesson_slug}'
-            cache.delete(homeworks_key)
-
-            if hasattr(instance, 'slug') and instance.slug:
-                detail_key = f'homework_detail_{instance.slug}'
-                cache.delete(detail_key)
-
-        if course_slug:
-            cache.delete(f'course_detail_{course_slug}')
-            cache.delete(f'sections_list_{course_slug}')
-
-            if section_slug:
-                cache.delete(f'lessons_list_{section_slug}')
-
-    except Exception as e:
-        pass
-@receiver(post_save, sender=Task)
-@receiver(post_delete, sender=Task)
-def invalidate_task_cache(sender, instance, **kwargs):
-    """Инвалидация кэша задач при изменениях"""
-    try:
-        homework_slug = instance.homework_id.slug if instance.homework_id else None
-        lesson_slug = instance.homework_id.lesson_id.slug if instance.homework_id and instance.homework_id.lesson_id else None
-
-        if homework_slug:
-            tasks_key = f'tasks_list_{homework_slug}'
-            cache.delete(tasks_key)
-
-            if hasattr(instance, 'slug') and instance.slug:
-                detail_key = f'task_detail_{instance.slug}'
-                cache.delete(detail_key)
-
-        if lesson_slug:
-            cache.delete(f'homeworks_list_{lesson_slug}')
-
-    except Exception as e:
-        pass
-@receiver(post_save, sender=Question)
-@receiver(post_delete, sender=Question)
-def invalidate_question_cache(sender, instance, **kwargs):
-    """Инвалидация кэша вопросов при изменениях"""
-    try:
-        homework_slug = instance.homework_id.slug if instance.homework_id else None
-
-        if homework_slug:
-            questions_key = f'questions_list_{homework_slug}'
-            cache.delete(questions_key)
-
-            if hasattr(instance, 'slug') and instance.slug:
-                detail_key = f'question_detail_{instance.slug}'
-                cache.delete(detail_key)
+from .api.views import (
+    landing_courses_cache_key,
+    course_list_cache_key,
+    course_detail_cache_key,
+    section_list_cache_key,
+    section_detail_cache_key,
+    lesson_list_cache_key,
+    lesson_detail_cache_key,
+    homework_list_cache_key,
+    homework_detail_cache_key,
+    task_list_cache_key,
+    task_detail_cache_key,
+    question_list_cache_key,
+    question_detail_cache_key,
+    purchased_courses_cache_key,
+)
 
 
-    except Exception as e:
-        pass
-@receiver(post_save, sender=PurchasedCourse)
-@receiver(post_delete, sender=PurchasedCourse)
-def invalidate_purchased_course_cache(instance, **kwargs):
-    """Инвалидация кэша купленных курсов при изменениях"""
-    try:
-        user_id = instance.user_id if instance.user_id else None
-
-        if user_id:
-            purchased_key = f'purchased_courses_user_{user_id}'
-            cache.delete(purchased_key)
-
-            if hasattr(instance, 'course') and instance.course:
-                access_key = f'course_access_user_{user_id}_course_{instance.course.slug}'
-                cache.delete(access_key)
+@receiver((pre_save, pre_delete), sender=Course)
+def invalidate_cold_course_cache(sender, instance, **kwargs):
+    caches["landing"].delete(landing_courses_cache_key())
+    caches["default"].delete(course_list_cache_key())
+    caches["default"].delete(course_detail_cache_key(instance.slug))
 
 
-    except Exception as e:
-        pass
+@receiver((pre_save, pre_delete), sender=Section)
+def invalidate_cold_section_cache(sender, instance, **kwargs):
+    course_slug = instance.course.slug
+    caches["default"].delete(section_list_cache_key(course_slug))
+    caches["default"].delete(section_detail_cache_key(course_slug, instance.slug))
+    caches["default"].delete(course_detail_cache_key(course_slug))
+
+
+@receiver((pre_save, pre_delete), sender=Lesson)
+def invalidate_cold_lesson_cache(sender, instance, **kwargs):
+    section = instance.section
+    course_slug = section.course.slug
+    caches["default"].delete(lesson_list_cache_key(course_slug, section.slug))
+    caches["default"].delete(lesson_detail_cache_key(course_slug, section.slug, instance.slug))
+
+
+@receiver((pre_save, pre_delete), sender=Homework)
+def invalidate_cold_homework_cache(sender, instance, **kwargs):
+    lesson = instance.lesson
+    section = lesson.section
+    course_slug = section.course.slug
+    caches["default"].delete(homework_list_cache_key(course_slug, section.slug, lesson.slug))
+    caches["default"].delete(homework_detail_cache_key(course_slug, section.slug, lesson.slug, instance.slug))
+
+
+@receiver((pre_save, pre_delete), sender=Task)
+def invalidate_cold_task_cache(sender, instance, **kwargs):
+    hw = instance.homework
+    lesson = hw.lesson
+    section = lesson.section
+    course_slug = section.course.slug
+    slug = getattr(instance, 'slug', '')
+    caches["default"].delete(task_list_cache_key(course_slug, section.slug, lesson.slug, hw.slug))
+    caches["default"].delete(task_detail_cache_key(course_slug, section.slug, lesson.slug, hw.slug, slug))
+
+
+@receiver((pre_save, pre_delete), sender=Question)
+def invalidate_cold_question_cache(sender, instance, **kwargs):
+    hw = instance.homework
+    lesson = hw.lesson
+    section = lesson.section
+    course_slug = section.course.slug
+    slug = getattr(instance, 'slug', '')
+    caches["default"].delete(question_list_cache_key(course_slug, section.slug, lesson.slug, hw.slug))
+    caches["default"].delete(question_detail_cache_key(course_slug, section.slug, lesson.slug, hw.slug, slug))
+
+
+@receiver((pre_save, pre_delete), sender=PurchasedCourse)
+def invalidate_default_purchased_cache(sender, instance, **kwargs):
+    caches["default"].delete(purchased_courses_cache_key(instance.user_id))

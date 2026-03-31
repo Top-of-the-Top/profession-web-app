@@ -19,7 +19,8 @@ from .serializers import (
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
-
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 SCHEMA_401 = {
     "type": "object",
     "properties": {
@@ -169,7 +170,6 @@ SCHEMA_COURSE_500 = {
     },
 }
 
-
 class CourseDTOList(generics.ListAPIView):
     permission_classes = (AllowAny,)
     serializer_class = CourseDTOSerializer
@@ -183,14 +183,6 @@ class CourseDTOList(generics.ListAPIView):
         context['request'] = self.request
         return context
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'number_of_courses': len(serializer.data),
-            'data': serializer.data,
-        })
-
     @extend_schema(
         summary="Список курсов (лендинг)",
         description=(
@@ -200,9 +192,14 @@ class CourseDTOList(generics.ListAPIView):
         tags=["Landing"],
         responses={200: CourseListResponseSerializer},
     )
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-
+    @method_decorator(cache_page(60 * 10))
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'number_of_courses': len(serializer.data),
+            'data': serializer.data,
+        })
 
 class CourseViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
@@ -227,6 +224,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
         }
     )
+    @method_decorator(cache_page(60 * 10))
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -252,6 +250,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
         }
     )
+    @method_decorator(cache_page(60 * 10))
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -347,6 +346,7 @@ class PurchasedCoursesView(APIView):
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
         },
     )
+    @method_decorator(cache_page(60 * 10))
     def get(self, request):
         purchased = PurchasedCourse.objects.filter(
             user=request.user,
@@ -377,6 +377,7 @@ class SectionViewSet(viewsets.ModelViewSet):
         }
     )
     @require_course_enrollment
+    @method_decorator(cache_page(60 * 60))
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -410,6 +411,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
         }
     )
+    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
@@ -478,6 +480,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
+    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
@@ -512,6 +515,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
       }
     )
+    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
@@ -583,6 +587,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
+    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
@@ -617,6 +622,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
         }
     )
+    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
@@ -690,6 +696,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
+    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
@@ -724,6 +731,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_TASK_500},
         }
     )
+    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
@@ -798,6 +806,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
+    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
@@ -832,6 +841,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_QUESTION_500},
         }
     )
+    @method_decorator(cache_page(60 * 10))
     @require_course_enrollment
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)

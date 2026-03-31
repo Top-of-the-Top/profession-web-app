@@ -15,7 +15,6 @@ from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import NotificationSerializer
 from ..models import Notification
 from apps.users.models import User
-
 from apps.courses.models import PurchasedCourse
 
 logger = logging.getLogger(__name__)
@@ -24,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 @api_view(['GET']) # Решил проще данную штуку точечно сделать функцией. Введение cbv для этого избыточно
 @permission_classes([IsAuthenticated])
-
 def get_notifications_for_user(request):
     user = request.user
 

@@ -26,3 +26,4 @@ django-crum==0.7.9
 flower==2.0.1
 python-slugify>=8.0
 django-sms
+requests

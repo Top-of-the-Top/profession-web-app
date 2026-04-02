@@ -12,6 +12,7 @@ import base64
 import hashlib
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad, pad
+from django.contrib.auth.hashers import make_password
 from .errors import VerificationError
 
 def generate_reset_token():
@@ -97,7 +98,7 @@ def generate_verification_code_for_user(user_id, contact_type, new_contact):
         'created_at': django_timezone.now().isoformat()
     }
 
-    cache.set(cache_key, data, timeout=60)
+    cache.set(cache_key, data, timeout=150)
 
     return code
 
@@ -122,9 +123,9 @@ def verify_code(user_id, contact_type, user_code):
             from datetime import datetime
             created_at = datetime.fromisoformat(created_at)
         elapsed = (django_timezone.now() - created_at).total_seconds()
-        if elapsed > 60:
+        if elapsed > 150:
             delete_verification_code(user_id, contact_type)
-            raise VerificationError('expired', 'Код истёк. Действителен 60 секунд.')
+            raise VerificationError('expired', 'Код истёк. Действителен 2,5 минуты.')
 
     if data['code'] == user_code:
         new_contact = data['new_contact']
@@ -135,8 +136,8 @@ def verify_code(user_id, contact_type, user_code):
 
 def send_verification_email(email, code):
     try:
-        send_mail(
-            subject='Подтверждение смены email',
+        result = send_mail(
+            subject='Подтверждение email',
             message=f'Ваш код подтверждения: {code}.',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[email],
@@ -150,7 +151,7 @@ def send_verification_email(email, code):
 def send_verification_sms(phone_number, code):
     try:
         send_sms(
-            body=f'Ваш код подтверждения: {code}',
+            body=f'Ваш код подтверждения Профессия: {code}',
             originator=settings.DEFAULT_FROM_SMS,
             recipients=[phone_number],
             fail_silently=False,
@@ -181,13 +182,74 @@ def send_reset_password_sms(phone_number, reset_code):
 
     try:
         send_sms(
-            body=f'Код для сброса пароля: {reset_code}',
+            body=f'Код для сброса пароля Профессия: {reset_code}',
             originator=settings.DEFAULT_FROM_SMS,
             recipients=[phone_number],
             fail_silently=False,
         )
-
-        return True
+        return True, "СМС отправлено"
+    
     except Exception as e:
-        print(f'Ошибка отправки SMS: {e}')
-        return False
+        return False, f"Ошибка отправки СМС: {str(e)}"
+    
+
+def generate_registration_code(contact, password, contact_type='phone'):
+    code = f"{random.randint(0, 999999):06d}"
+    contact_cipher = encrypt_data(contact)
+    cache_key = f'pending_registration_{contact_type}_{contact_cipher}'
+
+    data = {
+        'code': code,
+        'contact': contact,
+        'contact_type': contact_type,
+        'password_hash': make_password(password),
+        'created_at': django_timezone.now().isoformat(),
+    }
+
+    cache.set(cache_key, data, timeout=150)
+    return code
+
+
+def verify_registration_code(contact, user_code, contact_type):
+    contact_cipher = encrypt_data(contact)
+    cache_key = f'pending_registration_{contact_type}_{contact_cipher}'
+    data = cache.get(cache_key)
+
+    if not data:
+        raise VerificationError('not_found', 'Код не найден, запросите новый.')
+    
+    created_at = data.get('created_at')
+    if created_at:
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at)
+        elapsed = (django_timezone.now() -  created_at).total_seconds()
+        if elapsed > 150:
+            cache.delete(cache_key)
+            raise VerificationError('expired', 'Время действия кода истекло. Действителен 2,5 минуты.')
+    
+    if data['code'] != user_code:
+        raise VerificationError('invalid', 'Неверный код.')
+    
+    cache.delete(cache_key)
+    return {
+        'contact': data['contact'],
+        'contact_type': data['contact_type'],
+        'password_hash': data['password_hash'],
+    }
+
+
+def check_contact_rate_limit(contact, contact_type='phone'):
+    contact_hash = hashlib.sha256(contact.encode()).hexdigest()[:16]
+    rate_key = f'rate_{contact_type}_{contact_hash}'
+
+    if cache.get(rate_key):
+        try:
+            ttl = cache.ttl(rate_key)
+            retry_after = ttl if ttl and ttl > 0 else 60
+        except AttributeError:
+            retry_after = 60
+
+        return False, retry_after
+
+    cache.set(rate_key, 1, timeout=60)
+    return True, 0

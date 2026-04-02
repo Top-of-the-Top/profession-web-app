@@ -182,3 +182,68 @@ class VerifyCodeSerializer(serializers.Serializer):
         if not value.isdigit():
             raise serializers.ValidationError("Код должен содержать только цифры")
         return value
+    
+
+class PhoneRegisterSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(required=True)
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate(self, attrs):
+        phone = (attrs.get('phone_number') or '').strip()
+        if not phone:
+            raise serializers.ValidationError({'phone_number': 'Нужно указать номер телефона'})
+        
+        phone_cipher = encrypt_data(phone)
+        if User.objects.filter(phone_cipher=phone_cipher).exists():
+            raise serializers.ValidationError({'phone_number': 'Пользователь с таким телефоном уже существует'})
+        
+        attrs['phone_number'] = phone
+        return attrs
+    
+
+class EmailRegisterSerializer(serializers.Serializer):
+    email = serializers.CharField(required=True)
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate(self, attrs):
+        email = (attrs.get('email') or '').strip()
+        if not email:
+            raise serializers.ValidationError({'email': 'Необходимо указать email'})
+        
+        email_cipher = encrypt_data(email)
+        if User.objects.filter(email_cipher=email_cipher).exists():
+            raise serializers.ValidationError({'email': 'Пользователь с таким email уже существует'})
+        
+        attrs['email'] = email
+        return attrs
+
+
+class VerifyRegisterSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    email = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    code = serializers.CharField(min_length=6, max_length=6)
+
+    def validate_code(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError('Код должен соержать только цифры')
+        
+        return value
+    
+    def validate(self, attrs):
+        phone = (attrs.get('phone_number') or '').strip()
+        email = (attrs.get('email') or '').strip()
+
+        if not phone and not email:
+            raise serializers.ValidationError('Нужно указать phone_number или email')
+        
+        return attrs
+    
+    
+class RecoverPasswordPhoneSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(required=True)
+    code = serializers.CharField(min_length=6, max_length=6)
+    
+    def validate_code(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("Код должен состоять только из цифр")
+        return value

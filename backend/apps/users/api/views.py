@@ -14,6 +14,10 @@ from .serializers import (
     UpdateProfileSerializer,
     TokenResponseSerializer,
     VerifyCodeSerializer,
+    PhoneRegisterSerializer,
+    EmailRegisterSerializer,
+    VerifyRegisterSerializer,
+    RecoverPasswordPhoneSerializer,
 )
 from .utils import (
     get_tokens_for_user,
@@ -25,6 +29,9 @@ from .utils import (
     encrypt_data,
     send_reset_password_sms,
     set_reset_token,
+    generate_registration_code,
+    verify_registration_code,
+    check_contact_rate_limit,
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
@@ -56,35 +63,163 @@ class RegisterView(APIView):
     @extend_schema(
         summary="Регистрация пользователя",
         description=(
-            "Создаёт нового пользователя по email и/или номеру телефона и паролю. "
-            "Передайте в теле запроса либо email, либо phone_number (или оба), а также password (не менее 8 символов). "
-            "При успехе возвращается объект с access_token, access_expires_at, refresh_token, refresh_expires_at — эти токены используются для доступа к защищённым эндпоинтам (заголовок Authorization: Bearer <access_token>). "
-            "При ошибке валидации (дубликат email/телефона, не указан контакт, короткий пароль) возвращается 403 и объект с полями-ошибками."
+            "Регистрация нового пользователя. Всегда двухэтапная:\n\n"
+            "По email (передайте email + password): "
+            "на email отправляется письмо с 6-значным кодом. "
+            "Возвращается {status: 'code_sent'}. "
+            "Для завершения отправьте код на /api/auth/register/verify/.\n\n"
+            "По телефону (передайте phone_number + password): "
+            "на телефон отправляется SMS с 6-значным кодом. "
+            "Возвращается {status: 'code_sent'}. "
+            "Для завершения отправьте код на /api/auth/register/verify/."
         ),
         tags=["Users"],
         request=RegisterSerializer,
         responses={
-            200: TokenResponseSerializer,
-            403: {"description": "Валидация: дубликат email/phone или не указан контакт. Тело — объект с полями ошибок.", "schema": SCHEMA_VALIDATION_ERROR},
+            200: {
+                "description": "Код отправлен.",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "status": {"type": "string", "example": "code_sent"},
+                        "detail": {"type": "string"},
+                    },
+                },
+            },
+            403: {
+                "description": "Валидация: дубликат email/phone или не указан контакт. Тело — объект с полями ошибок.",
+                "schema": SCHEMA_VALIDATION_ERROR
+            },
+            429: {
+                "description": "Слишком частые запросы.",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "detail": {"type": "string"},
+                        "retry_after": {"type": "integer"},
+                    },
+                },
+            },
         },
     )
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_403_FORBIDDEN
-            )
-        data = serializer.validated_data
-        email_cipher = data.get('email_cipher') or None
-        phone_cipher = data.get('phone_cipher') or None
-        password = data['password']
+        email = (request.data.get('email') or '').strip()
+        phone = (request.data.get('phone_number') or '').strip()
 
-        user = User.objects.create_user(
-            email_cipher=email_cipher,
-            phone_cipher=phone_cipher,
-            password=password
-        )
+        if not email and not phone:
+            return Response(
+                {'detail': 'Необходимо указать email или phone_number'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        if phone and not email:
+            serializer = PhoneRegisterSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
+            
+            phone_numder = serializer.validated_data['phone_number']
+            password = serializer.validated_data['password']
+
+            is_allowed, retry_after = check_contact_rate_limit(phone_numder, 'phone')
+            if not is_allowed:
+                return Response(
+                    {
+                        'detail': f'Слишком частые запросы. Повторите попытку через {retry_after} секунд',
+                        'retry_after': retry_after,
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+
+            code = generate_registration_code(phone_numder, password, contact_type='phone')
+            send_verification_sms(phone_numder, code)
+
+            return Response(
+                {'status': 'code_sent', 'detail': 'Код подтверждения отправлен на телефон.'},
+                status = status.HTTP_200_OK,
+            )
+        if email:
+            serializer = EmailRegisterSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
+            
+            email_value = serializer.validated_data['email']
+            password = serializer.validated_data['password']
+
+            is_allowed, retry_after = check_contact_rate_limit(email_value, 'email')
+            if not is_allowed:
+                return Response(
+                    {
+                        'detail': f'Слишком частые запросы. Повторите попытку через {retry_after} секунд',
+                        'retry_after': retry_after,
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+
+            code = generate_registration_code(email_value, password, contact_type='email')
+            send_verification_email(email_value, code)
+
+            return Response(
+                {'status': 'code_sent', 'detail': 'Код подтверждения отправлен на почту.'},
+                status = status.HTTP_200_OK,
+            )
+        
+
+class VerifyRegisterView(APIView):
+    permission_classes = []
+
+    @extend_schema(
+        summary="Подтверждение регистрации (телефон или email)",
+        description=(
+            "Второй шаг регистрации. "
+            "Передайте phone_number или email (тот же, что на первом шаге) "
+            "и код (6 цифр из SMS или письма). "
+            "При успехе создаётся аккаунт и возвращаются JWT-токены. "
+            "При неверном или истёкшем коде -- 400 с описанием ошибки."
+        ),
+        tags=["Users"],
+        request=VerifyRegisterSerializer,
+        responses={
+            200: TokenResponseSerializer,
+            400: {
+                "description": "Неверный, истёкший или не найденный код.",
+                "schema": SCHEMA_VALIDATION_ERROR,
+            },
+        },
+    )
+
+    def post(self, request):
+        serializer = VerifyRegisterSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+       
+        phone = (serializer.validated_data.get('phone_number') or '').strip()
+        email = (serializer.validated_data.get('email') or '').strip()
+        user_code = serializer.validated_data['code']
+
+        if phone:
+            contact = phone
+            contact_type = 'phone'
+        else:
+            contact = email
+            contact_type = 'email'
+
+        try:
+            reg_data = verify_registration_code(contact, user_code, contact_type)
+        except VerificationError as e:
+            return Response(
+                {'error': e.code, 'detail': e.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        if reg_data['contact_type'] == 'phone':
+            phone_cipher = encrypt_data(reg_data['contact'])
+            user = User.objects.create_user(phone_cipher=phone_cipher)
+        else:
+            email_cipher = encrypt_data(reg_data['contact'])
+            user = User.objects.create_user(email_cipher=email_cipher)
+
+        user.password = reg_data['password_hash']
+        user.save(update_fields=['password'])
 
         return Response(get_tokens_for_user(user), status=status.HTTP_200_OK)
 
@@ -196,35 +331,43 @@ class ResetPasswordView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        token = set_reset_token(user)
-        frontend_host = os.environ.get('FRONTEND_HOST')
-        recover_url = f"{frontend_host}/recover?token={token}"
-        result = None
-
         if email:
+            token = set_reset_token(user)
+            frontend_host = os.environ.get('FRONTEND_HOST')
+            recover_url = f"{frontend_host}/recover?token={token}"
             result = send_reset_password_email(email, recover_url)
             if not result:
                 return Response(
                     {'detail': 'Ошибка отправки письма'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-        elif phone:
-            result = send_reset_password_sms(phone, recover_url)
-            if not result:
-                return Response(
-                    {'detail': 'Ошибка отправки SMS'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            return Response({'status': 'success'}, status=status.HTTP_200_OK)
 
-        if result:
+        is_allowed, retry_after = check_contact_rate_limit(phone, 'phone')
+        if not is_allowed:
             return Response(
-                {'status': 'success'},
-                status=status.HTTP_200_OK
+                {
+                    'detail': f'Слишком частые запросы. Повторите через {retry_after} секунд.',
+                    'retry_after': retry_after,
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        code = generate_verification_code_for_user(
+            user_id=user.id,
+            contact_type='reset_phone',
+            new_contact=phone,
+        )
+        result = send_reset_password_sms(phone, code)
+        if not result[0]:
+            return Response(
+                {'detail': 'Ошибка отправки SMS'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
         return Response(
-            {'detail': f'Ошибка отправки письма: {str(email)}'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {'status': 'success', 'detail': 'Код для сброса пароля отправлен на телефон.'},
+            status=status.HTTP_200_OK
         )
 
 
@@ -270,6 +413,73 @@ class RecoverPasswordView(APIView):
         user.save(update_fields=['password', 'reset_token', 'reset_token_expires'])
 
         return Response(get_tokens_for_user(user), status=status.HTTP_200_OK)
+
+
+class RecoverPasswordPhoneView(APIView):
+    permission_classes = []
+
+    @extend_schema(
+        summary="Проверка SMS-кода для сброса пароля",
+        description=(
+            "Первый шаг сброса пароля по телефону. "
+            "Передайте phone_number и code (6 цифр из SMS). "
+            "При успехе возвращается reset_token, который нужно передать "
+            "на PATCH /api/auth/recover/set/ вместе с новым паролем. "
+            "Страница ввода нового пароля — та же, что и при восстановлении по email."
+        ),
+        tags=["Users"],
+        request=RecoverPasswordPhoneSerializer,
+        responses={
+            200: {
+                "description": "Код подтвержден. Возвращен токен для установки нового пароля.",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "token": {"type": "string", "description": "Токен для сброса пароля"},
+                    },
+                },
+            },
+            400: {
+                "description": "Неверный, истекший или не найденный код.",
+                "schema": SCHEMA_VALIDATION_ERROR,
+            },
+            403: {
+                "description": "Пользователь не найден.",
+                "schema": SCHEMA_403,
+            },
+        },
+    )
+
+    def post(self, request):
+        serializer = RecoverPasswordPhoneSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        phone_number = serializer.validated_data['phone_number'].strip()
+        user_code = serializer.validated_data['code']
+        
+        phone_cipher = encrypt_data(phone_number)
+        user = User.objects.filter(phone_cipher=phone_cipher).first()
+        if not user:
+            return Response(
+                {'detail': 'Пользователь не найден'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            verify_code(
+                user_id=user.id,
+                contact_type='reset_phone',
+                user_code=user_code,
+            )
+        except VerificationError as e:
+            return Response(
+                {'error': e.code, 'detail': e.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        token = set_reset_token(user)
+        return Response({'token': token}, status=status.HTTP_200_OK)
 
 
 class ProfileView(APIView):
@@ -345,6 +555,16 @@ class ProfileView(APIView):
         if 'phone_number' in data and data['phone_number']:
             new_phone = data['phone_number']
 
+            is_allowed, retry_after = check_contact_rate_limit(new_phone, 'phone')
+            if not is_allowed:
+                return Response(
+                    {
+                        'detail': f'Слишком частые запросы. Повторите через {retry_after} секунд',
+                        'retry_after': retry_after,
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            
             code = generate_verification_code_for_user(
                 user_id=user.id,
                 contact_type='phone',

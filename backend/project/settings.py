@@ -151,8 +151,10 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
 SERVER_EMAIL = os.getenv('SERVER_EMAIL', 'webmaster@localhost')
 
 
-SMS_BACKEND = 'sms.backends.console.SmsBackend'
-DEFAULT_FROM_SMS = '+1234567890'
+SMS_BACKEND = os.getenv('SMS_BACKEND', 'sms.backends.console.SmsBackend')
+DEFAULT_FROM_SMS = os.getenv('DEFAULT_FROM_SMS', '+1234567890')
+NOTIFICORE_API_KEY = os.getenv('NOTIFICORE_API_KEY', '')
+NOTIFICORE_API_URL = os.getenv('NOTIFICORE_API_URL', '')
 
 if USE_S3:
     STORAGES = {

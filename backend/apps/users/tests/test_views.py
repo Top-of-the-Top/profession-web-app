@@ -17,19 +17,23 @@ from ..api.views import (
     LoginView,
     ProfileView,
     RecoverPasswordView,
+    RecoverPasswordPhoneView,
     RefreshTokenView,
     RegisterView,
     ResetPasswordView,
+    VerifyRegisterView,
+    VerifyEmailChangeView,
+    VerifyPhoneChangeView,
 )
+from ..api.errors import VerificationError
 
 class RegisterViewUnitTest(SimpleTestCase):
-
 
     def setUp(self):
         self.factory = APIRequestFactory()
         os.environ["FRONTEND_HOST"] = "http://localhost:5173"
 
-    def test_register_success_mocked(self):
+    def test_register_email_success_mocked(self):
         request = self.factory.post(
             "/api/auth/register/",
             {"email": "student@example.com", "password": "StrongPass123!"},
@@ -40,39 +44,52 @@ class RegisterViewUnitTest(SimpleTestCase):
         serializer = MagicMock()
         serializer.is_valid.return_value = True
         serializer.validated_data = {
-            "email_cipher": "enc_email",
-            "phone_cipher": None,
+            "email": "student@example.com",
             "password": "StrongPass123!",
         }
-        mock_user = MagicMock()
-        tokens = {"access_token": "a", "refresh_token": "r", "role": "student"}
 
-        with patch("apps.users.api.views.RegisterSerializer", return_value=serializer), patch(
-            "apps.users.api.views.User.objects.create_user", return_value=mock_user
-        ) as create_user_mock, patch(
-            "apps.users.api.views.get_tokens_for_user", return_value=tokens
-        ):
+        with patch("apps.users.api.views.EmailRegisterSerializer", return_value=serializer), \
+             patch("apps.users.api.views.check_contact_rate_limit", return_value=(True, 0)), \
+             patch("apps.users.api.views.generate_registration_code", return_value="123456"), \
+             patch("apps.users.api.views.send_verification_email") as send_mock:
             response = view(request)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, tokens)
-        create_user_mock.assert_called_once_with(
-            email_cipher="enc_email", phone_cipher=None, password="StrongPass123!"
+        self.assertEqual(response.data["status"], "code_sent")
+        send_mock.assert_called_once_with("student@example.com", "123456")
+
+    def test_register_phone_success_mocked(self):
+        request = self.factory.post(
+            "/api/auth/register/",
+            {"phone_number": "+79991234567", "password": "StrongPass123!"},
+            format="json",
         )
+        view = RegisterView.as_view()
+
+        serializer = MagicMock()
+        serializer.is_valid.return_value = True
+        serializer.validated_data = {
+            "phone_number": "+79991234567",
+            "password": "StrongPass123!",
+        }
+
+        with patch("apps.users.api.views.PhoneRegisterSerializer", return_value=serializer), \
+             patch("apps.users.api.views.check_contact_rate_limit", return_value=(True, 0)), \
+             patch("apps.users.api.views.generate_registration_code", return_value="654321"), \
+             patch("apps.users.api.views.send_verification_sms") as send_mock:
+            response = view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "code_sent")
+        send_mock.assert_called_once_with("+79991234567", "654321")
 
     def test_register_invalid_payload(self):
         request = self.factory.post("/api/auth/register/", {}, format="json")
         view = RegisterView.as_view()
-
-        serializer = MagicMock()
-        serializer.is_valid.return_value = False
-        serializer.errors = {"non_field_errors": ["Необходимо указать email или phone_number"]}
-
-        with patch("apps.users.api.views.RegisterSerializer", return_value=serializer):
-            response = view(request)
+        response = view(request)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertIn("non_field_errors", response.data)
+        self.assertIn("detail", response.data)
 
     def test_register_with_short_password(self):
         request = self.factory.post(
@@ -86,10 +103,91 @@ class RegisterViewUnitTest(SimpleTestCase):
         serializer.is_valid.return_value = False
         serializer.errors = {"password": ["Пароль должен содержать минимум 8 символов"]}
 
-        with patch("apps.users.api.views.RegisterSerializer", return_value=serializer):
+        with patch("apps.users.api.views.EmailRegisterSerializer", return_value=serializer):
             response = view(request)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_register_rate_limited(self):
+        request = self.factory.post(
+            "/api/auth/register/",
+            {"email": "test@example.com", "password": "StrongPass123!"},
+            format="json",
+        )
+        view = RegisterView.as_view()
+
+        serializer = MagicMock()
+        serializer.is_valid.return_value = True
+        serializer.validated_data = {
+            "email": "test@example.com",
+            "password": "StrongPass123!",
+        }
+
+        with patch("apps.users.api.views.EmailRegisterSerializer", return_value=serializer), \
+             patch("apps.users.api.views.check_contact_rate_limit", return_value=(False, 45)):
+            response = view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(response.data["retry_after"], 45)
+
+
+class VerifyRegisterViewUnitTest(SimpleTestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_verify_register_success_mocked(self):
+        request = self.factory.post(
+            "/api/auth/register/verify/",
+            {"phone_number": "+79991234567", "code": "123456"},
+            format="json",
+        )
+        view = VerifyRegisterView.as_view()
+
+        reg_data = {
+            "contact": "+79991234567",
+            "contact_type": "phone",
+            "password_hash": "hashed_pw",
+        }
+        mock_user = MagicMock()
+        tokens = {"access_token": "a", "refresh_token": "r", "role": "student"}
+
+        with patch("apps.users.api.views.verify_registration_code", return_value=reg_data), \
+             patch("apps.users.api.views.encrypt_data", return_value="enc_phone"), \
+             patch("apps.users.api.views.User.objects.create_user", return_value=mock_user), \
+             patch("apps.users.api.views.get_tokens_for_user", return_value=tokens):
+            response = view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, tokens)
+
+    def test_verify_register_invalid_code(self):
+        request = self.factory.post(
+            "/api/auth/register/verify/",
+            {"phone_number": "+79991234567", "code": "000000"},
+            format="json",
+        )
+        view = VerifyRegisterView.as_view()
+
+        with patch(
+            "apps.users.api.views.verify_registration_code",
+            side_effect=VerificationError("invalid", "Неверный код."),
+        ):
+            response = view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "invalid")
+
+    def test_verify_register_invalid_payload(self):
+        request = self.factory.post(
+            "/api/auth/register/verify/",
+            {},
+            format="json",
+        )
+        view = VerifyRegisterView.as_view()
+        response = view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class LoginViewUnitTest(SimpleTestCase):
@@ -353,37 +451,51 @@ class ProfileViewUnitTest(SimpleTestCase):
 
 class RegisterViewIntegrationTest(TestCase):
 
-
     def setUp(self):
         self.client = APIClient()
-        self.url = reverse('users:register')
+        self.register_url = reverse('users:register')
+        self.verify_url = reverse('users:register_verify')
+
+    def _register_and_verify(self, email, password):
+        with patch('apps.users.api.views.send_verification_email'):
+            reg_response = self.client.post(
+                self.register_url,
+                {'email': email, 'password': password},
+                format='json',
+            )
+        self.assertEqual(reg_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(reg_response.data['status'], 'code_sent')
+
+        from django.core.cache import cache
+        from ..api.utils import encrypt_data as enc
+        cache_key = f'pending_registration_email_{enc(email)}'
+        cached = cache.get(cache_key)
+        self.assertIsNotNone(cached, 'Registration code not found in cache')
+        code = cached['code']
+
+        verify_response = self.client.post(
+            self.verify_url,
+            {'email': email, 'code': code},
+            format='json',
+        )
+        return verify_response
 
     def test_register_with_email_creates_user_in_db(self):
-        data = {
-            'email': 'newuser@example.com',
-            'password': 'testpass123'
-        }
-        response = self.client.post(self.url, data, format='json')
+        response = self._register_and_verify('newuser@example.com', 'testpass123')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('access_token', response.data)
         self.assertIn('refresh_token', response.data)
         self.assertIn('role', response.data)
 
-        user = User.objects.get(email_cipher=encrypt_data('newuser@example.com'))
-        self.assertIsNotNone(user)
-        self.assertTrue(user.check_password('testpass123'))
+        self.assertTrue(User.objects.filter(
+            email_cipher=encrypt_data('newuser@example.com')
+        ).exists())
 
     def test_newly_registered_user_has_student_role(self):
-
-        data = {
-            'email': 'student@example.com',
-            'password': 'testpass123'
-        }
-        response = self.client.post(self.url, data, format='json')
+        response = self._register_and_verify('student@example.com', 'testpass123')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-
         self.assertEqual(response.data['role'], 'student')
 
         access_token = response.data['access_token']
@@ -394,18 +506,18 @@ class RegisterViewIntegrationTest(TestCase):
         self.assertEqual(user.role, User.ROLE_STUDENT)
 
     def test_register_duplicate_email(self):
-
         email = 'duplicate@example.com'
         User.objects.create_user(
             email_cipher=encrypt_data(email),
             password='testpass123'
         )
 
-        data = {
-            'email': email,
-            'password': 'testpass123'
-        }
-        response = self.client.post(self.url, data, format='json')
+        with patch('apps.users.api.views.send_verification_email'):
+            response = self.client.post(
+                self.register_url,
+                {'email': email, 'password': 'testpass123'},
+                format='json',
+            )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertIn('email', response.data)

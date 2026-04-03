@@ -1,23 +1,27 @@
-import { useState, type ChangeEvent } from 'react';
+import { useState, useEffect, type ChangeEvent } from 'react';
 import { Button, Input, Label } from '../../../shared/ui';
-import { X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import styles from './ConfirmContact.module.css';
 import { cn } from '../../../shared/lib/utils';
 
-type FormStep = 'input' | 'code' | 'success';
+type FormStep = 'input' | 'code';
 
 interface ConfirmContactProps {
   type: 'email' | 'phone';
   isVisible: boolean;
   onClose?: () => void;
-  onSave?: ({ contact, code }: { contact: string; code?: string }) => void;
+  /** PATCH профиля с новым контактом; после успеха показывается шаг ввода кода. */
+  onRequestChange: (contact: string) => Promise<void>;
+  /** Подтверждение кода из письма или SMS. */
+  onVerify: (code: string) => Promise<void>;
 }
 
 export default function ConfirmContact({
   type,
   isVisible,
   onClose,
-  onSave,
+  onRequestChange,
+  onVerify,
 }: ConfirmContactProps) {
   const [step, setStep] = useState<FormStep>('input');
   const [contact, setContact] = useState<string>('');
@@ -25,19 +29,25 @@ export default function ConfirmContact({
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    if (!isVisible) {
+      setStep('input');
+      setContact('');
+      setCode('');
+      setError('');
+      setIsLoading(false);
+    }
+  }, [isVisible]);
+
   const title =
     type === 'email' ? 'Подтверждение почты' : 'Подтверждение номера';
 
   const descriptions = {
-    input: `Введите ${type === 'email' ? 'свой адрес почты' : 'свой номер телефона'} для подтверждения`,
-		code: `Введите код, который мы отправили Вам, чтобы подтвердить ${type === 'email' ? 'адрес почты' : 'номер телефона'}`,
-    success:
-      type === 'email'
-        ? 'Почта успешно подтверждена'
-        : 'Номер успешно подтвержден',
+    input: `Введите ${type === 'email' ? 'новый адрес почты' : 'новый номер телефона'}`,
+    code: `Введите 6 цифр из ${type === 'email' ? 'письма' : 'SMS'}`,
   };
 
-  const handleContinue = (): void => {
+  const handleContinue = async (): Promise<void> => {
     if (!contact.trim()) {
       setError(`Введите ${type === 'email' ? 'почту' : 'номер телефона'}`);
       return;
@@ -50,35 +60,39 @@ export default function ConfirmContact({
 
     if (type === 'phone') {
       const digits = contact.replace(/\D/g, '');
-      // Валидация проекта: допустимы только 10 или 11 цифр телефона
       if (digits.length !== 10 && digits.length !== 11) {
-      setError('Введите корректный номер телефона');
-      return;
+        setError('Введите корректный номер телефона');
+        return;
       }
     }
 
     setError('');
     setIsLoading(true);
-
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await onRequestChange(type === 'email' ? contact.trim() : contact);
       setStep('code');
-      onSave?.({ contact });
-    }, 500);
+    } catch {
+      /* тосты об ошибке — в родителе */
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleConfirmCode = (): void => {
-    if (code.length < 4) {
-      setError('Код должен содержать не менее 4 символов');
+  const handleConfirmCode = async (): Promise<void> => {
+    if (code.length !== 6) {
+      setError('Введите 6 цифр кода');
       return;
     }
 
     setError('');
     setIsLoading(true);
-
-    setTimeout(() => {
-      handleClose();
-    }, 500);
+    try {
+      await onVerify(code);
+    } catch {
+      /* тосты — в родителе */
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleClose = (): void => {
@@ -100,7 +114,6 @@ export default function ConfirmContact({
     const raw = e.target.value;
 
     if (type === 'phone') {
-      // Для телефона разрешаем только цифры и ограничиваем длину по кол-ву цифр.
       const digits = raw.replace(/\D/g, '').slice(0, 11);
       setContact(digits);
       return;
@@ -111,7 +124,7 @@ export default function ConfirmContact({
   };
 
   const handleCodeChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const value = e.target.value.replace(/\D/g, '');
+    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
     setCode(value);
     if (error) setError('');
   };
@@ -146,7 +159,6 @@ export default function ConfirmContact({
               type={type === 'email' ? 'email' : 'tel'}
               inputMode={type === 'email' ? 'email' : 'numeric'}
               pattern={type === 'email' ? undefined : '[0-9]*'}
-              // Для формата "+7..." нужен лимит на 1 символ больше из-за "+"
               maxLength={type === 'email' ? undefined : 12}
               onChange={handleContactChange}
               className={cn(styles.input, error && styles.inputError)}
@@ -165,7 +177,7 @@ export default function ConfirmContact({
 
           <Button
             className={styles.saveButton}
-            onClick={handleContinue}
+            onClick={() => void handleContinue()}
             type="button"
             disabled={isLoading}
           >
@@ -188,8 +200,8 @@ export default function ConfirmContact({
               value={code}
               onChange={handleCodeChange}
               className={cn(styles.input, error && styles.inputError)}
-              placeholder="••••••••"
-              maxLength={8}
+              placeholder="••••••"
+              maxLength={6}
               disabled={isLoading}
             />
             {error && (
@@ -212,7 +224,7 @@ export default function ConfirmContact({
             </Button>
             <Button
               className={styles.saveButton}
-              onClick={handleConfirmCode}
+              onClick={() => void handleConfirmCode()}
               type="button"
               disabled={isLoading}
             >
@@ -221,7 +233,6 @@ export default function ConfirmContact({
           </div>
         </div>
       )}
-
     </div>
   );
 }

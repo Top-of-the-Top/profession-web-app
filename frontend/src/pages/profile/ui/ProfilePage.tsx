@@ -25,7 +25,12 @@ import {
 } from '../../../shared/api/profileApi';
 import { useUserStore } from '../../../entities/user/model/userStore';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
-import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
+import {
+  messageForApiFailure,
+  notifyError,
+  notifySuccess,
+} from '../../../shared/lib/sileo/notify';
+import { validateEmailOrPhone } from '../../../shared/utils/validation';
 
 function notifyProfileSaveError(err: unknown) {
   if (err instanceof Error && err.message === 'AUTH_EXPIRED') {
@@ -249,34 +254,77 @@ export default function ProfilePage() {
     }
   };
 
-  const handleContactSave = async (
-    { contact }: { contact: string },
-    type: 'email' | 'phone'
+  const handleContactRequest = async (
+    rawContact: string,
+    type: 'email' | 'phone',
   ) => {
     try {
       if (type === 'email') {
-        await profileApi.updateProfile({ email: contact });
-        setProfile((prev) => {
-          const next = prev ? { ...prev, email: contact } : prev;
-          if (next) {
-            setUser(next);
-          }
-          return next;
-        });
-        setEmailMenuOpen(false);
+        await profileApi.updateProfile({ email: rawContact.trim() });
       } else {
-        await profileApi.updateProfile({ phone_number: contact });
-        setProfile((prev) => {
-          const next = prev ? { ...prev, phone_number: contact } : prev;
-          if (next) {
-            setUser(next);
-          }
-          return next;
-        });
-        setPhoneMenuOpen(false);
+        const v = validateEmailOrPhone(rawContact);
+        if (!v.isValid) {
+          notifyError({
+            title: 'проверьте номер',
+            description: 'Введите корректный номер телефона.',
+          });
+          throw new Error('invalid_phone');
+        }
+        await profileApi.updateProfile({ phone_number: v.normalized });
       }
+      notifySuccess({
+        title: 'код отправлен',
+        description:
+          type === 'email'
+            ? 'Проверьте почту и введите код ниже.'
+            : 'Проверьте SMS и введите код ниже.',
+      });
     } catch (err) {
+      if (err instanceof Error && err.message === 'invalid_phone') {
+        throw err;
+      }
       notifyProfileSaveError(err);
+      throw err;
+    }
+  };
+
+  const handleContactVerify = async (
+    code: string,
+    type: 'email' | 'phone',
+  ) => {
+    try {
+      if (type === 'email') {
+        await profileApi.verifyEmailChange(code);
+      } else {
+        await profileApi.verifyPhoneChange(code);
+      }
+      const fresh = await profileApi.getProfile();
+      setProfile(fresh);
+      setUser(fresh);
+      notifySuccess({
+        title: 'готово',
+        description:
+          type === 'email' ? 'Почта подтверждена и обновлена.' : 'Телефон подтверждён и обновлён.',
+      });
+      setEmailMenuOpen(false);
+      setPhoneMenuOpen(false);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'AUTH_EXPIRED') {
+        notifyError({
+          title: 'нужен повторный вход',
+          description: 'Сессия истекла. Войдите в аккаунт снова.',
+        });
+        return;
+      }
+      const parsed = parseApiError(err);
+      const scene =
+        type === 'email' ? 'profileVerifyEmail' : 'profileVerifyPhone';
+      if (parsed) {
+        const m = messageForApiFailure(scene, parsed.status, parsed.body);
+        notifyError({ title: m.title, description: m.description });
+        return;
+      }
+      notifyError({ title: 'ошибка', description: 'Повторите попытку.' });
     }
   };
 
@@ -304,13 +352,15 @@ export default function ProfilePage() {
         type="email"
         isVisible={isEmailMenuOpen}
         onClose={toggleEmailMenu}
-        onSave={(data) => handleContactSave(data, 'email')}
+        onRequestChange={(c) => handleContactRequest(c, 'email')}
+        onVerify={(code) => handleContactVerify(code, 'email')}
       />
       <ConfirmContact
         type="phone"
         isVisible={isPhoneMenuOpen}
         onClose={togglePhoneMenu}
-        onSave={(data) => handleContactSave(data, 'phone')}
+        onRequestChange={(c) => handleContactRequest(c, 'phone')}
+        onVerify={(code) => handleContactVerify(code, 'phone')}
       />
 
       <div className={styles.wrapper}>

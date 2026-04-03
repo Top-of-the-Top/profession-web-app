@@ -14,12 +14,13 @@ import { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { cn } from '../../../shared/lib/utils';
 import styles from './RegistrationPage.module.css';
-import { registerUser } from '../api';
+import { completeRegisterWithCode, requestRegisterCode } from '../api';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUserStore } from '../../../entities/user/model/userStore';
 import { ZodError } from 'zod';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
-import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
+import { messageForApiFailure, notifyError, notifySuccess } from '../../../shared/lib/sileo/notify';
+import { validateEmailOrPhone } from '../../../shared/utils/validation';
 
 function notifyRegisterFailure(err: unknown) {
   if (
@@ -47,15 +48,43 @@ function notifyRegisterFailure(err: unknown) {
   notifyError({ title: msg.title, description: msg.description });
 }
 
+function formatZodRegisterError(err: ZodError): string {
+  const first = err.issues[0];
+  if (!first) return 'Обновите страницу или попробуйте позже.';
+  const path = first.path.length ? `${first.path.join('.')}: ` : '';
+  return `${path}${first.message}`;
+}
+
+function notifyRegisterVerifyFailure(err: unknown) {
+  const parsed = parseApiError(err);
+  if (!parsed) {
+    const fb = messageForApiFailure('registerVerify', 0, {});
+    notifyError({
+      title: fb.title,
+      description: err instanceof Error ? err.message : fb.description,
+    });
+    return;
+  }
+  const msg = messageForApiFailure('registerVerify', parsed.status, parsed.body);
+  notifyError({ title: msg.title, description: msg.description });
+}
+
+type Step = 'credentials' | 'code';
+
 export default function RegistrationForm({
   className,
   ...props
 }: React.ComponentProps<'div'>) {
+  const [step, setStep] = useState<Step>('credentials');
   const [loading, setLoading] = useState(false);
+  const [codeSentDetail, setCodeSentDetail] = useState<string | null>(null);
+  const [pendingKind, setPendingKind] = useState<'email' | 'phone' | null>(null);
+  const [pendingContact, setPendingContact] = useState<string | null>(null);
+
   const login = useUserStore((s) => s.login);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -77,15 +106,40 @@ export default function RegistrationForm({
       return;
     }
 
+    const validation = validateEmailOrPhone(emailOrPhone);
+    if (!validation.isValid) {
+      notifyError({
+        title: 'проверьте контакт',
+        description: 'Введите корректный email или номер телефона.',
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
-      const tokens = await registerUser({ emailOrPhone, password });
-      await login(tokens);
-      navigate('/app', { replace: true });
+      const res = await requestRegisterCode({ emailOrPhone, password });
+      if (res.flow === 'immediate') {
+        notifySuccess({
+          title: 'аккаунт создан',
+          description: 'Сейчас выполняется вход…',
+        });
+        await login(res.tokens);
+        navigate('/app', { replace: true });
+        return;
+      }
+      setCodeSentDetail(res.detail);
+      setPendingKind(validation.isEmail ? 'email' : 'phone');
+      setPendingContact(validation.normalized);
+      setStep('code');
+      notifySuccess({
+        title: 'код отправлен',
+        description: res.detail,
+      });
     } catch (err) {
       if (err instanceof ZodError) {
         notifyError({
           title: 'некорректный ответ сервера',
-          description: 'Обновите страницу или попробуйте позже.',
+          description: formatZodRegisterError(err),
         });
         return;
       }
@@ -95,117 +149,223 @@ export default function RegistrationForm({
     }
   };
 
+   
+  const handleCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingKind || !pendingContact) return;
+
+    setLoading(true);
+    const form = e.currentTarget as HTMLFormElement;
+    const code = (form.elements.namedItem('code') as HTMLInputElement).value.replace(
+      /\D/g,
+      '',
+    );
+
+    if (code.length !== 6) {
+      notifyError({
+        title: 'неверный код',
+        description: 'Введите 6 цифр из письма или SMS.',
+      });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const tokens = await completeRegisterWithCode({
+        kind: pendingKind,
+        normalizedContact: pendingContact,
+        code,
+      });
+      await login(tokens);
+      navigate('/app', { replace: true });
+    } catch (err) {
+      if (err instanceof ZodError) {
+        notifyError({
+          title: 'некорректный ответ сервера',
+          description: formatZodRegisterError(err),
+        });
+        return;
+      }
+      notifyRegisterVerifyFailure(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackToCredentials = () => {
+    setStep('credentials');
+    setPendingKind(null);
+    setPendingContact(null);
+    setCodeSentDetail(null);
+  };
+
   return (
-    <div className={styles.loginPage} {...props}>
+    <div className={cn(styles.loginPage, className)} {...props}>
       <div className={styles.loginWrapper}>
         <img className={styles.logo} src="profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
             <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>
-              Создать аккаунт
+              {step === 'credentials' ? 'Создать аккаунт' : 'Подтверждение'}
             </CardTitle>
             <CardDescription>
-              Начните работу с Профессией уже сегодня
+              {step === 'credentials'
+                ? 'Начните работу с Профессией уже сегодня'
+                : codeSentDetail ??
+                  'Введите код из письма или SMS'}
             </CardDescription>
           </CardHeader>
           <CardContent className={styles.cardContent}>
-            <form onSubmit={handleSubmit}>
-              <FieldGroup className={styles.fieldGroup}>
-                <Field className={styles.field}>
-                  <FieldLabel htmlFor="email">
-                    Почта или номер телефона
-                  </FieldLabel>
-                  <Input
-                    id="email"
-                    type="text"
-                    autoComplete="email"
-                    placeholder="Почта/телефон"
-                    required
-                    className={styles.input}
-                  />
-                </Field>
-
-                <Field className={styles.field}>
-                  <div className={styles.passwordHeader}>
-                    <FieldLabel htmlFor="password">Пароль</FieldLabel>
-                  </div>
-                  <Input
-                    id="password"
-                    type="password"
-                    autoComplete="password"
-                    placeholder="Пароль"
-                    required
-                    className={styles.input}
-                  />
-                  <CardDescription>
-                    Не меньше 8 символов
-                  </CardDescription>
-                </Field>
-
-                <Field className={styles.field}>
-                  <div className={styles.passwordHeader}>
-                    <FieldLabel htmlFor="repeatPassword">
-                      Повторите пароль
+            {step === 'credentials' ? (
+              <form onSubmit={handleCredentialsSubmit}>
+                <FieldGroup className={styles.fieldGroup}>
+                  <Field className={styles.field}>
+                    <FieldLabel htmlFor="email">
+                      Почта или номер телефона
                     </FieldLabel>
-                  </div>
-                  <Input
-                    id="repeatPassword"
-                    type="password"
-                    placeholder="Пароль"
-                    autoComplete="password"
-                    required
-                    className={styles.input}
-                  />
-                </Field>
+                    <Input
+                      id="email"
+                      type="text"
+                      autoComplete="email"
+                      placeholder="Почта/телефон"
+                      required
+                      className={styles.input}
+                      disabled={loading}
+                    />
+                  </Field>
 
-                <Field>
-                  <Button
-                    style={{ fontSize: '14px' }}
-                    type="submit"
-                    className={styles.submitButton}
-                    disabled={loading}
-                  >
-                    Создать аккаунт <ArrowRight />
-                  </Button>
+                  <Field className={styles.field}>
+                    <div className={styles.passwordHeader}>
+                      <FieldLabel htmlFor="password">Пароль</FieldLabel>
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Пароль"
+                      required
+                      className={styles.input}
+                      disabled={loading}
+                    />
+                    <CardDescription>
+                      Не меньше 8 символов
+                    </CardDescription>
+                  </Field>
 
-                  <div className={styles.divider}>
-                    <span>или</span>
-                  </div>
+                  <Field className={styles.field}>
+                    <div className={styles.passwordHeader}>
+                      <FieldLabel htmlFor="repeatPassword">
+                        Повторите пароль
+                      </FieldLabel>
+                    </div>
+                    <Input
+                      id="repeatPassword"
+                      type="password"
+                      placeholder="Пароль"
+                      autoComplete="new-password"
+                      required
+                      className={styles.input}
+                      disabled={loading}
+                    />
+                  </Field>
 
-                  <div className={styles.socialButtons}>
+                  <Field>
                     <Button
-                      variant="outline"
-                      type="button"
-                      className={cn(styles.socialButton, styles.loginVk)}
+                      style={{ fontSize: '14px' }}
+                      type="submit"
+                      className={styles.submitButton}
+                      disabled={loading}
                     >
-                      <span className={styles.socialIcon}>
-                        <img src="login/vk.svg" alt="" />
-                      </span>
-                      Войти с VK ID
+                      Получить код <ArrowRight />
+                    </Button>
+
+                    <div className={styles.divider}>
+                      <span>или</span>
+                    </div>
+
+                    <div className={styles.socialButtons}>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className={cn(styles.socialButton, styles.loginVk)}
+                      >
+                        <span className={styles.socialIcon}>
+                          <img src="login/vk.svg" alt="" />
+                        </span>
+                        Войти с VK ID
+                      </Button>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className={cn(styles.socialButton, styles.loginYa)}
+                      >
+                        <span className={styles.socialIcon}>
+                          <img src="login/ya.svg" alt="" />
+                        </span>
+                        Войти с Яндекс ID
+                      </Button>
+                    </div>
+
+                    <div className={styles.linksContainer}>
+                      <div className={styles.linkRow}>
+                        <span>Уже есть учетная запись? </span>
+                        <Link to="/login" className={styles.link}>
+                          Войти
+                        </Link>
+                      </div>
+                    </div>
+                  </Field>
+                </FieldGroup>
+              </form>
+            ) : (
+              <form onSubmit={handleCodeSubmit}>
+                <FieldGroup className={styles.fieldGroup}>
+                  <Field className={styles.field}>
+                    <FieldLabel htmlFor="code">Код из письма или SMS</FieldLabel>
+                    <Input
+                      id="code"
+                      name="code"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="••••••"
+                      maxLength={6}
+                      required
+                      className={styles.input}
+                      disabled={loading}
+                    />
+                    <CardDescription>6 цифр</CardDescription>
+                  </Field>
+                  <Field>
+                    <Button
+                      style={{ fontSize: '14px' }}
+                      type="submit"
+                      className={styles.submitButton}
+                      disabled={loading}
+                    >
+                      Создать аккаунт <ArrowRight />
                     </Button>
                     <Button
                       variant="outline"
                       type="button"
-                      className={cn(styles.socialButton, styles.loginYa)}
+                      className={styles.submitButton}
+                      style={{ fontSize: '14px', marginTop: 8 }}
+                      disabled={loading}
+                      onClick={handleBackToCredentials}
                     >
-                      <span className={styles.socialIcon}>
-                        <img src="login/ya.svg" alt="" />
-                      </span>
-                      Войти с Яндекс ID
+                      Назад
                     </Button>
-                  </div>
-
+                  </Field>
                   <div className={styles.linksContainer}>
                     <div className={styles.linkRow}>
-                      <span>Уже есть учетная запись? </span>
                       <Link to="/login" className={styles.link}>
                         Войти
                       </Link>
                     </div>
                   </div>
-                </Field>
-              </FieldGroup>
-            </form>
+                </FieldGroup>
+              </form>
+            )}
           </CardContent>
         </Card>
 

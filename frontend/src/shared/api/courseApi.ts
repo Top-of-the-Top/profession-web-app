@@ -163,6 +163,7 @@ export const courseApi = {
       APP_HOME_COURSES_SOURCE === 'landing'
         ? await apiClient.request<CourseApiAnswer>('/api/landing/courses/', {
             method: 'GET',
+            skipAuth: true,
           })
         : await this.getCourses();
 

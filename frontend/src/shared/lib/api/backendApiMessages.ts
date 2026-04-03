@@ -10,10 +10,15 @@ export type UserFacingMessage = { title: string; description: string };
 
 export type ApiFailureScene =
   | 'register'
+  | 'registerVerify'
   | 'login'
   | 'resetRequest'
+  | 'recoverPhone'
+  | 'recoverEmail'
   | 'recoverSet'
   | 'profileUpdate'
+  | 'profileVerifyEmail'
+  | 'profileVerifyPhone'
   | 'cartLoad'
   | 'cartAdd'
   | 'cartRemove'
@@ -221,6 +226,10 @@ const SCENE_FALLBACK: Record<ApiFailureScene, UserFacingMessage> = {
     title: 'ошибка регистрации',
     description: 'Повторите попытку.',
   },
+  registerVerify: {
+    title: 'не удалось подтвердить',
+    description: 'Проверьте код или запросите новый.',
+  },
   login: {
     title: 'ошибка входа',
     description: 'Повторите попытку или обновите страницу.',
@@ -229,6 +238,14 @@ const SCENE_FALLBACK: Record<ApiFailureScene, UserFacingMessage> = {
     title: 'ошибка запроса',
     description: 'Не удалось отправить ссылку.',
   },
+  recoverPhone: {
+    title: 'ошибка проверки кода',
+    description: 'Повторите попытку.',
+  },
+  recoverEmail: {
+    title: 'не удалось сменить пароль',
+    description: 'Повторите попытку.',
+  },
   recoverSet: {
     title: 'не удалось сменить пароль',
     description: 'Повторите попытку.',
@@ -236,6 +253,14 @@ const SCENE_FALLBACK: Record<ApiFailureScene, UserFacingMessage> = {
   profileUpdate: {
     title: 'не сохранилось',
     description: 'Повторите попытку позже.',
+  },
+  profileVerifyEmail: {
+    title: 'не удалось подтвердить почту',
+    description: 'Проверьте код из письма.',
+  },
+  profileVerifyPhone: {
+    title: 'не удалось подтвердить телефон',
+    description: 'Проверьте код из SMS.',
   },
   cartLoad: {
     title: 'ошибка загрузки',
@@ -273,9 +298,23 @@ const SCENE_STATUS_FALLBACK: Partial<
       title: 'не удалось создать аккаунт',
       description: 'Проверьте почту, телефон и пароль.',
     },
+    429: {
+      title: 'слишком часто',
+      description: 'Подождите немного и попробуйте снова.',
+    },
     500: {
       title: 'сервер не отвечает',
       description: 'Повторите попытку позже.',
+    },
+  },
+  registerVerify: {
+    400: {
+      title: 'неверный или просроченный код',
+      description: 'Запросите код заново на предыдущем шаге.',
+    },
+    429: {
+      title: 'слишком часто',
+      description: 'Подождите немного и попробуйте снова.',
     },
   },
   resetRequest: {
@@ -283,9 +322,33 @@ const SCENE_STATUS_FALLBACK: Partial<
       title: 'запрос не выполнен',
       description: 'Пользователь не найден или не указаны контакты.',
     },
+    429: {
+      title: 'слишком часто',
+      description: 'Подождите немного и попробуйте снова.',
+    },
     500: {
       title: 'письмо не отправлено',
       description: 'Повторите попытку позже.',
+    },
+  },
+  recoverPhone: {
+    400: {
+      title: 'неверный или просроченный код',
+      description: 'Проверьте SMS и попробуйте снова.',
+    },
+    403: {
+      title: 'пользователь не найден',
+      description: 'Проверьте номер телефона.',
+    },
+    429: {
+      title: 'слишком часто',
+      description: 'Подождите немного и попробуйте снова.',
+    },
+  },
+  recoverEmail: {
+    403: {
+      title: 'ссылка недействительна',
+      description: 'Запросите новую ссылку для восстановления пароля.',
     },
   },
   recoverSet: {
@@ -298,6 +361,26 @@ const SCENE_STATUS_FALLBACK: Partial<
     400: {
       title: 'проверьте данные',
       description: 'Исправьте поля по подсказке сервера.',
+    },
+    401: {
+      title: 'сессия устарела',
+      description: 'Войдите в аккаунт снова.',
+    },
+  },
+  profileVerifyEmail: {
+    400: {
+      title: 'неверный или просроченный код',
+      description: 'Проверьте письмо и попробуйте снова.',
+    },
+    401: {
+      title: 'сессия устарела',
+      description: 'Войдите в аккаунт снова.',
+    },
+  },
+  profileVerifyPhone: {
+    400: {
+      title: 'неверный или просроченный код',
+      description: 'Проверьте SMS и попробуйте снова.',
     },
     401: {
       title: 'сессия устарела',
@@ -374,6 +457,15 @@ export function resolveApiFailureMessage(
       if (status === 403) mapped = collectRegister403(body);
       break;
     }
+    case 'registerVerify': {
+      if (status === 400) {
+        mapped = {
+          title: 'неверный или просроченный код',
+          description: 'Проверьте код из письма или SMS.',
+        };
+      }
+      break;
+    }
     case 'login': {
       if (status === 400) mapped = collectLogin400(body);
       break;
@@ -401,6 +493,16 @@ export function resolveApiFailureMessage(
       }
       break;
     }
+    case 'recoverPhone': {
+      if (status === 400) {
+        mapped = {
+          title: 'неверный или просроченный код',
+          description: 'Проверьте SMS и попробуйте снова.',
+        };
+      }
+      break;
+    }
+    case 'recoverEmail':
     case 'recoverSet': {
       if (status === 403) {
         const d = detailString(body);
@@ -415,6 +517,21 @@ export function resolveApiFailureMessage(
             description: 'Запросите новую ссылку для восстановления пароля.',
           };
         }
+      }
+      break;
+    }
+    case 'profileVerifyEmail':
+    case 'profileVerifyPhone': {
+      if (status === 400) {
+        mapped = {
+          title: 'неверный или просроченный код',
+          description:
+            scene === 'profileVerifyEmail'
+              ? 'Проверьте код из письма.'
+              : 'Проверьте код из SMS.',
+        };
+      } else if (status === 401) {
+        mapped = messageFromAuthDetail(body);
       }
       break;
     }

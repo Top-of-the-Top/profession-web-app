@@ -3,7 +3,7 @@ import ResetForm from './ResetForm';
 import styles from './ResetPage.module.css';
 import { preloadAppCore } from '../../../router/lazyPages';
 
-export default function RecoverPage() {
+export default function ResetPage() {
   useEffect(() => {
     const id = 'requestIdleCallback' in window
       ? requestIdleCallback(() => preloadAppCore())

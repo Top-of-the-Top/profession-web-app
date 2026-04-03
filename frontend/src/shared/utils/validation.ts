@@ -78,6 +78,50 @@ export const prepareAuthData = (
   return result;
 };
 
+/** Регистрация: одно поле контакта + пароль (без date_time). */
+export type RegisterPayload =
+  | { email: string; password: string }
+  | { phone_number: string; password: string };
+
+export function buildRegisterPayload(emailOrPhone: string, password: string): RegisterPayload {
+  const validation = validateEmailOrPhone(emailOrPhone);
+  if (!validation.isValid) {
+    throw new Error('Invalid email or phone number');
+  }
+  if (validation.isEmail) {
+    return { email: validation.normalized, password };
+  }
+  return { phone_number: validation.normalized, password };
+}
+
+export type ResetPayload = { email: string } | { phone_number: string };
+
+export function buildResetPayload(emailOrPhone: string): ResetPayload {
+  const validation = validateEmailOrPhone(emailOrPhone);
+  if (!validation.isValid) {
+    throw new Error('Invalid email or phone number');
+  }
+  if (validation.isEmail) {
+    return { email: validation.normalized };
+  }
+  return { phone_number: validation.normalized };
+}
+
+export type RegisterVerifyPayload =
+  | { email: string; code: string }
+  | { phone_number: string; code: string };
+
+export function buildRegisterVerifyPayload(
+  kind: 'email' | 'phone',
+  normalizedContact: string,
+  code: string,
+): RegisterVerifyPayload {
+  if (kind === 'email') {
+    return { email: normalizedContact, code };
+  }
+  return { phone_number: normalizedContact, code };
+}
+
 export const prepareResetPasswordData = (
   password: string,
   token: string,

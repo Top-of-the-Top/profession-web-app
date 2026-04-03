@@ -5,6 +5,9 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 export type TokensResponse = Tokens;
 
+/** Параметры fetch: без передачи Bearer (для логина, регистрации, сброса пароля и т.д.). */
+export type ApiRequestInit = RequestInit & { skipAuth?: boolean };
+
 export class ApiClient {
   private buildHeaders(
     customHeaders?: HeadersInit,
@@ -61,30 +64,28 @@ export class ApiClient {
     return tokens;
   }
 
-  async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
+  async request<T>(endpoint: string, options: ApiRequestInit = {}): Promise<T> {
+    const { skipAuth = false, ...fetchOptions } = options;
     const url = `${API_URL}${endpoint}`;
-    const accessToken = tokenService.getAccessToken();
-    
-    const isFormData = options.body instanceof FormData;
+    const accessToken = skipAuth ? undefined : tokenService.getAccessToken() ?? undefined;
+
+    const isFormData = fetchOptions.body instanceof FormData;
 
     let response = await fetch(url, {
-      ...options,
-      headers: this.buildHeaders(options.headers, accessToken ?? undefined, isFormData),
+      ...fetchOptions,
+      headers: this.buildHeaders(fetchOptions.headers, accessToken, isFormData),
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
+      if (response.status === 401 && !skipAuth) {
         const tokens = await this.refreshTokens();
         if (!tokens) {
           this.logout();
           throw new Error('AUTH_EXPIRED');
         }
         response = await fetch(url, {
-          ...options,
-          headers: this.buildHeaders(options.headers, tokens.access_token, isFormData),
+          ...fetchOptions,
+          headers: this.buildHeaders(fetchOptions.headers, tokens.access_token, isFormData),
         });
       }
     }

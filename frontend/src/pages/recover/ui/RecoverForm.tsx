@@ -11,10 +11,11 @@ import { Field, FieldGroup, FieldLabel, Input } from '../../../shared/ui';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import styles from './RecoverPage.module.css';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { resetPassword } from '../api';
+import { recoverEmailPassword, recoverSetPassword } from '../api';
 import { prepareResetPasswordData } from '../../../shared/utils/validation';
 import { parseApiError } from '../../../shared/lib/api/parseApiError';
 import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
+import { useUserStore } from '../../../entities/user/model/userStore';
 
 const RECOVER_CHECKS: Array<{
   when: (ctx: { token: string | null; password: string; confirm: string }) => boolean;
@@ -27,9 +28,9 @@ const RECOVER_CHECKS: Array<{
     description: 'Откройте ссылку из письма или запросите новую на странице сброса пароля.',
   },
   {
-    when: ({ password }) => password.length < 6,
+    when: ({ password }) => password.length < 8,
     title: 'короткий пароль',
-    description: 'Пароль должен быть не короче 6 символов.',
+    description: 'Пароль должен быть не короче 8 символов.',
   },
   {
     when: ({ password, confirm }) => password !== confirm,
@@ -38,17 +39,20 @@ const RECOVER_CHECKS: Array<{
   },
 ];
 
-function notifyRecoverFailure(err: unknown) {
+function notifyRecoverFailure(
+  err: unknown,
+  scene: 'recoverEmail' | 'recoverSet',
+) {
   const parsed = parseApiError(err);
   if (!parsed) {
-    const fb = messageForApiFailure('recoverSet', 0, {});
+    const fb = messageForApiFailure(scene, 0, {});
     notifyError({
       title: fb.title,
       description: err instanceof Error ? err.message : fb.description,
     });
     return;
   }
-  const msg = messageForApiFailure('recoverSet', parsed.status, parsed.body);
+  const msg = messageForApiFailure(scene, parsed.status, parsed.body);
   notifyError({ title: msg.title, description: msg.description });
 }
 
@@ -57,7 +61,10 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
   const [success, setSuccess] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const login = useUserStore((s) => s.login);
   const token = searchParams.get('token');
+  const channelRaw = searchParams.get('channel');
+  const channel = channelRaw === 'phone' ? 'phone' : 'email';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,12 +82,18 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
       return;
     }
 
+    const payload = prepareResetPasswordData(password, token!);
+
     try {
-      await resetPassword(prepareResetPasswordData(password, token!));
+      const tokens =
+        channel === 'email'
+          ? await recoverEmailPassword(payload)
+          : await recoverSetPassword(payload);
+      await login(tokens);
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 3000);
+      setTimeout(() => navigate('/app', { replace: true }), 1500);
     } catch (err) {
-      notifyRecoverFailure(err);
+      notifyRecoverFailure(err, channel === 'email' ? 'recoverEmail' : 'recoverSet');
     } finally {
       setLoading(false);
     }
@@ -97,7 +110,7 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
                 Пароль успешно изменен!
               </CardTitle>
               <CardDescription>
-                Теперь вы можете войти в свой аккаунт с новым паролем
+                Сейчас вы будете перенаправлены в приложение
               </CardDescription>
             </CardHeader>
             <CardContent className={styles.cardContent}>
@@ -106,15 +119,15 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
                   <CheckCircle2 size={48} />
                 </div>
                 <p style={{ textAlign: 'center', marginBottom: '20px' }}>
-                  Перенаправляем на страницу входа...
+                  Перенаправляем…
                 </p>
                 <Button
                   style={{ fontSize: '14px', marginTop: '20px' }}
                   type="button"
                   className={styles.submitButton}
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate('/app', { replace: true })}
                 >
-                  Перейти ко входу сейчас
+                  Перейти сейчас
                 </Button>
               </div>
             </CardContent>
@@ -154,7 +167,7 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
                     disabled={loading || !token}
                   />
                   <CardDescription style={{ fontSize: '12px', marginTop: '4px' }}>
-                    Должен содержать минимум 6 символов
+                    Должен содержать минимум 8 символов
                   </CardDescription>
                 </Field>
                 <Field className={styles.field}>

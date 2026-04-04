@@ -1,5 +1,7 @@
 from django.utils import timezone
 import os
+import hashlib
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -7,6 +9,13 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from .errors import VerificationError
 from ..models import User, Profile
+from .constants import (
+    MSG_CONTACT_REQUIRED,
+    MSG_RATE_LIMITED, 
+    MSG_USER_NOT_FOUND,
+    MSG_EMAIL_ALREADY_EXISTS,
+    MSG_PHONE_ALREADY_EXISTS,
+)
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -35,18 +44,22 @@ from .utils import (
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
+from django.db import IntegrityError
+
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 300
 
 SCHEMA_401 = {
     "type": "object",
-    "properties": {"detail": {"type": "string", "description": "Токен/учётные данные отсутствуют или недействительны."}},
+    "properties": {"detail": {"type": "string", "description": "Токен отсутствует или недействителен."}},
 }
 SCHEMA_403 = {
     "type": "object",
-    "properties": {"detail": {"type": "string", "description": "Сообщение об ошибке (отказ в действии, не аутентификация)."}},
+    "properties": {"detail": {"type": "string", "description": "Доступ запрещён."}},
 }
 SCHEMA_VALIDATION_ERROR = {
     "type": "object",
-    "description": "Объект с ошибками валидации: ключи — имена полей, значения — список строк ошибок.",
+    "description": "Объект с ошибками валидации по полям.",
 }
 SCHEMA_500 = {
     "type": "object",
@@ -63,14 +76,9 @@ class RegisterView(APIView):
     @extend_schema(
         summary="Регистрация пользователя",
         description=(
-            "Регистрация нового пользователя. Всегда двухэтапная:\n\n"
-            "По email (передайте email + password): "
-            "на email отправляется письмо с 6-значным кодом. "
-            "Возвращается {status: 'code_sent'}. "
-            "Для завершения отправьте код на /api/auth/register/verify/.\n\n"
-            "По телефону (передайте phone_number + password): "
-            "на телефон отправляется SMS с 6-значным кодом. "
-            "Возвращается {status: 'code_sent'}. "
+            "Двухэтапная регистрация. "
+            "Передайте email или phone_number с password. "
+            "На указанный контакт отправляется 6 значный код. "
             "Для завершения отправьте код на /api/auth/register/verify/."
         ),
         tags=["Users"],
@@ -87,7 +95,7 @@ class RegisterView(APIView):
                 },
             },
             403: {
-                "description": "Валидация: дубликат email/phone или не указан контакт. Тело — объект с полями ошибок.",
+                "description": "Ошибка валидации.",
                 "schema": SCHEMA_VALIDATION_ERROR
             },
             429: {
@@ -108,7 +116,7 @@ class RegisterView(APIView):
 
         if not email and not phone:
             return Response(
-                {'detail': 'Необходимо указать email или phone_number'},
+                {'detail': MSG_CONTACT_REQUIRED},
                 status=status.HTTP_403_FORBIDDEN,
             )
         
@@ -124,7 +132,7 @@ class RegisterView(APIView):
             if not is_allowed:
                 return Response(
                     {
-                        'detail': f'Слишком частые запросы. Повторите попытку через {retry_after} секунд',
+                        'detail': MSG_RATE_LIMITED.format(retry_after=retry_after),
                         'retry_after': retry_after,
                     },
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -149,7 +157,7 @@ class RegisterView(APIView):
             if not is_allowed:
                 return Response(
                     {
-                        'detail': f'Слишком частые запросы. Повторите попытку через {retry_after} секунд',
+                        'detail': MSG_RATE_LIMITED.format(retry_after=retry_after),
                         'retry_after': retry_after,
                     },
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -168,20 +176,18 @@ class VerifyRegisterView(APIView):
     permission_classes = []
 
     @extend_schema(
-        summary="Подтверждение регистрации (телефон или email)",
+        summary="Подтверждение регистрации",
         description=(
             "Второй шаг регистрации. "
-            "Передайте phone_number или email (тот же, что на первом шаге) "
-            "и код (6 цифр из SMS или письма). "
-            "При успехе создаётся аккаунт и возвращаются JWT-токены. "
-            "При неверном или истёкшем коде -- 400 с описанием ошибки."
+            "Передайте phone_number или email и 6 значный код. "
+            "При успехе создаётся аккаунт и возвращаются JWT токены."
         ),
         tags=["Users"],
         request=VerifyRegisterSerializer,
         responses={
             200: TokenResponseSerializer,
             400: {
-                "description": "Неверный, истёкший или не найденный код.",
+                "description": "Неверный или истёкший код.",
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
         },
@@ -230,25 +236,52 @@ class LoginView(APIView):
     @extend_schema(
         summary="Вход пользователя",
         description=(
-            "Аутентификация по email и/или номеру телефона и паролю. "
-            "В теле запроса передайте email или phone_number (или оба) и password. "
-            "При успехе возвращается объект с access_token, access_expires_at, refresh_token, refresh_expires_at. "
-            "При неверной паре контакт/пароль или отсутствии контакта возвращается 403 и объект с ошибками валидации."
+            "Аутентификация по email или phone_number и паролю. "
+            "При успехе возвращаются JWT токены."
         ),
         tags=["Users"],
         request=LoginSerializer,
         responses={
             200: TokenResponseSerializer,
-            400: {"description": "Валидация: неверная пара контакт/пароль или не указан контакт. Тело — объект с полями ошибок.", "schema": SCHEMA_VALIDATION_ERROR},
+            400: {"description": "Ошибка валидации.", "schema": SCHEMA_VALIDATION_ERROR},
         },
     )
     def post(self, request):
+        email = (request.data.get('email') or '').strip()
+        phone = (request.data.get('phone_number') or '').strip()
+        contact = email or phone
+
+        if contact:
+            contact_hash = hashlib.sha256(contact.encode()).hexdigest()[:16]
+            lockout_key = f'login_lockout_{contact_hash}'
+            attempts_key = f'login_attempts_{contact_hash}'
+
+            if cache.get(lockout_key):
+                ttl = getattr(cache, 'ttl', lambda k: LOGIN_LOCKOUT_SECONDS)(lockout_key)
+                return Response(
+                    {
+                        'detail': f'Слишком много попыток. Повторите через {ttl} секунд',
+                        'retry_after': ttl,
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+        
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
+            if contact:
+                attempts = cache.get(attempts_key, 0) + 1
+                cache.set(attempts_key, attempts, timeout=LOGIN_LOCKOUT_SECONDS)
+                if attempts >= MAX_LOGIN_ATTEMPTS:
+                    cache.set(lockout_key, 1, timeout=LOGIN_LOCKOUT_SECONDS)
+                    cache.delete(attempts_key)
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        if contact:
+            cache.delete(attempts_key)
+
         user = serializer.validated_data['user']
         return Response(get_tokens_for_user(user), status=status.HTTP_200_OK)
 
@@ -257,17 +290,14 @@ class RefreshTokenView(APIView):
     permission_classes = []
 
     @extend_schema(
-        summary="Обновление рефреш токена",
+        summary="Обновление токенов",
         description=(
-            "Выдаёт новую пару access и refresh токенов по действующему refresh_token. "
-            "В теле запроса передайте поле refresh_token (строка). "
-            "Используйте этот эндпоинт, когда access_token истёк, чтобы не заставлять пользователя логиниться снова. "
-            "При отсутствии refresh_token в теле или невалидном/истёкшем токене возвращается 401 с полем detail."
+            "Выдаёт новую пару access и refresh токенов по действующему refresh_token."
         ),
         tags=["Users"],
         responses={
             200: TokenResponseSerializer,
-            401: {"description": "Нет refresh_token — «refresh_token обязателен»; иначе «Невалидный или истекший refresh_token».", "schema": SCHEMA_401},
+            401: {"description": "refresh_token отсутствует или недействителен.", "schema": SCHEMA_401},
         },
     )
     def post(self, request):
@@ -294,18 +324,15 @@ class ResetPasswordView(APIView):
     @extend_schema(
         summary="Сброс пароля",
         description=(
-            "Запрос на сброс пароля по email или номеру телефона. "
-            "В теле передайте email и/или phone_number. На указанный email отправляется письмо со ссылкой для ввода нового пароля (страница восстановления на фронте). "
-            "При успехе возвращается объект { status: 'success' }. "
-            "Если не передан ни email, ни phone_number — 403 с сообщением «Необходимо указать email или phone_number». "
-            "Если пользователь не найден — 403 «Пользователь не найден». "
-            "При сбое отправки письма — 500 с полем detail."
+            "Запрос на сброс пароля. "
+            "Передайте email или phone_number. "
+            "На email отправляется ссылка, на телефон SMS код."
         ),
         tags=["Users"],
         responses={
-            200: {"description": "Письмо со ссылкой сброса отправлено.", "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
-            403: {"description": "Нет email/phone — «Необходимо указать email или phone_number»; иначе «Пользователь не найден».", "schema": SCHEMA_403},
-            500: {"description": "Ошибка отправки письма. Тело: { detail }.", "schema": SCHEMA_500},
+            200: {"description": "Ссылка или код отправлены.", "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
+            403: {"description": "Контакт не указан или пользователь не найден.", "schema": SCHEMA_403},
+            500: {"description": "Ошибка отправки.", "schema": SCHEMA_500},
         },
     )
     def post(self, request):
@@ -314,7 +341,7 @@ class ResetPasswordView(APIView):
 
         if not email and not phone:
             return Response(
-                {'detail': f'Необходимо указать email или phone_number'},
+                {'detail': MSG_CONTACT_REQUIRED},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -327,7 +354,7 @@ class ResetPasswordView(APIView):
             user = User.objects.filter(phone_cipher=phone_cipher).first()
         if not user:
             return Response(
-                {'detail': 'Пользователь не найден'},
+                {'detail': MSG_USER_NOT_FOUND},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -336,7 +363,7 @@ class ResetPasswordView(APIView):
             frontend_host = os.environ.get('FRONTEND_HOST')
             recover_url = f"{frontend_host}/recover?token={token}"
             result = send_reset_password_email(email, recover_url)
-            if not result:
+            if not result[0]:
                 return Response(
                     {'detail': 'Ошибка отправки письма'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -347,7 +374,7 @@ class ResetPasswordView(APIView):
         if not is_allowed:
             return Response(
                 {
-                    'detail': f'Слишком частые запросы. Повторите через {retry_after} секунд.',
+                    'detail': MSG_RATE_LIMITED.format(retry_after=retry_after),
                     'retry_after': retry_after,
                 },
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -375,18 +402,16 @@ class RecoverPasswordView(APIView):
     permission_classes = []
 
     @extend_schema(
-        summary="Ввод нового пароля",
+        summary="Установка нового пароля",
         description=(
-            "Завершение сброса пароля: по одноразовому токену из письма и новому паролю обновляется пароль пользователя и выдаются токены. "
-            "В теле передайте token (из ссылки в письме) и password_hash (новый пароль). "
-            "При успехе возвращается объект с access_token, access_expires_at, refresh_token, refresh_expires_at. "
-            "Если не переданы token или password_hash — 403 «token и password обязательны». "
-            "Если токен не найден или истёк — 403 «Невалидный или истёкший токен»."
+            "Завершение сброса пароля. "
+            "Передайте token (из письма) и password_hash (новый пароль). "
+            "При успехе возвращаются JWT токены."
         ),
         tags=["Users"],
         responses={
             200: TokenResponseSerializer,
-            403: {"description": "Нет token/password — «token и password обязательны»; иначе «Невалидный или истёкший токен».", "schema": SCHEMA_403},
+            403: {"description": "Токен отсутствует, невалиден или истёк.", "schema": SCHEMA_403},
         },
     )
 
@@ -419,19 +444,16 @@ class RecoverPasswordPhoneView(APIView):
     permission_classes = []
 
     @extend_schema(
-        summary="Проверка SMS-кода для сброса пароля",
+        summary="Проверка SMS кода для сброса пароля",
         description=(
-            "Первый шаг сброса пароля по телефону. "
-            "Передайте phone_number и code (6 цифр из SMS). "
-            "При успехе возвращается reset_token, который нужно передать "
-            "на PATCH /api/auth/recover/set/ вместе с новым паролем. "
-            "Страница ввода нового пароля — та же, что и при восстановлении по email."
+            "Передайте phone_number и 6 значный код из SMS. "
+            "При успехе возвращается reset_token для установки нового пароля."
         ),
         tags=["Users"],
         request=RecoverPasswordPhoneSerializer,
         responses={
             200: {
-                "description": "Код подтвержден. Возвращен токен для установки нового пароля.",
+                "description": "Код подтверждён, токен выдан.",
                 "schema": {
                     "type": "object",
                     "properties": {
@@ -440,7 +462,7 @@ class RecoverPasswordPhoneView(APIView):
                 },
             },
             400: {
-                "description": "Неверный, истекший или не найденный код.",
+                "description": "Неверный или истёкший код.",
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
             403: {
@@ -462,7 +484,7 @@ class RecoverPasswordPhoneView(APIView):
         user = User.objects.filter(phone_cipher=phone_cipher).first()
         if not user:
             return Response(
-                {'detail': 'Пользователь не найден'},
+                {'detail': MSG_USER_NOT_FOUND},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -487,13 +509,8 @@ class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        summary="Получение профиля пользователя",
-        description=(
-            "Возвращает профиль текущего авторизованного пользователя. "
-            "Требуется заголовок Authorization: Bearer <access_token>. "
-            "В ответе: first_name, last_name, email, phone_number (расшифрованные при наличии), gender, birthday, avatar (URL). "
-            "При отсутствии или невалидности токена возвращается 401 с полем detail."
-        ),
+        summary="Получение профиля",
+        description="Возвращает профиль текущего пользователя.",
         tags=["Users"],
         responses={
             200: UserProfileSerializer,
@@ -515,19 +532,13 @@ class ProfileView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
-        summary="Обновление профиля пользователя",
-        description=(
-            "Частичное обновление профиля и данных пользователя. Требуется Authorization: Bearer <access_token>. "
-            "В теле можно передать любые из полей: first_name, last_name, email, phone_number, gender (Мужской/Женский), birthday, avatar (файл, макс. 5 МБ). "
-            "При успехе возвращается { status: 'success' }. "
-            "При ошибках валидации (дубликат email/телефона, неверный gender, слишком большой avatar) — 400 и объект с полями-ошибками. "
-            "При невалидном/отсутствующем токене — 401."
-        ),
+        summary="Обновление профиля",
+        description="Частичное обновление профиля текущего пользователя.",
         tags=["Users"],
         request=UpdateProfileSerializer,
         responses={
             200: {"description": "Профиль обновлён.", "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
-            400: {"description": "Валидация. Тело — объект с полями ошибок.", "schema": SCHEMA_VALIDATION_ERROR},
+            400: {"description": "Ошибка валидации.", "schema": SCHEMA_VALIDATION_ERROR},
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
         },
     )
@@ -559,7 +570,7 @@ class ProfileView(APIView):
             if not is_allowed:
                 return Response(
                     {
-                        'detail': f'Слишком частые запросы. Повторите через {retry_after} секунд',
+                        'detail': MSG_RATE_LIMITED.format(retry_after=retry_after),
                         'retry_after': retry_after,
                     },
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -592,6 +603,7 @@ class ProfileView(APIView):
         )
 
 class VerifyEmailChangeView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -611,12 +623,26 @@ class VerifyEmailChangeView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        request.user.email_cipher = encrypt_data(new_email)
-        request.user.save()
+        new_cipher = encrypt_data(new_email)
+        if User.objects.filter(email_cipher=new_cipher).exclude(pk=request.user.pk).exists():
+            return Response(
+                {'detail': MSG_EMAIL_ALREADY_EXISTS},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        request.user.email_cipher = new_cipher
+        try:
+            request.user.save(update_fields=['email_cipher'])
+        except IntegrityError:
+            return Response(
+                {'detail': MSG_EMAIL_ALREADY_EXISTS},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         return Response({'status': 'success'}, status=status.HTTP_200_OK)
 
 class VerifyPhoneChangeView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -636,7 +662,21 @@ class VerifyPhoneChangeView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        request.user.phone_cipher = encrypt_data(new_phone)
-        request.user.save()
+        new_cipher = encrypt_data(new_phone)
+        if User.objects.filter(phone_cipher=new_cipher).exclude(pk=request.user.pk).exists():
+            return Response(
+                {'detail': MSG_PHONE_ALREADY_EXISTS},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        request.user.phone_cipher = new_cipher
+        try:
+            request.user.save(update_fields=['phone_cipher'])
+        except IntegrityError:
+            return Response(
+                {'detail': MSG_PHONE_ALREADY_EXISTS},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         return Response({'status': 'success'}, status=status.HTTP_200_OK)
+    

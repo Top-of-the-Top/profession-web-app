@@ -9,6 +9,7 @@ from .constants import (
     MSG_CONTACT_REQUIRED,
     MSG_CODE_DIGITS_ONLY,
     MSG_INVALID_CREDENTIALS,
+    MSG_WRONG_PHONE_FORMAT,
 )
 import re
 
@@ -47,7 +48,7 @@ class RegisterSerializer(serializers.Serializer):
             attrs['email_cipher'] = None
         if phone:
             if not PHONE_REGEX.match(phone):
-                raise serializers.ValidationError('Неверный формат номера телефона')
+                raise serializers.ValidationError(MSG_WRONG_PHONE_FORMAT)
    
             phone_cipher = encrypt_data(phone)
             if User.objects.filter(phone_cipher=phone_cipher).exists():
@@ -79,7 +80,7 @@ class LoginSerializer(serializers.Serializer):
 
         if not user and phone:
             if not PHONE_REGEX.match(phone):
-                raise serializers.ValidationError('Неверный формат номера телефона')
+                raise serializers.ValidationError(MSG_WRONG_PHONE_FORMAT)
    
             phone_cipher = encrypt_data(phone)
             user = User.objects.filter(phone_cipher=phone_cipher).first()

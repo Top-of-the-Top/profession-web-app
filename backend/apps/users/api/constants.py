@@ -9,3 +9,4 @@ MSG_RATE_LIMITED = 'Слишком частые запросы. Повторит
 MSG_USER_NOT_FOUND = 'Пользователь не найден'
 MSG_TOO_MANY_ATTEMPTS = 'Слишком много попыток. Запросите новый код'
 MSG_INVALID_CREDENTIALS = 'Неверные учетные данные'
+MSG_WRONG_PHONE_FORMAT = 'Неверный формат номера телефона'

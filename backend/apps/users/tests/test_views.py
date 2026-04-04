@@ -243,7 +243,7 @@ class LoginViewUnitTest(SimpleTestCase):
 
         serializer = MagicMock()
         serializer.is_valid.return_value = False
-        serializer.errors = {"non_field_errors": ["Необходимо указать email или phone_number"]}
+        serializer.errors = {"non_field_errors": ["Необходимо указать почту или номер телефона"]}
 
         with patch("apps.users.api.views.LoginSerializer", return_value=serializer):
             response = view(request)
@@ -290,7 +290,7 @@ class ResetPasswordViewUnitTest(SimpleTestCase):
         response = ResetPasswordView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data["detail"], "Необходимо указать email или phone_number")
+        self.assertEqual(response.data["detail"], "Необходимо указать почту или номер телефона")
 
     def test_reset_user_not_found(self):
         request = self.factory.post(
@@ -638,6 +638,505 @@ class RecoverPasswordViewIntegrationTest(TestCase):
         response = self.client.patch(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class RecoverPasswordPhoneViewUnitTest(SimpleTestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_recover_phone_invalid_payload(self):
+        request = self.factory.post(
+            "/api/auth/recover/phone/", {}, format="json",
+        )
+        response = RecoverPasswordPhoneView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_recover_phone_non_digit_code(self):
+        request = self.factory.post(
+            "/api/auth/recover/phone/",
+            {"phone_number": "+79991234567", "code": "abcdef"},
+            format="json",
+        )
+        response = RecoverPasswordPhoneView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_recover_phone_user_not_found(self):
+        request = self.factory.post(
+            "/api/auth/recover/phone/",
+            {"phone_number": "+79991234567", "code": "123456"},
+            format="json",
+        )
+
+        with patch("apps.users.api.views.User.objects.filter") as filter_mock:
+            filter_mock.return_value.first.return_value = None
+            response = RecoverPasswordPhoneView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["detail"], "Пользователь не найден")
+
+    def test_recover_phone_invalid_code(self):
+        request = self.factory.post(
+            "/api/auth/recover/phone/",
+            {"phone_number": "+79991234567", "code": "000000"},
+            format="json",
+        )
+
+        mock_user = MagicMock(id=1)
+
+        with patch("apps.users.api.views.User.objects.filter") as filter_mock, \
+             patch(
+                "apps.users.api.views.verify_code",
+                side_effect=VerificationError("invalid", "Неверный код"),
+             ):
+            filter_mock.return_value.first.return_value = mock_user
+            response = RecoverPasswordPhoneView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "invalid")
+
+    def test_recover_phone_success_mocked(self):
+        request = self.factory.post(
+            "/api/auth/recover/phone/",
+            {"phone_number": "+79991234567", "code": "123456"},
+            format="json",
+        )
+
+        mock_user = MagicMock(id=1)
+
+        with patch("apps.users.api.views.User.objects.filter") as filter_mock, \
+             patch("apps.users.api.views.verify_code", return_value="+79991234567"), \
+             patch("apps.users.api.views.set_reset_token", return_value="reset-tok") as reset_mock:
+            filter_mock.return_value.first.return_value = mock_user
+            response = RecoverPasswordPhoneView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["token"], "reset-tok")
+        reset_mock.assert_called_once_with(mock_user)
+
+
+class VerifyEmailChangeViewUnitTest(SimpleTestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_verify_email_requires_auth(self):
+        request = self.factory.post(
+            "/api/app/profile/verify_email/",
+            {"code": "123456"},
+            format="json",
+        )
+        response = VerifyEmailChangeView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_verify_email_invalid_code_format(self):
+        request = self.factory.post(
+            "/api/app/profile/verify_email/",
+            {"code": "short"},
+            format="json",
+        )
+        auth_user = MagicMock(is_authenticated=True)
+        force_authenticate(request, user=auth_user)
+
+        response = VerifyEmailChangeView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_verify_email_verification_error(self):
+        request = self.factory.post(
+            "/api/app/profile/verify_email/",
+            {"code": "000000"},
+            format="json",
+        )
+        auth_user = MagicMock(is_authenticated=True, id=1)
+        force_authenticate(request, user=auth_user)
+
+        with patch(
+            "apps.users.api.views.verify_code",
+            side_effect=VerificationError("invalid", "Неверный код"),
+        ):
+            response = VerifyEmailChangeView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "invalid")
+
+    def test_verify_email_success_mocked(self):
+        request = self.factory.post(
+            "/api/app/profile/verify_email/",
+            {"code": "123456"},
+            format="json",
+        )
+        auth_user = MagicMock(is_authenticated=True, id=1, pk=1)
+        force_authenticate(request, user=auth_user)
+
+        with patch("apps.users.api.views.verify_code", return_value="new@example.com"), \
+             patch("apps.users.api.views.encrypt_data", return_value="enc_email"), \
+             patch("apps.users.api.views.User.objects.filter") as filter_mock:
+            filter_mock.return_value.exclude.return_value.exists.return_value = False
+            response = VerifyEmailChangeView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        self.assertEqual(auth_user.email_cipher, "enc_email")
+        auth_user.save.assert_called_once_with(update_fields=["email_cipher"])
+
+    def test_verify_email_duplicate_blocked(self):
+        request = self.factory.post(
+            "/api/app/profile/verify_email/",
+            {"code": "123456"},
+            format="json",
+        )
+        auth_user = MagicMock(is_authenticated=True, id=1, pk=1)
+        force_authenticate(request, user=auth_user)
+
+        with patch("apps.users.api.views.verify_code", return_value="taken@example.com"), \
+             patch("apps.users.api.views.encrypt_data", return_value="enc_taken"), \
+             patch("apps.users.api.views.User.objects.filter") as filter_mock:
+            filter_mock.return_value.exclude.return_value.exists.return_value = True
+            response = VerifyEmailChangeView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.data)
+
+
+class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_verify_phone_requires_auth(self):
+        request = self.factory.post(
+            "/api/app/profile/verify_phone/",
+            {"code": "123456"},
+            format="json",
+        )
+        response = VerifyPhoneChangeView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_verify_phone_verification_error(self):
+        request = self.factory.post(
+            "/api/app/profile/verify_phone/",
+            {"code": "000000"},
+            format="json",
+        )
+        auth_user = MagicMock(is_authenticated=True, id=1)
+        force_authenticate(request, user=auth_user)
+
+        with patch(
+            "apps.users.api.views.verify_code",
+            side_effect=VerificationError("expired", "Код истек. Действителен 5 минут"),
+        ):
+            response = VerifyPhoneChangeView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "expired")
+
+    def test_verify_phone_success_mocked(self):
+        request = self.factory.post(
+            "/api/app/profile/verify_phone/",
+            {"code": "123456"},
+            format="json",
+        )
+        auth_user = MagicMock(is_authenticated=True, id=1, pk=1)
+        force_authenticate(request, user=auth_user)
+
+        with patch("apps.users.api.views.verify_code", return_value="+79990001122"), \
+             patch("apps.users.api.views.encrypt_data", return_value="enc_phone"), \
+             patch("apps.users.api.views.User.objects.filter") as filter_mock:
+            filter_mock.return_value.exclude.return_value.exists.return_value = False
+            response = VerifyPhoneChangeView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        self.assertEqual(auth_user.phone_cipher, "enc_phone")
+        auth_user.save.assert_called_once_with(update_fields=["phone_cipher"])
+
+    def test_verify_phone_duplicate_blocked(self):
+        request = self.factory.post(
+            "/api/app/profile/verify_phone/",
+            {"code": "123456"},
+            format="json",
+        )
+        auth_user = MagicMock(is_authenticated=True, id=1, pk=1)
+        force_authenticate(request, user=auth_user)
+
+        with patch("apps.users.api.views.verify_code", return_value="+79990001122"), \
+             patch("apps.users.api.views.encrypt_data", return_value="enc_taken"), \
+             patch("apps.users.api.views.User.objects.filter") as filter_mock:
+            filter_mock.return_value.exclude.return_value.exists.return_value = True
+            response = VerifyPhoneChangeView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.data)
+
+
+class LoginViewLockoutUnitTest(SimpleTestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_login_lockout_after_max_attempts(self):
+        """After MAX_LOGIN_ATTEMPTS failed logins the account is locked out."""
+        view = LoginView.as_view()
+
+        serializer = MagicMock()
+        serializer.is_valid.return_value = False
+        serializer.errors = {"non_field_errors": ["Неверные учетные данные"]}
+
+        with patch("apps.users.api.views.LoginSerializer", return_value=serializer), \
+             patch("apps.users.api.views.cache") as mock_cache:
+            mock_cache.get.return_value = None  # no lockout, no prior attempts
+
+            for attempt in range(1, 6):
+                mock_cache.get.side_effect = [
+                    None,              # lockout_key check
+                    attempt - 1,       # attempts_key check
+                ]
+                request = self.factory.post(
+                    "/api/auth/login/",
+                    {"email": "user@example.com", "password": "wrong"},
+                    format="json",
+                )
+                response = view(request)
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+            # 5th attempt triggers lockout — cache.set(lockout_key, ...) should have been called
+            lockout_calls = [
+                c for c in mock_cache.set.call_args_list
+                if 'login_lockout_' in str(c)
+            ]
+            self.assertTrue(len(lockout_calls) > 0, "Lockout key was never set")
+
+    def test_login_returns_429_when_locked(self):
+        request = self.factory.post(
+            "/api/auth/login/",
+            {"email": "user@example.com", "password": "wrong"},
+            format="json",
+        )
+
+        with patch("apps.users.api.views.cache") as mock_cache:
+            mock_cache.get.return_value = True  # lockout_key exists
+
+            response = LoginView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn("retry_after", response.data)
+
+
+class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_reset_phone_success_mocked(self):
+        request = self.factory.post(
+            "/api/auth/reset/",
+            {"phone_number": "+79991234567"},
+            format="json",
+        )
+
+        mock_user = MagicMock(id=1)
+
+        with patch("apps.users.api.views.User.objects.filter") as filter_mock, \
+             patch("apps.users.api.views.check_contact_rate_limit", return_value=(True, 0)), \
+             patch("apps.users.api.views.generate_verification_code_for_user", return_value="654321"), \
+             patch("apps.users.api.views.send_reset_password_sms", return_value=(True, "ok")) as sms_mock:
+            filter_mock.return_value.first.return_value = mock_user
+            response = ResetPasswordView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        sms_mock.assert_called_once_with("+79991234567", "654321")
+
+    def test_reset_phone_rate_limited(self):
+        request = self.factory.post(
+            "/api/auth/reset/",
+            {"phone_number": "+79991234567"},
+            format="json",
+        )
+
+        mock_user = MagicMock(id=1)
+
+        with patch("apps.users.api.views.User.objects.filter") as filter_mock, \
+             patch("apps.users.api.views.check_contact_rate_limit", return_value=(False, 42)):
+            filter_mock.return_value.first.return_value = mock_user
+            response = ResetPasswordView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(response.data["retry_after"], 42)
+
+    def test_reset_phone_sms_failure(self):
+        request = self.factory.post(
+            "/api/auth/reset/",
+            {"phone_number": "+79991234567"},
+            format="json",
+        )
+
+        mock_user = MagicMock(id=1)
+
+        with patch("apps.users.api.views.User.objects.filter") as filter_mock, \
+             patch("apps.users.api.views.check_contact_rate_limit", return_value=(True, 0)), \
+             patch("apps.users.api.views.generate_verification_code_for_user", return_value="111111"), \
+             patch("apps.users.api.views.send_reset_password_sms", return_value=(False, "fail")):
+            filter_mock.return_value.first.return_value = mock_user
+            response = ResetPasswordView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_reset_email_send_failure(self):
+        os.environ["FRONTEND_HOST"] = "http://localhost:5173"
+        request = self.factory.post(
+            "/api/auth/reset/",
+            {"email": "user@example.com"},
+            format="json",
+        )
+
+        mock_user = MagicMock(id=1)
+
+        with patch("apps.users.api.views.User.objects.filter") as filter_mock, \
+             patch("apps.users.api.views.set_reset_token", return_value="tok"), \
+             patch("apps.users.api.views.send_reset_password_email", return_value=(False, "error")):
+            filter_mock.return_value.first.return_value = mock_user
+            response = ResetPasswordView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_profile_patch_email_triggers_verification(self):
+        request = self.factory.patch(
+            "/api/app/profile/",
+            {"email": "new@example.com"},
+            format="json",
+        )
+        auth_user = MagicMock(is_authenticated=True)
+        force_authenticate(request, user=auth_user)
+
+        serializer = MagicMock()
+        serializer.is_valid.return_value = True
+        serializer.validated_data = {"email": "new@example.com"}
+        mock_profile = MagicMock()
+
+        with patch("apps.users.api.views.UpdateProfileSerializer", return_value=serializer), \
+             patch("apps.users.api.views.Profile.objects.get_or_create", return_value=(mock_profile, True)), \
+             patch("apps.users.api.views.generate_verification_code_for_user", return_value="111111") as gen_mock, \
+             patch("apps.users.api.views.send_verification_email") as send_mock:
+            response = ProfileView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        gen_mock.assert_called_once_with(
+            user_id=auth_user.id,
+            contact_type="email",
+            new_contact="new@example.com",
+        )
+        send_mock.assert_called_once_with("new@example.com", "111111")
+
+    def test_profile_patch_phone_triggers_verification(self):
+        request = self.factory.patch(
+            "/api/app/profile/",
+            {"phone_number": "+79990001122"},
+            format="json",
+        )
+        auth_user = MagicMock(is_authenticated=True)
+        force_authenticate(request, user=auth_user)
+
+        serializer = MagicMock()
+        serializer.is_valid.return_value = True
+        serializer.validated_data = {"phone_number": "+79990001122"}
+        mock_profile = MagicMock()
+
+        with patch("apps.users.api.views.UpdateProfileSerializer", return_value=serializer), \
+             patch("apps.users.api.views.Profile.objects.get_or_create", return_value=(mock_profile, True)), \
+             patch("apps.users.api.views.check_contact_rate_limit", return_value=(True, 0)), \
+             patch("apps.users.api.views.generate_verification_code_for_user", return_value="222222") as gen_mock, \
+             patch("apps.users.api.views.send_verification_sms") as send_mock:
+            response = ProfileView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        gen_mock.assert_called_once_with(
+            user_id=auth_user.id,
+            contact_type="phone",
+            new_contact="+79990001122",
+        )
+        send_mock.assert_called_once_with("+79990001122", "222222")
+
+    def test_profile_patch_phone_rate_limited(self):
+        request = self.factory.patch(
+            "/api/app/profile/",
+            {"phone_number": "+79990001122"},
+            format="json",
+        )
+        auth_user = MagicMock(is_authenticated=True)
+        force_authenticate(request, user=auth_user)
+
+        serializer = MagicMock()
+        serializer.is_valid.return_value = True
+        serializer.validated_data = {"phone_number": "+79990001122"}
+        mock_profile = MagicMock()
+
+        with patch("apps.users.api.views.UpdateProfileSerializer", return_value=serializer), \
+             patch("apps.users.api.views.Profile.objects.get_or_create", return_value=(mock_profile, True)), \
+             patch("apps.users.api.views.check_contact_rate_limit", return_value=(False, 30)):
+            response = ProfileView.as_view()(request)
+
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(response.data["retry_after"], 30)
+
+
+class VerifyRegisterViewEmailUnitTest(SimpleTestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_verify_register_email_success_mocked(self):
+        request = self.factory.post(
+            "/api/auth/register/verify/",
+            {"email": "new@example.com", "code": "123456"},
+            format="json",
+        )
+        view = VerifyRegisterView.as_view()
+
+        reg_data = {
+            "contact": "new@example.com",
+            "contact_type": "email",
+            "password_hash": "hashed_pw",
+        }
+        mock_user = MagicMock()
+        tokens = {"access_token": "a", "refresh_token": "r", "role": "student"}
+
+        with patch("apps.users.api.views.verify_registration_code", return_value=reg_data), \
+             patch("apps.users.api.views.encrypt_data", return_value="enc_email"), \
+             patch("apps.users.api.views.User.objects.create_user", return_value=mock_user), \
+             patch("apps.users.api.views.get_tokens_for_user", return_value=tokens):
+            response = view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, tokens)
+
+    def test_verify_register_expired_code(self):
+        request = self.factory.post(
+            "/api/auth/register/verify/",
+            {"email": "new@example.com", "code": "123456"},
+            format="json",
+        )
+        view = VerifyRegisterView.as_view()
+
+        with patch(
+            "apps.users.api.views.verify_registration_code",
+            side_effect=VerificationError("expired", "Код истек. Действителен 5 минут"),
+        ):
+            response = view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "expired")
 
 
 class ProfileViewIntegrationTest(TestCase):

@@ -5,6 +5,7 @@ from django.dispatch import receiver
 from django.db.models.signals import pre_delete, pre_save
 import os
 from asgiref.sync import sync_to_async
+from .api.constants import MSG_EMAIL_ALREADY_EXISTS, MSG_PHONE_ALREADY_EXISTS
 
 
 class UserManager(BaseUserManager):
@@ -95,7 +96,7 @@ class User(AbstractUser):
         null=True,
         blank=True,
         db_index=True,
-        error_messages={'unique': 'Пользователь с таким email уже существует'},
+        error_messages={'unique': MSG_EMAIL_ALREADY_EXISTS},
         help_text='Введите email',
     )
 
@@ -105,7 +106,7 @@ class User(AbstractUser):
         null=True,
         blank=True,
         db_index=True,
-        error_messages={'unique': 'Пользователь с таким телефоном уже существует'},
+        error_messages={'unique': MSG_PHONE_ALREADY_EXISTS},
         help_text='Введите телефон',
     )
 

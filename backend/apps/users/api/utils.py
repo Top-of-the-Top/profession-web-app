@@ -1,4 +1,3 @@
-import random
 from django.core.cache import cache
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -14,6 +13,11 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad, pad
 from django.contrib.auth.hashers import make_password
 from .errors import VerificationError
+from .constants import MSG_CODE_NOT_FOUND, MSG_CODE_EXPIRED, MSG_CODE_INVALID, MSG_TOO_MANY_ATTEMPTS
+import secrets
+import hmac
+
+MAX_VERIFY_ATTEMPTS = 5
 
 def generate_reset_token():
     return secrets.token_urlsafe(32)
@@ -89,7 +93,7 @@ def decrypt_data(cipher_text: str) -> str:
         return ''
 
 def generate_verification_code_for_user(user_id, contact_type, new_contact):
-    code = f"{random.randint(0, 999999):06d}"
+    code = f"{secrets.randbelow(1000000):06d}"
     cache_key = f'verification_code_{user_id}_{contact_type}'
 
     data = {
@@ -98,7 +102,7 @@ def generate_verification_code_for_user(user_id, contact_type, new_contact):
         'created_at': django_timezone.now().isoformat()
     }
 
-    cache.set(cache_key, data, timeout=150)
+    cache.set(cache_key, data, timeout=300)
 
     return code
 
@@ -110,12 +114,22 @@ def delete_verification_code(user_id: int, contact_type: str):
     cache_key = f"verification_code_{user_id}_{contact_type}"
     cache.delete(cache_key)
 
-
 def verify_code(user_id, contact_type, user_code):
     data = get_verification_code_for_user(user_id, contact_type)
 
     if not data:
-        raise VerificationError('not_found', 'Код не найден. Запросите новый.')
+        raise VerificationError('not_found', MSG_CODE_NOT_FOUND)
+
+    attempts_key = f'verify_attempts_{user_id}_{contact_type}'
+    attempts = cache.get(attempts_key, 0)
+
+    if attempts >= MAX_VERIFY_ATTEMPTS:
+        delete_verification_code(user_id, contact_type)
+        cache.delete(attempts_key)
+        raise VerificationError(
+            'too_many_attempts',
+            'Слишком много попыток. Запросите новый код.'
+        )
 
     created_at = data.get('created_at')
     if created_at:
@@ -123,20 +137,22 @@ def verify_code(user_id, contact_type, user_code):
             from datetime import datetime
             created_at = datetime.fromisoformat(created_at)
         elapsed = (django_timezone.now() - created_at).total_seconds()
-        if elapsed > 150:
+        if elapsed > 300:
             delete_verification_code(user_id, contact_type)
-            raise VerificationError('expired', 'Код истёк. Действителен 2,5 минуты.')
+            cache.delete(attempts_key)
+            raise VerificationError('expired', MSG_CODE_EXPIRED)
 
-    if data['code'] == user_code:
-        new_contact = data['new_contact']
-        delete_verification_code(user_id, contact_type)
-        return new_contact
+    if not hmac.compare_digest(data['code'], user_code):
+        cache.set(attempts_key, attempts + 1, timeout=300)
+        raise VerificationError('invalid', MSG_CODE_INVALID)
 
-    raise VerificationError('invalid', 'Неверный код.')
+    delete_verification_code(user_id, contact_type)
+    cache.delete(attempts_key)
+    return data['new_contact']
 
 def send_verification_email(email, code):
     try:
-        result = send_mail(
+        send_mail(
             subject='Подтверждение email',
             message=f'Ваш код подтверждения: {code}.',
             from_email=settings.DEFAULT_FROM_EMAIL,
@@ -144,6 +160,7 @@ def send_verification_email(email, code):
             fail_silently=False,
         )
         return True, "Письмо отправлено"
+    
     except Exception as e:
         return False, f"Ошибка отправки: {str(e)}"
 
@@ -164,18 +181,17 @@ def send_verification_sms(phone_number, code):
 
 def send_reset_password_email(email, recover_url):
     try:
-        result = send_mail(
+        send_mail(
             subject='Сброс пароля',
             message=f'Перейдите по ссылке для сброса пароля: {recover_url}',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[email],
             fail_silently=False,
         )
-        print(f'Письмо отправлено успешно. Результат: {result}')
-        return True
+        return True, "Письмо отправлено"
+    
     except Exception as e:
-        print(f'Ошибка при отправке письма: {type(e).__name__}: {str(e)}')
-        return False
+        return False, f"Ошибка отправки: {str(e)}"
 
 
 def send_reset_password_sms(phone_number, reset_code):
@@ -194,7 +210,7 @@ def send_reset_password_sms(phone_number, reset_code):
     
 
 def generate_registration_code(contact, password, contact_type='phone'):
-    code = f"{random.randint(0, 999999):06d}"
+    code = f"{secrets.randbelow(1000000):06d}"
     contact_cipher = encrypt_data(contact)
     cache_key = f'pending_registration_{contact_type}_{contact_cipher}'
 
@@ -206,7 +222,7 @@ def generate_registration_code(contact, password, contact_type='phone'):
         'created_at': django_timezone.now().isoformat(),
     }
 
-    cache.set(cache_key, data, timeout=150)
+    cache.set(cache_key, data, timeout=300)
     return code
 
 
@@ -216,21 +232,32 @@ def verify_registration_code(contact, user_code, contact_type):
     data = cache.get(cache_key)
 
     if not data:
-        raise VerificationError('not_found', 'Код не найден, запросите новый.')
+        raise VerificationError('not_found', MSG_CODE_NOT_FOUND)
+    
+    attempts_key = f'reg_verify_attempts_{contact_type}_{contact_cipher}'
+    attempts = cache.get(attempts_key, 0)
+
+    if attempts >= MAX_VERIFY_ATTEMPTS:
+        cache.delete(cache_key)
+        cache.delete(attempts_key)
+        raise VerificationError('too_many_attempts', MSG_TOO_MANY_ATTEMPTS)
     
     created_at = data.get('created_at')
     if created_at:
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at)
         elapsed = (django_timezone.now() -  created_at).total_seconds()
-        if elapsed > 150:
+        if elapsed > 300:
             cache.delete(cache_key)
-            raise VerificationError('expired', 'Время действия кода истекло. Действителен 2,5 минуты.')
+            cache.delete(attempts_key)
+            raise VerificationError('expired', MSG_CODE_EXPIRED)
     
-    if data['code'] != user_code:
-        raise VerificationError('invalid', 'Неверный код.')
-    
+    if not hmac.compare_digest(data['code'], user_code):
+        cache.set(attempts_key, attempts + 1, timeout=300)
+        raise VerificationError('invalid', MSG_CODE_INVALID)
+
     cache.delete(cache_key)
+    cache.delete(attempts_key)
     return {
         'contact': data['contact'],
         'contact_type': data['contact_type'],

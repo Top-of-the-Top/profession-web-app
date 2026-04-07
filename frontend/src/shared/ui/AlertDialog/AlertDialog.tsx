@@ -1,7 +1,7 @@
 import styles from "./AlertDialog.module.css";
 import type { ComponentProps } from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
-import { Button } from "@shared/ui/Button";
+import { Button } from "../Button";
 
 function AlertDialog({
   ...props

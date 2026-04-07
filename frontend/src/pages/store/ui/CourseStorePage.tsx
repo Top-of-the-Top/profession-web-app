@@ -1,17 +1,17 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { Button, Skeleton, PageTransition } from '../../../shared/ui';
-import type { CourseDTO } from '../../../shared/api/courseApi';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import { Button, Skeleton, PageTransition } from '@shared/ui';
+import type { CourseDTO } from '@shared/api/courseApi';
+import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
   notifyCartCourseAdded,
   notifyError,
   notifyWarning,
-} from '../../../shared/lib/sileo/notify';
-import { useCourses } from '../../../shared/api/queries/courses';
-import { useCart } from '../../../shared/api/queries/cart';
-import { useAddToCart } from '../../../shared/api/mutations/cart';
+} from '@shared/lib/sileo/notify';
+import { useCourses } from '@shared/api/queries/courses';
+import { useCart } from '@shared/api/queries/cart';
+import { useAddToCart } from '@shared/api/mutations/cart';
 import styles from './CourseStorePage.module.css';
 
 const FALLBACK_IMAGE =

@@ -1,6 +1,6 @@
-import { authApi } from '../../../shared/api/authApi';
-import { buildResetPayload } from '../../../shared/utils/validation';
-import { ResetSchema } from '../../../schemas/auth/reset.schema';
+import { authApi } from '@shared/api/authApi';
+import { buildResetPayload } from '@shared/utils/validation';
+import { ResetSchema } from '@schemas/auth/reset.schema';
 
 interface ResetParams {
   emailOrPhone: string;

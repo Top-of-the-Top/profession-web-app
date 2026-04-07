@@ -1,21 +1,21 @@
-import { Button } from '../../../shared/ui';
+import { Button } from '@shared/ui';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../../../shared/ui';
+} from '@shared/ui';
 import { useState } from 'react';
-import { Field, FieldGroup, FieldLabel, Input } from '../../../shared/ui';
+import { Field, FieldGroup, FieldLabel, Input } from '@shared/ui';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import styles from './RecoverPage.module.css';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { recoverEmailPassword, recoverSetPassword } from '../api';
-import { prepareResetPasswordData } from '../../../shared/utils/validation';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
-import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
-import { useUserStore } from '../../../entities/user/model/userStore';
+import { prepareResetPasswordData } from '@shared/utils/validation';
+import { parseApiError } from '@shared/lib/api/parseApiError';
+import { messageForApiFailure, notifyError } from '@shared/lib/sileo/notify';
+import { useUserStore } from '@entities/user/model/userStore';
 
 const RECOVER_CHECKS: Array<{
   when: (ctx: { token: string | null; password: string; confirm: string }) => boolean;
@@ -85,11 +85,11 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
     const payload = prepareResetPasswordData(password, token!);
 
     try {
-      const tokens =
+      const loginPayload =
         channel === 'email'
           ? await recoverEmailPassword(payload)
           : await recoverSetPassword(payload);
-      await login(tokens);
+      await login(loginPayload);
       setSuccess(true);
       setTimeout(() => navigate('/app', { replace: true }), 1500);
     } catch (err) {

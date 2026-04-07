@@ -1,20 +1,21 @@
-import { authApi } from '../../../shared/api/authApi';
+import { authApi } from '@shared/api/authApi';
 import {
   buildRegisterPayload,
   buildRegisterVerifyPayload,
-} from '../../../shared/utils/validation';
-import type { Tokens } from '../../../shared/lib/auth/tokenService';
+} from '@shared/utils/validation';
 import {
   AuthTokensSchema,
   normalizeAuthTokensPayload,
-} from '../../../schemas/auth/auth.schema';
-import { RegisterCodeSentSchema } from '../../../schemas/auth/register.schema';
+  type AuthTokens,
+} from '@schemas/auth/auth.schema';
+import { RegisterCodeSentSchema } from '@schemas/auth/register.schema';
+import type { LoginPayload } from '@entities/user/model/userStore';
+import type { UserRole } from '@shared/lib/rbac/roles';
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
-/** Ответ похож на токены (включая обёртку data / camelCase). */
 function looksLikeTokenBundle(raw: unknown): boolean {
   const n = normalizeAuthTokensPayload(raw);
   return (
@@ -26,9 +27,21 @@ function looksLikeTokenBundle(raw: unknown): boolean {
   );
 }
 
+function toLoginPayload(parsed: AuthTokens): LoginPayload {
+  return {
+    tokens: {
+      access_token: parsed.access_token,
+      refresh_token: parsed.refresh_token,
+      access_expires_at: parsed.access_expires_at,
+      refresh_expires_at: parsed.refresh_expires_at,
+    },
+    role: parsed.role as UserRole | undefined,
+  };
+}
+
 export type RegisterStep1Result =
   | { flow: 'two_factor'; detail: string }
-  | { flow: 'immediate'; tokens: Tokens };
+  | { flow: 'immediate'; loginPayload: LoginPayload };
 
 export async function requestRegisterCode(params: {
   emailOrPhone: string;
@@ -41,12 +54,7 @@ export async function requestRegisterCode(params: {
     const parsed = AuthTokensSchema.parse(raw);
     return {
       flow: 'immediate',
-      tokens: {
-        access_token: parsed.access_token,
-        refresh_token: parsed.refresh_token,
-        access_expires_at: parsed.access_expires_at,
-        refresh_expires_at: parsed.refresh_expires_at,
-      },
+      loginPayload: toLoginPayload(parsed),
     };
   }
 
@@ -58,7 +66,7 @@ export async function completeRegisterWithCode(params: {
   kind: 'email' | 'phone';
   normalizedContact: string;
   code: string;
-}): Promise<Tokens> {
+}): Promise<LoginPayload> {
   const body = buildRegisterVerifyPayload(
     params.kind,
     params.normalizedContact,
@@ -66,10 +74,5 @@ export async function completeRegisterWithCode(params: {
   );
   const raw = await authApi.registerVerify(body);
   const parsed = AuthTokensSchema.parse(raw);
-  return {
-    access_token: parsed.access_token,
-    refresh_token: parsed.refresh_token,
-    access_expires_at: parsed.access_expires_at,
-    refresh_expires_at: parsed.refresh_expires_at,
-  };
+  return toLoginPayload(parsed);
 }

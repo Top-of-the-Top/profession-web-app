@@ -7,16 +7,16 @@ import {
   Button,
   Skeleton,
   PageTransition,
-} from '../../shared/ui';
-import { parseApiError } from '../../shared/lib/api/parseApiError';
+} from '@shared/ui';
+import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
   notifyError,
   notifyWarning,
-} from '../../shared/lib/sileo/notify';
-import { useCart } from '../../shared/api/queries/cart';
-import { useRemoveFromCart } from '../../shared/api/mutations/cart';
-import { cn } from '../../shared/lib/utils';
+} from '@shared/lib/sileo/notify';
+import { useCart } from '@shared/api/queries/cart';
+import { useRemoveFromCart } from '@shared/api/mutations/cart';
+import { cn } from '@shared/lib/utils';
 import styles from './Cart.module.css';
 
 import { X } from 'lucide-react';

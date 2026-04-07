@@ -1,5 +1,5 @@
-import { authEvents } from '../events/authEvents';
-import { tokenService, type Tokens } from '../lib/auth/tokenService';
+import { authEvents } from '@shared/events/authEvents';
+import { tokenService, type Tokens } from '@shared/lib/auth/tokenService';
 
 const API_URL = import.meta.env.VITE_API_URL;
 

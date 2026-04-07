@@ -14,6 +14,7 @@ import {
   LessonPreviewPage,
   LessonViewPage,
   ToastPlaygroundPage,
+  NotAuthorizedPage,
   AppLayout,
 } from './lazyPages';
 
@@ -64,6 +65,7 @@ export const routes: AppRoute[] = [
       {
         path: 'create',
         element: <CreateLessonPage />,
+				roles: ['teacher', 'moderator']
       },
       {
         path: 'lesson/preview',
@@ -73,8 +75,10 @@ export const routes: AppRoute[] = [
         path: 'cart',
         element: <CartPage />,
       },
-      // { path: 'modify', element: <ModifyPage /> },
-      // { path: 'distribute', element: <DistributePage /> },
+      {
+        path: 'not-authorized',
+        element: <NotAuthorizedPage />,
+      },
     ],
   },
 ];

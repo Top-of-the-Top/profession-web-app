@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { cartApi } from '../../../shared/api/cartApi';
-import { authEvents } from '../../../shared/events/authEvents';
-import { tokenService } from '../../../shared/lib/auth/tokenService';
+import { cartApi } from '@shared/api/cartApi';
+import { authEvents } from '@shared/events/authEvents';
+import { tokenService } from '@shared/lib/auth/tokenService';
 
 type CartSummaryState = {
   hasItems: boolean | null;

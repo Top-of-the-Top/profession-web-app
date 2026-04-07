@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { cartApi } from '../cartApi';
-import { tokenService } from '../../lib/auth/tokenService';
+import { tokenService } from '@shared/lib/auth/tokenService';
 
 export const cartKeys = {
   all: ['cart'] as const,

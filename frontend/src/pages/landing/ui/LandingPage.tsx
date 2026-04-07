@@ -1,9 +1,9 @@
 import styles from './LandingPage.module.css';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { cn } from '../../../shared/lib/utils';
+import { cn } from '@shared/lib/utils';
 import { Menu, X } from 'lucide-react';
-import { Button, Card, CardTitle, Skeleton } from '../../../shared/ui';
+import { Button, Card, CardTitle, Skeleton } from '@shared/ui';
 import { ArrowUpRight } from 'lucide-react';
 import {
   Pagination,
@@ -13,10 +13,11 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from '../../../shared/ui/Pagination';
+} from '@shared/ui/Pagination';
 import CollapsibleSection from './CollapsibleSection';
 import Footer from './Footer';
-import { useLandingCourses } from '../../../shared/api/queries/landing';
+import { useLandingCourses } from '@shared/api/queries/landing';
+import { preloadAuthFormBundles } from '@router/lazyPages';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -41,6 +42,11 @@ export default function LandingPage() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (loading) return;
+    preloadAuthFormBundles();
+  }, [loading]);
 
   const visiblePageNumbers = (() => {
     if (totalPages <= 1) return [];
@@ -148,6 +154,8 @@ export default function LandingPage() {
           <div className={styles.desktopAuth}>
             <Button
               onClick={() => navigate('/login')}
+              onPointerEnter={preloadAuthFormBundles}
+              onFocus={preloadAuthFormBundles}
               variant="outline"
               size="lg"
             >
@@ -155,6 +163,8 @@ export default function LandingPage() {
             </Button>
             <Button
               onClick={() => navigate('/register')}
+              onPointerEnter={preloadAuthFormBundles}
+              onFocus={preloadAuthFormBundles}
               variant="primary"
               size="lg"
             >
@@ -194,6 +204,8 @@ export default function LandingPage() {
         <div className={styles.mobileAuth}>
           <Button
             onClick={() => navigate('/login')}
+            onPointerEnter={preloadAuthFormBundles}
+            onFocus={preloadAuthFormBundles}
             variant="outline"
             size="lg"
           >
@@ -201,6 +213,8 @@ export default function LandingPage() {
           </Button>
           <Button
             onClick={() => navigate('/register')}
+            onPointerEnter={preloadAuthFormBundles}
+            onFocus={preloadAuthFormBundles}
             variant="primary"
             size="lg"
           >
@@ -224,6 +238,8 @@ export default function LandingPage() {
               <div className={styles.heroCta}>
                 <Button
                   onClick={() => navigate('/register')}
+                  onPointerEnter={preloadAuthFormBundles}
+                  onFocus={preloadAuthFormBundles}
                   asChild
                   size="lg"
                   className={styles.buttonInline}
@@ -259,6 +275,7 @@ export default function LandingPage() {
                     className={styles.trackCard}
                     style={{ backgroundColor: track.bgColor }}
                     onClick={() => navigate('/register')}
+                    onPointerEnter={preloadAuthFormBundles}
                   >
                     <div className={styles.trackCardLayout}>
                       <div className={styles.trackCardLeft}>

@@ -10,11 +10,11 @@ import {
 import {
   Button,
   Spinner,
-} from '../../../shared/ui';
-import { cn } from '../../../shared/lib/utils';
-import { useUserStore } from '../../../entities/user/model/userStore';
-import { tokenService } from '../../../shared/lib/auth/tokenService';
-import { useCart } from '../../../shared/api/queries/cart';
+} from '@shared/ui';
+import { cn } from '@shared/lib/utils';
+import { useUserStore } from '@entities/user/model/userStore';
+import { tokenService } from '@shared/lib/auth/tokenService';
+import { useCart } from '@shared/api/queries/cart';
 import {
   connectNotificationSSE,
   disconnectNotificationSSE,

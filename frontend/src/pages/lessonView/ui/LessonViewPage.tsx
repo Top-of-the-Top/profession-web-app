@@ -11,14 +11,14 @@ import {
   Button,
   PageTransition,
   Spinner,
-} from '../../../shared/ui';
+} from '@shared/ui';
 import type { LessonLayout, Block } from '../../../features/course-builder';
 import {
   FONT_SIZE_STEPS,
   DEFAULT_FONT_SIZE_INDEX,
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayout } from '../../../features/course-builder/model/types';
-import { useCourseBySlug, useLessonBySlug } from '../../../shared/api/queries/courses';
+import { useCourseBySlug, useLessonBySlug } from '@shared/api/queries/courses';
 import { USE_MOCK, MOCK_LESSON, MOCK_COURSE_TITLE } from './mockLessonData';
 import styles from './LessonViewPage.module.css';
 

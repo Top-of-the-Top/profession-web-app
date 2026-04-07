@@ -2,7 +2,7 @@ import React from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { GripHorizontal, GripVertical, X, Trash2 } from 'lucide-react';
 import { useHomeworkStore } from '../../model/homeworkStore';
-import { cn } from '../../../../shared/lib/utils';
+import { cn } from '@shared/lib/utils';
 import type {
   HomeworkQuestion,
   HomeworkQuestionType,

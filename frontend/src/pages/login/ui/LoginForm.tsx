@@ -1,4 +1,4 @@
-import { Button } from '../../../shared/ui';
+import { Button } from '@shared/ui';
 import {
   Card,
   CardContent,
@@ -9,16 +9,17 @@ import {
   FieldGroup,
   FieldLabel,
   Input,
-} from '../../../shared/ui';
-import { cn } from '../../../shared/lib/utils';
+} from '@shared/ui';
+import { cn } from '@shared/lib/utils';
 import styles from './LoginPage.module.css';
 import { useState } from 'react';
-import { useUserStore } from '../../../entities/user/model/userStore';
+import { useUserStore } from '@entities/user/model/userStore';
 import { loginUser } from '../api';
 import { Link, useNavigate } from 'react-router-dom';
 import { ZodError } from 'zod';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
-import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
+import { parseApiError } from '@shared/lib/api/parseApiError';
+import { messageForApiFailure, notifyError } from '@shared/lib/sileo/notify';
+import { preloadRegisterRoute, preloadResetRoute } from '@router/lazyPages';
 
 function notifyLoginFailure(err: unknown) {
   if (err instanceof Error && err.message === 'Invalid email or phone number') {
@@ -53,8 +54,8 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
     const emailOrPhone = (form.elements.namedItem('email') as HTMLInputElement).value;
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
     try {
-      const tokens = await loginUser({ emailOrPhone, password });
-      await login(tokens);
+      const payload = await loginUser({ emailOrPhone, password });
+      await login(payload);
       navigate('/app', { replace: true });
     } catch (err) {
       if (err instanceof ZodError) {
@@ -143,12 +144,22 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                   <div className={styles.linksContainer}>
                     <div className={styles.linkRow}>
                       <span>Нет аккаунта? </span>
-                      <Link to="/register" className={styles.link}>
+                      <Link
+                        to="/register"
+                        className={styles.link}
+                        onPointerEnter={preloadRegisterRoute}
+                        onFocus={preloadRegisterRoute}
+                      >
                         Зарегистрироваться
                       </Link>
                     </div>
                     <div className={styles.linkRow}>
-                      <Link to="/reset" className={styles.link}>
+                      <Link
+                        to="/reset"
+                        className={styles.link}
+                        onPointerEnter={preloadResetRoute}
+                        onFocus={preloadResetRoute}
+                      >
                         Забыли пароль?
                       </Link>
                     </div>

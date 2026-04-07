@@ -1,6 +1,6 @@
 import { useNotificationStore } from './notification.store';
-import { notifyInfo } from '../../../shared/lib/sileo/notify';
-import { tokenService } from '../../../shared/lib/auth/tokenService';
+import { notifyInfo } from '@shared/lib/sileo/notify';
+import { tokenService } from '@shared/lib/auth/tokenService';
 
 let source: EventSource | null = null;
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;

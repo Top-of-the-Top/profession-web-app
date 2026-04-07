@@ -12,25 +12,25 @@ import {
   AvatarImage,
   Skeleton,
   PageTransition,
-} from '../../../shared/ui';
+} from '@shared/ui';
 import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars } from 'lucide-react';
 import styles from './ProfilePage.module.css';
-import { cn } from '../../../shared/lib/utils';
+import { cn } from '@shared/lib/utils';
 import ChangeName from './ChangeName';
 import ConfirmContact from './ConfirmContact';
 import {
   profileApi,
   type ProfileData,
   type UpdateProfilePayload,
-} from '../../../shared/api/profileApi';
-import { useUserStore } from '../../../entities/user/model/userStore';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
+} from '@shared/api/profileApi';
+import { useUserStore } from '@entities/user/model/userStore';
+import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
   notifyError,
   notifySuccess,
-} from '../../../shared/lib/sileo/notify';
-import { validateEmailOrPhone } from '../../../shared/utils/validation';
+} from '@shared/lib/sileo/notify';
+import { validateEmailOrPhone } from '@shared/utils/validation';
 
 function notifyProfileSaveError(err: unknown) {
   if (err instanceof Error && err.message === 'AUTH_EXPIRED') {

@@ -1,15 +1,15 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Skeleton, PageTransition } from '../../../shared/ui';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import { Button, Skeleton, PageTransition } from '@shared/ui';
+import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
   notifyCartCourseAdded,
   notifyError,
   notifyWarning,
-} from '../../../shared/lib/sileo/notify';
-import { useCourseBySlug } from '../../../shared/api/queries/courses';
-import { useCart } from '../../../shared/api/queries/cart';
-import { useAddToCart } from '../../../shared/api/mutations/cart';
+} from '@shared/lib/sileo/notify';
+import { useCourseBySlug } from '@shared/api/queries/courses';
+import { useCart } from '@shared/api/queries/cart';
+import { useAddToCart } from '@shared/api/mutations/cart';
 import styles from './CoursePreviewPage.module.css';
 
 function isAuthLike(err: unknown) {

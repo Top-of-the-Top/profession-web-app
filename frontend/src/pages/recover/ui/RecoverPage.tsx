@@ -1,23 +1,20 @@
-import { useEffect } from 'react';
-import RecoverForm from './RecoverForm';
+import { lazy, Suspense, useLayoutEffect } from 'react';
 import styles from './RecoverPage.module.css';
-import { preloadAppCore } from '../../../router/lazyPages';
+import { preloadAppCore } from '@router/lazyPages';
+
+const RecoverForm = lazy(() => import('./RecoverForm'));
 
 export default function RecoverPage() {
-  useEffect(() => {
-    const id = 'requestIdleCallback' in window
-      ? requestIdleCallback(() => preloadAppCore())
-      : setTimeout(() => preloadAppCore(), 200);
-    return () => {
-      if ('requestIdleCallback' in window) cancelIdleCallback(id as number);
-      else clearTimeout(id as ReturnType<typeof setTimeout>);
-    };
+  useLayoutEffect(() => {
+    preloadAppCore();
   }, []);
 
   return (
     <div className={styles.container}>
       <div className={styles.wrapper}>
-        <RecoverForm />
+        <Suspense fallback={null}>
+          <RecoverForm />
+        </Suspense>
       </div>
     </div>
   );

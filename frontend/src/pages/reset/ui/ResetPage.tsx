@@ -1,23 +1,20 @@
-import { useEffect } from 'react';
-import ResetForm from './ResetForm';
+import { lazy, Suspense, useLayoutEffect } from 'react';
 import styles from './ResetPage.module.css';
-import { preloadAppCore } from '../../../router/lazyPages';
+import { preloadAppCore } from '@router/lazyPages';
+
+const ResetForm = lazy(() => import('./ResetForm'));
 
 export default function ResetPage() {
-  useEffect(() => {
-    const id = 'requestIdleCallback' in window
-      ? requestIdleCallback(() => preloadAppCore())
-      : setTimeout(() => preloadAppCore(), 200);
-    return () => {
-      if ('requestIdleCallback' in window) cancelIdleCallback(id as number);
-      else clearTimeout(id as ReturnType<typeof setTimeout>);
-    };
+  useLayoutEffect(() => {
+    preloadAppCore();
   }, []);
 
   return (
     <div className={styles.container}>
       <div className={styles.wrapper}>
-        <ResetForm />
+        <Suspense fallback={null}>
+          <ResetForm />
+        </Suspense>
       </div>
     </div>
   );

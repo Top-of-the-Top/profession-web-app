@@ -1,8 +1,8 @@
 import { useState, useEffect, type ChangeEvent, useRef } from 'react';
-import { Button, Input, Label, Avatar, AvatarFallback, AvatarImage } from '../../../shared/ui';
+import { Button, Input, Label, Avatar, AvatarFallback, AvatarImage } from '@shared/ui';
 import { X, Camera } from 'lucide-react';
 import styles from './ChangeName.module.css';
-import { cn } from '../../../shared/lib/utils';
+import { cn } from '@shared/lib/utils';
 
 interface ChangeNameProps {
   isVisible: boolean;

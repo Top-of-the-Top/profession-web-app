@@ -1,4 +1,4 @@
-import type { LessonDetail } from '../../../shared/api/courseApi';
+import type { LessonDetail } from '@shared/api/courseApi';
 
 /**
  * Включить мок-режим: true — используем MOCK_LESSON ниже, false — реальный API.

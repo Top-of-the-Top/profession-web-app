@@ -1,7 +1,8 @@
-import { authApi } from '../../../shared/api/authApi';
-import { AuthTokensSchema } from '../../../schemas/auth/auth.schema';
-import { RecoverPhoneTokenSchema } from '../../../schemas/auth/recoverPhone.schema';
-import type { Tokens } from '../../../shared/lib/auth/tokenService';
+import { authApi } from '@shared/api/authApi';
+import { AuthTokensSchema, type AuthTokens } from '@schemas/auth/auth.schema';
+import { RecoverPhoneTokenSchema } from '@schemas/auth/recoverPhone.schema';
+import type { LoginPayload } from '@entities/user/model/userStore';
+import type { UserRole } from '@shared/lib/rbac/roles';
 
 export const verifyRecoverPhoneCode = async (data: {
   phone_number: string;
@@ -11,29 +12,32 @@ export const verifyRecoverPhoneCode = async (data: {
   return RecoverPhoneTokenSchema.parse(raw);
 };
 
-function toTokens(parsed: ReturnType<typeof AuthTokensSchema.parse>): Tokens {
+function toLoginPayload(parsed: AuthTokens): LoginPayload {
   return {
-    access_token: parsed.access_token,
-    refresh_token: parsed.refresh_token,
-    access_expires_at: parsed.access_expires_at,
-    refresh_expires_at: parsed.refresh_expires_at,
+    tokens: {
+      access_token: parsed.access_token,
+      refresh_token: parsed.refresh_token,
+      access_expires_at: parsed.access_expires_at,
+      refresh_expires_at: parsed.refresh_expires_at,
+    },
+    role: parsed.role as UserRole | undefined,
   };
 }
 
 export const recoverEmailPassword = async (data: {
   password_hash: string;
   token: string;
-}): Promise<Tokens> => {
+}): Promise<LoginPayload> => {
   const raw = await authApi.recoverEmail(data);
   const parsed = AuthTokensSchema.parse(raw);
-  return toTokens(parsed);
+  return toLoginPayload(parsed);
 };
 
 export const recoverSetPassword = async (data: {
   password_hash: string;
   token: string;
-}): Promise<Tokens> => {
+}): Promise<LoginPayload> => {
   const raw = await authApi.recoverSet(data);
   const parsed = AuthTokensSchema.parse(raw);
-  return toTokens(parsed);
+  return toLoginPayload(parsed);
 };

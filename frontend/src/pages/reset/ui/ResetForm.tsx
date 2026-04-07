@@ -1,26 +1,26 @@
-import { Button } from '../../../shared/ui';
+import { Button } from '@shared/ui';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../../../shared/ui';
+} from '@shared/ui';
 import { useState } from 'react';
-import { Field, FieldGroup, FieldLabel, Input } from '../../../shared/ui';
+import { Field, FieldGroup, FieldLabel, Input } from '@shared/ui';
 import { ArrowLeft } from 'lucide-react';
 import styles from './ResetPage.module.css';
 import { Link, useNavigate } from 'react-router-dom';
 import { resetUser } from '../api';
-import { validateEmailOrPhone } from '../../../shared/utils/validation';
+import { validateEmailOrPhone } from '@shared/utils/validation';
 import { ZodError } from 'zod';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
   notifyError,
   notifySuccess,
-} from '../../../shared/lib/sileo/notify';
-import { verifyRecoverPhoneCode } from '../../recover/api';
+} from '@shared/lib/sileo/notify';
+import { verifyRecoverPhoneCode } from '@pages/recover/api';
 
 function notifyResetFailure(err: unknown) {
   const parsed = parseApiError(err);

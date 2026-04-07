@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { internalLandingApi } from '../../../pages/landing/api';
+import { internalLandingApi } from '@pages/landing/api';
 
 export const landingKeys = {
   courses: ['landing', 'courses'] as const,

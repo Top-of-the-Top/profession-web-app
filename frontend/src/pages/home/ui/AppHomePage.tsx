@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Button, PageTransition, Skeleton } from '../../../shared/ui';
-import type { PurchasedCourseItem } from '../../../shared/api/courseApi';
-import { useCoursesForHome } from '../../../shared/api/queries/courses';
+import { Button, PageTransition, Skeleton } from '@shared/ui';
+import type { PurchasedCourseItem } from '@shared/api/courseApi';
+import { useCoursesForHome } from '@shared/api/queries/courses';
 import styles from './AppHomePage.module.css';
 
 const PLACEHOLDER_IMG =

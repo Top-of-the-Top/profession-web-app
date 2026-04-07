@@ -1,23 +1,20 @@
-import { useEffect } from 'react';
-import LoginForm from './LoginForm';
+import { lazy, Suspense, useLayoutEffect } from 'react';
 import styles from './LoginPage.module.css';
-import { preloadAppCore } from '../../../router/lazyPages';
+import { preloadAppCore } from '@router/lazyPages';
+
+const LoginForm = lazy(() => import('./LoginForm'));
 
 export default function LoginPage() {
-  useEffect(() => {
-    const id = 'requestIdleCallback' in window
-      ? requestIdleCallback(() => preloadAppCore())
-      : setTimeout(() => preloadAppCore(), 200);
-    return () => {
-      if ('requestIdleCallback' in window) cancelIdleCallback(id as number);
-      else clearTimeout(id as ReturnType<typeof setTimeout>);
-    };
+  useLayoutEffect(() => {
+    preloadAppCore();
   }, []);
 
   return (
     <div className={styles.container}>
       <div className={styles.wrapper}>
-        <LoginForm />
+        <Suspense fallback={null}>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );

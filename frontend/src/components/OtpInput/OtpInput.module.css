@@ -1,0 +1,38 @@
+.row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.cell {
+  width: 44px;
+  min-width: 0;
+  flex: 1;
+  max-width: 52px;
+  height: 52px;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  padding: 0;
+}
+
+.cell:focus {
+  border-color: #191970;
+  box-shadow: 0 0 0 2px rgba(25, 25, 112, 0.18);
+}
+
+.cell:disabled {
+  opacity: 0.6;
+  background: #f9fafb;
+}

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { sileo, type SileoPosition } from 'sileo';
-import { Button } from '../../../shared/ui';
-import { useSileoHost } from '../../../shared/lib/sileo/SileoHost';
+import { Button } from '@shared/ui';
+import { useSileoHost } from '@shared/lib/sileo/SileoHost';
 import styles from './ToastPlaygroundPage.module.css';
 
 const POSITIONS: SileoPosition[] = [

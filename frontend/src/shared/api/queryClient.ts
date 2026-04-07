@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { authEvents } from '../events/authEvents';
+import { authEvents } from '@shared/events/authEvents';
 
 function isAuthError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : '';

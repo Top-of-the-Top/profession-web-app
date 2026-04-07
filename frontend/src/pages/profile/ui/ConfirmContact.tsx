@@ -1,8 +1,8 @@
 import { useState, useEffect, type ChangeEvent } from 'react';
-import { Button, Input, Label } from '../../../shared/ui';
+import { Button, Input, Label } from '@shared/ui';
 import { X, AlertCircle } from 'lucide-react';
 import styles from './ConfirmContact.module.css';
-import { cn } from '../../../shared/lib/utils';
+import { cn } from '@shared/lib/utils';
 
 type FormStep = 'input' | 'code';
 

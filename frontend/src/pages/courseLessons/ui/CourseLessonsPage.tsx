@@ -11,9 +11,9 @@ import {
   PageTransition,
   Spinner,
 	Separator
-} from '../../../shared/ui';
-import type { Lesson } from '../../../shared/api/courseApi';
-import { useCourseBySlug, useLessons } from '../../../shared/api/queries/courses';
+} from '@shared/ui';
+import type { Lesson } from '@shared/api/courseApi';
+import { useCourseBySlug, useLessons } from '@shared/api/queries/courses';
 import styles from './CourseLessonsPage.module.css';
 import {
   USE_MOCK,

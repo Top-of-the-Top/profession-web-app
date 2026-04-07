@@ -1,4 +1,4 @@
-import { apiClient } from '../../../shared/api/interceptor';
+import { apiClient } from '@shared/api/interceptor';
 import type { LessonLayoutDTO } from '../model/types';
 
 export interface SaveLessonLayoutParams {

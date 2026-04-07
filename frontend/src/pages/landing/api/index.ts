@@ -1,6 +1,6 @@
-import { landingApi } from '../../../shared/api/landingApi';
-import { type ApiLandingResponse } from '../../../shared/api/types';
-import { type Track } from '../../../schemas/types'
+import { landingApi } from '@shared/api/landingApi';
+import { type ApiLandingResponse } from '@shared/api/types';
+import { type Track } from '@schemas/types'
 
 const TRACKS_COLOR_SCHEMES: Omit<Track, 'id' | 'title' | 'price' | 'image'>[] =
   [

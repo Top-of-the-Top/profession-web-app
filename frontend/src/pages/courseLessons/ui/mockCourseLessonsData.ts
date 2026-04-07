@@ -1,4 +1,4 @@
-import type { Course, Lesson } from '../../../shared/api/courseApi';
+import type { Course, Lesson } from '@shared/api/courseApi';
 
 /**
  * Включить мок-режим: true — не ходим в API за списком уроков.

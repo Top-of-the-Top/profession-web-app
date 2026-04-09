@@ -122,7 +122,7 @@ class LessonSerializer(serializers.ModelSerializer):
 
 class HomeworkItemSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=['question', 'task'])
-    id = serializers.UUIDField(read_only=True)
+    id = serializers.UUIDField(required=False, allow_null=True)
     number = serializers.IntegerField(read_only=True)
     text = serializers.CharField(max_length=200)
     answer_options = serializers.ListField(
@@ -137,13 +137,14 @@ class HomeworkItemSerializer(serializers.Serializer):
 
 class HomeworkSerializer(serializers.ModelSerializer):
     items = serializers.SerializerMethodField()
+    lesson_id = serializers.UUIDField(source='lesson.lesson_id', read_only=True)
 
     class Meta:
         model = Homework
         fields = [
             'homework_id',
             'homework_number',
-            'lesson',
+            'lesson_id',
             'title',
             'slug',
             'deadline',
@@ -194,14 +195,14 @@ class HomeworkSerializer(serializers.ModelSerializer):
 
 
 class HomeworkCreateSerializer(serializers.Serializer):
-    lesson = serializers.UUIDField()
+    lesson_id = serializers.UUIDField()
     title = serializers.CharField(max_length=120)
     deadline = serializers.DateTimeField()
-    items = HomeworkItemSerializer(many=True)
+    items = HomeworkItemSerializer(many=True, required=False, default=list)
 
     def create(self, validated_data):
-        items_data = validated_data.pop('items')
-        lesson_id = validated_data.pop('lesson')
+        items_data = validated_data.pop('items', [])
+        lesson_id = validated_data.pop('lesson_id')
 
         homework = Homework.objects.create(
             lesson_id=lesson_id,
@@ -209,7 +210,7 @@ class HomeworkCreateSerializer(serializers.Serializer):
         )
 
         for item in items_data:
-            item_type = item.pop('type')
+            item_type = item.get('type')
             if item_type == 'question':
                 Question.objects.create(
                     homework=homework,
@@ -234,23 +235,58 @@ class HomeworkCreateSerializer(serializers.Serializer):
         instance.save()
 
         if items_data is not None:
-            instance.question_set.all().delete()
-            instance.task_set.all().delete()
+            existing_question_ids = set(
+                instance.question_set.values_list('question_id', flat=True)
+            )
+            existing_task_ids = set(
+                instance.task_set.values_list('task_id', flat=True)
+            )
+
+            received_question_ids = set()
+            received_task_ids = set()
 
             for item in items_data:
-                item_type = item.pop('type')
+                item_type = item.get('type')
+                item_id = item.get('id')
+
                 if item_type == 'question':
-                    Question.objects.create(
-                        homework=instance,
-                        text=item['text'],
-                        answer_options=item.get('answer_options', []),
-                        correct_ans=item.get('correct_ans', ''),
-                    )
+                    if item_id and item_id in existing_question_ids:
+                        Question.objects.filter(question_id=item_id).update(
+                            text=item['text'],
+                            answer_options=item.get('answer_options', []),
+                            correct_ans=item.get('correct_ans', ''),
+                        )
+                        received_question_ids.add(item_id)
+                    else:
+                        new_question = Question.objects.create(
+                            homework=instance,
+                            text=item['text'],
+                            answer_options=item.get('answer_options', []),
+                            correct_ans=item.get('correct_ans', ''),
+                        )
+                        received_question_ids.add(new_question.question_id)
+
                 elif item_type == 'task':
-                    Task.objects.create(
-                        homework=instance,
-                        text=item['text'],
-                        max_points=item.get('max_points', 0),
-                    )
+                    if item_id and item_id in existing_task_ids:
+                        Task.objects.filter(task_id=item_id).update(
+                            text=item['text'],
+                            max_points=item.get('max_points', 0),
+                        )
+                        received_task_ids.add(item_id)
+                    else:
+                        new_task = Task.objects.create(
+                            homework=instance,
+                            text=item['text'],
+                            max_points=item.get('max_points', 0),
+                        )
+                        received_task_ids.add(new_task.task_id)
+
+            questions_to_delete = existing_question_ids - received_question_ids
+            tasks_to_delete = existing_task_ids - received_task_ids
+
+            if questions_to_delete:
+                Question.objects.filter(question_id__in=questions_to_delete).delete()
+            if tasks_to_delete:
+                Task.objects.filter(task_id__in=tasks_to_delete).delete()
 
         return instance

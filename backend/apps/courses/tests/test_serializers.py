@@ -452,7 +452,7 @@ class HomeworkCreateSerializerIntegrationTest(BaseTestCase):
     def test_create_homework_with_items(self):
         deadline = timezone.now() + timedelta(days=14)
         data = {
-            'lesson': str(self.lesson.lesson_id),
+            'lesson_id': str(self.lesson.lesson_id),
             'title': 'New Homework',
             'deadline': deadline.isoformat(),
             'items': [
@@ -472,7 +472,7 @@ class HomeworkCreateSerializerIntegrationTest(BaseTestCase):
     def test_create_homework_without_items(self):
         deadline = timezone.now() + timedelta(days=14)
         data = {
-            'lesson': str(self.lesson.lesson_id),
+            'lesson_id': str(self.lesson.lesson_id),
             'title': 'Homework without items',
             'deadline': deadline.isoformat(),
         }
@@ -485,15 +485,15 @@ class HomeworkCreateSerializerIntegrationTest(BaseTestCase):
         self.assertEqual(Task.objects.filter(homework=homework).count(), 0)
         self.assertEqual(Question.objects.filter(homework=homework).count(), 0)
 
-    def test_update_homework_replaces_items(self):
+    def test_update_homework_with_id_updates_existing(self):
         homework = create_test_homework(self.lesson, title='Original HW')
-        Task.objects.create(homework=homework, text='Old Task', max_points=10)
+        old_task = Task.objects.create(homework=homework, text='Old Task', max_points=10)
 
         data = {
             'title': 'Updated Homework',
             'items': [
-                {'type': 'task', 'text': 'New Task 1', 'max_points': 15},
-                {'type': 'task', 'text': 'New Task 2', 'max_points': 20}
+                {'type': 'task', 'id': str(old_task.task_id), 'text': 'Updated Task', 'max_points': 15},
+                {'type': 'task', 'text': 'New Task', 'max_points': 20}
             ]
         }
 
@@ -503,7 +503,27 @@ class HomeworkCreateSerializerIntegrationTest(BaseTestCase):
         updated = serializer.save()
         self.assertEqual(updated.title, 'Updated Homework')
         self.assertEqual(Task.objects.filter(homework=homework).count(), 2)
-        self.assertFalse(Task.objects.filter(homework=homework, text='Old Task').exists())
+        self.assertTrue(Task.objects.filter(homework=homework, task_id=old_task.task_id, text='Updated Task').exists())
+        self.assertTrue(Task.objects.filter(homework=homework, text='New Task').exists())
+
+    def test_update_homework_removes_missing_items(self):
+        homework = create_test_homework(self.lesson, title='Original HW')
+        task1 = Task.objects.create(homework=homework, text='Task 1', max_points=10)
+        task2 = Task.objects.create(homework=homework, text='Task 2', max_points=20)
+
+        data = {
+            'items': [
+                {'type': 'task', 'id': str(task1.task_id), 'text': 'Task 1 Updated', 'max_points': 15}
+            ]
+        }
+
+        serializer = HomeworkCreateSerializer(homework, data=data, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        updated = serializer.save()
+        self.assertEqual(Task.objects.filter(homework=homework).count(), 1)
+        self.assertTrue(Task.objects.filter(task_id=task1.task_id).exists())
+        self.assertFalse(Task.objects.filter(task_id=task2.task_id).exists())
 
     def test_update_homework_without_items_keeps_existing(self):
         homework = create_test_homework(self.lesson, title='Original HW')
@@ -522,7 +542,7 @@ class HomeworkCreateSerializerIntegrationTest(BaseTestCase):
     def test_create_homework_with_task_only(self):
         deadline = timezone.now() + timedelta(days=14)
         data = {
-            'lesson': str(self.lesson.lesson_id),
+            'lesson_id': str(self.lesson.lesson_id),
             'title': 'Task Only Homework',
             'deadline': deadline.isoformat(),
             'items': [
@@ -541,7 +561,7 @@ class HomeworkCreateSerializerIntegrationTest(BaseTestCase):
     def test_create_homework_with_question_only(self):
         deadline = timezone.now() + timedelta(days=14)
         data = {
-            'lesson': str(self.lesson.lesson_id),
+            'lesson_id': str(self.lesson.lesson_id),
             'title': 'Question Only Homework',
             'deadline': deadline.isoformat(),
             'items': [

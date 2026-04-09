@@ -317,7 +317,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
     def test_homework_create_with_items(self):
         self.authenticate_user(self.teacher)
         data = {
-            'lesson': str(self.lesson.lesson_id),
+            'lesson_id': str(self.lesson.lesson_id),
             'title': 'New Homework',
             'deadline': (timezone.now() + timedelta(days=14)).isoformat(),
             'items': [
@@ -339,15 +339,15 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(Task.objects.filter(homework=new_homework).count(), 1)
         self.assertEqual(Question.objects.filter(homework=new_homework).count(), 1)
 
-    def test_homework_update_with_items(self):
-        Task.objects.create(homework=self.homework, text='Old Task', max_points=10)
+    def test_homework_update_with_items_by_id(self):
+        old_task = Task.objects.create(homework=self.homework, text='Old Task', max_points=10)
 
         self.authenticate_user(self.teacher)
         update_data = {
             'title': 'Updated Homework',
             'items': [
-                {'type': 'task', 'text': 'New Task 1', 'max_points': 15},
-                {'type': 'task', 'text': 'New Task 2', 'max_points': 20}
+                {'type': 'task', 'id': str(old_task.task_id), 'text': 'Updated Old Task', 'max_points': 15},
+                {'type': 'task', 'text': 'New Task', 'max_points': 20}
             ]
         }
         response = self.client.patch(
@@ -362,7 +362,30 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.homework.refresh_from_db()
         self.assertEqual(self.homework.title, 'Updated Homework')
         self.assertEqual(Task.objects.filter(homework=self.homework).count(), 2)
-        self.assertFalse(Task.objects.filter(homework=self.homework, text='Old Task').exists())
+        self.assertTrue(Task.objects.filter(homework=self.homework, task_id=old_task.task_id, text='Updated Old Task').exists())
+        self.assertTrue(Task.objects.filter(homework=self.homework, text='New Task').exists())
+
+    def test_homework_update_removes_missing_items(self):
+        task1 = Task.objects.create(homework=self.homework, text='Task 1', max_points=10)
+        task2 = Task.objects.create(homework=self.homework, text='Task 2', max_points=20)
+
+        self.authenticate_user(self.teacher)
+        update_data = {
+            'items': [
+                {'type': 'task', 'id': str(task1.task_id), 'text': 'Task 1 Updated', 'max_points': 15}
+            ]
+        }
+        response = self.client.patch(
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/',
+            update_data,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['items']), 1)
+
+        self.assertEqual(Task.objects.filter(homework=self.homework).count(), 1)
+        self.assertTrue(Task.objects.filter(task_id=task1.task_id).exists())
+        self.assertFalse(Task.objects.filter(task_id=task2.task_id).exists())
 
     def test_homework_delete(self):
         new_homework = create_test_homework(self.lesson, title='Homework to Delete')

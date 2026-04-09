@@ -33,16 +33,4 @@ router.register(
     basename='lesson-homeworks'
 )
 
-router.register(
-    r'courses/(?P<course_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks/(?P<homework_slug>[^/.]+)/questions',
-    views.QuestionViewSet,
-    basename='homework-questions'
-)
-
-router.register(
-    r'courses/(?P<course_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks/(?P<homework_slug>[^/.]+)/tasks',
-    views.TaskViewSet,
-    basename='homework-tasks'
-)
-
 urlpatterns += router.urls

@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { type NotificationState, type Notification } from '../types';
 
-export const useNotificationStore = create<NotificationState>((set, _) => ({ // TODO: добавить GET
-  notifications: new Array(),
+export const useNotificationStore = create<NotificationState>((set) => ({
+  notifications: [],
   status: 'idle',
   error: null,
 
@@ -10,8 +10,8 @@ export const useNotificationStore = create<NotificationState>((set, _) => ({ // 
   setError: (message) => set({ error: message }),
 
   setInitial: (notificationsArray: Notification[]) => {
-		set({notifications: notificationsArray})
-	},	
+    set({ notifications: notificationsArray });
+  },
 
   addNotification: (newNotification: Notification) => {
     set((state) => ({
@@ -19,13 +19,13 @@ export const useNotificationStore = create<NotificationState>((set, _) => ({ // 
     }));
   },
 
-	removeNotification: (notificationId: Number) => {
-		set((state) => ({
-			notifications: [...state.notifications.filter((n) => { n.id !== notificationId})]
-		}))
-	},
+  removeNotification: (notificationId: number) => {
+    set((state) => ({
+      notifications: state.notifications.filter((n) => n.id !== notificationId),
+    }));
+  },
 
   clear: () => {
-    set({ notifications: new Array(), error: null, status: 'idle' });
+    set({ notifications: [], error: null, status: 'idle' });
   },
 }));

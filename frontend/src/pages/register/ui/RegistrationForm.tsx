@@ -23,6 +23,12 @@ import { messageForApiFailure, notifyError, notifySuccess } from '@shared/lib/si
 import { validateEmailOrPhone } from '@shared/utils/validation';
 import { OtpInput, EMPTY_OTP, type OtpValue } from '@components/OtpInput';
 import { preloadLoginRoute } from '@router/lazyPages';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  registerCredentialsSchema,
+  type RegisterCredentialsFormValues,
+} from '@shared/utils/formSchemas';
 
 function notifyRegisterFailure(err: unknown) {
   if (
@@ -91,6 +97,14 @@ export default function RegistrationForm({
   const [searchParams] = useSearchParams();
   const verifyInFlightRef = useRef(false);
   const verifySucceededRef = useRef(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterCredentialsFormValues>({
+    resolver: zodResolver(registerCredentialsSchema),
+    defaultValues: { emailOrPhone: '', password: '', repeatPassword: '' },
+  });
 
   useLayoutEffect(() => {
     if (!import.meta.env.DEV || searchParams.get('debug') !== 'code') return;
@@ -153,37 +167,13 @@ export default function RegistrationForm({
     void submitVerificationCode(code);
   }, [otp, step, loading, submitVerificationCode]);
 
-  const handleCredentialsSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCredentialsSubmit = async ({
+    emailOrPhone,
+    password,
+  }: RegisterCredentialsFormValues) => {
     setLoading(true);
 
-    const form = e.currentTarget as HTMLFormElement;
-    const emailOrPhone = (form.elements.namedItem('email') as HTMLInputElement)
-      .value;
-    const password = (form.elements.namedItem('password') as HTMLInputElement)
-      .value;
-    const repeatPassword = (
-      form.elements.namedItem('repeatPassword') as HTMLInputElement
-    ).value;
-
-    if (password !== repeatPassword) {
-      notifyError({
-        title: 'пароли не совпадают',
-        description: 'Введите одинаковый пароль в оба поля.',
-      });
-      setLoading(false);
-      return;
-    }
-
     const validation = validateEmailOrPhone(emailOrPhone);
-    if (!validation.isValid) {
-      notifyError({
-        title: 'проверьте контакт',
-        description: 'Введите корректный email или номер телефона.',
-      });
-      setLoading(false);
-      return;
-    }
 
     try {
       const res = await requestRegisterCode({ emailOrPhone, password });
@@ -247,7 +237,7 @@ export default function RegistrationForm({
           </CardHeader>
           <CardContent className={styles.cardContent}>
             {step === 'credentials' ? (
-              <form onSubmit={handleCredentialsSubmit}>
+              <form onSubmit={handleSubmit(handleCredentialsSubmit)}>
                 <FieldGroup className={styles.fieldGroup}>
                   <Field className={styles.field}>
                     <FieldLabel htmlFor="email">
@@ -258,10 +248,13 @@ export default function RegistrationForm({
                       type="text"
                       autoComplete="email"
                       placeholder="Почта/телефон"
-                      required
                       className={styles.input}
                       disabled={loading}
+                      {...register('emailOrPhone')}
                     />
+                    {errors.emailOrPhone?.message ? (
+                      <CardDescription>{errors.emailOrPhone.message}</CardDescription>
+                    ) : null}
                   </Field>
 
                   <Field className={styles.field}>
@@ -273,13 +266,16 @@ export default function RegistrationForm({
                       type="password"
                       autoComplete="new-password"
                       placeholder="Пароль"
-                      required
                       className={styles.input}
                       disabled={loading}
+                      {...register('password')}
                     />
                     <CardDescription>
                       Не меньше 8 символов
                     </CardDescription>
+                    {errors.password?.message ? (
+                      <CardDescription>{errors.password.message}</CardDescription>
+                    ) : null}
                   </Field>
 
                   <Field className={styles.field}>
@@ -293,10 +289,13 @@ export default function RegistrationForm({
                       type="password"
                       placeholder="Пароль"
                       autoComplete="new-password"
-                      required
                       className={styles.input}
                       disabled={loading}
+                      {...register('repeatPassword')}
                     />
+                    {errors.repeatPassword?.message ? (
+                      <CardDescription>{errors.repeatPassword.message}</CardDescription>
+                    ) : null}
                   </Field>
 
                   <Field>

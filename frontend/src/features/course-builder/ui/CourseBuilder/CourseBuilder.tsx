@@ -463,7 +463,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                       const homeworkData = homeworkToJSON();
                       const hw = homeworkData.questions.length > 0 ? homeworkData : null;
                       const page = serializeCoursePage(lessonData, hw);
-                      // eslint-disable-next-line no-console
+                       
                       console.log('CoursePageDTO (draft):', JSON.stringify(page));
                     }}
                   >

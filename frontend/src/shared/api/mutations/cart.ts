@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { cartApi, type CartResponse } from '../cartApi';
 import { cartKeys } from '../queries/cart';
 import { courseKeys } from '../queries/courses';
-import type { CourseApiAnswer, CourseBySlugAnswer, CourseDTO } from '../courseApi';
+import type { Course, CourseApiAnswer, CourseDTO } from '../courseApi';
 
 export function useAddToCart() {
   const qc = useQueryClient();
@@ -19,7 +19,7 @@ export function useAddToCart() {
         }
 
         const storeCourses = qc.getQueryData<CourseApiAnswer>(courseKeys.store())?.data ?? [];
-        const courseBySlug = qc.getQueryData<CourseBySlugAnswer>(courseKeys.bySlug(slug))?.course;
+        const courseBySlug = qc.getQueryData<Course>(courseKeys.bySlug(slug));
         const candidate: CourseDTO | undefined =
           storeCourses.find((course) => course.slug === slug) ?? courseBySlug;
 

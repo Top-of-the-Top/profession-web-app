@@ -3,6 +3,8 @@ import type { ComponentProps } from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import { Button } from "../Button";
 
+type AlertDialogButtonProps = ComponentProps<typeof Button>;
+
 function AlertDialog({
   ...props
 }: ComponentProps<typeof AlertDialogPrimitive.Root>) {
@@ -109,7 +111,7 @@ function AlertDialogAction({
 }: ComponentProps<typeof AlertDialogPrimitive.Action>) {
   return (
     <AlertDialogPrimitive.Action asChild>
-      <Button {...(props as any)} />
+      <Button {...(props as AlertDialogButtonProps)} />
     </AlertDialogPrimitive.Action>
   );
 }
@@ -119,7 +121,7 @@ function AlertDialogCancel({
 }: ComponentProps<typeof AlertDialogPrimitive.Cancel>) {
   return (
     <AlertDialogPrimitive.Cancel asChild>
-      <Button variant="outline" {...(props as any)} />
+      <Button variant="outline" {...(props as AlertDialogButtonProps)} />
     </AlertDialogPrimitive.Cancel>
   );
 }

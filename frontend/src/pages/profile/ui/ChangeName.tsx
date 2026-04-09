@@ -3,6 +3,12 @@ import { Button, Input, Label, Avatar, AvatarFallback, AvatarImage } from '@shar
 import { X, Camera } from 'lucide-react';
 import styles from './ChangeName.module.css';
 import { cn } from '@shared/lib/utils';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  changeNameSchema,
+  type ChangeNameFormValues,
+} from '@shared/utils/formSchemas';
 
 interface ChangeNameProps {
   isVisible: boolean;
@@ -25,21 +31,27 @@ export default function ChangeName({
   currentLastName = '',
   currentAvatar = null
 }: ChangeNameProps) {
-  const [firstName, setFirstName] = useState<string>(currentFirstName);
-  const [lastName, setLastName] = useState<string>(currentLastName);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(currentAvatar);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ChangeNameFormValues>({
+    resolver: zodResolver(changeNameSchema),
+    defaultValues: { firstName: currentFirstName, lastName: currentLastName },
+  });
 
   useEffect(() => {
     if (isVisible) {
-      setFirstName(currentFirstName);
-      setLastName(currentLastName);
+      reset({ firstName: currentFirstName, lastName: currentLastName });
       if (!avatarFile) {
         setAvatarPreview(currentAvatar);
       }
     }
-  }, [isVisible, currentFirstName, currentLastName, currentAvatar]);
+  }, [isVisible, currentFirstName, currentLastName, currentAvatar, reset, avatarFile]);
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -58,7 +70,7 @@ export default function ChangeName({
     fileInputRef.current?.click();
   };
 
-  const handleSave = (): void => {
+  const handleSave = ({ firstName, lastName }: ChangeNameFormValues): void => {
     onSave?.({
       firstName,
       lastName,
@@ -67,8 +79,7 @@ export default function ChangeName({
   };
 
   const handleClose = () => {
-    setFirstName(currentFirstName);
-    setLastName(currentLastName);
+    reset({ firstName: currentFirstName, lastName: currentLastName });
     setAvatarFile(null);
     setAvatarPreview(currentAvatar);
     if (fileInputRef.current) {
@@ -101,7 +112,7 @@ export default function ChangeName({
               className={styles.avatarImage}
             />
             <AvatarFallback className={styles.avatarFallback}>
-              {firstName?.[0] || lastName?.[0] || 'U'}
+              {currentFirstName?.[0] || currentLastName?.[0] || 'U'}
             </AvatarFallback>
           </Avatar>
         </div>
@@ -125,18 +136,20 @@ export default function ChangeName({
         </Button>
       </div>
 
-      <div className={styles.form}>
+      <form className={styles.form} onSubmit={handleSubmit(handleSave)}>
         <div className={styles.formGroup}>
           <Label htmlFor="firstName" className={styles.label}>
             Имя
           </Label>
           <Input
             id="firstName"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
             className={styles.input}
             placeholder="Введите имя"
+            {...register('firstName')}
           />
+          {errors.firstName?.message ? (
+            <p className={styles.errorText}>{errors.firstName.message}</p>
+          ) : null}
         </div>
 
         <div className={styles.formGroup}>
@@ -145,21 +158,22 @@ export default function ChangeName({
           </Label>
           <Input
             id="lastName"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
             className={styles.input}
             placeholder="Введите фамилию"
+            {...register('lastName')}
           />
+          {errors.lastName?.message ? (
+            <p className={styles.errorText}>{errors.lastName.message}</p>
+          ) : null}
         </div>
-      </div>
+        <Button 
+          className={styles.saveButton}
+          type="submit"
+        >
+          Сохранить
+        </Button>
+      </form>
 
-      <Button 
-        className={styles.saveButton}
-        onClick={handleSave}
-        type="button"
-      >
-        Сохранить
-      </Button>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 .page {
   width: 100%;
   min-height: 100%;
-  padding: 40px 48px 56px;
-  background-color: #f0f2f5;
+  padding: 54px;
+  background-color: #e2e8f0;
   box-sizing: border-box;
 }
 
@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 8px 32px;
+  margin: 0 0 32px 40px;
   gap: 16px;
 }
 
@@ -24,14 +24,14 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 38px;
-  margin: 0 8px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 44px;
+  margin: 0 40px;
 }
 
 .card {
   background: #fff;
-  border-radius: 14px;
+  border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   border: 1px solid rgba(0, 0, 0, 0.04);
@@ -137,7 +137,7 @@
 }
 
 .errorBox {
-  margin: 0 8px;
+  margin: 0 40px;
   padding: 24px;
   background: #fff;
   border-radius: 14px;
@@ -151,7 +151,7 @@
 }
 
 .emptyState {
-  margin: 48px 8px;
+  margin: 48px 40px;
   padding: 40px;
   text-align: center;
   background: #fff;
@@ -184,7 +184,7 @@
 
 @media (max-width: 640px) {
   .page {
-    padding: 24px 20px 40px;
+    padding: 16px;
   }
 
   .headerRow {
@@ -194,5 +194,11 @@
   .grid {
     margin: 0;
     gap: 20px;
+  }
+
+  .errorBox,
+  .emptyState {
+    margin-left: 0;
+    margin-right: 0;
   }
 }

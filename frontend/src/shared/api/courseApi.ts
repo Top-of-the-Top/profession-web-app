@@ -1,4 +1,3 @@
-// shared/api/courseApi.ts
 import { apiClient } from './interceptor';
 
 export interface CourseDTO {
@@ -24,8 +23,72 @@ export interface CourseApiAnswer {
   data: CourseDTO[];
 }
 
+export type CourseContentType = 'published' | 'draft';
+
+export interface AppCourseLesson {
+  lesson_id: number | string;
+  lesson_number: string;
+  title: string;
+  slug: string;
+  type?: CourseContentType;
+}
+
+export interface AppCourseSection {
+  section_number: number;
+  section_id: number;
+  title: string;
+  lessons: AppCourseLesson[];
+  type?: CourseContentType;
+}
+
+export interface AppCourseMeta {
+  completed_sections_id: number[];
+  completed_lessons_id: number[];
+}
+
+export interface AppCourseContentResponse {
+  content: AppCourseSection[];
+  meta: AppCourseMeta;
+}
+
+export interface Lesson {
+  lesson_id: number;
+  course_id: number;
+  title: string;
+  slug: string;
+  date: string;
+  created_at: string;
+  updated_at: string;
+  last_modified_by: number | null;
+}
+
+export interface CourseLessonDetail {
+  lesson_id: number | string;
+  lesson_title: string;
+  content: string;
+  recording_url: string | null;
+  homework_id: number | string | null;
+  homework_deadline: string | null;
+  started_at: string | null;
+}
+
+export interface PurchasedCourseItem {
+  id: number;
+  course: CourseDTO;
+  payment: number;
+  access_expires_at: string | null;
+  is_active: boolean;
+}
+
+export type AppHomeCoursesSource = 'my-courses' | 'store' | 'landing';
+
+export const APP_HOME_COURSES_SOURCE = 'store' as AppHomeCoursesSource;
+
 type RawCoursesResponse = Course[] | CourseApiAnswer;
 type RawCourseBySlugResponse = Course | { course: Course };
+type RawAppCourseContentResponse =
+  | AppCourseContentResponse
+  | { content: AppCourseSection; meta?: Partial<AppCourseMeta> };
 
 function normalizeCoursesResponse(raw: RawCoursesResponse): CourseApiAnswer {
   if (Array.isArray(raw)) {
@@ -49,46 +112,24 @@ function normalizeCourseBySlugResponse(raw: RawCourseBySlugResponse): Course {
   return raw;
 }
 
-/** Урок: GET /api/courses/{course_slug}/lessons/ (поля по LessonSerializer) */
-export interface Lesson {
-  lesson_id: number;
-  course_id: number;
-  title: string;
-  slug: string;
-  date: string;
-  created_at: string;
-  updated_at: string;
-  last_modified_by: number | null;
+function normalizeAppCourseContentResponse(
+  raw: RawAppCourseContentResponse,
+): AppCourseContentResponse {
+  const content = Array.isArray(raw.content) ? raw.content : [raw.content];
+  const meta = raw.meta ?? {};
+
+  return {
+    content,
+    meta: {
+      completed_sections_id: Array.isArray(meta.completed_sections_id)
+        ? meta.completed_sections_id
+        : [],
+      completed_lessons_id: Array.isArray(meta.completed_lessons_id)
+        ? meta.completed_lessons_id
+        : [],
+    },
+  };
 }
-
-/** Детальная информация об уроке: GET /api/courses/{course_slug}/lessons/{slug}/ */
-export interface LessonDetail extends Lesson {
-  content: Record<string, unknown>;
-  has_homework: boolean;
-  homework_slug: string | null;
-  homework_deadline: string | null;
-  board_url: string | null;
-  webinar_url: string | null;
-}
-
-/** Элемент списка GET /api/app/my-courses/ */
-export interface PurchasedCourseItem {
-  id: number;
-  course: CourseDTO;
-  payment: number;
-  access_expires_at: string | null;
-  is_active: boolean;
-}
-
-/**
- * Временный источник списка на `/app/home`.
- * Вернуть `'my-courses'`, когда купленные курсы стабильно отдаются с бэка.
- */
-export type AppHomeCoursesSource = 'my-courses' | 'store' | 'landing';
-
-/** Значение по умолчанию — `store`; `as` держит тип объединения (для веток ниже). */
-export const APP_HOME_COURSES_SOURCE =
-  'store' as AppHomeCoursesSource;
 
 function catalogRowsToPurchasedShim(rows: CourseDTO[]): PurchasedCourseItem[] {
   return rows.map((course) => ({
@@ -101,20 +142,14 @@ function catalogRowsToPurchasedShim(rows: CourseDTO[]): PurchasedCourseItem[] {
 }
 
 export const courseApi = {
-  /**
-   * Получить список всех курсов
-   */
   getCourses(): Promise<CourseApiAnswer> {
     return apiClient
       .request<RawCoursesResponse>('/api/app/courses/', {
-      method: 'GET',
+        method: 'GET',
       })
       .then(normalizeCoursesResponse);
   },
 
-  /**
-   * Получить курс по slug
-   */
   getCourseBySlug(slug: string): Promise<Course> {
     return apiClient
       .request<RawCourseBySlugResponse>(`/api/app/courses/${slug}/`, {
@@ -123,19 +158,25 @@ export const courseApi = {
       .then(normalizeCourseBySlugResponse);
   },
 
-  /** Уроки курса (нужна авторизация) */
-  getLessons(courseSlug: string): Promise<Lesson[]> {
-    return apiClient.request<Lesson[]>(
-      `/api/courses/${courseSlug}/lessons/`,
-      {
+  getAppCourseContentBySlug(slug: string): Promise<AppCourseContentResponse> {
+    return apiClient
+      .request<RawAppCourseContentResponse>(`/api/app/courses/${slug}/`, {
         method: 'GET',
-      },
-    );
+      })
+      .then(normalizeAppCourseContentResponse);
   },
 
-  /** Детальная информация об уроке (нужна авторизация) */
-  getLessonBySlug(courseSlug: string, lessonSlug: string): Promise<LessonDetail> {
-    return apiClient.request<LessonDetail>(
+  getLessons(courseSlug: string): Promise<Lesson[]> {
+    return apiClient.request<Lesson[]>(`/api/courses/${courseSlug}/lessons/`, {
+      method: 'GET',
+    });
+  },
+
+  getLessonBySlug(
+    courseSlug: string,
+    lessonSlug: string,
+  ): Promise<CourseLessonDetail> {
+    return apiClient.request<CourseLessonDetail>(
       `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
       {
         method: 'GET',
@@ -143,17 +184,12 @@ export const courseApi = {
     );
   },
 
-  /** Купленные курсы текущего пользователя */
   getMyCourses(): Promise<PurchasedCourseItem[]> {
     return apiClient.request<PurchasedCourseItem[]>('/api/app/my-courses/', {
       method: 'GET',
     });
   },
 
-  /**
-   * Список для `/app/home` с учётом {@link APP_HOME_COURSES_SOURCE}.
-   * Для `store` / `landing` — тот же DTO, что в каталоге; «покупка» подставляется заглушкой.
-   */
   async getCoursesForAppHome(): Promise<PurchasedCourseItem[]> {
     if (APP_HOME_COURSES_SOURCE === 'my-courses') {
       return this.getMyCourses();

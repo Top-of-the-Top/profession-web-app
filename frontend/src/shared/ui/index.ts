@@ -121,3 +121,4 @@ export { Skeleton } from './Skeleton'
   DialogTrigger,
 } from './Dialog'
 
+	export { RootErrorFallback, ContentErrorFallback } from './ErrorFallback'

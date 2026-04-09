@@ -1,8 +1,17 @@
-import { useState, useEffect, type ChangeEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, Input, Label } from '@shared/ui';
 import { X, AlertCircle } from 'lucide-react';
 import styles from './ConfirmContact.module.css';
 import { cn } from '@shared/lib/utils';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  confirmContactCodeSchema,
+  confirmEmailContactSchema,
+  confirmPhoneContactSchema,
+  type ConfirmContactCodeFormValues,
+  type ConfirmContactInputFormValues,
+} from '@shared/utils/formSchemas';
 
 type FormStep = 'input' | 'code';
 
@@ -24,20 +33,43 @@ export default function ConfirmContact({
   onVerify,
 }: ConfirmContactProps) {
   const [step, setStep] = useState<FormStep>('input');
-  const [contact, setContact] = useState<string>('');
-  const [code, setCode] = useState<string>('');
-  const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const inputSchema =
+    type === 'email' ? confirmEmailContactSchema : confirmPhoneContactSchema;
+  const {
+    register: registerInput,
+    handleSubmit: handleInputSubmit,
+    reset: resetInput,
+    setError: setInputError,
+    clearErrors: clearInputErrors,
+    watch: watchInput,
+    formState: { errors: inputErrors },
+  } = useForm<ConfirmContactInputFormValues>({
+    resolver: zodResolver(inputSchema),
+    defaultValues: { contact: '' },
+  });
+  const {
+    register: registerCode,
+    handleSubmit: handleCodeSubmit,
+    reset: resetCode,
+    clearErrors: clearCodeErrors,
+    formState: { errors: codeErrors },
+  } = useForm<ConfirmContactCodeFormValues>({
+    resolver: zodResolver(confirmContactCodeSchema),
+    defaultValues: { code: '' },
+  });
+  const contactField = registerInput('contact');
+  const codeField = registerCode('code');
+  const contact = watchInput('contact');
 
   useEffect(() => {
     if (!isVisible) {
       setStep('input');
-      setContact('');
-      setCode('');
-      setError('');
+      resetInput({ contact: '' });
+      resetCode({ code: '' });
       setIsLoading(false);
     }
-  }, [isVisible]);
+  }, [isVisible, resetCode, resetInput]);
 
   const title =
     type === 'email' ? 'Подтверждение почты' : 'Подтверждение номера';
@@ -47,49 +79,28 @@ export default function ConfirmContact({
     code: `Введите 6 цифр из ${type === 'email' ? 'письма' : 'SMS'}`,
   };
 
-  const handleContinue = async (): Promise<void> => {
-    if (!contact.trim()) {
-      setError(`Введите ${type === 'email' ? 'почту' : 'номер телефона'}`);
-      return;
-    }
-
-    if (type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) {
-      setError('Введите корректный адрес почты');
-      return;
-    }
-
-    if (type === 'phone') {
-      const digits = contact.replace(/\D/g, '');
-      if (digits.length !== 10 && digits.length !== 11) {
-        setError('Введите корректный номер телефона');
-        return;
-      }
-    }
-
-    setError('');
+  const handleContinue = async ({
+    contact,
+  }: ConfirmContactInputFormValues): Promise<void> => {
     setIsLoading(true);
     try {
       await onRequestChange(type === 'email' ? contact.trim() : contact);
       setStep('code');
     } catch {
-      /* тосты об ошибке — в родителе */
+      setInputError('contact', { message: 'Не удалось отправить код подтверждения' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleConfirmCode = async (): Promise<void> => {
-    if (code.length !== 6) {
-      setError('Введите 6 цифр кода');
-      return;
-    }
-
-    setError('');
+  const handleConfirmCode = async ({
+    code,
+  }: ConfirmContactCodeFormValues): Promise<void> => {
     setIsLoading(true);
     try {
       await onVerify(code);
     } catch {
-      /* тосты — в родителе */
+      return;
     } finally {
       setIsLoading(false);
     }
@@ -97,36 +108,16 @@ export default function ConfirmContact({
 
   const handleClose = (): void => {
     setStep('input');
-    setContact('');
-    setCode('');
-    setError('');
+    resetInput({ contact: '' });
+    resetCode({ code: '' });
     setIsLoading(false);
     onClose?.();
   };
 
   const handleBack = (): void => {
     setStep('input');
-    setCode('');
-    setError('');
-  };
-
-  const handleContactChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const raw = e.target.value;
-
-    if (type === 'phone') {
-      const digits = raw.replace(/\D/g, '').slice(0, 11);
-      setContact(digits);
-      return;
-    }
-
-    setContact(raw);
-    if (error) setError('');
-  };
-
-  const handleCodeChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-    setCode(value);
-    if (error) setError('');
+    resetCode({ code: '' });
+    clearCodeErrors();
   };
 
   if (!isVisible) return null;
@@ -148,7 +139,7 @@ export default function ConfirmContact({
       <p className={styles.description}>{descriptions[step]}</p>
 
       {step === 'input' && (
-        <div className={styles.form}>
+        <form className={styles.form} onSubmit={handleInputSubmit(handleContinue)}>
           <div className={styles.formGroup}>
             <Label htmlFor="contact" className={styles.label}>
               {type === 'email' ? 'Адрес почты' : 'Номер телефона'}
@@ -160,34 +151,42 @@ export default function ConfirmContact({
               inputMode={type === 'email' ? 'email' : 'numeric'}
               pattern={type === 'email' ? undefined : '[0-9]*'}
               maxLength={type === 'email' ? undefined : 12}
-              onChange={handleContactChange}
-              className={cn(styles.input, error && styles.inputError)}
+              name={contactField.name}
+              ref={contactField.ref}
+              onBlur={contactField.onBlur}
+              onChange={(e) => {
+                if (type === 'phone') {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                }
+                contactField.onChange(e);
+                clearInputErrors('contact');
+              }}
+              className={cn(styles.input, inputErrors.contact && styles.inputError)}
               placeholder={
                 type === 'email' ? 'example@mail.ru' : '+7 (xxx) xxx-xx-xx'
               }
               disabled={isLoading}
             />
-            {error && (
+            {inputErrors.contact?.message && (
               <div className={styles.errorText}>
                 <AlertCircle className="h-4 w-4" />
-                {error}
+                {inputErrors.contact.message}
               </div>
             )}
           </div>
 
           <Button
             className={styles.saveButton}
-            onClick={() => void handleContinue()}
-            type="button"
+            type="submit"
             disabled={isLoading}
           >
             {isLoading ? 'Отправка...' : 'Продолжить'}
           </Button>
-        </div>
+        </form>
       )}
 
       {step === 'code' && (
-        <div className={styles.form}>
+        <form className={styles.form} onSubmit={handleCodeSubmit(handleConfirmCode)}>
           <div className={styles.formGroup}>
             <Label htmlFor="code" className={styles.label}>
               Введите код
@@ -197,17 +196,23 @@ export default function ConfirmContact({
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              value={code}
-              onChange={handleCodeChange}
-              className={cn(styles.input, error && styles.inputError)}
+              name={codeField.name}
+              ref={codeField.ref}
+              onBlur={codeField.onBlur}
+              onChange={(e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                codeField.onChange(e);
+                clearCodeErrors('code');
+              }}
+              className={cn(styles.input, codeErrors.code && styles.inputError)}
               placeholder="••••••"
               maxLength={6}
               disabled={isLoading}
             />
-            {error && (
+            {codeErrors.code?.message && (
               <div className={styles.errorText}>
                 <AlertCircle className="h-4 w-4" />
-                {error}
+                {codeErrors.code.message}
               </div>
             )}
           </div>
@@ -224,14 +229,13 @@ export default function ConfirmContact({
             </Button>
             <Button
               className={styles.saveButton}
-              onClick={() => void handleConfirmCode()}
-              type="button"
+              type="submit"
               disabled={isLoading}
             >
               {isLoading ? 'Проверка...' : 'Подтвердить'}
             </Button>
           </div>
-        </div>
+        </form>
       )}
     </div>
   );

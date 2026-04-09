@@ -17,7 +17,7 @@ import {
   FONT_SIZE_STEPS,
   DEFAULT_FONT_SIZE_INDEX,
 } from '../../../features/course-builder/lib/constants';
-import { parseLessonLayout } from '../../../features/course-builder/model/types';
+import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
 import { useCourseBySlug, useLessonBySlug } from '@shared/api/queries/courses';
 import { USE_MOCK, MOCK_LESSON, MOCK_COURSE_TITLE } from './mockLessonData';
 import styles from './LessonViewPage.module.css';
@@ -109,9 +109,9 @@ const LessonContent: React.FC<{ layout: LessonLayout }> = ({ layout }) => {
 const HomeworkWidget: React.FC<{
   courseSlug: string;
   lessonSlug: string;
-  homeworkSlug: string | null;
+  homeworkId: number | string | null;
   deadline: string | null;
-}> = ({ courseSlug, lessonSlug, homeworkSlug, deadline }) => {
+}> = ({ courseSlug, lessonSlug, homeworkId, deadline }) => {
   const formattedDeadline = deadline
     ? (() => {
         try {
@@ -136,9 +136,9 @@ const HomeworkWidget: React.FC<{
       {formattedDeadline && (
         <p className={styles.deadlineText}>Дедлайн: {formattedDeadline}</p>
       )}
-      {homeworkSlug ? (
+      {homeworkId != null && homeworkId !== '' ? (
         <Link
-          to={`/app/courses/${courseSlug}/lessons/${lessonSlug}/homework/${homeworkSlug}`}
+          to={`/app/courses/${courseSlug}/lessons/${lessonSlug}/homework/${encodeURIComponent(String(homeworkId))}`}
           className={styles.homeworkButton}
         >
           Перейти к заданию
@@ -331,18 +331,18 @@ export default function LessonViewPage() {
 
   const courseTitle = USE_MOCK
     ? MOCK_COURSE_TITLE
-    : (courseQuery.data?.course.title ?? null);
+    : (courseQuery.data?.title ?? null);
 
   const lessonDetail = USE_MOCK ? MOCK_LESSON : (lessonQuery.data ?? null);
 
   const lessonLayout = useMemo<LessonLayout | null>(() => {
     if (!lessonDetail) return null;
     try {
-      return parseLessonLayout(lessonDetail.content);
+      return parseLessonLayoutFromContentString(lessonDetail.content);
     } catch {
       return {
         id: String(lessonDetail.lesson_id),
-        title: lessonDetail.title,
+        title: lessonDetail.lesson_title,
         blocks: [],
       };
     }
@@ -391,14 +391,20 @@ export default function LessonViewPage() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link to={`/app/courses/${courseSlug}/lessons`}>
+                <Link
+                  to={
+                    lessonSlug
+                      ? `/app/courses/${courseSlug}/lessons?lesson=${encodeURIComponent(lessonSlug)}`
+                      : `/app/courses/${courseSlug}/lessons`
+                  }
+                >
                   {courseTitle}
                 </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{lessonDetail.title}</BreadcrumbPage>
+              <BreadcrumbPage>{lessonDetail.lesson_title}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -408,7 +414,7 @@ export default function LessonViewPage() {
         <div className={styles.mainColumn}>
           <div className={styles.lessonHeader}>
             <div className={styles.lessonHeaderTrapezoid}>
-              <h1 className={styles.lessonTitleTrapezoid}>{lessonDetail.title}</h1>
+              <h1 className={styles.lessonTitleTrapezoid}>{lessonDetail.lesson_title}</h1>
             </div>
           </div>
 
@@ -418,15 +424,15 @@ export default function LessonViewPage() {
         </div>
 
         <aside className={styles.sidebar}>
-          <TimerWidget targetIso={lessonDetail.date} />
+          <TimerWidget targetIso={lessonDetail.started_at} />
           <WebinarLinksWidget
-            boardUrl={lessonDetail.board_url}
-            webinarUrl={lessonDetail.webinar_url}
+            boardUrl={null}
+            webinarUrl={lessonDetail.recording_url}
           />
           <HomeworkWidget
             courseSlug={courseSlug ?? 'mock-course'}
-            lessonSlug={lessonSlug ?? lessonDetail.slug}
-            homeworkSlug={lessonDetail.homework_slug}
+            lessonSlug={lessonSlug ?? 'mock-lesson'}
+            homeworkId={lessonDetail.homework_id}
             deadline={lessonDetail.homework_deadline}
           />
           <ProgressWidget />

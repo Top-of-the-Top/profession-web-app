@@ -1,5 +1,3 @@
-// shared/utils/validation.ts
-
 export const validateEmailOrPhone = (value: string): {
   isValid: boolean;
   isEmail: boolean;
@@ -43,10 +41,28 @@ export const validateEmailOrPhone = (value: string): {
   };
 };
 
+type ContactValidation = ReturnType<typeof validateEmailOrPhone>;
+
+function getValidatedContact(emailOrPhone: string): ContactValidation {
+  const validation = validateEmailOrPhone(emailOrPhone);
+  if (!validation.isValid) {
+    throw new Error('Invalid email or phone number');
+  }
+  return validation;
+}
+
 
 export type PrepareDataOptions = {
   includePassword?: boolean;
   includeToken?: boolean;
+  token?: string;
+};
+
+type AuthPayload = {
+  email: string | null;
+  phone_number: string | null;
+  date_time: string;
+  password?: string;
   token?: string;
 };
 
@@ -55,13 +71,9 @@ export const prepareAuthData = (
   password?: string,
   options: PrepareDataOptions = {}
 ) => {
-  const validation = validateEmailOrPhone(emailOrPhone);
-  
-  if (!validation.isValid) {
-    throw new Error('Invalid email or phone number');
-  }
+  const validation = getValidatedContact(emailOrPhone);
 
-  const result: any = {
+  const result: AuthPayload = {
     email: validation.isEmail ? validation.normalized : null,
     phone_number: validation.isPhone ? validation.normalized : null,
     date_time: new Date().toISOString()
@@ -84,10 +96,7 @@ export type RegisterPayload =
   | { phone_number: string; password: string };
 
 export function buildRegisterPayload(emailOrPhone: string, password: string): RegisterPayload {
-  const validation = validateEmailOrPhone(emailOrPhone);
-  if (!validation.isValid) {
-    throw new Error('Invalid email or phone number');
-  }
+  const validation = getValidatedContact(emailOrPhone);
   if (validation.isEmail) {
     return { email: validation.normalized, password };
   }
@@ -97,10 +106,7 @@ export function buildRegisterPayload(emailOrPhone: string, password: string): Re
 export type ResetPayload = { email: string } | { phone_number: string };
 
 export function buildResetPayload(emailOrPhone: string): ResetPayload {
-  const validation = validateEmailOrPhone(emailOrPhone);
-  if (!validation.isValid) {
-    throw new Error('Invalid email or phone number');
-  }
+  const validation = getValidatedContact(emailOrPhone);
   if (validation.isEmail) {
     return { email: validation.normalized };
   }

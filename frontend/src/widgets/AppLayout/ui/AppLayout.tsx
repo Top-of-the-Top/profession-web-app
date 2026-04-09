@@ -1,4 +1,6 @@
 import { Suspense, useEffect } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
 import {
   Sparkles,
@@ -10,6 +12,7 @@ import {
 import {
   Button,
   Spinner,
+  ContentErrorFallback,
 } from '@shared/ui';
 import { cn } from '@shared/lib/utils';
 import { useUserStore } from '@entities/user/model/userStore';
@@ -176,9 +179,18 @@ export default function AppLayout() {
         </div>
 
         <main className={styles.main}>
-          <Suspense fallback={<Spinner full />}>
-            <Outlet />
-          </Suspense>
+          <QueryErrorResetBoundary>
+            {({ reset }) => (
+              <ErrorBoundary
+                onReset={reset}
+                FallbackComponent={ContentErrorFallback}
+              >
+                <Suspense fallback={<Spinner full />}>
+                  <Outlet />
+                </Suspense>
+              </ErrorBoundary>
+            )}
+          </QueryErrorResetBoundary>
         </main>
       </div>
     </div>

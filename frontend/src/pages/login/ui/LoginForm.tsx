@@ -20,6 +20,9 @@ import { ZodError } from 'zod';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import { messageForApiFailure, notifyError } from '@shared/lib/sileo/notify';
 import { preloadRegisterRoute, preloadResetRoute } from '@router/lazyPages';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginFormSchema, type LoginFormValues } from '@shared/utils/formSchemas';
 
 function notifyLoginFailure(err: unknown) {
   if (err instanceof Error && err.message === 'Invalid email or phone number') {
@@ -46,13 +49,17 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
   const navigate = useNavigate();
   const login = useUserStore((s) => s.login);
   const [loading, setLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: { emailOrPhone: '', password: '' },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async ({ emailOrPhone, password }: LoginFormValues) => {
     setLoading(true);
-    const form = e.currentTarget as HTMLFormElement;
-    const emailOrPhone = (form.elements.namedItem('email') as HTMLInputElement).value;
-    const password = (form.elements.namedItem('password') as HTMLInputElement).value;
     try {
       const payload = await loginUser({ emailOrPhone, password });
       await login(payload);
@@ -81,7 +88,7 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
             <CardDescription>Введите данные ниже, чтобы войти в систему</CardDescription>
           </CardHeader>
           <CardContent className={styles.cardContent}>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit(onSubmit)}>
               <FieldGroup className={styles.fieldGroup}>
                 <Field className={styles.field}>
                   <FieldLabel htmlFor="email">Почта или номер телефона</FieldLabel>
@@ -90,9 +97,13 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                     type="text"
                     autoComplete="email"
                     placeholder="Почта/телефон"
-                    required
                     className={styles.input}
+                    disabled={loading}
+                    {...register('emailOrPhone')}
                   />
+                  {errors.emailOrPhone?.message ? (
+                    <CardDescription>{errors.emailOrPhone.message}</CardDescription>
+                  ) : null}
                 </Field>
                 <Field className={styles.field}>
                   <div className={styles.passwordHeader}>
@@ -103,9 +114,13 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                     type="password"
                     autoComplete="password"
                     placeholder="Пароль"
-                    required
                     className={styles.input}
+                    disabled={loading}
+                    {...register('password')}
                   />
+                  {errors.password?.message ? (
+                    <CardDescription>{errors.password.message}</CardDescription>
+                  ) : null}
                 </Field>
                 <Field>
                   <Button

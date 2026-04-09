@@ -8,7 +8,7 @@ export type ConnectionStatus =
   | 'disconnected'
 
 export type Notification = {
-	id: Number,
+	id: number,
 	title: string,
 	message: string,
 	created_at: Date
@@ -25,6 +25,6 @@ export type NotificationState = {
 
 	setInitial: (notifications: Notification[]) => void
   addNotification: (notification: Notification) => void
-	removeNotification: (notificationId: Number) => void
+	removeNotification: (notificationId: number) => void
   clear: () => void
 } 

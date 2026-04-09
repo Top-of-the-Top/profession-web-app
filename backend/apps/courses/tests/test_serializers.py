@@ -129,9 +129,9 @@ class HomeworkCreateSerializerUnitTest(SimpleTestCase):
         serializer = HomeworkCreateSerializer()
         self.assertIn('items', serializer.fields)
 
-    def test_serializer_has_lesson_field(self):
+    def test_serializer_has_lesson_id_field(self):
         serializer = HomeworkCreateSerializer()
-        self.assertIn('lesson', serializer.fields)
+        self.assertIn('lesson_id', serializer.fields)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

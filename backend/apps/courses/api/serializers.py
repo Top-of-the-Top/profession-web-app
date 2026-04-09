@@ -1,6 +1,8 @@
 from ..models import Course, PurchasedCourse, Lesson, Homework, Section, Question, Task
 from apps.users.models import User
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -55,18 +57,55 @@ class PurchasedCourseSerializer(serializers.ModelSerializer):
             'is_active',
         ]
 
-class SectionSerializer(serializers.ModelSerializer):
+class LessonBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = ['lesson_id', 'lesson_number', 'title', 'slug']
+
+
+class LessonBriefWithTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = ['lesson_id', 'lesson_number', 'title', 'slug', 'type']
+
+
+class SectionWithLessonsSerializer(serializers.ModelSerializer):
+    lessons = LessonBriefSerializer(many=True, read_only=True, source='lesson_set')
 
     class Meta:
         model = Section
-        fields = '__all__'
-        extra_kwargs = {
-            'section_id': {'read_only': True, 'required': False},
-            'slug': {'required': False},
-            'created_at': {'read_only': True},
-            'updated_at': {'read_only': True},
-            'last_modified_by': {'required': False},
-        }
+        fields = ['section_id', 'section_number', 'title', 'lessons']
+
+
+class SectionWithLessonsAndTypeSerializer(serializers.ModelSerializer):
+    lessons = LessonBriefWithTypeSerializer(many=True, read_only=True, source='lesson_set')
+
+    class Meta:
+        model = Section
+        fields = ['section_id', 'section_number', 'title', 'type', 'lessons']
+
+
+class CourseHomePageSerializer(serializers.Serializer):
+    course_id = serializers.UUIDField(read_only=True)
+    title = serializers.CharField(read_only=True)
+    content = serializers.SerializerMethodField()
+    meta = serializers.SerializerMethodField()
+
+    @extend_schema_field(SectionWithLessonsAndTypeSerializer(many=True))
+    def get_content(self, obj):
+        sections = Section.objects.filter(course=obj).order_by('section_number')
+        is_author = self.context.get('is_author', False)
+
+        if is_author:
+            return SectionWithLessonsAndTypeSerializer(sections, many=True).data
+        else:
+            return SectionWithLessonsSerializer(sections, many=True).data
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_meta(self, obj):
+        #TODO: сделать метаданные курса
+        return {}
+
 
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:

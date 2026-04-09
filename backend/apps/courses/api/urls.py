@@ -9,6 +9,8 @@ urlpatterns = [
          name='course-list-preview'),
     path('app/my-courses/', views.PurchasedCoursesView.as_view(),
          name='my-courses'),
+    path('app/courses/<slug:course_slug>/home/', views.CourseHomePageView.as_view(),
+         name='course-homepage'),
 ]
 
 router = SimpleRouter()
@@ -20,31 +22,25 @@ router.register(
 )
 
 router.register(
-    r'courses/(?P<course_slug>[^/.]+)/sections',
-    views.SectionViewSet,
-    basename='course-sections'
-)
-
-router.register(
-    r'courses/(?P<course_slug>[^/.]+)/sections/(?P<section_slug>[^/.]+)/lessons',
+    r'courses/(?P<course_slug>[^/.]+)/lessons',
     views.LessonViewSet,
-    basename='section-lessons'
+    basename='course-lessons'
 )
 
 router.register(
-    r'courses/(?P<course_slug>[^/.]+)/sections/(?P<section_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks',
+    r'courses/(?P<course_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks',
     views.HomeworkViewSet,
     basename='lesson-homeworks'
 )
 
 router.register(
-    r'courses/(?P<course_slug>[^/.]+)/sections/(?P<section_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks/(?P<homework_slug>[^/.]+)/questions',
+    r'courses/(?P<course_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks/(?P<homework_slug>[^/.]+)/questions',
     views.QuestionViewSet,
     basename='homework-questions'
 )
 
 router.register(
-    r'courses/(?P<course_slug>[^/.]+)/sections/(?P<section_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks/(?P<homework_slug>[^/.]+)/tasks',
+    r'courses/(?P<course_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks/(?P<homework_slug>[^/.]+)/tasks',
     views.TaskViewSet,
     basename='homework-tasks'
 )

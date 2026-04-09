@@ -11,11 +11,8 @@ from ..api.views import (
     CourseDTOList,
     CourseViewSet,
     PurchasedCoursesView,
-    SectionViewSet,
     LessonViewSet,
     HomeworkViewSet,
-    TaskViewSet,
-    QuestionViewSet,
 )
 from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
 from apps.users.models import User
@@ -238,88 +235,34 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         super().tearDown()
         self.storage_patcher.stop()
 
-    def test_section_crud_operations(self):
-        initial_section_count = Section.objects.filter(course=self.course).count()
-        self.assertEqual(initial_section_count, 1)
-
+    def test_lesson_retrieve(self):
         self.authenticate_user(self.student)
-        response = self.client.get(f'/api/courses/{self.course.slug}/sections/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['title'], 'Section 1')
-
-        response = self.client.get(f'/api/courses/{self.course.slug}/sections/{self.section.slug}/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['title'], 'Section 1')
-        self.assertEqual(response.data['slug'], self.section.slug)
-
-        self.authenticate_user(self.teacher)
-        data = {'course': self.course.course_id, 'title': 'New Section'}
-        response = self.client.post(f'/api/courses/{self.course.slug}/sections/', data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['title'], 'New Section')
-
-        new_section_count = Section.objects.filter(course=self.course).count()
-        self.assertEqual(new_section_count, initial_section_count + 1)
-        new_section = Section.objects.get(title='New Section')
-        self.assertEqual(new_section.course, self.course)
-
-        update_data = {'title': 'Updated Section Title'}
-        response = self.client.patch(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/',
-            update_data,
-            format='json'
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['title'], 'Updated Section Title')
-
-        self.section.refresh_from_db()
-        self.assertEqual(self.section.title, 'Updated Section Title')
-
-        response = self.client.delete(f'/api/courses/{self.course.slug}/sections/{new_section.slug}/')
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        final_section_count = Section.objects.filter(course=self.course).count()
-        self.assertEqual(final_section_count, initial_section_count)
-        self.assertFalse(Section.objects.filter(slug=new_section.slug).exists())
-
-    def test_lesson_crud_operations(self):
-        from datetime import datetime
-
-        initial_lesson_count = Lesson.objects.filter(section=self.section).count()
-        self.assertEqual(initial_lesson_count, 1)
-
-        self.authenticate_user(self.student)
-        response = self.client.get(f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['title'], 'Lesson 1')
-
-        response = self.client.get(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/'
-        )
+        response = self.client.get(f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Lesson 1')
         self.assertEqual(response.data['slug'], self.lesson.slug)
 
+    def test_lesson_create_as_author(self):
+        from datetime import datetime
+
         self.authenticate_user(self.teacher)
-        data = {'section': self.section.section_id, 'title': 'New Lesson', 'date_time': datetime.now ()}
+        data = {'section': self.section.section_id, 'title': 'New Lesson', 'date_time': datetime.now()}
         response = self.client.post(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/',
+            f'/api/courses/{self.course.slug}/lessons/',
             data,
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Lesson')
 
-        new_lesson_count = Lesson.objects.filter(section=self.section).count()
-        self.assertEqual(new_lesson_count, initial_lesson_count + 1)
         new_lesson = Lesson.objects.get(title='New Lesson')
         self.assertEqual(new_lesson.section, self.section)
 
+    def test_lesson_update_as_author(self):
+        self.authenticate_user(self.teacher)
         update_data = {'title': 'Updated Lesson'}
         response = self.client.patch(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/',
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/',
             update_data,
             format='json'
         )
@@ -329,143 +272,154 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.lesson.refresh_from_db()
         self.assertEqual(self.lesson.title, 'Updated Lesson')
 
-        response = self.client.delete(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{new_lesson.slug}/'
-        )
+    def test_lesson_delete_as_author(self):
+        new_lesson = create_test_lesson(self.section, title='Lesson to Delete')
+        initial_count = Lesson.objects.filter(section=self.section).count()
+
+        self.authenticate_user(self.teacher)
+        response = self.client.delete(f'/api/courses/{self.course.slug}/lessons/{new_lesson.slug}/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-        final_lesson_count = Lesson.objects.filter(section=self.section).count()
-        self.assertEqual(final_lesson_count, initial_lesson_count)
+        self.assertEqual(Lesson.objects.filter(section=self.section).count(), initial_count - 1)
         self.assertFalse(Lesson.objects.filter(slug=new_lesson.slug).exists())
 
-    def test_homework_crud_operations(self):
-        initial_homework_count = Homework.objects.filter(lesson=self.lesson).count()
-        self.assertEqual(initial_homework_count, 1)
-
+    def test_homework_list(self):
         self.authenticate_user(self.student)
         response = self.client.get(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/homeworks/'
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/'
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['title'], 'HW 1')
 
-        response = self.client.get(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/'
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['title'], 'HW 1')
-        self.assertEqual(response.data['slug'], self.homework.slug)
-
-        self.authenticate_user(self.teacher)
-        data = {
-            'lesson': self.lesson.lesson_id,
-            'title': 'New Homework',
-            'deadline': (timezone.now() + timedelta(days=14)).isoformat()
-        }
-        response = self.client.post(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/homeworks/',
-            data,
-            format='json'
-        )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['title'], 'New Homework')
-
-        new_homework_count = Homework.objects.filter(lesson=self.lesson).count()
-        self.assertEqual(new_homework_count, initial_homework_count + 1)
-        new_homework = Homework.objects.get(title='New Homework')
-        self.assertEqual(new_homework.lesson, self.lesson)
-
-        update_data = {'title': 'Updated Homework'}
-        response = self.client.patch(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/',
-            update_data,
-            format='json'
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['title'], 'Updated Homework')
-
-        self.homework.refresh_from_db()
-        self.assertEqual(self.homework.title, 'Updated Homework')
-
-        response = self.client.delete(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/homeworks/{new_homework.slug}/'
-        )
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        final_homework_count = Homework.objects.filter(lesson=self.lesson).count()
-        self.assertEqual(final_homework_count, initial_homework_count)
-        self.assertFalse(Homework.objects.filter(slug=new_homework.slug).exists())
-
-    def test_task_operations(self):
-        initial_task_count = Task.objects.filter(homework=self.homework).count()
-        task = Task.objects.create(homework=self.homework, text='Task 1', max_points=10)
-
-        self.assertEqual(Task.objects.filter(homework=self.homework).count(), initial_task_count + 1)
-
-        self.authenticate_user(self.student)
-        response = self.client.get(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/'
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['text'], 'Task 1')
-        self.assertEqual(response.data[0]['max_points'], 10)
-
-        self.authenticate_user(self.teacher)
-        data = {'homework': self.homework.homework_id, 'text': 'New Task', 'max_points': 15}
-        response = self.client.post(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/',
-            data,
-            format='json'
-        )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['text'], 'New Task')
-
-        self.assertEqual(Task.objects.filter(homework=self.homework).count(), initial_task_count + 2)
-        new_task = Task.objects.get(text='New Task')
-        self.assertEqual(new_task.homework, self.homework)
-        self.assertEqual(new_task.max_points, 15)
-
-    def test_question_operations(self):
-        initial_question_count = Question.objects.filter(homework=self.homework).count()
-        question = Question.objects.create(
+    def test_homework_retrieve_with_items(self):
+        Task.objects.create(homework=self.homework, text='Task 1', max_points=10)
+        Question.objects.create(
             homework=self.homework,
             text='Question 1?',
             correct_ans='A',
             answer_options=['A', 'B', 'C']
         )
 
-        self.assertEqual(Question.objects.filter(homework=self.homework).count(), initial_question_count + 1)
-
         self.authenticate_user(self.student)
         response = self.client.get(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/questions/'
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/'
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['text'], 'Question 1?')
-        self.assertEqual(response.data[0]['answer_options'], ['A', 'B', 'C'])
+        self.assertEqual(response.data['title'], 'HW 1')
+        self.assertIn('items', response.data)
+        self.assertEqual(len(response.data['items']), 2)
 
+        item_types = [item['type'] for item in response.data['items']]
+        self.assertIn('task', item_types)
+        self.assertIn('question', item_types)
+
+    def test_homework_create_with_items(self):
         self.authenticate_user(self.teacher)
         data = {
-            'homework': self.homework.homework_id,
-            'text': 'New Question?',
-            'correct_ans': 'B',
-            'answer_options': ['A', 'B', 'C', 'D']
+            'lesson_id': str(self.lesson.lesson_id),
+            'title': 'New Homework',
+            'deadline': (timezone.now() + timedelta(days=14)).isoformat(),
+            'items': [
+                {'type': 'task', 'text': 'Task item', 'max_points': 5},
+                {'type': 'question', 'text': 'Question item?', 'answer_options': ['A', 'B'], 'correct_ans': 'A'}
+            ]
         }
         response = self.client.post(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/questions/',
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/',
             data,
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['text'], 'New Question?')
+        self.assertEqual(response.data['title'], 'New Homework')
+        self.assertIn('items', response.data)
+        self.assertEqual(len(response.data['items']), 2)
 
-        self.assertEqual(Question.objects.filter(homework=self.homework).count(), initial_question_count + 2)
-        new_question = Question.objects.get(text='New Question?')
-        self.assertEqual(new_question.homework, self.homework)
-        self.assertEqual(new_question.correct_ans, 'B')
+        new_homework = Homework.objects.get(title='New Homework')
+        self.assertEqual(Task.objects.filter(homework=new_homework).count(), 1)
+        self.assertEqual(Question.objects.filter(homework=new_homework).count(), 1)
+
+    def test_homework_update_with_items_by_id(self):
+        old_task = Task.objects.create(homework=self.homework, text='Old Task', max_points=10)
+
+        self.authenticate_user(self.teacher)
+        update_data = {
+            'title': 'Updated Homework',
+            'items': [
+                {'type': 'task', 'id': str(old_task.task_id), 'text': 'Updated Old Task', 'max_points': 15},
+                {'type': 'task', 'text': 'New Task', 'max_points': 20}
+            ]
+        }
+        response = self.client.patch(
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/',
+            update_data,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['title'], 'Updated Homework')
+        self.assertEqual(len(response.data['items']), 2)
+
+        self.homework.refresh_from_db()
+        self.assertEqual(self.homework.title, 'Updated Homework')
+        self.assertEqual(Task.objects.filter(homework=self.homework).count(), 2)
+        self.assertTrue(Task.objects.filter(homework=self.homework, task_id=old_task.task_id, text='Updated Old Task').exists())
+        self.assertTrue(Task.objects.filter(homework=self.homework, text='New Task').exists())
+
+    def test_homework_update_removes_missing_items(self):
+        task1 = Task.objects.create(homework=self.homework, text='Task 1', max_points=10)
+        task2 = Task.objects.create(homework=self.homework, text='Task 2', max_points=20)
+
+        self.authenticate_user(self.teacher)
+        update_data = {
+            'items': [
+                {'type': 'task', 'id': str(task1.task_id), 'text': 'Task 1 Updated', 'max_points': 15}
+            ]
+        }
+        response = self.client.patch(
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/',
+            update_data,
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['items']), 1)
+
+        self.assertEqual(Task.objects.filter(homework=self.homework).count(), 1)
+        self.assertTrue(Task.objects.filter(task_id=task1.task_id).exists())
+        self.assertFalse(Task.objects.filter(task_id=task2.task_id).exists())
+
+    def test_homework_delete(self):
+        new_homework = create_test_homework(self.lesson, title='Homework to Delete')
+        initial_count = Homework.objects.filter(lesson=self.lesson).count()
+
+        self.authenticate_user(self.teacher)
+        response = self.client.delete(
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{new_homework.slug}/'
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        self.assertEqual(Homework.objects.filter(lesson=self.lesson).count(), initial_count - 1)
+        self.assertFalse(Homework.objects.filter(slug=new_homework.slug).exists())
+
+    def test_homework_items_sorted_by_created_at(self):
+        task1 = Task.objects.create(homework=self.homework, text='Task 1', max_points=10)
+        question1 = Question.objects.create(
+            homework=self.homework,
+            text='Question 1?',
+            correct_ans='A',
+            answer_options=['A', 'B']
+        )
+        task2 = Task.objects.create(homework=self.homework, text='Task 2', max_points=15)
+
+        self.authenticate_user(self.student)
+        response = self.client.get(
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['items']), 3)
+
+        items = response.data['items']
+        created_times = [item['created_at'] for item in items]
+        self.assertEqual(created_times, sorted(created_times))
 
     def test_non_enrolled_student_cannot_access(self):
         other_student = create_test_user(email='other@test.com', role='student')
@@ -476,14 +430,11 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.authenticate_user(other_student)
 
-        response = self.client.get(f'/api/courses/{self.course.slug}/sections/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-        response = self.client.get(f'/api/courses/{self.course.slug}/sections/{self.section.slug}/')
+        response = self.client.get(f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
         response = self.client.get(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/lessons/'
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/'
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -492,26 +443,17 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.assertIn(self.teacher, self.course.authors.all())
 
-        data = {'title': 'Updated Section'}
+        data = {'title': 'Updated Lesson Title'}
         response = self.client.patch(
-            f'/api/courses/{self.course.slug}/sections/{self.section.slug}/',
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/',
             data,
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['title'], 'Updated Section')
+        self.assertEqual(response.data['title'], 'Updated Lesson Title')
 
-        self.section.refresh_from_db()
-        self.assertEqual(self.section.title, 'Updated Section')
-
-        new_section = create_test_section(self.course, title='Section to Delete')
-        initial_count = Section.objects.filter(course=self.course).count()
-
-        response = self.client.delete(f'/api/courses/{self.course.slug}/sections/{new_section.slug}/')
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        self.assertEqual(Section.objects.filter(course=self.course).count(), initial_count - 1)
-        self.assertFalse(Section.objects.filter(slug=new_section.slug).exists())
+        self.lesson.refresh_from_db()
+        self.assertEqual(self.lesson.title, 'Updated Lesson Title')
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

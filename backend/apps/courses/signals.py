@@ -313,10 +313,6 @@ from .api.views import (
     lesson_detail_cache_key,
     homework_list_cache_key,
     homework_detail_cache_key,
-    task_list_cache_key,
-    task_detail_cache_key,
-    question_list_cache_key,
-    question_detail_cache_key,
     purchased_courses_cache_key,
 )
 
@@ -340,39 +336,34 @@ def invalidate_cold_section_cache(sender, instance, **kwargs):
 def invalidate_cold_lesson_cache(sender, instance, **kwargs):
     section = instance.section
     course_slug = section.course.slug
-    caches["default"].delete(lesson_list_cache_key(course_slug, section.slug))
-    caches["default"].delete(lesson_detail_cache_key(course_slug, section.slug, instance.slug))
+    caches["default"].delete(lesson_list_cache_key(course_slug))
+    caches["default"].delete(lesson_detail_cache_key(course_slug, instance.slug))
 
 
 @receiver((pre_save, pre_delete), sender=Homework)
 def invalidate_cold_homework_cache(sender, instance, **kwargs):
     lesson = instance.lesson
-    section = lesson.section
-    course_slug = section.course.slug
-    caches["default"].delete(homework_list_cache_key(course_slug, section.slug, lesson.slug))
-    caches["default"].delete(homework_detail_cache_key(course_slug, section.slug, lesson.slug, instance.slug))
+    course_slug = lesson.section.course.slug
+    caches["default"].delete(homework_list_cache_key(course_slug, lesson.slug))
+    caches["default"].delete(homework_detail_cache_key(course_slug, lesson.slug, instance.slug))
 
 
 @receiver((pre_save, pre_delete), sender=Task)
 def invalidate_cold_task_cache(sender, instance, **kwargs):
     hw = instance.homework
     lesson = hw.lesson
-    section = lesson.section
-    course_slug = section.course.slug
-    slug = getattr(instance, 'slug', '')
-    caches["default"].delete(task_list_cache_key(course_slug, section.slug, lesson.slug, hw.slug))
-    caches["default"].delete(task_detail_cache_key(course_slug, section.slug, lesson.slug, hw.slug, slug))
+    course_slug = lesson.section.course.slug
+    caches["default"].delete(homework_list_cache_key(course_slug, lesson.slug))
+    caches["default"].delete(homework_detail_cache_key(course_slug, lesson.slug, hw.slug))
 
 
 @receiver((pre_save, pre_delete), sender=Question)
 def invalidate_cold_question_cache(sender, instance, **kwargs):
     hw = instance.homework
     lesson = hw.lesson
-    section = lesson.section
-    course_slug = section.course.slug
-    slug = getattr(instance, 'slug', '')
-    caches["default"].delete(question_list_cache_key(course_slug, section.slug, lesson.slug, hw.slug))
-    caches["default"].delete(question_detail_cache_key(course_slug, section.slug, lesson.slug, hw.slug, slug))
+    course_slug = lesson.section.course.slug
+    caches["default"].delete(homework_list_cache_key(course_slug, lesson.slug))
+    caches["default"].delete(homework_detail_cache_key(course_slug, lesson.slug, hw.slug))
 
 
 @receiver((pre_save, pre_delete), sender=PurchasedCourse)

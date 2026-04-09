@@ -9,11 +9,10 @@ from ..api.serializers import (
     CourseSerializer,
     CourseDTOSerializer,
     PurchasedCourseSerializer,
-    SectionSerializer,
     LessonSerializer,
     HomeworkSerializer,
-    QuestionSerializer,
-    TaskSerializer,
+    HomeworkCreateSerializer,
+    HomeworkItemSerializer,
 )
 from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
 from apps.users.models import User
@@ -90,13 +89,6 @@ class PurchasedCourseSerializerUnitTest(SimpleTestCase):
         self.assertEqual(sorted(fields), sorted(expected_fields))
 
 
-class SectionSerializerUnitTest(SimpleTestCase):
-
-    def test_serializer_includes_all_fields(self):
-        serializer = SectionSerializer()
-        self.assertIsNotNone(serializer.fields)
-
-
 class LessonSerializerUnitTest(SimpleTestCase):
 
     def test_serializer_includes_all_fields(self):
@@ -109,20 +101,37 @@ class HomeworkSerializerUnitTest(SimpleTestCase):
     def test_serializer_includes_all_fields(self):
         serializer = HomeworkSerializer()
         self.assertIsNotNone(serializer.fields)
+        self.assertIn('items', serializer.fields)
 
 
-class QuestionSerializerUnitTest(SimpleTestCase):
+class HomeworkItemSerializerUnitTest(SimpleTestCase):
 
-    def test_serializer_includes_all_fields(self):
-        serializer = QuestionSerializer()
-        self.assertIsNotNone(serializer.fields)
+    def test_serializer_has_type_field(self):
+        serializer = HomeworkItemSerializer()
+        self.assertIn('type', serializer.fields)
+
+    def test_serializer_has_required_fields(self):
+        serializer = HomeworkItemSerializer()
+        fields = serializer.fields.keys()
+        self.assertIn('type', fields)
+        self.assertIn('id', fields)
+        self.assertIn('number', fields)
+        self.assertIn('text', fields)
+        self.assertIn('answer_options', fields)
+        self.assertIn('correct_ans', fields)
+        self.assertIn('max_points', fields)
+        self.assertIn('created_at', fields)
 
 
-class TaskSerializerUnitTest(SimpleTestCase):
+class HomeworkCreateSerializerUnitTest(SimpleTestCase):
 
-    def test_serializer_includes_all_fields(self):
-        serializer = TaskSerializer()
-        self.assertIsNotNone(serializer.fields)
+    def test_serializer_has_items_field(self):
+        serializer = HomeworkCreateSerializer()
+        self.assertIn('items', serializer.fields)
+
+    def test_serializer_has_lesson_id_field(self):
+        serializer = HomeworkCreateSerializer()
+        self.assertIn('lesson_id', serializer.fields)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
@@ -313,54 +322,6 @@ class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class SectionSerializerIntegrationTest(BaseTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.storage_patcher = patch('django.core.files.storage.default_storage._wrapped')
-        self.storage_patcher.start()
-        self.course = create_test_course()
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
-
-    def test_serialize_section(self):
-        section = create_test_section(self.course, title='Section 1')
-
-        serializer = SectionSerializer(section)
-        data = serializer.data
-
-        self.assertEqual(data['title'], 'Section 1')
-        self.assertIn('section_id', data)
-        self.assertIn('slug', data)
-
-    def test_create_section_via_serializer(self):
-        data = {
-            'course': self.course.course_id,
-            'title': 'New Section',
-        }
-
-        serializer = SectionSerializer(data=data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-
-        section = serializer.save()
-        self.assertEqual(section.title, 'New Section')
-        self.assertIsNotNone(section.slug)
-        self.assertEqual(section.section_number, 1)
-
-    def test_update_section_via_serializer(self):
-        section = create_test_section(self.course, title='Original')
-
-        data = {'title': 'Updated Section'}
-        serializer = SectionSerializer(section, data=data, partial=True)
-        self.assertTrue(serializer.is_valid())
-
-        updated = serializer.save()
-        self.assertEqual(updated.title, 'Updated Section')
-
-
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LessonSerializerIntegrationTest(BaseTestCase):
 
     def setUp(self):
@@ -434,161 +395,184 @@ class HomeworkSerializerIntegrationTest(BaseTestCase):
         self.assertEqual(data['title'], 'Homework 1')
         self.assertIn('slug', data)
         self.assertIn('deadline', data)
+        self.assertIn('items', data)
 
-    def test_create_homework_via_serializer(self):
+    def test_serialize_homework_with_items(self):
+        homework = create_test_homework(self.lesson, title='Homework with items')
+        Task.objects.create(homework=homework, text='Task 1', max_points=10)
+        Question.objects.create(
+            homework=homework,
+            text='Question 1?',
+            correct_ans='A',
+            answer_options=['A', 'B', 'C']
+        )
+
+        serializer = HomeworkSerializer(homework)
+        data = serializer.data
+
+        self.assertEqual(len(data['items']), 2)
+        item_types = [item['type'] for item in data['items']]
+        self.assertIn('task', item_types)
+        self.assertIn('question', item_types)
+
+    def test_items_sorted_by_created_at(self):
+        homework = create_test_homework(self.lesson, title='Homework sorted')
+        task1 = Task.objects.create(homework=homework, text='Task 1', max_points=10)
+        question1 = Question.objects.create(
+            homework=homework,
+            text='Question 1?',
+            correct_ans='A',
+            answer_options=['A', 'B']
+        )
+        task2 = Task.objects.create(homework=homework, text='Task 2', max_points=15)
+
+        serializer = HomeworkSerializer(homework)
+        data = serializer.data
+
+        items = data['items']
+        created_times = [item['created_at'] for item in items]
+        self.assertEqual(created_times, sorted(created_times))
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class HomeworkCreateSerializerIntegrationTest(BaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.storage_patcher = patch('django.core.files.storage.default_storage._wrapped')
+        self.storage_patcher.start()
+        self.course = create_test_course()
+        self.section = create_test_section(self.course)
+        self.lesson = create_test_lesson(self.section)
+
+    def tearDown(self):
+        super().tearDown()
+        self.storage_patcher.stop()
+
+    def test_create_homework_with_items(self):
         deadline = timezone.now() + timedelta(days=14)
         data = {
-            'lesson': self.lesson.lesson_id,
+            'lesson_id': str(self.lesson.lesson_id),
             'title': 'New Homework',
             'deadline': deadline.isoformat(),
+            'items': [
+                {'type': 'task', 'text': 'Task item', 'max_points': 5},
+                {'type': 'question', 'text': 'Question item?', 'answer_options': ['A', 'B'], 'correct_ans': 'A'}
+            ]
         }
 
-        serializer = HomeworkSerializer(data=data)
+        serializer = HomeworkCreateSerializer(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
         homework = serializer.save()
         self.assertEqual(homework.title, 'New Homework')
-        self.assertIsNotNone(homework.slug)
+        self.assertEqual(Task.objects.filter(homework=homework).count(), 1)
+        self.assertEqual(Question.objects.filter(homework=homework).count(), 1)
 
-    def test_update_homework_via_serializer(self):
+    def test_create_homework_without_items(self):
+        deadline = timezone.now() + timedelta(days=14)
+        data = {
+            'lesson_id': str(self.lesson.lesson_id),
+            'title': 'Homework without items',
+            'deadline': deadline.isoformat(),
+        }
+
+        serializer = HomeworkCreateSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        homework = serializer.save()
+        self.assertEqual(homework.title, 'Homework without items')
+        self.assertEqual(Task.objects.filter(homework=homework).count(), 0)
+        self.assertEqual(Question.objects.filter(homework=homework).count(), 0)
+
+    def test_update_homework_with_id_updates_existing(self):
         homework = create_test_homework(self.lesson, title='Original HW')
+        old_task = Task.objects.create(homework=homework, text='Old Task', max_points=10)
 
-        data = {'title': 'Updated Homework'}
-        serializer = HomeworkSerializer(homework, data=data, partial=True)
-        self.assertTrue(serializer.is_valid())
+        data = {
+            'title': 'Updated Homework',
+            'items': [
+                {'type': 'task', 'id': str(old_task.task_id), 'text': 'Updated Task', 'max_points': 15},
+                {'type': 'task', 'text': 'New Task', 'max_points': 20}
+            ]
+        }
+
+        serializer = HomeworkCreateSerializer(homework, data=data, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
         updated = serializer.save()
         self.assertEqual(updated.title, 'Updated Homework')
+        self.assertEqual(Task.objects.filter(homework=homework).count(), 2)
+        self.assertTrue(Task.objects.filter(homework=homework, task_id=old_task.task_id, text='Updated Task').exists())
+        self.assertTrue(Task.objects.filter(homework=homework, text='New Task').exists())
 
+    def test_update_homework_removes_missing_items(self):
+        homework = create_test_homework(self.lesson, title='Original HW')
+        task1 = Task.objects.create(homework=homework, text='Task 1', max_points=10)
+        task2 = Task.objects.create(homework=homework, text='Task 2', max_points=20)
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class QuestionSerializerIntegrationTest(BaseTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.storage_patcher = patch('django.core.files.storage.default_storage._wrapped')
-        self.storage_patcher.start()
-        self.course = create_test_course()
-        self.section = create_test_section(self.course)
-        self.lesson = create_test_lesson(self.section)
-        self.homework = create_test_homework(self.lesson)
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
-
-    def test_serialize_question(self):
-        question = Question.objects.create(
-            homework=self.homework,
-            text='What is Python?',
-            correct_ans='A',
-            answer_options=['A', 'B', 'C', 'D']
-        )
-
-        serializer = QuestionSerializer(question)
-        data = serializer.data
-
-        self.assertEqual(data['text'], 'What is Python?')
-        self.assertEqual(data['correct_ans'], 'A')
-        self.assertEqual(data['answer_options'], ['A', 'B', 'C', 'D'])
-
-    def test_create_question_via_serializer(self):
         data = {
-            'homework': self.homework.homework_id,
-            'text': 'New Question?',
-            'correct_ans': 'B',
-            'answer_options': ['A', 'B', 'C']
+            'items': [
+                {'type': 'task', 'id': str(task1.task_id), 'text': 'Task 1 Updated', 'max_points': 15}
+            ]
         }
 
-        serializer = QuestionSerializer(data=data)
+        serializer = HomeworkCreateSerializer(homework, data=data, partial=True)
         self.assertTrue(serializer.is_valid(), serializer.errors)
-
-        question = serializer.save()
-        self.assertEqual(question.text, 'New Question?')
-        self.assertEqual(question.correct_ans, 'B')
-
-    def test_update_question_via_serializer(self):
-        question = Question.objects.create(
-            homework=self.homework,
-            text='Original?',
-            correct_ans='A',
-            answer_options=['A', 'B']
-        )
-
-        data = {'text': 'Updated Question?'}
-        serializer = QuestionSerializer(question, data=data, partial=True)
-        self.assertTrue(serializer.is_valid())
 
         updated = serializer.save()
-        self.assertEqual(updated.text, 'Updated Question?')
+        self.assertEqual(Task.objects.filter(homework=homework).count(), 1)
+        self.assertTrue(Task.objects.filter(task_id=task1.task_id).exists())
+        self.assertFalse(Task.objects.filter(task_id=task2.task_id).exists())
 
+    def test_update_homework_without_items_keeps_existing(self):
+        homework = create_test_homework(self.lesson, title='Original HW')
+        Task.objects.create(homework=homework, text='Existing Task', max_points=10)
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class TaskSerializerIntegrationTest(BaseTestCase):
+        data = {'title': 'Updated Title Only'}
 
-    def setUp(self):
-        super().setUp()
-        self.storage_patcher = patch('django.core.files.storage.default_storage._wrapped')
-        self.storage_patcher.start()
-        self.course = create_test_course()
-        self.section = create_test_section(self.course)
-        self.lesson = create_test_lesson(self.section)
-        self.homework = create_test_homework(self.lesson)
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
-
-    def test_serialize_task(self):
-        task = Task.objects.create(
-            homework=self.homework,
-            text='Complete the assignment',
-            max_points=10
-        )
-
-        serializer = TaskSerializer(task)
-        data = serializer.data
-
-        self.assertEqual(data['text'], 'Complete the assignment')
-        self.assertEqual(data['max_points'], 10)
-
-    def test_create_task_via_serializer(self):
-        data = {
-            'homework': self.homework.homework_id,
-            'text': 'New Task',
-            'max_points': 15
-        }
-
-        serializer = TaskSerializer(data=data)
+        serializer = HomeworkCreateSerializer(homework, data=data, partial=True)
         self.assertTrue(serializer.is_valid(), serializer.errors)
-
-        task = serializer.save()
-        self.assertEqual(task.text, 'New Task')
-        self.assertEqual(task.max_points, 15)
-
-    def test_update_task_via_serializer(self):
-        task = Task.objects.create(
-            homework=self.homework,
-            text='Original Task',
-            max_points=10
-        )
-
-        data = {'max_points': 20}
-        serializer = TaskSerializer(task, data=data, partial=True)
-        self.assertTrue(serializer.is_valid())
 
         updated = serializer.save()
-        self.assertEqual(updated.max_points, 20)
+        self.assertEqual(updated.title, 'Updated Title Only')
+        self.assertEqual(Task.objects.filter(homework=homework).count(), 1)
+        self.assertTrue(Task.objects.filter(homework=homework, text='Existing Task').exists())
 
-    def test_task_with_zero_max_points(self):
+    def test_create_homework_with_task_only(self):
+        deadline = timezone.now() + timedelta(days=14)
         data = {
-            'homework': self.homework.homework_id,
-            'text': 'Zero points task',
-            'max_points': 0
+            'lesson_id': str(self.lesson.lesson_id),
+            'title': 'Task Only Homework',
+            'deadline': deadline.isoformat(),
+            'items': [
+                {'type': 'task', 'text': 'Task 1', 'max_points': 10},
+                {'type': 'task', 'text': 'Task 2', 'max_points': 20}
+            ]
         }
 
-        serializer = TaskSerializer(data=data)
+        serializer = HomeworkCreateSerializer(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
-        task = serializer.save()
-        self.assertEqual(task.max_points, 0)
+        homework = serializer.save()
+        self.assertEqual(Task.objects.filter(homework=homework).count(), 2)
+        self.assertEqual(Question.objects.filter(homework=homework).count(), 0)
+
+    def test_create_homework_with_question_only(self):
+        deadline = timezone.now() + timedelta(days=14)
+        data = {
+            'lesson_id': str(self.lesson.lesson_id),
+            'title': 'Question Only Homework',
+            'deadline': deadline.isoformat(),
+            'items': [
+                {'type': 'question', 'text': 'Q1?', 'answer_options': ['A', 'B'], 'correct_ans': 'A'},
+                {'type': 'question', 'text': 'Q2?', 'answer_options': ['X', 'Y', 'Z'], 'correct_ans': 'Z'}
+            ]
+        }
+
+        serializer = HomeworkCreateSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        homework = serializer.save()
+        self.assertEqual(Task.objects.filter(homework=homework).count(), 0)
+        self.assertEqual(Question.objects.filter(homework=homework).count(), 2)

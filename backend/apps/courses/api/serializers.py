@@ -252,6 +252,9 @@ class HomeworkSerializer(serializers.ModelSerializer):
     class Meta:
         model = Homework
         fields = '__all__'
+        extra_kwargs = {
+            'lesson': {'required': False},
+        }
         read_only_fields = (
             'homework_id',
             'created_at',

@@ -16,7 +16,15 @@ export const loginUser = async ({
   const payload = prepareAuthData(emailOrPhone, password, {
     includePassword: true,
   });
-  const tokensRaw = await authApi.login(payload);
+  if (payload.password == null) {
+    throw new Error('Пароль обязателен');
+  }
+  const tokensRaw = await authApi.login({
+    email: payload.email,
+    phone_number: payload.phone_number,
+    password: payload.password,
+    date_time: payload.date_time,
+  });
   const parsed = AuthTokensSchema.parse(tokensRaw);
   return {
     tokens: {

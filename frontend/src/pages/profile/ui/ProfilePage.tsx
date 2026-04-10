@@ -173,9 +173,9 @@ export default function ProfilePage() {
     }
   };
 
-  const toggleNameMenu = (e?: React.MouseEvent) => {
+  const openNameMenu = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setChangeMenuOpen((prev) => !prev);
+    setChangeMenuOpen(true);
   };
   const toggleEmailMenu = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -190,8 +190,7 @@ export default function ProfilePage() {
     setEmailMenuOpen(false);
     setPhoneMenuOpen(false);
   };
-  const anyMenuOpen =
-    isChangeNameMenuOpen || isEmailMenuOpen || isPhoneMenuOpen;
+  const contactOverlayOpen = isEmailMenuOpen || isPhoneMenuOpen;
 
   if (isLoading && !profile) return <ProfileSkeleton />;
   if (!profile) return <div>Профиль недоступен</div>;
@@ -225,14 +224,12 @@ export default function ProfilePage() {
       setProfile(optimistic);
       setAvatarUrl(blobUrl ?? prevAvatar);
       setUser(optimistic);
-      setChangeMenuOpen(false);
 
       await profileApi.updateProfile(updateData);
 
       const fresh = await profileApi.getProfile();
 
       if (blobUrl && fresh.avatar === prevAvatar) {
-        // Сервер ещё не обработал новый аватар — сохраняем blob URL
         const merged = { ...fresh, avatar: blobUrl };
         setProfile(merged);
         setAvatarUrl(blobUrl);
@@ -251,6 +248,7 @@ export default function ProfilePage() {
         setProfile(reverted);
         setUser(reverted);
       }
+      throw err;
     }
   };
 
@@ -336,13 +334,13 @@ export default function ProfilePage() {
 
   return (
     <PageTransition className={styles.profilePage}>
-      {anyMenuOpen && (
+      {contactOverlayOpen ? (
         <div className={styles.overlay} onClick={closeAllMenus} />
-      )}
+      ) : null}
 
       <ChangeName
-        isVisible={isChangeNameMenuOpen}
-        onClose={toggleNameMenu}
+        open={isChangeNameMenuOpen}
+        onOpenChange={setChangeMenuOpen}
         onSave={handleNameSave}
         currentFirstName={profile.first_name || ''}
         currentLastName={profile.last_name || ''}
@@ -368,7 +366,7 @@ export default function ProfilePage() {
         <Card className={styles.profilePageCard}>
           <CardContent className={styles.profilePageContent}>
             <div className={styles.profileSection}>
-              <div className={styles.profileField} onClick={toggleNameMenu}>
+              <div className={styles.profileField} onClick={openNameMenu}>
                 <div className={styles.profileFieldContent}>
                   <div className={styles.profileFieldIcon}>
                     <Avatar className={styles.fieldAvatar}>
@@ -392,7 +390,7 @@ export default function ProfilePage() {
                     variant="ghost"
                     size="icon"
                     className={styles.pencilEditButton}
-                    onClick={toggleNameMenu}
+                    onClick={openNameMenu}
                   >
                     <Pencil className={styles.pencilIcon} size={16} />
                   </Button>

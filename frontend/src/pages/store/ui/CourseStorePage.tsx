@@ -118,7 +118,7 @@ export default function CourseStorePage() {
   const inCartSlugs = new Set(cart?.courses?.map((c) => c.slug) ?? []);
 
   const handleCourseClick = (slug: string) => {
-    navigate(`/app/courses/${slug}`);
+    navigate(`/app/store/${slug}`);
   };
 
   const handleAddToCart = (slug: string, title: string) => {

@@ -329,13 +329,124 @@
 }
 
 .addSectionBtn {
-  margin-top: 8px;
-  width: 100%;
+  flex-shrink: 0;
   justify-content: center;
   gap: 8px;
   border-style: dashed;
   padding-top: 14px;
   padding-bottom: 14px;
+}
+
+.addFlowCollapsed {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.addSectionExpanded {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.addSectionExpanded .inlineAddSectionInput {
+  flex: 1;
+  min-width: 200px;
+}
+
+.addFlowActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@keyframes addFlowInputIn {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes addFlowActionsIn {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.addFlowInputAnim {
+  animation: addFlowInputIn 0.24s ease forwards;
+}
+
+.addFlowActionsAnim {
+  animation: addFlowActionsIn 0.24s ease forwards;
+}
+
+.inlineAddSection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+}
+
+.inlineAddSectionInput {
+  flex: 1;
+  min-width: 200px;
+}
+
+.sectionTitleEdit {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+}
+
+.sectionTitleInput {
+  flex: 1;
+  min-width: 140px;
+}
+
+.inlineAddLesson {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.inlineAddLesson .addFlowActions {
+  margin-left: auto;
+}
+
+.inlineAddLessonInput {
+  flex: 1;
+  min-width: 160px;
 }
 
 .centered {

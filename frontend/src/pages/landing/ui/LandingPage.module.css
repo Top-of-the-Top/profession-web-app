@@ -101,7 +101,7 @@ html {
   padding-top: 30px;
   margin-top: 120px; /* уменьшил с 220px, так как шапка фиксированная, но на мобиле добавим адаптацию */
   padding-bottom: 80px; /* убрал огромный запас, фон будет адаптирован */
-  background-image: url('landing/landing-circles.svg');
+  background-image: url('landing-circles.svg');
   background-repeat: no-repeat;
   background-position: 20% -30px;
   background-size: 500px auto;
@@ -115,7 +115,7 @@ html {
   background-repeat: no-repeat;
   background-position: -1px -10px;
   background-size: contain;
-  background-image: url('landing/landing-children.svg');
+  background-image: url('landing-children.svg');
 }
 
 .heroTitle {

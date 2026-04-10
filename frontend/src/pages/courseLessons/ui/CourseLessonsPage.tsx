@@ -1,10 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Link,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Check,
   ChevronDown,
@@ -20,15 +15,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -39,15 +25,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
   Input,
-  Label,
   PageTransition,
   Spinner,
 } from '@shared/ui';
@@ -55,16 +33,18 @@ import type {
   AppCourseLesson,
   AppCourseSection,
   CourseHomeMeta,
-  CourseHomeResponse,
 } from '@shared/api/courseApi';
 import { useCourseHomeBySlug } from '@shared/api/queries/courses';
 import {
   useCreateLesson,
+  useCreateSection,
   useDeleteLesson,
+  useDeleteSection,
+  usePatchSection,
   useToggleLessonType,
+  useToggleSectionType,
 } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac/useRole';
-import { notifyInfo } from '@shared/lib/sileo/notify';
 import { cn } from '@shared/lib/utils';
 import styles from './CourseLessonsPage.module.css';
 
@@ -91,39 +71,6 @@ function findSectionIdForLessonSlug(
   );
   return s?.section_id ?? null;
 }
-
-const MOCK_COURSE_HOME: CourseHomeResponse = {
-  course_id: 'mock-course-id',
-  title: 'Программирование (mock)',
-  content: [
-    {
-      section_id: 'mock-section-1',
-      section_number: 1,
-      title: 'Введение',
-      type: 'published',
-      lessons: [
-        {
-          lesson_id: 'mock-lesson-id-1',
-          lesson_number: 1,
-          title: 'Первый урок',
-          slug: 'mock-lesson-1',
-          type: 'published',
-        },
-        {
-          lesson_id: 'mock-lesson-id-2',
-          lesson_number: 2,
-          title: 'Второй урок',
-          slug: 'mock-lesson-2',
-          type: 'draft',
-        },
-      ],
-    },
-  ],
-  meta: {
-    completed_sections_id: ['mock-section-1'],
-    completed_lessons_id: ['mock-lesson-id-1'],
-  },
-};
 
 function StreakCard() {
   return (
@@ -235,23 +182,24 @@ function StudentStatusIcon({ done }: { done: boolean }) {
   );
 }
 
+type CourseLessonsLocationState = { highlightLesson?: string };
+
 export default function CourseLessonsPage() {
   const { slug } = useParams<{ slug: string }>();
-  const [searchParams] = useSearchParams();
-  const highlightLesson = searchParams.get('lesson');
+  const location = useLocation();
+  const highlightLesson =
+    (location.state as CourseLessonsLocationState | null)?.highlightLesson ??
+    null;
   const { hasAny } = useRole();
   const isStaff = hasAny('teacher', 'moderator');
 
   const homeQuery = useCourseHomeBySlug(slug);
-
-  const payload: CourseHomeResponse = homeQuery.data ?? MOCK_COURSE_HOME;
+  const { data: payload, isLoading, isError, refetch } = homeQuery;
 
   const title =
     (payload?.title && payload.title.trim() !== '' ? payload.title : null) ??
     slug?.replace(/-/g, ' ') ??
     'Курс';
-
-  const loading = homeQuery.isLoading;
 
   const { content, meta } = payload ?? {
     content: [],
@@ -290,11 +238,44 @@ export default function CourseLessonsPage() {
     });
   };
 
-  if (loading) {
+  if (!slug) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.centered}>
+          <div className={styles.errorBox}>
+            <p className={styles.errorText}>Не указан адрес курса.</p>
+            <Button type="button" variant="outline" asChild>
+              <Link to="/app/home">На главную</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
     return (
       <div className={styles.page}>
         <div className={styles.centered}>
           <Spinner />
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !payload) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.centered}>
+          <div className={styles.errorBox}>
+            <p className={styles.errorText}>
+              Не удалось загрузить программу курса. Проверьте, что вы записаны на
+              курс, и попробуйте снова.
+            </p>
+            <Button type="button" onClick={() => void refetch()}>
+              Попробовать снова
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -328,17 +309,7 @@ export default function CourseLessonsPage() {
         <div className={styles.layout}>
           <div className={styles.mainColumn}>
             <div className={styles.empty}>В этом курсе пока нет разделов.</div>
-            {isStaff ? (
-              <Button
-                type="button"
-                variant="outline"
-                className={styles.addSectionBtn}
-                onClick={() => notifyInfo({ title: 'В разработке' })}
-              >
-                <Plus size={18} strokeWidth={2} />
-                Добавить раздел
-              </Button>
-            ) : null}
+            {isStaff ? <AddSectionRow courseSlug={slug ?? ''} /> : null}
           </div>
           <aside className={styles.sidebar}>
             {isStaff ? (
@@ -401,17 +372,7 @@ export default function CourseLessonsPage() {
             />
           ))}
 
-          {isStaff ? (
-            <Button
-              type="button"
-              variant="outline"
-              className={styles.addSectionBtn}
-              onClick={() => notifyInfo({ title: 'В разработке' })}
-            >
-              <Plus size={18} strokeWidth={2} />
-              Добавить раздел
-            </Button>
-          ) : null}
+          {isStaff ? <AddSectionRow courseSlug={slug ?? ''} /> : null}
         </div>
 
         <aside className={styles.sidebar}>
@@ -434,6 +395,91 @@ export default function CourseLessonsPage() {
   );
 }
 
+function SectionStaffTools({
+  courseSlug,
+  section,
+  sectionSlug,
+  canManageSection,
+  editingTitle,
+  onEditTitle,
+  onDeleteSection,
+  deletePending,
+}: {
+  courseSlug: string;
+  section: AppCourseSection;
+  sectionSlug: string;
+  canManageSection: boolean;
+  editingTitle: boolean;
+  onEditTitle: () => void;
+  onDeleteSection: () => void;
+  deletePending: boolean;
+}) {
+  const toggleSectionType = useToggleSectionType(courseSlug);
+  const published = section.type !== 'draft';
+
+  return (
+    <div
+      className={styles.staffSectionTools}
+      role="group"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {section.type !== undefined ? (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={styles.publishBtn}
+            disabled={!canManageSection || toggleSectionType.isPending}
+            onClick={() => {
+              if (!canManageSection) return;
+              toggleSectionType.mutate({
+                sectionSlug,
+                currentType: section.type,
+              });
+            }}
+          >
+            {published ? 'Отозвать' : 'Опубликовать'}
+          </Button>
+          {published ? (
+            <Eye size={20} className={styles.eyePublished} strokeWidth={2} />
+          ) : (
+            <EyeOff size={20} className={styles.eyeDraft} strokeWidth={2} />
+          )}
+        </>
+      ) : null}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        disabled={!canManageSection || editingTitle}
+        title={
+          canManageSection
+            ? 'Редактировать название'
+            : 'У раздела нет slug — обновите страницу или проверьте API'
+        }
+        onClick={onEditTitle}
+      >
+        <Pencil size={18} strokeWidth={2} />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        disabled={!canManageSection || deletePending}
+        title={
+          canManageSection
+            ? 'Удалить раздел'
+            : 'У раздела нет slug — обновите страницу или проверьте API'
+        }
+        onClick={onDeleteSection}
+      >
+        <Trash2 size={18} strokeWidth={2} />
+      </Button>
+    </div>
+  );
+}
+
 function SectionBlock({
   section,
   courseSlug,
@@ -451,12 +497,88 @@ function SectionBlock({
   onOpenChange: (open: boolean) => void;
   highlightLessonSlug: string | null;
 }) {
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(section.title);
+  const [addingLesson, setAddingLesson] = useState(false);
+  const [newLessonTitle, setNewLessonTitle] = useState('');
+  const patchSection = usePatchSection(courseSlug);
+  const deleteSectionMutation = useDeleteSection(courseSlug);
+  const createLesson = useCreateLesson(courseSlug);
   const sectionDone = isSectionCompleted(
     section.section_id,
     meta.completed_sections_id,
   );
 
-  const stubAction = () => notifyInfo({ title: 'В разработке' });
+  const sectionSlug = section.slug?.trim() ?? '';
+  const canManageSection = Boolean(sectionSlug);
+
+  useEffect(() => {
+    if (!editingTitle) setDraftTitle(section.title);
+  }, [section.title, editingTitle]);
+
+  useLayoutEffect(() => {
+    if (!addingLesson) return;
+    const id = `new-lesson-input-${idKey(section.section_id)}`;
+    window.requestAnimationFrame(() => {
+      document.getElementById(id)?.focus();
+    });
+  }, [addingLesson, section.section_id]);
+
+  const saveSectionTitle = () => {
+    const trimmed = draftTitle.trim();
+    if (!trimmed || !canManageSection) return;
+    void (async () => {
+      try {
+        await patchSection.mutateAsync({
+          sectionSlug,
+          payload: { title: trimmed },
+        });
+        setEditingTitle(false);
+      } catch {
+        return;
+      }
+    })();
+  };
+
+  const cancelSectionTitleEdit = () => {
+    setDraftTitle(section.title);
+    setEditingTitle(false);
+  };
+
+  const requestDeleteSection = () => {
+    if (!canManageSection) return;
+    if (
+      !window.confirm(
+        `Раздел «${section.title}» и все его уроки будут удалены без возможности восстановления. Продолжить?`,
+      )
+    ) {
+      return;
+    }
+    void deleteSectionMutation.mutateAsync(sectionSlug);
+  };
+
+  const submitNewLesson = () => {
+    const trimmed = newLessonTitle.trim();
+    if (!trimmed) return;
+    void (async () => {
+      try {
+        await createLesson.mutateAsync({
+          title: trimmed,
+          section: section.section_id,
+          date_time: new Date().toISOString(),
+        });
+        setNewLessonTitle('');
+        setAddingLesson(false);
+      } catch {
+        return;
+      }
+    })();
+  };
+
+  const cancelNewLesson = () => {
+    setNewLessonTitle('');
+    setAddingLesson(false);
+  };
 
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
@@ -468,27 +590,64 @@ function SectionBlock({
             </span>
           ) : null}
 
-          <CollapsibleTrigger asChild>
-            <button type="button" className={styles.sectionTitleBtn}>
-              <span className={styles.sectionTitleText}>
-                {section.section_number}. {section.title}
-              </span>
-            </button>
-          </CollapsibleTrigger>
-
-          {isStaff ? (
-            <div
-              className={styles.staffSectionTools}
-              role="group"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Button type="button" variant="ghost" size="icon-sm" onClick={stubAction}>
-                <Pencil size={18} strokeWidth={2} />
+          {isStaff && editingTitle ? (
+            <div className={styles.sectionTitleEdit}>
+              <Input
+                className={styles.sectionTitleInput}
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                placeholder="Название раздела"
+                disabled={patchSection.isPending}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveSectionTitle();
+                  if (e.key === 'Escape') cancelSectionTitleEdit();
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={
+                  !draftTitle.trim() || patchSection.isPending || !canManageSection
+                }
+                onClick={saveSectionTitle}
+              >
+                {patchSection.isPending ? <Spinner /> : 'Сохранить'}
               </Button>
-              <Button type="button" variant="ghost" size="icon-sm" onClick={stubAction}>
-                <Trash2 size={18} strokeWidth={2} />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={patchSection.isPending}
+                onClick={cancelSectionTitleEdit}
+              >
+                Отмена
               </Button>
             </div>
+          ) : (
+            <CollapsibleTrigger asChild>
+              <button type="button" className={styles.sectionTitleBtn}>
+                <span className={styles.sectionTitleText}>
+                  {section.section_number}. {section.title}
+                </span>
+              </button>
+            </CollapsibleTrigger>
+          )}
+
+          {isStaff ? (
+            <SectionStaffTools
+              courseSlug={courseSlug}
+              section={section}
+              sectionSlug={sectionSlug}
+              canManageSection={canManageSection}
+              editingTitle={editingTitle}
+              onEditTitle={() => {
+                if (!canManageSection) return;
+                setDraftTitle(section.title);
+                setEditingTitle(true);
+              }}
+              onDeleteSection={requestDeleteSection}
+              deletePending={deleteSectionMutation.isPending}
+            />
           ) : (
             <StudentStatusIcon done={sectionDone} />
           )}
@@ -525,11 +684,62 @@ function SectionBlock({
               />
             ))}
 
-            {isStaff ? (
-              <AddLessonDialog
-                courseSlug={courseSlug}
-                sectionId={section.section_id}
-              />
+            {isStaff && addingLesson ? (
+              <div className={styles.inlineAddLesson}>
+                <Input
+                  id={`new-lesson-input-${idKey(section.section_id)}`}
+                  className={cn(
+                    styles.inlineAddLessonInput,
+                    styles.addFlowInputAnim,
+                  )}
+                  value={newLessonTitle}
+                  onChange={(e) => setNewLessonTitle(e.target.value)}
+                  placeholder="Название"
+                  disabled={createLesson.isPending}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') submitNewLesson();
+                    if (e.key === 'Escape') cancelNewLesson();
+                  }}
+                />
+                <div
+                  className={cn(
+                    styles.addFlowActions,
+                    styles.addFlowActionsAnim,
+                  )}
+                >
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={
+                      !newLessonTitle.trim() || createLesson.isPending
+                    }
+                    onClick={submitNewLesson}
+                  >
+                    {createLesson.isPending ? <Spinner /> : 'Создать'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={createLesson.isPending}
+                    onClick={cancelNewLesson}
+                  >
+                    Отмена
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            {isStaff && !addingLesson ? (
+              <div className={styles.addFlowCollapsed}>
+                <button
+                  type="button"
+                  className={styles.addLessonZone}
+                  onClick={() => setAddingLesson(true)}
+                >
+                  <Plus size={18} strokeWidth={2} />
+                  Добавить
+                </button>
+              </div>
             ) : null}
           </div>
         </CollapsibleContent>
@@ -555,9 +765,21 @@ function LessonRow({
 }) {
   const navigate = useNavigate();
   const toggleType = useToggleLessonType(courseSlug);
+  const deleteLesson = useDeleteLesson(courseSlug);
   const lessonLabel = `${sectionNumber}.${lesson.lesson_number} ${lesson.title}`;
   const published = lesson.type !== 'draft';
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const lessonCreatePending = lesson.lesson_id.startsWith('optimistic:');
+
+  const requestDeleteLesson = () => {
+    if (
+      !window.confirm(
+        `Урок «${lesson.title}» будет удалён без возможности восстановления. Продолжить?`,
+      )
+    ) {
+      return;
+    }
+    void deleteLesson.mutateAsync(lesson.slug);
+  };
 
   if (isStaff) {
     return (
@@ -578,7 +800,7 @@ function LessonRow({
             variant="outline"
             size="sm"
             className={styles.publishBtn}
-            disabled={toggleType.isPending}
+            disabled={lessonCreatePending || toggleType.isPending}
             onClick={() =>
               toggleType.mutate({
                 lessonSlug: lesson.slug,
@@ -597,27 +819,31 @@ function LessonRow({
             type="button"
             variant="ghost"
             size="icon-sm"
+            disabled={lessonCreatePending}
             onClick={() =>
               navigate(
-                `/app/courses/${courseSlug}/lessons/${encodeURIComponent(lesson.slug)}`,
+                `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`,
               )
             }
           >
             <Pencil size={18} strokeWidth={2} />
           </Button>
-          <DeleteLessonDialog
-            courseSlug={courseSlug}
-            lessonSlug={lesson.slug}
-            lessonTitle={lesson.title}
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={lessonCreatePending || deleteLesson.isPending}
+            title="Удалить урок"
+            onClick={requestDeleteLesson}
+          >
+            <Trash2 size={18} strokeWidth={2} />
+          </Button>
         </div>
       </div>
     );
   }
 
-  const to = `/app/courses/${courseSlug}/lessons/${encodeURIComponent(lesson.slug)}`;
+  const to = `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`;
 
   return (
     <Link
@@ -634,126 +860,99 @@ function LessonRow({
   );
 }
 
-function DeleteLessonDialog({
-  courseSlug,
-  lessonSlug,
-  lessonTitle,
-  open,
-  onOpenChange,
-}: {
-  courseSlug: string;
-  lessonSlug: string;
-  lessonTitle: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const deleteMutation = useDeleteLesson(courseSlug);
-
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogTrigger asChild>
-        <Button type="button" variant="ghost" size="icon-sm">
-          <Trash2 size={18} strokeWidth={2} />
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Удалить урок?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Урок «{lessonTitle}» будет удалён без возможности восстановления.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Отмена</AlertDialogCancel>
-          <AlertDialogAction
-            disabled={deleteMutation.isPending}
-            onClick={() =>
-              deleteMutation.mutate(lessonSlug, {
-                onSuccess: () => onOpenChange(false),
-              })
-            }
-          >
-            {deleteMutation.isPending ? 'Удаление…' : 'Удалить'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
-function AddLessonDialog({
-  courseSlug,
-  sectionId,
-}: {
-  courseSlug: string;
-  sectionId: string;
-}) {
-  const [open, setOpen] = useState(false);
+function AddSectionRow({ courseSlug }: { courseSlug: string }) {
   const [title, setTitle] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const createMutation = useCreateLesson(courseSlug);
+  const [expanded, setExpanded] = useState(false);
+  const createMutation = useCreateSection(courseSlug);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  useLayoutEffect(() => {
+    if (!expanded) return;
+    window.requestAnimationFrame(() => {
+      document.getElementById('new-section-input')?.focus();
+    });
+  }, [expanded]);
+
+  const submit = () => {
     const trimmed = title.trim();
     if (!trimmed) return;
-    createMutation.mutate(
-      { title: trimmed, section: sectionId },
-      {
-        onSuccess: () => {
-          setTitle('');
-          setOpen(false);
-        },
-      },
-    );
+    void (async () => {
+      try {
+        await createMutation.mutateAsync({ title: trimmed });
+        setTitle('');
+        setExpanded(false);
+      } catch {
+        return;
+      }
+    })();
+  };
+
+  const cancel = () => {
+    setTitle('');
+    setExpanded(false);
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) setTitle('');
-      }}
-    >
-      <DialogTrigger asChild>
-        <button type="button" className={styles.addLessonZone}>
-          <Plus size={18} strokeWidth={2} />
-          Добавить урок
-        </button>
-      </DialogTrigger>
-      <DialogContent>
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Новый урок</DialogTitle>
-          </DialogHeader>
-          <div style={{ padding: '16px 0' }}>
-            <Label htmlFor="new-lesson-title">Название урока</Label>
-            <Input
-              id="new-lesson-title"
-              ref={inputRef}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Введите название"
-              autoFocus
-              disabled={createMutation.isPending}
-            />
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                Отмена
-              </Button>
-            </DialogClose>
+    <div className={styles.inlineAddSection}>
+      {!expanded ? (
+        <div className={styles.addFlowCollapsed}>
+          <Button
+            type="button"
+            variant="outline"
+            className={styles.addSectionBtn}
+            onClick={() => setExpanded(true)}
+          >
+            <Plus size={18} strokeWidth={2} />
+            Добавить
+          </Button>
+        </div>
+      ) : (
+        <div className={styles.addSectionExpanded}>
+          <Input
+            id="new-section-input"
+            className={cn(
+              styles.inlineAddSectionInput,
+              styles.addFlowInputAnim,
+            )}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Название"
+            disabled={createMutation.isPending}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submit();
+              if (e.key === 'Escape') cancel();
+            }}
+          />
+          <div
+            className={cn(styles.addFlowActions, styles.addFlowActionsAnim)}
+          >
             <Button
-              type="submit"
+              type="button"
+              variant="outline"
+              className={styles.addSectionBtn}
               disabled={!title.trim() || createMutation.isPending}
+              onClick={submit}
             >
-              {createMutation.isPending ? <Spinner /> : 'Создать'}
+              {createMutation.isPending ? (
+                <Spinner />
+              ) : (
+                <>
+                  <Plus size={18} strokeWidth={2} />
+                  Добавить раздел
+                </>
+              )}
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={createMutation.isPending}
+              onClick={cancel}
+            >
+              Отмена
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

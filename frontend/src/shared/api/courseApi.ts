@@ -1,7 +1,7 @@
 import { apiClient } from './interceptor';
 
 export interface CourseDTO {
-  course_id: number;
+  course_id: string;
   title: string;
   sub_title: string;
   image_url: string;
@@ -14,7 +14,7 @@ export interface Course extends CourseDTO {
   updated_at: string;
   description: string;
   image: string;
-  last_modified_by: number;
+  last_modified_by: number | null;
   authors: number[];
 }
 
@@ -37,6 +37,7 @@ export interface AppCourseSection {
   section_id: string;
   section_number: number;
   title: string;
+  slug?: string;
   lessons: AppCourseLesson[];
   type?: CourseContentType;
 }
@@ -56,11 +57,13 @@ export interface CourseHomeResponse {
 export type AppCourseContentResponse = CourseHomeResponse;
 
 export interface Lesson {
-  lesson_id: number;
-  course_id: number;
+  lesson_id: string;
+  section?: string | null;
+  lesson_number: number;
   title: string;
   slug: string;
-  date: string;
+  type?: CourseContentType;
+  date_time?: string | null;
   created_at: string;
   updated_at: string;
   last_modified_by: number | null;
@@ -77,16 +80,38 @@ export interface CourseLessonDetail {
 }
 
 export interface PurchasedCourseItem {
-  id: number;
+  id: string | number;
   course: CourseDTO;
   payment: number;
   access_expires_at: string | null;
   is_active: boolean;
 }
 
+export interface SectionCreatePayload {
+  title: string;
+}
+
+export interface SectionPatchPayload {
+  title?: string;
+  type?: CourseContentType;
+}
+
+export interface SectionRecord {
+  section_id: string;
+  section_number: number;
+  title: string;
+  slug: string;
+  course: string;
+  type: CourseContentType;
+  created_at: string;
+  updated_at: string;
+  last_modified_by: number | null;
+}
+
 export interface LessonCreatePayload {
   title: string;
   section?: string;
+  date_time?: string | null;
 }
 
 export interface LessonPatchPayload {
@@ -115,26 +140,52 @@ type RawCourseHomeResponse = Partial<CourseHomeResponse> & {
   meta?: Record<string, unknown>;
 };
 
+type RawLessonDetailContent = {
+  recording_url?: string;
+  started_at?: string | null;
+  homeworks?: Array<{
+    homework_id: string;
+    title: string;
+    homework_slug: string;
+    deadline: string;
+  }>;
+};
+
+type RawLessonDetailResponse = {
+  lesson_id: string;
+  title: string;
+  content: RawLessonDetailContent | string;
+};
+
 function normalizeCoursesResponse(raw: RawCoursesResponse): CourseApiAnswer {
   if (Array.isArray(raw)) {
     return {
       number_of_courses: raw.length,
-      data: raw,
+      data: raw.map((c) => ({
+        ...c,
+        course_id: String(c.course_id),
+      })),
     };
   }
 
   return {
     number_of_courses: Number(raw.number_of_courses ?? 0),
-    data: Array.isArray(raw.data) ? raw.data : [],
+    data: Array.isArray(raw.data)
+      ? raw.data.map((c) => ({
+          ...c,
+          course_id: String(c.course_id),
+        }))
+      : [],
   };
 }
 
 function normalizeCourseBySlugResponse(raw: RawCourseBySlugResponse): Course {
-  if ('course' in raw) {
-    return raw.course;
-  }
-
-  return raw;
+  const c = 'course' in raw ? raw.course : raw;
+  return {
+    ...c,
+    course_id: String(c.course_id),
+    last_modified_by: c.last_modified_by ?? null,
+  };
 }
 
 function normalizeIdList(value: unknown): string[] {
@@ -166,9 +217,35 @@ function normalizeCourseHomeResponse(raw: RawCourseHomeResponse): CourseHomeResp
   };
 }
 
+function normalizeLessonDetailRead(raw: RawLessonDetailResponse): CourseLessonDetail {
+  const contentVal = raw.content;
+  const nest =
+    typeof contentVal === 'object' && contentVal !== null && !Array.isArray(contentVal)
+      ? (contentVal as RawLessonDetailContent)
+      : null;
+  const builderContent =
+    typeof contentVal === 'string'
+      ? contentVal
+      : JSON.stringify({
+          id: String(raw.lesson_id),
+          title: raw.title,
+          blocks: [],
+        });
+  const firstHw = nest?.homeworks?.[0];
+  return {
+    lesson_id: raw.lesson_id,
+    lesson_title: raw.title,
+    content: builderContent,
+    recording_url: nest?.recording_url ?? null,
+    homework_id: firstHw?.homework_id ?? null,
+    homework_deadline: firstHw?.deadline ?? null,
+    started_at: nest?.started_at ?? null,
+  };
+}
+
 function catalogRowsToPurchasedShim(rows: CourseDTO[]): PurchasedCourseItem[] {
   return rows.map((course) => ({
-    id: course.course_id,
+    id: String(course.course_id),
     course,
     payment: 0,
     access_expires_at: null,
@@ -202,10 +279,46 @@ export const courseApi = {
   },
 
   patchCourse(slug: string, payload: CoursePatchPayload): Promise<Course> {
-    return apiClient.request<Course>(`/api/app/courses/${slug}/`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    });
+    return apiClient
+      .request<RawCourseBySlugResponse>(`/api/app/courses/${slug}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      })
+      .then(normalizeCourseBySlugResponse);
+  },
+
+  createSection(
+    courseSlug: string,
+    payload: SectionCreatePayload,
+  ): Promise<SectionRecord> {
+    return apiClient.request<SectionRecord>(
+      `/api/courses/${courseSlug}/sections/`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  patchSection(
+    courseSlug: string,
+    sectionSlug: string,
+    payload: SectionPatchPayload,
+  ): Promise<SectionRecord> {
+    return apiClient.request<SectionRecord>(
+      `/api/courses/${courseSlug}/sections/${sectionSlug}/`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  deleteSection(courseSlug: string, sectionSlug: string): Promise<void> {
+    return apiClient.request<void>(
+      `/api/courses/${courseSlug}/sections/${sectionSlug}/`,
+      { method: 'DELETE' },
+    );
   },
 
   createLesson(courseSlug: string, payload: LessonCreatePayload): Promise<Lesson> {
@@ -236,22 +349,18 @@ export const courseApi = {
     );
   },
 
-  getLessons(courseSlug: string): Promise<Lesson[]> {
-    return apiClient.request<Lesson[]>(`/api/courses/${courseSlug}/lessons/`, {
-      method: 'GET',
-    });
-  },
-
   getLessonBySlug(
     courseSlug: string,
     lessonSlug: string,
   ): Promise<CourseLessonDetail> {
-    return apiClient.request<CourseLessonDetail>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
-      {
-        method: 'GET',
-      },
-    );
+    return apiClient
+      .request<RawLessonDetailResponse>(
+        `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
+        {
+          method: 'GET',
+        },
+      )
+      .then(normalizeLessonDetailRead);
   },
 
   getMyCourses(): Promise<PurchasedCourseItem[]> {
@@ -267,10 +376,12 @@ export const courseApi = {
 
     const res: CourseApiAnswer =
       APP_HOME_COURSES_SOURCE === 'landing'
-        ? await apiClient.request<CourseApiAnswer>('/api/landing/courses/', {
-            method: 'GET',
-            skipAuth: true,
-          })
+        ? await apiClient
+            .request<CourseApiAnswer>('/api/landing/courses/', {
+              method: 'GET',
+              skipAuth: true,
+            })
+            .then((raw) => normalizeCoursesResponse(raw as RawCoursesResponse))
         : await this.getCourses();
 
     return catalogRowsToPurchasedShim(res.data ?? []);

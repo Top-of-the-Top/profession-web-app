@@ -511,6 +511,12 @@
   color: #991b1b;
 }
 
+.errorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 /* ── Responsive ── */
 
 @media (max-width: 960px) {

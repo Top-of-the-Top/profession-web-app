@@ -7,8 +7,6 @@ export const courseKeys = {
   home: () => [...courseKeys.all, 'home'] as const,
   bySlug: (slug: string) => [...courseKeys.all, 'detail', slug] as const,
   courseHome: (slug: string) => [...courseKeys.all, 'home', slug] as const,
-  lessons: (courseSlug: string) =>
-    [...courseKeys.all, courseSlug, 'lessons'] as const,
   lesson: (courseSlug: string, lessonSlug: string) =>
     [...courseKeys.all, courseSlug, 'lessons', lessonSlug] as const,
 };
@@ -40,14 +38,6 @@ export function useCourseHomeBySlug(slug: string | undefined) {
     queryKey: courseKeys.courseHome(slug!),
     queryFn: () => courseApi.getCourseHomeBySlug(slug!),
     enabled: !!slug,
-  });
-}
-
-export function useLessons(courseSlug: string | undefined) {
-  return useQuery({
-    queryKey: courseKeys.lessons(courseSlug!),
-    queryFn: () => courseApi.getLessons(courseSlug!),
-    enabled: !!courseSlug,
   });
 }
 

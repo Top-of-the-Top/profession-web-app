@@ -12,17 +12,15 @@ import {
   PageTransition,
   Spinner,
 } from '@shared/ui';
-import type { CourseLessonDetail } from '@shared/api/courseApi';
 import type { LessonLayout, Block } from '../../../features/course-builder';
 import {
   FONT_SIZE_STEPS,
   DEFAULT_FONT_SIZE_INDEX,
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
-import { useCourseBySlug, useLessonBySlug } from '@shared/api/queries/courses';
+import { useCourseHomeBySlug, useLessonBySlug } from '@shared/api/queries/courses';
 import styles from './LessonViewPage.module.css';
 
-/* ── Block views (read-only, reused from CourseRenderer logic) ── */
 
 const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
   html,
@@ -138,7 +136,7 @@ const HomeworkWidget: React.FC<{
       )}
       {homeworkId != null && homeworkId !== '' ? (
         <Link
-          to={`/app/courses/${courseSlug}/lessons/${lessonSlug}/homework/${encodeURIComponent(String(homeworkId))}`}
+          to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(String(homeworkId))}`}
           className={styles.homeworkButton}
         >
           Перейти к заданию
@@ -312,19 +310,8 @@ const WebinarLinksWidget: React.FC<{
   </div>
 );
 
-const TEST_RECORDING_URL = 'https://kinescope.io/embed/t1go93i9aP3NG6VNPxiCC6';
-const MOCK_LESSON_DETAIL: CourseLessonDetail = {
-  lesson_id: 'mock-lesson-id-1',
-  lesson_title: 'Тестовый урок (mock)',
-  content: '{"id":"mock-lesson-id-1","title":"Тестовый урок (mock)","blocks":[]}',
-  recording_url: TEST_RECORDING_URL,
-  homework_id: null,
-  homework_deadline: null,
-  started_at: null,
-};
-
 const LessonRecording: React.FC<{ recording: string | null }> = ({ recording }) => {
-  const value = (recording?.trim() || TEST_RECORDING_URL).trim();
+  const value = recording?.trim();
 
   if (!value) return null;
 
@@ -359,15 +346,15 @@ export default function LessonViewPage() {
   }>();
   const navigate = useNavigate();
 
-  const courseQuery = useCourseBySlug(courseSlug);
+  const homeQuery = useCourseHomeBySlug(courseSlug);
   const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
 
   const courseTitle =
-    courseQuery.data?.title ??
+    homeQuery.data?.title ??
     courseSlug?.replace(/-/g, ' ') ??
     'Курс';
 
-  const lessonDetail = lessonQuery.data ?? MOCK_LESSON_DETAIL;
+  const lessonDetail = lessonQuery.data;
 
   const lessonLayout = useMemo<LessonLayout | null>(() => {
     if (!lessonDetail) return null;
@@ -382,7 +369,7 @@ export default function LessonViewPage() {
     }
   }, [lessonDetail]);
 
-  const loading = courseQuery.isLoading || lessonQuery.isLoading;
+  const loading = lessonQuery.isLoading;
   if (loading) {
     return (
       <div className={styles.page}>
@@ -393,14 +380,23 @@ export default function LessonViewPage() {
     );
   }
 
-  if (!lessonDetail) {
+  if (lessonQuery.isError || !lessonDetail) {
     return (
       <div className={styles.page}>
-        <div className={styles.errorBox}>
-          <p className={styles.errorText}>Урок недоступен</p>
-          <Button variant="secondary" onClick={() => navigate(-1)}>
-            Назад
-          </Button>
+        <div className={styles.centered}>
+          <div className={styles.errorBox}>
+            <p className={styles.errorText}>
+              Не удалось загрузить урок. Проверьте доступ и попробуйте снова.
+            </p>
+            <div className={styles.errorActions}>
+              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+                Назад
+              </Button>
+              <Button type="button" onClick={() => void lessonQuery.refetch()}>
+                Попробовать снова
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -422,10 +418,11 @@ export default function LessonViewPage() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link
-                  to={
+                  to={`/app/courses/${courseSlug}`}
+                  state={
                     lessonSlug
-                      ? `/app/courses/${courseSlug}/lessons?lesson=${encodeURIComponent(lessonSlug)}`
-                      : `/app/courses/${courseSlug}/lessons`
+                      ? { highlightLesson: lessonSlug }
+                      : undefined
                   }
                 >
                   {courseTitle}
@@ -461,8 +458,8 @@ export default function LessonViewPage() {
             webinarUrl={lessonDetail.recording_url}
           />
           <HomeworkWidget
-            courseSlug={courseSlug ?? 'mock-course'}
-            lessonSlug={lessonSlug ?? 'mock-lesson'}
+            courseSlug={courseSlug ?? ''}
+            lessonSlug={lessonSlug ?? ''}
             homeworkId={lessonDetail.homework_id}
             deadline={lessonDetail.homework_deadline}
           />

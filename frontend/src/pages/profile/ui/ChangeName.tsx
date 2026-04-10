@@ -1,8 +1,21 @@
-import { useState, useEffect, type ChangeEvent, useRef } from 'react';
-import { Button, Input, Label, Avatar, AvatarFallback, AvatarImage } from '@shared/ui';
-import { X, Camera } from 'lucide-react';
+import { useState, useEffect, type ChangeEvent, useRef, useCallback } from 'react';
+import {
+  Button,
+  Input,
+  Label,
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Spinner,
+} from '@shared/ui';
+import { Camera } from 'lucide-react';
 import styles from './ChangeName.module.css';
-import { cn } from '@shared/lib/utils';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -11,29 +24,31 @@ import {
 } from '@shared/utils/formSchemas';
 
 interface ChangeNameProps {
-  isVisible: boolean;
-  onClose?: () => void;
-  onSave?: (data: { 
-    firstName: string; 
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (data: {
+    firstName: string;
     lastName: string;
     avatar?: File | null;
-  }) => void;
+  }) => Promise<void>;
   currentFirstName?: string;
   currentLastName?: string;
   currentAvatar?: string | null;
 }
 
-export default function ChangeName({ 
-  isVisible, 
-  onClose, 
+export default function ChangeName({
+  open,
+  onOpenChange,
   onSave,
   currentFirstName = '',
   currentLastName = '',
-  currentAvatar = null
+  currentAvatar = null,
 }: ChangeNameProps) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(currentAvatar);
+  const [savePending, setSavePending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formId = 'change-name-form';
   const {
     register,
     handleSubmit,
@@ -44,20 +59,35 @@ export default function ChangeName({
     defaultValues: { firstName: currentFirstName, lastName: currentLastName },
   });
 
-  useEffect(() => {
-    if (isVisible) {
-      reset({ firstName: currentFirstName, lastName: currentLastName });
-      if (!avatarFile) {
-        setAvatarPreview(currentAvatar);
-      }
+  const cleanup = useCallback(() => {
+    reset({ firstName: currentFirstName, lastName: currentLastName });
+    setAvatarFile(null);
+    setAvatarPreview(currentAvatar);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
-  }, [isVisible, currentFirstName, currentLastName, currentAvatar, reset, avatarFile]);
+  }, [currentAvatar, currentFirstName, currentLastName, reset]);
+
+  useEffect(() => {
+    if (!open) return;
+    reset({ firstName: currentFirstName, lastName: currentLastName });
+    setAvatarFile(null);
+    setAvatarPreview(currentAvatar);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [open, currentFirstName, currentLastName, currentAvatar, reset]);
+
+  const handleDialogOpenChange = (next: boolean) => {
+    if (!next) cleanup();
+    onOpenChange(next);
+  };
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setAvatarFile(file);
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string);
@@ -70,110 +100,118 @@ export default function ChangeName({
     fileInputRef.current?.click();
   };
 
-  const handleSave = ({ firstName, lastName }: ChangeNameFormValues): void => {
-    onSave?.({
-      firstName,
-      lastName,
-      avatar: avatarFile
-    });
-  };
-
-  const handleClose = () => {
-    reset({ firstName: currentFirstName, lastName: currentLastName });
-    setAvatarFile(null);
-    setAvatarPreview(currentAvatar);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const onSubmit = handleSubmit(async ({ firstName, lastName }) => {
+    setSavePending(true);
+    try {
+      await onSave({
+        firstName,
+        lastName,
+        avatar: avatarFile,
+      });
+      handleDialogOpenChange(false);
+    } catch {
+      return;
+    } finally {
+      setSavePending(false);
     }
-    onClose?.();
-  };
+  });
 
   return (
-    <div className={cn(styles.container, isVisible ? styles.formVisible : '')}>
-      <div className={styles.titleHeader}>
-        {onClose && (
-          <button 
-            className={styles.closeButton}
-            onClick={handleClose}
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+      <DialogContent className={styles.dialogContent}>
+        <DialogHeader>
+          <DialogTitle>Личные данные</DialogTitle>
+          <DialogDescription className="sr-only">
+            Измените имя, фамилию и при необходимости фото профиля
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className={styles.header}>
+          <div className={styles.avatarContainer}>
+            <Avatar className={styles.avatar}>
+              <AvatarImage
+                src={avatarPreview || ''}
+                className={styles.avatarImage}
+              />
+              <AvatarFallback className={styles.avatarFallback}>
+                {currentFirstName?.[0] || currentLastName?.[0] || 'U'}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+
+          <Button
+            variant="secondary"
+            className={styles.changeButton}
+            onClick={handleChangeClick}
             type="button"
-            aria-label="Закрыть"
+            disabled={savePending}
           >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-        <h2 className={styles.title}>Личные данные</h2>	
-      </div>
+            <Camera size={16} style={{ marginRight: '8px' }} />
+            {avatarPreview ? 'Изменить фото' : 'Загрузить фото'}
+          </Button>
+        </div>
 
-      <div className={styles.header}>
-        <div className={styles.avatarContainer}>
-          <Avatar className={styles.avatar}>
-            <AvatarImage
-              src={avatarPreview || ''}
-              className={styles.avatarImage}
+        <form id={formId} className={styles.form} onSubmit={onSubmit}>
+          <div className={styles.formGroup}>
+            <Label htmlFor="firstName" className={styles.label}>
+              Имя
+            </Label>
+            <Input
+              id="firstName"
+              className={styles.input}
+              placeholder="Введите имя"
+              disabled={savePending}
+              {...register('firstName')}
             />
-            <AvatarFallback className={styles.avatarFallback}>
-              {currentFirstName?.[0] || currentLastName?.[0] || 'U'}
-            </AvatarFallback>
-          </Avatar>
-        </div>
-        
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileSelect}
-          style={{ display: 'none' }}
-        />
-        
-        <Button 
-          variant="secondary" 
-          className={styles.changeButton}
-          onClick={handleChangeClick}
-          type="button"
-        >
-          <Camera size={16} style={{ marginRight: '8px' }} />
-          {avatarPreview ? 'Изменить фото' : 'Загрузить фото'}
-        </Button>
-      </div>
+            {errors.firstName?.message ? (
+              <p className={styles.errorText}>{errors.firstName.message}</p>
+            ) : null}
+          </div>
 
-      <form className={styles.form} onSubmit={handleSubmit(handleSave)}>
-        <div className={styles.formGroup}>
-          <Label htmlFor="firstName" className={styles.label}>
-            Имя
-          </Label>
-          <Input
-            id="firstName"
-            className={styles.input}
-            placeholder="Введите имя"
-            {...register('firstName')}
-          />
-          {errors.firstName?.message ? (
-            <p className={styles.errorText}>{errors.firstName.message}</p>
-          ) : null}
-        </div>
+          <div className={styles.formGroup}>
+            <Label htmlFor="lastName" className={styles.label}>
+              Фамилия
+            </Label>
+            <Input
+              id="lastName"
+              className={styles.input}
+              placeholder="Введите фамилию"
+              disabled={savePending}
+              {...register('lastName')}
+            />
+            {errors.lastName?.message ? (
+              <p className={styles.errorText}>{errors.lastName.message}</p>
+            ) : null}
+          </div>
+        </form>
 
-        <div className={styles.formGroup}>
-          <Label htmlFor="lastName" className={styles.label}>
-            Фамилия
-          </Label>
-          <Input
-            id="lastName"
-            className={styles.input}
-            placeholder="Введите фамилию"
-            {...register('lastName')}
-          />
-          {errors.lastName?.message ? (
-            <p className={styles.errorText}>{errors.lastName.message}</p>
-          ) : null}
-        </div>
-        <Button 
-          className={styles.saveButton}
-          type="submit"
-        >
-          Сохранить
-        </Button>
-      </form>
-
-    </div>
+        <DialogFooter className={styles.dialogFooter}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={savePending}
+            onClick={() => handleDialogOpenChange(false)}
+          >
+            Отмена
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            className={styles.saveButton}
+            disabled={savePending}
+          >
+            {savePending ? <Spinner /> : 'Сохранить'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

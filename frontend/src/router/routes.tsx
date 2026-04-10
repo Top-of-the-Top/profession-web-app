@@ -50,16 +50,16 @@ export const routes: AppRoute[] = [
       { path: 'profile', element: <ProfilePage /> },
       { path: 'store', element: <CourseStorePage /> },
       {
-        path: 'courses/:slug/lessons',
-        element: <CourseLessonsPage />,
+        path: 'store/:slug',
+        element: <CoursePreviewPage />,
       },
       {
-        path: 'courses/:slug/lessons/:lessonSlug',
+        path: 'courses/:slug/:lessonSlug',
         element: <LessonViewPage />,
       },
       {
         path: 'courses/:slug',
-        element: <CoursePreviewPage />,
+        element: <CourseLessonsPage />,
       },
       {
         path: 'create',

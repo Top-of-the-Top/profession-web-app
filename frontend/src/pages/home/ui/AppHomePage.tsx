@@ -76,7 +76,7 @@ export default function AppHomePage() {
   const { data: items = [], isLoading, error, refetch } = useCoursesForHome();
 
   const openCourse = (slug: string) => {
-    navigate(`/app/courses/${slug}/lessons`);
+    navigate(`/app/courses/${slug}`);
   };
 
   if (isLoading) {

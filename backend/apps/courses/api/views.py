@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from django.db.models import Prefetch
 from ..models import (
     Course,
     PurchasedCourse,
@@ -18,6 +19,7 @@ from .serializers import (
     PurchasedCourseSerializer,
     CourseListResponseSerializer,
     LessonSerializer,
+    LessonDetailReadSerializer,
     HomeworkSerializer,
     HomeworkDetailSerializer,
     CourseHomeSerializer,
@@ -56,9 +58,6 @@ def lesson_list_cache_key(course_slug):
 
 def lesson_detail_cache_key(course_slug, slug):
     return f"default:lessons:detail:{course_slug}:{slug}"
-
-def homework_list_cache_key(course_slug, lesson_slug):
-    return f"default:homeworks:list:{course_slug}:{lesson_slug}"
 
 def homework_detail_cache_key(course_slug, lesson_slug, slug):
     return f"default:homeworks:detail:{course_slug}:{lesson_slug}:{slug}"
@@ -297,7 +296,13 @@ class CourseHomePageView(APIView):
 
 
 def _lesson_queryset_for_course(course_slug):
-    return Lesson.objects.filter(section__course__slug=course_slug).order_by('lesson_number')
+    hw_qs = Homework.objects.order_by('homework_number', 'created_at')
+    return (
+        Lesson.objects.filter(section__course__slug=course_slug)
+        .select_related('section', 'section__course')
+        .prefetch_related(Prefetch('homework_set', queryset=hw_qs))
+        .order_by('lesson_number')
+    )
 
 
 def _get_lesson_or_404(course_slug, lesson_slug):
@@ -476,7 +481,7 @@ class LessonDetailView(APIView):
             ),
         ],
         responses={
-            200: LessonSerializer,
+            200: LessonDetailReadSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -491,7 +496,7 @@ class LessonDetailView(APIView):
         if cached is not None:
             return Response(cached)
         lesson = _get_lesson_or_404(course_slug, lesson_slug)
-        data = LessonSerializer(lesson).data
+        data = LessonDetailReadSerializer(lesson).data
         cache.set(key, data)
         return Response(data)
 
@@ -548,31 +553,8 @@ class LessonDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class HomeworkListCreateView(APIView):
+class HomeworkCreateView(APIView):
     permission_classes = (IsAuthenticated,)
-
-    @extend_schema(
-        summary="Список домашек",
-        tags=["homework"],
-        responses={
-            200: HomeworkDetailSerializer(many=True),
-            401: {"schema": SCHEMA_DETAIL},
-            403: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
-        }
-    )
-    @require_course_enrollment
-    def get(self, request, course_slug, lesson_slug):
-        cache = caches["default"]
-        key = homework_list_cache_key(course_slug, lesson_slug)
-        cached = cache.get(key)
-        if cached is not None:
-            return Response(cached)
-        qs = _homework_queryset_for_lesson(course_slug, lesson_slug)
-        data = HomeworkDetailSerializer(qs, many=True).data
-        cache.set(key, data)
-        return Response(data)
 
     @extend_schema(
         summary="Создать домашку",

@@ -59,7 +59,7 @@ urlpatterns += [
 urlpatterns += [
     path(
         'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/',
-        views.HomeworkListCreateView.as_view(),
+        views.HomeworkCreateView.as_view(),
         name='lesson-homeworks-list',
     ),
     path(

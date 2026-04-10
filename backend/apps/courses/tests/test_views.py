@@ -243,7 +243,10 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         response = self.client.get(f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Lesson 1')
-        self.assertEqual(response.data['slug'], self.lesson.slug)
+        self.assertEqual(str(response.data['lesson_id']), str(self.lesson.lesson_id))
+        self.assertIn('recording_url', response.data['content'])
+        self.assertIn('started_at', response.data['content'])
+        self.assertIn('homeworks', response.data)
 
     def test_lesson_create_as_author(self):
         from datetime import datetime
@@ -306,14 +309,25 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(Lesson.objects.filter(section=self.section).count(), initial_count - 1)
         self.assertFalse(Lesson.objects.filter(slug=new_lesson.slug).exists())
 
-    def test_homework_list(self):
+    def test_lesson_includes_homework_briefs(self):
+        self.authenticate_user(self.student)
+        response = self.client.get(
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['homeworks']), 1)
+        hw = response.data['homeworks'][0]
+        self.assertEqual(hw['title'], 'HW 1')
+        self.assertEqual(hw['homework_slug'], self.homework.slug)
+        self.assertEqual(str(hw['homework_id']), str(self.homework.homework_id))
+        self.assertIn('deadline', hw)
+
+    def test_homework_list_get_not_allowed(self):
         self.authenticate_user(self.student)
         response = self.client.get(
             f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/'
         )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['title'], 'HW 1')
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_homework_retrieve_with_items(self):
         Task.objects.create(homework=self.homework, text='Task 1', max_points=10)
@@ -469,7 +483,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         response = self.client.get(
             f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/'
         )
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_author_can_create_and_update(self):
         self.authenticate_user(self.teacher)

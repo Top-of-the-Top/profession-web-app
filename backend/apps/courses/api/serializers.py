@@ -121,6 +121,47 @@ class CourseHomeSerializer(serializers.Serializer):
         return {}
 
 
+class LessonContentBlockSerializer(serializers.Serializer):
+    recording_url = serializers.URLField()
+    started_at = serializers.DateTimeField()
+
+
+class HomeworkBriefSerializer(serializers.Serializer):
+    homework_id = serializers.UUIDField()
+    title = serializers.CharField(max_length=120)
+    homework_slug = serializers.SlugField()
+    deadline = serializers.DateTimeField()
+
+
+class LessonDetailReadSerializer(serializers.ModelSerializer):
+    lesson_id = serializers.UUIDField(read_only=True)
+    content = serializers.SerializerMethodField()
+    homeworks = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Lesson
+        fields = ('lesson_id', 'title', 'content', 'homeworks')
+
+    @extend_schema_field(LessonContentBlockSerializer)
+    def get_content(self, obj):
+        return {
+            'recording_url': 'https://example.com/recordings/mock-lesson',
+            'started_at': '2026-01-15T10:00:00+00:00',
+        }
+
+    @extend_schema_field(HomeworkBriefSerializer(many=True))
+    def get_homeworks(self, obj):
+        return [
+            {
+                'homework_id': h.homework_id,
+                'title': h.title,
+                'homework_slug': h.slug,
+                'deadline': h.deadline,
+            }
+            for h in obj.homework_set.all()
+        ]
+
+
 class LessonSerializer(serializers.ModelSerializer):
     section = serializers.PrimaryKeyRelatedField(
         queryset=Section.objects.all(), required=False, allow_null=True

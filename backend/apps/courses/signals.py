@@ -311,7 +311,6 @@ from .api.views import (
     section_detail_cache_key,
     lesson_list_cache_key,
     lesson_detail_cache_key,
-    homework_list_cache_key,
     homework_detail_cache_key,
     purchased_courses_cache_key,
 )
@@ -350,7 +349,7 @@ def invalidate_cold_homework_cache(sender, instance, **kwargs):
     if section is None:
         return
     course_slug = section.course.slug
-    caches["default"].delete(homework_list_cache_key(course_slug, lesson.slug))
+    caches["default"].delete(lesson_detail_cache_key(course_slug, lesson.slug))
     caches["default"].delete(homework_detail_cache_key(course_slug, lesson.slug, instance.slug))
     caches["default"].delete(course_detail_cache_key(course_slug))
 
@@ -363,7 +362,7 @@ def invalidate_cold_task_cache(sender, instance, **kwargs):
     if section is None:
         return
     course_slug = section.course.slug
-    caches["default"].delete(homework_list_cache_key(course_slug, lesson.slug))
+    caches["default"].delete(lesson_detail_cache_key(course_slug, lesson.slug))
     caches["default"].delete(homework_detail_cache_key(course_slug, lesson.slug, hw.slug))
     caches["default"].delete(course_detail_cache_key(course_slug))
 
@@ -376,7 +375,7 @@ def invalidate_cold_question_cache(sender, instance, **kwargs):
     if section is None:
         return
     course_slug = section.course.slug
-    caches["default"].delete(homework_list_cache_key(course_slug, lesson.slug))
+    caches["default"].delete(lesson_detail_cache_key(course_slug, lesson.slug))
     caches["default"].delete(homework_detail_cache_key(course_slug, lesson.slug, hw.slug))
     caches["default"].delete(course_detail_cache_key(course_slug))
 

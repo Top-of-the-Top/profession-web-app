@@ -28,7 +28,7 @@ from .serializers import (
     QuestionSerializer,
 )
 from rest_framework import generics
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
 from django.core.cache import caches
 
@@ -62,6 +62,16 @@ def lesson_detail_cache_key(course_slug, slug):
 def homework_detail_cache_key(course_slug, lesson_slug, slug):
     return f"default:homeworks:detail:{course_slug}:{lesson_slug}:{slug}"
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Лендинг: список курсов",
+        tags=["Landing"],
+        responses={
+            200: CourseListResponseSerializer,
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
 class CourseDTOList(generics.ListAPIView):
     permission_classes = (AllowAny,)
     serializer_class = CourseDTOSerializer
@@ -74,14 +84,6 @@ class CourseDTOList(generics.ListAPIView):
         context['request'] = self.request
         return context
 
-    @extend_schema(
-        summary="Лендинг: список курсов",
-        tags=["Landing"],
-        responses={
-            200: CourseListResponseSerializer,
-            500: {"schema": SCHEMA_DETAIL},
-        },
-    )
     def list(self, request, *args, **kwargs):
         cache = caches["default"]
         key = landing_courses_cache_key()

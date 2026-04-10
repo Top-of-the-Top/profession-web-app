@@ -606,6 +606,29 @@ class VerifyEmailChangeView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Подтверждение смены email",
+        description=(
+            "После PATCH профиля с новым email на почту уходит код. "
+            "Передайте 6-значный код из письма."
+        ),
+        tags=["Users"],
+        request=VerifyCodeSerializer,
+        responses={
+            200: {
+                "description": "Email обновлён.",
+                "schema": {
+                    "type": "object",
+                    "properties": {"status": {"type": "string", "example": "success"}},
+                },
+            },
+            400: {
+                "description": "Неверный код, неверный формат, дубликат email или ошибка валидации.",
+                "schema": SCHEMA_VALIDATION_ERROR,
+            },
+            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+        },
+    )
     def post(self, request):
         serializer = VerifyCodeSerializer(data=request.data)
         if not serializer.is_valid():
@@ -645,6 +668,29 @@ class VerifyPhoneChangeView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Подтверждение смены телефона",
+        description=(
+            "После PATCH профиля с новым номером на телефон уходит SMS с кодом. "
+            "Передайте 6-значный код из сообщения."
+        ),
+        tags=["Users"],
+        request=VerifyCodeSerializer,
+        responses={
+            200: {
+                "description": "Телефон обновлён.",
+                "schema": {
+                    "type": "object",
+                    "properties": {"status": {"type": "string", "example": "success"}},
+                },
+            },
+            400: {
+                "description": "Неверный код, неверный формат, дубликат телефона или ошибка валидации.",
+                "schema": SCHEMA_VALIDATION_ERROR,
+            },
+            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+        },
+    )
     def post(self, request):
         serializer = VerifyCodeSerializer(data=request.data)
         if not serializer.is_valid():

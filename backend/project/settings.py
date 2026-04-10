@@ -158,6 +158,9 @@ SPECTACULAR_SETTINGS = {
             'description': 'Уведомления пользователя: список и поток SSE.',
         },
     ],
+    'POSTPROCESSING_HOOKS': [
+        'project.openapi_hooks.canonicalize_tags',
+    ],
 }
 
 AUTH_PASSWORD_VALIDATORS = [

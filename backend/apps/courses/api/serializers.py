@@ -118,7 +118,6 @@ class CourseHomeSerializer(serializers.Serializer):
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_meta(self, obj):
-        # TODO: сделать метаданные курса
         return {}
 
 

@@ -30,7 +30,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
 from django.core.cache import caches
 
-SCHEMA_DETAIL = {"type": "object", "properties": {"detail": {"type": "string"}}}
+from .schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
 
 
 def landing_courses_cache_key():
@@ -77,8 +77,11 @@ class CourseDTOList(generics.ListAPIView):
 
     @extend_schema(
         summary="Лендинг: список курсов",
-        tags=["Landing"],
-        responses={200: CourseListResponseSerializer},
+        tags=["course"],
+        responses={
+            200: CourseListResponseSerializer,
+            500: {"schema": SCHEMA_DETAIL},
+        },
     )
     def list(self, request, *args, **kwargs):
         cache = caches["default"]
@@ -99,7 +102,7 @@ class CourseListView(APIView):
 
     @extend_schema(
         summary="Список курсов",
-        tags=["Courses"],
+        tags=["course"],
         responses={
             200: CourseSerializer(many=True),
             401: {"schema": SCHEMA_DETAIL},
@@ -119,9 +122,11 @@ class CourseListView(APIView):
 
     @extend_schema(
         summary="Создать курс",
-        tags=["Courses"],
+        tags=["course"],
+        request=CourseSerializer,
         responses={
             201: CourseSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
@@ -141,7 +146,7 @@ class CourseDetailView(APIView):
 
     @extend_schema(
         summary="Курс по slug",
-        tags=["Courses"],
+        tags=["course"],
         parameters=[
             OpenApiParameter(
                 name='slug',
@@ -169,7 +174,7 @@ class CourseDetailView(APIView):
 
     @extend_schema(
         summary="Обновить курс",
-        tags=["Courses"],
+        tags=["course"],
         parameters=[
             OpenApiParameter(
                 name='slug',
@@ -177,8 +182,10 @@ class CourseDetailView(APIView):
                 location=OpenApiParameter.PATH,
             ),
         ],
+        request=CourseSerializer,
         responses={
             200: CourseSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -195,7 +202,7 @@ class CourseDetailView(APIView):
 
     @extend_schema(
         summary="Удалить курс",
-        tags=["Courses"],
+        tags=["course"],
         parameters=[
             OpenApiParameter(
                 name='slug',
@@ -223,10 +230,11 @@ class PurchasedCoursesView(APIView):
 
     @extend_schema(
         summary="Мои покупки",
-        tags=["My Courses"],
+        tags=["course"],
         responses={
             200: PurchasedCourseSerializer(many=True),
             401: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         },
     )
     def get(self, request):
@@ -248,7 +256,7 @@ class CourseHomePageView(APIView):
 
     @extend_schema(
         summary="Главная курса",
-        tags=["Courses"],
+        tags=["course"],
         parameters=[
             OpenApiParameter(
                 name='course_slug',
@@ -261,6 +269,7 @@ class CourseHomePageView(APIView):
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     def get(self, request, course_slug):
@@ -341,12 +350,14 @@ class SectionCreateView(APIView):
 
     @extend_schema(
         summary="Создать секцию",
-        tags=["Sections"],
+        tags=["course"],
         request=SectionSerializer,
         responses={
             201: SectionSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         }
     )
@@ -367,7 +378,7 @@ class SectionDetailView(APIView):
 
     @extend_schema(
         summary="Обновить секцию",
-        tags=["Sections"],
+        tags=["course"],
         parameters=[
             OpenApiParameter(
                 name='section_slug',
@@ -378,6 +389,7 @@ class SectionDetailView(APIView):
         request=SectionSerializer,
         responses={
             200: SectionSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -394,7 +406,7 @@ class SectionDetailView(APIView):
 
     @extend_schema(
         summary="Удалить секцию",
-        tags=["Sections"],
+        tags=["course"],
         parameters=[
             OpenApiParameter(
                 name='section_slug',
@@ -423,11 +435,14 @@ class LessonCreateView(APIView):
 
     @extend_schema(
         summary="Создать урок",
-        tags=["Lessons"],
+        tags=["course"],
         request=LessonSerializer,
         responses={
             201: LessonSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         }
     )
@@ -452,7 +467,7 @@ class LessonDetailView(APIView):
 
     @extend_schema(
         summary="Урок",
-        tags=["Lessons"],
+        tags=["course"],
         parameters=[
             OpenApiParameter(
                 name='lesson_slug',
@@ -463,6 +478,7 @@ class LessonDetailView(APIView):
         responses={
             200: LessonSerializer,
             401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         }
@@ -481,7 +497,7 @@ class LessonDetailView(APIView):
 
     @extend_schema(
         summary="Обновить урок",
-        tags=["Lessons"],
+        tags=["course"],
         parameters=[
             OpenApiParameter(
                 name='lesson_slug',
@@ -492,7 +508,9 @@ class LessonDetailView(APIView):
         request=LessonSerializer,
         responses={
             200: LessonSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         }
@@ -507,7 +525,7 @@ class LessonDetailView(APIView):
 
     @extend_schema(
         summary="Удалить урок",
-        tags=["Lessons"],
+        tags=["course"],
         parameters=[
             OpenApiParameter(
                 name='lesson_slug',
@@ -518,6 +536,7 @@ class LessonDetailView(APIView):
         responses={
             204: None,
             401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         }
@@ -534,10 +553,12 @@ class HomeworkListCreateView(APIView):
 
     @extend_schema(
         summary="Список домашек",
-        tags=["Homeworks"],
+        tags=["homework"],
         responses={
             200: HomeworkDetailSerializer(many=True),
             401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         }
     )
@@ -555,11 +576,14 @@ class HomeworkListCreateView(APIView):
 
     @extend_schema(
         summary="Создать домашку",
-        tags=["Homeworks"],
+        tags=["homework"],
         request=HomeworkSerializer,
         responses={
             201: HomeworkDetailSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         }
     )
@@ -578,7 +602,7 @@ class HomeworkDetailView(APIView):
 
     @extend_schema(
         summary="Домашка",
-        tags=["Homeworks"],
+        tags=["homework"],
         parameters=[
             OpenApiParameter(
                 name='homework_slug',
@@ -589,6 +613,7 @@ class HomeworkDetailView(APIView):
         responses={
             200: HomeworkDetailSerializer,
             401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         }
@@ -607,7 +632,7 @@ class HomeworkDetailView(APIView):
 
     @extend_schema(
         summary="Обновить домашку",
-        tags=["Homeworks"],
+        tags=["homework"],
         parameters=[
             OpenApiParameter(
                 name='homework_slug',
@@ -618,7 +643,9 @@ class HomeworkDetailView(APIView):
         request=HomeworkSerializer,
         responses={
             200: HomeworkDetailSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         }
@@ -634,7 +661,7 @@ class HomeworkDetailView(APIView):
 
     @extend_schema(
         summary="Удалить домашку",
-        tags=["Homeworks"],
+        tags=["homework"],
         parameters=[
             OpenApiParameter(
                 name='homework_slug',
@@ -645,6 +672,7 @@ class HomeworkDetailView(APIView):
         responses={
             204: None,
             401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         }
@@ -662,10 +690,11 @@ class TaskCreateView(APIView):
 
     @extend_schema(
         summary="Создать задачу",
-        tags=["Tasks"],
+        tags=["homework"],
         request=TaskSerializer,
         responses={
             201: TaskSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -687,7 +716,7 @@ class TaskDetailView(APIView):
 
     @extend_schema(
         summary="Обновить задачу",
-        tags=["Tasks"],
+        tags=["homework"],
         parameters=[
             OpenApiParameter(
                 name='task_id',
@@ -698,6 +727,7 @@ class TaskDetailView(APIView):
         request=TaskSerializer,
         responses={
             200: TaskSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -714,7 +744,7 @@ class TaskDetailView(APIView):
 
     @extend_schema(
         summary="Удалить задачу",
-        tags=["Tasks"],
+        tags=["homework"],
         parameters=[
             OpenApiParameter(
                 name='task_id',
@@ -743,10 +773,11 @@ class QuestionCreateView(APIView):
 
     @extend_schema(
         summary="Создать вопрос",
-        tags=["Questions"],
+        tags=["homework"],
         request=QuestionSerializer,
         responses={
             201: QuestionSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -768,7 +799,7 @@ class QuestionDetailView(APIView):
 
     @extend_schema(
         summary="Обновить вопрос",
-        tags=["Questions"],
+        tags=["homework"],
         parameters=[
             OpenApiParameter(
                 name='question_id',
@@ -779,6 +810,7 @@ class QuestionDetailView(APIView):
         request=QuestionSerializer,
         responses={
             200: QuestionSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -795,7 +827,7 @@ class QuestionDetailView(APIView):
 
     @extend_schema(
         summary="Удалить вопрос",
-        tags=["Questions"],
+        tags=["homework"],
         parameters=[
             OpenApiParameter(
                 name='question_id',

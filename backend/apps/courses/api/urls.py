@@ -13,6 +13,16 @@ urlpatterns = [
     path('app/courses/', views.CourseListView.as_view(), name='courses-list'),
     path('app/courses/<slug:slug>/', views.CourseDetailView.as_view(), name='courses-detail'),
     path(
+        'courses/<slug:course_slug>/sections/',
+        views.SectionCreateView.as_view(),
+        name='course-sections-list',
+    ),
+    path(
+        'courses/<slug:course_slug>/sections/<slug:section_slug>/',
+        views.SectionDetailView.as_view(),
+        name='course-sections-detail',
+    ),
+    path(
         'courses/<slug:course_slug>/lessons/',
         views.LessonCreateView.as_view(),
         name='course-lessons-list',
@@ -26,6 +36,26 @@ urlpatterns = [
         'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/',
         views.HomeworkListCreateView.as_view(),
         name='lesson-homeworks-list',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/tasks/<uuid:task_id>/',
+        views.TaskDetailView.as_view(),
+        name='homework-tasks-detail',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/tasks/',
+        views.TaskCreateView.as_view(),
+        name='homework-tasks-list',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/questions/<uuid:question_id>/',
+        views.QuestionDetailView.as_view(),
+        name='homework-questions-detail',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/questions/',
+        views.QuestionCreateView.as_view(),
+        name='homework-questions-list',
     ),
     path(
         'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/',

@@ -12,14 +12,7 @@ class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = '__all__'
-        extra_kwargs = {
-            'course_id': {'read_only': True},
-            'slug': {'required': False},
-            'image': {'required': False},
-            'created_at': {'read_only': True},
-            'updated_at': {'read_only': True},
-            'last_modified_by': {'required': False},
-        }
+        read_only_fields = ('course_id', 'created_at', 'updated_at')
 
 
 class CourseDTOSerializer(serializers.ModelSerializer):
@@ -56,6 +49,13 @@ class PurchasedCourseSerializer(serializers.ModelSerializer):
             'access_expires_at',
             'is_active',
         ]
+
+class SectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section
+        fields = '__all__'
+        read_only_fields = ('section_id', 'section_number', 'created_at', 'updated_at')
+
 
 class LessonBriefSerializer(serializers.ModelSerializer):
     class Meta:
@@ -108,17 +108,14 @@ class CourseHomePageSerializer(serializers.Serializer):
 
 
 class LessonSerializer(serializers.ModelSerializer):
+    section = serializers.PrimaryKeyRelatedField(
+        queryset=Section.objects.all(), required=False, allow_null=True
+    )
+
     class Meta:
         model = Lesson
         fields = '__all__'
-        extra_kwargs = {
-            'lesson_id': {'read_only': True},
-            'section_id': {'required': False, 'allow_null': True},
-            'slug': {'required': False},
-            'created_at': {'read_only': True},
-            'updated_at': {'read_only': True},
-            'last_modified_by': {'required': False},
-        }
+        read_only_fields = ('lesson_id', 'lesson_number', 'created_at', 'updated_at')
 
 class HomeworkItemSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=['question', 'task'])
@@ -153,13 +150,7 @@ class HomeworkSerializer(serializers.ModelSerializer):
             'updated_at',
             'items',
         ]
-        extra_kwargs = {
-            'homework_id': {'read_only': True},
-            'homework_number': {'read_only': True},
-            'slug': {'required': False},
-            'created_at': {'read_only': True},
-            'updated_at': {'read_only': True},
-        }
+        read_only_fields = ('homework_id', 'homework_number', 'created_at', 'updated_at')
 
     @extend_schema_field(HomeworkItemSerializer(many=True))
     def get_items(self, obj):
@@ -290,3 +281,25 @@ class HomeworkCreateSerializer(serializers.Serializer):
                 Task.objects.filter(task_id__in=tasks_to_delete).delete()
 
         return instance
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    homework = serializers.PrimaryKeyRelatedField(
+        queryset=Homework.objects.all(), required=False
+    )
+
+    class Meta:
+        model = Task
+        fields = '__all__'
+        read_only_fields = ('task_id', 'task_number', 'created_at', 'updated_at')
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    homework = serializers.PrimaryKeyRelatedField(
+        queryset=Homework.objects.all(), required=False
+    )
+
+    class Meta:
+        model = Question
+        fields = '__all__'
+        read_only_fields = ('question_id', 'question_number', 'created_at', 'updated_at')

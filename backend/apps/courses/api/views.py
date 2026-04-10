@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from ..models import Course, PurchasedCourse, Lesson, Homework
+from ..models import Course, PurchasedCourse, Lesson, Homework, Section, Task, Question
 from .serializers import (
     CourseDTOSerializer,
     CourseSerializer,
@@ -13,6 +13,9 @@ from .serializers import (
     HomeworkSerializer,
     HomeworkCreateSerializer,
     CourseHomePageSerializer,
+    SectionSerializer,
+    TaskSerializer,
+    QuestionSerializer,
 )
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
@@ -100,6 +103,28 @@ SCHEMA_SECTION_500 = {
             "type": "string",
             "description": "Внутренняя ошибка сервера.",
             "example": "Произошла ошибка при обработке запроса.",
+        }
+    },
+}
+
+SCHEMA_TASK_404 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Задача не найдена.",
+            "example": "Задача не найдена",
+        }
+    },
+}
+
+SCHEMA_QUESTION_404 = {
+    "type": "object",
+    "properties": {
+        "detail": {
+            "type": "string",
+            "description": "Вопрос не найден.",
+            "example": "Вопрос не найден",
         }
     },
 }
@@ -445,6 +470,114 @@ def _get_homework_or_404(course_slug, lesson_slug, homework_slug):
     return get_object_or_404(_homework_queryset_for_lesson(course_slug, lesson_slug), slug=homework_slug)
 
 
+def _get_section_or_404(course_slug, section_slug):
+    return get_object_or_404(Section, course__slug=course_slug, slug=section_slug)
+
+
+def _get_task_or_404(course_slug, lesson_slug, homework_slug, task_id):
+    return get_object_or_404(
+        Task,
+        task_id=task_id,
+        homework__slug=homework_slug,
+        homework__lesson__slug=lesson_slug,
+        homework__lesson__section__course__slug=course_slug,
+    )
+
+
+def _get_question_or_404(course_slug, lesson_slug, homework_slug, question_id):
+    return get_object_or_404(
+        Question,
+        question_id=question_id,
+        homework__slug=homework_slug,
+        homework__lesson__slug=lesson_slug,
+        homework__lesson__section__course__slug=course_slug,
+    )
+
+
+class SectionCreateView(APIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = SectionSerializer
+
+    @extend_schema(
+        summary="Создать секцию",
+        tags=["Sections"],
+        request=SectionSerializer,
+        responses={
+            201: SectionSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+        }
+    )
+    @require_course_author
+    def post(self, request, course_slug):
+        course = get_object_or_404(Course, slug=course_slug)
+        payload = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        payload['course'] = course.course_id
+        serializer = SectionSerializer(data=payload)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class SectionDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = SectionSerializer
+
+    @extend_schema(
+        summary="Обновить секцию",
+        tags=["Sections"],
+        parameters=[
+            OpenApiParameter(
+                name='section_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug секции',
+            ),
+        ],
+        request=SectionSerializer,
+        responses={
+            200: SectionSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
+            404: {"description": "Секция не найдена.", "schema": SCHEMA_SECTION_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+        }
+    )
+    @require_course_author
+    def patch(self, request, course_slug, section_slug):
+        section = _get_section_or_404(course_slug, section_slug)
+        serializer = SectionSerializer(section, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Удалить секцию",
+        tags=["Sections"],
+        parameters=[
+            OpenApiParameter(
+                name='section_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='slug секции',
+            ),
+        ],
+        responses={
+            204: None,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
+            404: {"description": "Секция не найдена.", "schema": SCHEMA_SECTION_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+        }
+    )
+    @require_course_author
+    def delete(self, request, course_slug, section_slug):
+        section = _get_section_or_404(course_slug, section_slug)
+        section.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class LessonCreateView(APIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = LessonSerializer
@@ -676,4 +809,170 @@ class HomeworkDetailView(APIView):
     def delete(self, request, course_slug, lesson_slug, homework_slug):
         homework = _get_homework_or_404(course_slug, lesson_slug, homework_slug)
         homework.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TaskCreateView(APIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = TaskSerializer
+
+    @extend_schema(
+        summary="Создать задачу в домашнем задании",
+        tags=["Tasks"],
+        request=TaskSerializer,
+        responses={
+            201: TaskSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
+            404: {"description": "Домашнее задание не найдено.", "schema": SCHEMA_HOMEWORK_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    @require_course_author
+    def post(self, request, course_slug, lesson_slug, homework_slug):
+        homework = _get_homework_or_404(course_slug, lesson_slug, homework_slug)
+        serializer = TaskSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(homework=homework)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class TaskDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = TaskSerializer
+
+    @extend_schema(
+        summary="Обновить задачу",
+        tags=["Tasks"],
+        parameters=[
+            OpenApiParameter(
+                name='task_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='id задачи',
+            ),
+        ],
+        request=TaskSerializer,
+        responses={
+            200: TaskSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
+            404: {"description": "Задача не найдена.", "schema": SCHEMA_TASK_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    @require_course_author
+    def patch(self, request, course_slug, lesson_slug, homework_slug, task_id):
+        task = _get_task_or_404(course_slug, lesson_slug, homework_slug, task_id)
+        serializer = TaskSerializer(task, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Удалить задачу",
+        tags=["Tasks"],
+        parameters=[
+            OpenApiParameter(
+                name='task_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='id задачи',
+            ),
+        ],
+        responses={
+            204: None,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
+            404: {"description": "Задача не найдена.", "schema": SCHEMA_TASK_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    @require_course_author
+    def delete(self, request, course_slug, lesson_slug, homework_slug, task_id):
+        task = _get_task_or_404(course_slug, lesson_slug, homework_slug, task_id)
+        task.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class QuestionCreateView(APIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = QuestionSerializer
+
+    @extend_schema(
+        summary="Создать вопрос в домашнем задании",
+        tags=["Questions"],
+        request=QuestionSerializer,
+        responses={
+            201: QuestionSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
+            404: {"description": "Домашнее задание не найдено.", "schema": SCHEMA_HOMEWORK_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    @require_course_author
+    def post(self, request, course_slug, lesson_slug, homework_slug):
+        homework = _get_homework_or_404(course_slug, lesson_slug, homework_slug)
+        serializer = QuestionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(homework=homework)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class QuestionDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = QuestionSerializer
+
+    @extend_schema(
+        summary="Обновить вопрос",
+        tags=["Questions"],
+        parameters=[
+            OpenApiParameter(
+                name='question_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='id вопроса',
+            ),
+        ],
+        request=QuestionSerializer,
+        responses={
+            200: QuestionSerializer,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
+            404: {"description": "Вопрос не найден.", "schema": SCHEMA_QUESTION_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    @require_course_author
+    def patch(self, request, course_slug, lesson_slug, homework_slug, question_id):
+        question = _get_question_or_404(course_slug, lesson_slug, homework_slug, question_id)
+        serializer = QuestionSerializer(question, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Удалить вопрос",
+        tags=["Questions"],
+        parameters=[
+            OpenApiParameter(
+                name='question_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='id вопроса',
+            ),
+        ],
+        responses={
+            204: None,
+            401: {"description": "Не авторизован", "schema": SCHEMA_401},
+            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
+            404: {"description": "Вопрос не найден.", "schema": SCHEMA_QUESTION_404},
+            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+        }
+    )
+    @require_course_author
+    def delete(self, request, course_slug, lesson_slug, homework_slug, question_id):
+        question = _get_question_or_404(course_slug, lesson_slug, homework_slug, question_id)
+        question.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

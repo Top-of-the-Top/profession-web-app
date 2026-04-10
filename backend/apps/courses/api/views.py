@@ -77,7 +77,7 @@ class CourseDTOList(generics.ListAPIView):
 
     @extend_schema(
         summary="Лендинг: список курсов",
-        tags=["course"],
+        tags=["Landing"],
         responses={
             200: CourseListResponseSerializer,
             500: {"schema": SCHEMA_DETAIL},
@@ -230,7 +230,7 @@ class PurchasedCoursesView(APIView):
 
     @extend_schema(
         summary="Мои покупки",
-        tags=["course"],
+        tags=["Home"],
         responses={
             200: PurchasedCourseSerializer(many=True),
             401: {"schema": SCHEMA_DETAIL},

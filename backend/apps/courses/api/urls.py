@@ -17,6 +17,9 @@ urlpatterns += [
         views.PurchasedCoursesView.as_view(),
         name='my-courses',
     ),
+]
+
+urlpatterns += [
     path(
         'app/courses/<slug:course_slug>/home/',
         views.CourseHomePageView.as_view(),

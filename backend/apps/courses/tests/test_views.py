@@ -9,10 +9,8 @@ from datetime import timedelta
 
 from ..api.views import (
     CourseDTOList,
-    CourseViewSet,
+    CourseListView,
     PurchasedCoursesView,
-    LessonViewSet,
-    HomeworkViewSet,
 )
 from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
 from apps.users.models import User
@@ -74,7 +72,7 @@ class CourseViewSetUnitTest(SimpleTestCase):
 
     def test_list_requires_authentication(self):
         request = self.factory.get('/api/app/courses/')
-        view = CourseViewSet.as_view({'get': 'list'})
+        view = CourseListView.as_view()
 
         response = view(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -86,7 +84,7 @@ class CourseViewSetUnitTest(SimpleTestCase):
         mock_user.is_moderator.return_value = False
         force_authenticate(request, user=mock_user)
 
-        view = CourseViewSet.as_view({'post': 'create'})
+        view = CourseListView.as_view()
         response = view(request)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

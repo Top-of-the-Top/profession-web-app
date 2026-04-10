@@ -124,6 +124,40 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'My Profession Web App API',
     'DESCRIPTION': 'API для вашего проекта',
     'VERSION': '1.0.0',
+    'TAGS': [
+        {
+            'name': 'Landing',
+            'description': 'Публичный лендинг: превью списка курсов.',
+        },
+        {
+            'name': 'Home',
+            'description': 'Домашний экран приложения: купленные курсы пользователя.',
+        },
+        {
+            'name': 'Course',
+            'description': 'Каталог и карточка курса, главная курса, секции и уроки.',
+        },
+        {
+            'name': 'Homework',
+            'description': 'Домашние задания, задачи и вопросы (вложенные в урок).',
+        },
+        {
+            'name': 'Users',
+            'description': 'Пользователи, регистрация, профиль и роли.',
+        },
+        {
+            'name': 'Carts',
+            'description': 'Корзина и связанные с ней операции.',
+        },
+        {
+            'name': 'Payments',
+            'description': 'Оплата и платёжные сценарии.',
+        },
+        {
+            'name': 'Notifications',
+            'description': 'Уведомления пользователя: список и поток SSE.',
+        },
+    ],
 }
 
 AUTH_PASSWORD_VALIDATORS = [

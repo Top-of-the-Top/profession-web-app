@@ -246,7 +246,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(str(response.data['lesson_id']), str(self.lesson.lesson_id))
         self.assertIn('recording_url', response.data['content'])
         self.assertIn('started_at', response.data['content'])
-        self.assertIn('homeworks', response.data)
+        self.assertIn('homeworks', response.data['content'])
 
     def test_lesson_create_as_author(self):
         from datetime import datetime
@@ -315,8 +315,8 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
             f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/'
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['homeworks']), 1)
-        hw = response.data['homeworks'][0]
+        self.assertEqual(len(response.data['content']['homeworks']), 1)
+        hw = response.data['content']['homeworks'][0]
         self.assertEqual(hw['title'], 'HW 1')
         self.assertEqual(hw['homework_slug'], self.homework.slug)
         self.assertEqual(str(hw['homework_id']), str(self.homework.homework_id))

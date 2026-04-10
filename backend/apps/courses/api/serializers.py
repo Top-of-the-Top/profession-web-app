@@ -121,11 +121,6 @@ class CourseHomeSerializer(serializers.Serializer):
         return {}
 
 
-class LessonContentBlockSerializer(serializers.Serializer):
-    recording_url = serializers.URLField()
-    started_at = serializers.DateTimeField()
-
-
 class HomeworkBriefSerializer(serializers.Serializer):
     homework_id = serializers.UUIDField()
     title = serializers.CharField(max_length=120)
@@ -133,33 +128,35 @@ class HomeworkBriefSerializer(serializers.Serializer):
     deadline = serializers.DateTimeField()
 
 
+class LessonContentReadSerializer(serializers.Serializer):
+    recording_url = serializers.URLField()
+    started_at = serializers.DateTimeField()
+    homeworks = HomeworkBriefSerializer(many=True)
+
+
 class LessonDetailReadSerializer(serializers.ModelSerializer):
     lesson_id = serializers.UUIDField(read_only=True)
     content = serializers.SerializerMethodField()
-    homeworks = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
-        fields = ('lesson_id', 'title', 'content', 'homeworks')
+        fields = ('lesson_id', 'title', 'content')
 
-    @extend_schema_field(LessonContentBlockSerializer)
+    @extend_schema_field(LessonContentReadSerializer)
     def get_content(self, obj):
         return {
             'recording_url': 'https://example.com/recordings/mock-lesson',
             'started_at': '2026-01-15T10:00:00+00:00',
+            'homeworks': [
+                {
+                    'homework_id': h.homework_id,
+                    'title': h.title,
+                    'homework_slug': h.slug,
+                    'deadline': h.deadline,
+                }
+                for h in obj.homework_set.all()
+            ],
         }
-
-    @extend_schema_field(HomeworkBriefSerializer(many=True))
-    def get_homeworks(self, obj):
-        return [
-            {
-                'homework_id': h.homework_id,
-                'title': h.title,
-                'homework_slug': h.slug,
-                'deadline': h.deadline,
-            }
-            for h in obj.homework_set.all()
-        ]
 
 
 class LessonSerializer(serializers.ModelSerializer):

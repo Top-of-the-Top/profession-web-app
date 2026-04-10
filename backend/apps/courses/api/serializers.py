@@ -1,4 +1,14 @@
-from ..models import Course, PurchasedCourse, Lesson, Homework, Section, Question, Task
+from ..models import (
+    Course,
+    PurchasedCourse,
+    Lesson,
+    Homework,
+    Section,
+    Question,
+    Task,
+)
+from django.db.models import Prefetch
+
 from apps.users.models import User
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
@@ -7,12 +17,14 @@ from drf_spectacular.types import OpenApiTypes
 
 class CourseSerializer(serializers.ModelSerializer):
     image_url = serializers.ReadOnlyField()
-    authors = serializers.PrimaryKeyRelatedField(many=True, read_only=False, required=False, queryset=User.objects.all())
+    authors = serializers.PrimaryKeyRelatedField(
+        many=True, read_only=False, required=False, queryset=User.objects.all()
+    )
 
     class Meta:
         model = Course
         fields = '__all__'
-        read_only_fields = ('course_id', 'created_at', 'updated_at')
+        read_only_fields = ('course_id', 'created_at', 'updated_at', 'last_modified_by')
 
 
 class CourseDTOSerializer(serializers.ModelSerializer):
@@ -26,14 +38,13 @@ class CourseDTOSerializer(serializers.ModelSerializer):
             'sub_title',
             'image_url',
             'price',
-            'slug']
+            'slug',
+        ]
 
 
 class CourseListResponseSerializer(serializers.Serializer):
-    """Обёртка ответа списка курсов (лендинг / store)."""
     number_of_courses = serializers.IntegerField()
     data = CourseDTOSerializer(many=True, read_only=True)
-
 
 
 class PurchasedCourseSerializer(serializers.ModelSerializer):
@@ -42,19 +53,19 @@ class PurchasedCourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchasedCourse
-        fields = [
-            'id',
-            'course',
-            'payment',
-            'access_expires_at',
-            'is_active',
-        ]
+        fields = ('id', 'user', 'course', 'payment', 'access_expires_at', 'is_active')
+
 
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
         fields = '__all__'
-        read_only_fields = ('section_id', 'section_number', 'created_at', 'updated_at')
+        read_only_fields = (
+            'section_id',
+            'created_at',
+            'updated_at',
+            'last_modified_by',
+        )
 
 
 class LessonBriefSerializer(serializers.ModelSerializer):
@@ -85,7 +96,7 @@ class SectionWithLessonsAndTypeSerializer(serializers.ModelSerializer):
         fields = ['section_id', 'section_number', 'title', 'type', 'lessons']
 
 
-class CourseHomePageSerializer(serializers.Serializer):
+class CourseHomeSerializer(serializers.Serializer):
     course_id = serializers.UUIDField(read_only=True)
     title = serializers.CharField(read_only=True)
     content = serializers.SerializerMethodField()
@@ -93,17 +104,21 @@ class CourseHomePageSerializer(serializers.Serializer):
 
     @extend_schema_field(SectionWithLessonsAndTypeSerializer(many=True))
     def get_content(self, obj):
-        sections = Section.objects.filter(course=obj).order_by('section_number')
+        lesson_qs = Lesson.objects.order_by('lesson_number')
+        sections = (
+            Section.objects.filter(course=obj)
+            .order_by('section_number')
+            .prefetch_related(Prefetch('lesson_set', queryset=lesson_qs))
+        )
         is_author = self.context.get('is_author', False)
 
         if is_author:
             return SectionWithLessonsAndTypeSerializer(sections, many=True).data
-        else:
-            return SectionWithLessonsSerializer(sections, many=True).data
+        return SectionWithLessonsSerializer(sections, many=True).data
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_meta(self, obj):
-        #TODO: сделать метаданные курса
+        # TODO: сделать метаданные курса
         return {}
 
 
@@ -115,9 +130,15 @@ class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = '__all__'
-        read_only_fields = ('lesson_id', 'lesson_number', 'created_at', 'updated_at')
+        read_only_fields = (
+            'lesson_id',
+            'created_at',
+            'updated_at',
+            'last_modified_by',
+        )
 
-class HomeworkItemSerializer(serializers.Serializer):
+
+class HomeworkItemsListSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=['question', 'task'])
     id = serializers.UUIDField(required=False, allow_null=True)
     number = serializers.IntegerField(read_only=True)
@@ -125,14 +146,14 @@ class HomeworkItemSerializer(serializers.Serializer):
     answer_options = serializers.ListField(
         child=serializers.CharField(),
         required=False,
-        allow_null=True
+        allow_null=True,
     )
     correct_ans = serializers.CharField(required=False, allow_null=True)
     max_points = serializers.IntegerField(required=False, allow_null=True, default=0)
     created_at = serializers.DateTimeField(read_only=True)
 
 
-class HomeworkSerializer(serializers.ModelSerializer):
+class HomeworkDetailSerializer(serializers.ModelSerializer):
     items = serializers.SerializerMethodField()
     lesson_id = serializers.UUIDField(source='lesson.lesson_id', read_only=True)
 
@@ -150,9 +171,14 @@ class HomeworkSerializer(serializers.ModelSerializer):
             'updated_at',
             'items',
         ]
-        read_only_fields = ('homework_id', 'homework_number', 'created_at', 'updated_at')
+        read_only_fields = (
+            'homework_id',
+            'created_at',
+            'updated_at',
+            'last_modified_by',
+        )
 
-    @extend_schema_field(HomeworkItemSerializer(many=True))
+    @extend_schema_field(HomeworkItemsListSerializer(many=True))
     def get_items(self, obj):
         questions = list(obj.question_set.all())
         tasks = list(obj.task_set.all())
@@ -181,106 +207,20 @@ class HomeworkSerializer(serializers.ModelSerializer):
                 'created_at': t.created_at,
             })
 
-        items.sort(key=lambda x: x['created_at'])
+        items.sort(key=lambda x: (x['number'], x['created_at']))
         return items
 
 
-class HomeworkCreateSerializer(serializers.Serializer):
-    lesson_id = serializers.UUIDField()
-    title = serializers.CharField(max_length=120)
-    deadline = serializers.DateTimeField()
-    items = HomeworkItemSerializer(many=True, required=False, default=list)
-
-    def create(self, validated_data):
-        items_data = validated_data.pop('items', [])
-        lesson_id = validated_data.pop('lesson_id')
-
-        homework = Homework.objects.create(
-            lesson_id=lesson_id,
-            **validated_data
+class HomeworkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Homework
+        fields = '__all__'
+        read_only_fields = (
+            'homework_id',
+            'created_at',
+            'updated_at',
+            'last_modified_by',
         )
-
-        for item in items_data:
-            item_type = item.get('type')
-            if item_type == 'question':
-                Question.objects.create(
-                    homework=homework,
-                    text=item['text'],
-                    answer_options=item.get('answer_options', []),
-                    correct_ans=item.get('correct_ans', ''),
-                )
-            elif item_type == 'task':
-                Task.objects.create(
-                    homework=homework,
-                    text=item['text'],
-                    max_points=item.get('max_points', 0),
-                )
-
-        return homework
-
-    def update(self, instance, validated_data):
-        items_data = validated_data.pop('items', None)
-
-        instance.title = validated_data.get('title', instance.title)
-        instance.deadline = validated_data.get('deadline', instance.deadline)
-        instance.save()
-
-        if items_data is not None:
-            existing_question_ids = set(
-                instance.question_set.values_list('question_id', flat=True)
-            )
-            existing_task_ids = set(
-                instance.task_set.values_list('task_id', flat=True)
-            )
-
-            received_question_ids = set()
-            received_task_ids = set()
-
-            for item in items_data:
-                item_type = item.get('type')
-                item_id = item.get('id')
-
-                if item_type == 'question':
-                    if item_id and item_id in existing_question_ids:
-                        Question.objects.filter(question_id=item_id).update(
-                            text=item['text'],
-                            answer_options=item.get('answer_options', []),
-                            correct_ans=item.get('correct_ans', ''),
-                        )
-                        received_question_ids.add(item_id)
-                    else:
-                        new_question = Question.objects.create(
-                            homework=instance,
-                            text=item['text'],
-                            answer_options=item.get('answer_options', []),
-                            correct_ans=item.get('correct_ans', ''),
-                        )
-                        received_question_ids.add(new_question.question_id)
-
-                elif item_type == 'task':
-                    if item_id and item_id in existing_task_ids:
-                        Task.objects.filter(task_id=item_id).update(
-                            text=item['text'],
-                            max_points=item.get('max_points', 0),
-                        )
-                        received_task_ids.add(item_id)
-                    else:
-                        new_task = Task.objects.create(
-                            homework=instance,
-                            text=item['text'],
-                            max_points=item.get('max_points', 0),
-                        )
-                        received_task_ids.add(new_task.task_id)
-
-            questions_to_delete = existing_question_ids - received_question_ids
-            tasks_to_delete = existing_task_ids - received_task_ids
-
-            if questions_to_delete:
-                Question.objects.filter(question_id__in=questions_to_delete).delete()
-            if tasks_to_delete:
-                Task.objects.filter(task_id__in=tasks_to_delete).delete()
-
-        return instance
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -291,7 +231,12 @@ class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = '__all__'
-        read_only_fields = ('task_id', 'task_number', 'created_at', 'updated_at')
+        read_only_fields = (
+            'task_id',
+            'created_at',
+            'updated_at',
+            'last_modified_by',
+        )
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -302,4 +247,9 @@ class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = '__all__'
-        read_only_fields = ('question_id', 'question_number', 'created_at', 'updated_at')
+        read_only_fields = (
+            'question_id',
+            'created_at',
+            'updated_at',
+            'last_modified_by',
+        )

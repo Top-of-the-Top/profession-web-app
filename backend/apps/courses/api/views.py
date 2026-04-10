@@ -3,7 +3,15 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from ..models import Course, PurchasedCourse, Lesson, Homework, Section, Task, Question
+from ..models import (
+    Course,
+    PurchasedCourse,
+    Lesson,
+    Homework,
+    Section,
+    Task,
+    Question,
+)
 from .serializers import (
     CourseDTOSerializer,
     CourseSerializer,
@@ -11,8 +19,8 @@ from .serializers import (
     CourseListResponseSerializer,
     LessonSerializer,
     HomeworkSerializer,
-    HomeworkCreateSerializer,
-    CourseHomePageSerializer,
+    HomeworkDetailSerializer,
+    CourseHomeSerializer,
     SectionSerializer,
     TaskSerializer,
     QuestionSerializer,
@@ -22,134 +30,8 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
 from django.core.cache import caches
 
-SCHEMA_401 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Сообщение об ошибке аутентификации.",
-            "example": "Authentication credentials were not provided.",
-        }
-    },
-}
-SCHEMA_COURSE_404 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Курс не найден.",
-            "example": "Курс не найден",
-        }
-    },
-}
+SCHEMA_DETAIL = {"type": "object", "properties": {"detail": {"type": "string"}}}
 
-SCHEMA_LESSON_404 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Урок не найден.",
-            "example": "Урок не найден",
-        }
-    },
-}
-SCHEMA_LESSON_500 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Внутренняя ошибка сервера.",
-            "example": "Произошла ошибка при обработке запроса.",
-        }
-    },
-}
-
-SCHEMA_HOMEWORK_404 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Домашнее задание не найдено.",
-            "example": "Домашнее задание не найдено",
-        }
-    },
-}
-SCHEMA_HOMEWORK_500 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Внутренняя ошибка сервера.",
-            "example": "Произошла ошибка при обработке запроса.",
-        }
-    },
-}
-
-SCHEMA_SECTION_404 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Секция не найдена.",
-            "example": "Секция не найдена",
-        }
-    },
-}
-
-SCHEMA_SECTION_500 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Внутренняя ошибка сервера.",
-            "example": "Произошла ошибка при обработке запроса.",
-        }
-    },
-}
-
-SCHEMA_TASK_404 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Задача не найдена.",
-            "example": "Задача не найдена",
-        }
-    },
-}
-
-SCHEMA_QUESTION_404 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Вопрос не найден.",
-            "example": "Вопрос не найден",
-        }
-    },
-}
-
-SCHEMA_403 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Доступ запрещен.",
-            "example": "Доступ запрещен. Требуется роль: moderator",
-        }
-    },
-}
-
-SCHEMA_COURSE_500 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Внутренняя ошибка сервера.",
-            "example": "Произошла ошибка при обработке запроса.",
-        }
-    },
-}
 
 def landing_courses_cache_key():
     return "default:courses:list"
@@ -194,11 +76,7 @@ class CourseDTOList(generics.ListAPIView):
         return context
 
     @extend_schema(
-        summary="Список курсов (лендинг)",
-        description=(
-            "Публичный список всех курсов для лендинга. Авторизация не требуется. "
-            "Возвращается объект: number_of_courses (число курсов) и data — массив курсов в формате DTO (course_id, title, sub_title, image_url, price, slug)."
-        ),
+        summary="Лендинг: список курсов",
         tags=["Landing"],
         responses={200: CourseListResponseSerializer},
     )
@@ -220,16 +98,12 @@ class CourseListView(APIView):
     serializer_class = CourseSerializer
 
     @extend_schema(
-        summary="Список всех курсов",
-        description=(
-            "Возвращает список всех курсов. Доступно всем авторизованным пользователям. "
-            "Права доступа: Студент - просмотр, Учитель - просмотр, Модератор - просмотр."
-        ),
+        summary="Список курсов",
         tags=["Courses"],
         responses={
             200: CourseSerializer(many=True),
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
+            401: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     def get(self, request):
@@ -244,17 +118,13 @@ class CourseListView(APIView):
         return Response(serializer.data)
 
     @extend_schema(
-        summary="Создать новый курс",
-        description=(
-            "Создает новый курс. Доступно только модераторам. "
-            "Права доступа: Студент - запрещено, Учитель - запрещено, Модератор - разрешено."
-        ),
+        summary="Создать курс",
         tags=["Courses"],
         responses={
             201: CourseSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен. Требуется роль модератора.", "schema": SCHEMA_403},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_moderator
@@ -270,25 +140,20 @@ class CourseDetailView(APIView):
     serializer_class = CourseSerializer
 
     @extend_schema(
-        summary="Детали курса",
-        description=(
-            "Возвращает полную информацию о курсе по slug. Доступно всем авторизованным пользователям. "
-            "Права доступа: Студент - просмотр, Учитель - просмотр, Модератор - просмотр."
-        ),
+        summary="Курс по slug",
         tags=["Courses"],
         parameters=[
             OpenApiParameter(
                 name='slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug курса'
             ),
         ],
         responses={
             200: CourseSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            404: {"description": "Курс не найден.", "schema": SCHEMA_COURSE_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
+            401: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     def get(self, request, slug):
@@ -304,25 +169,20 @@ class CourseDetailView(APIView):
 
     @extend_schema(
         summary="Обновить курс",
-        description=(
-            "Обновляет курс. Модераторы могут обновлять любые курсы, учителя - только свои. "
-            "Права доступа: Студент - запрещено, Учитель - только свои курсы (где он в authors), Модератор - все курсы."
-        ),
         tags=["Courses"],
         parameters=[
             OpenApiParameter(
                 name='slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug курса'
             ),
         ],
         responses={
             200: CourseSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен. Требуется быть автором курса.", "schema": SCHEMA_403},
-            404: {"description": "Курс не найден.", "schema": SCHEMA_COURSE_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -335,25 +195,20 @@ class CourseDetailView(APIView):
 
     @extend_schema(
         summary="Удалить курс",
-        description=(
-            "Удаляет курс. Модераторы могут удалять любые курсы, учителя - только свои. "
-            "Права доступа: Студент - запрещено, Учитель - только свои курсы (где он в authors), Модератор - все курсы."
-        ),
         tags=["Courses"],
         parameters=[
             OpenApiParameter(
                 name='slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug курса'
             ),
         ],
         responses={
             204: None,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен. Требуется быть автором курса.", "schema": SCHEMA_403},
-            404: {"description": "Курс не найден.", "schema": SCHEMA_COURSE_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_COURSE_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -367,17 +222,11 @@ class PurchasedCoursesView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Купленные курсы",
-        description=(
-            "Возвращает список купленных курсов текущего пользователя с датой окончания доступа. "
-            "Требуется Authorization: Bearer <access_token>. "
-            "Каждый элемент: id, course (DTO курса), payment (id платежа), access_expires_at, is_active (доступ активен или истёк). "
-            "При невалидном токене — 401 с полем detail."
-        ),
+        summary="Мои покупки",
         tags=["My Courses"],
         responses={
             200: PurchasedCourseSerializer(many=True),
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {"schema": SCHEMA_DETAIL},
         },
     )
     def get(self, request):
@@ -398,27 +247,20 @@ class CourseHomePageView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Главная страница курса",
-        description=(
-            "Возвращает данные курса с секциями и уроками. "
-            "Для подписанных пользователей — без поля type. "
-            "Для авторов и модераторов — с полем type у секций и уроков. "
-            "Для остальных — 403 Forbidden."
-        ),
+        summary="Главная курса",
         tags=["Courses"],
         parameters=[
             OpenApiParameter(
                 name='course_slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug курса'
             ),
         ],
         responses={
-            200: CourseHomePageSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
-            404: {"description": "Курс не найден.", "schema": SCHEMA_COURSE_404},
+            200: CourseHomeSerializer,
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
         }
     )
     def get(self, request, course_slug):
@@ -444,7 +286,7 @@ class CourseHomePageView(APIView):
 
         show_type = is_author or is_moderator
 
-        serializer = CourseHomePageSerializer(
+        serializer = CourseHomeSerializer(
             course,
             context={'is_author': show_type}
         )
@@ -452,7 +294,7 @@ class CourseHomePageView(APIView):
 
 
 def _lesson_queryset_for_course(course_slug):
-    return Lesson.objects.filter(section__course__slug=course_slug)
+    return Lesson.objects.filter(section__course__slug=course_slug).order_by('lesson_number')
 
 
 def _get_lesson_or_404(course_slug, lesson_slug):
@@ -463,7 +305,7 @@ def _homework_queryset_for_lesson(course_slug, lesson_slug):
     return Homework.objects.filter(
         lesson__slug=lesson_slug,
         lesson__section__course__slug=course_slug,
-    )
+    ).order_by('homework_number')
 
 
 def _get_homework_or_404(course_slug, lesson_slug, homework_slug):
@@ -504,9 +346,9 @@ class SectionCreateView(APIView):
         request=SectionSerializer,
         responses={
             201: SectionSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -532,16 +374,15 @@ class SectionDetailView(APIView):
                 name='section_slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug секции',
             ),
         ],
         request=SectionSerializer,
         responses={
             200: SectionSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
-            404: {"description": "Секция не найдена.", "schema": SCHEMA_SECTION_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -560,15 +401,14 @@ class SectionDetailView(APIView):
                 name='section_slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug секции',
             ),
         ],
         responses={
             204: None,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
-            404: {"description": "Секция не найдена.", "schema": SCHEMA_SECTION_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_SECTION_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -583,13 +423,13 @@ class LessonCreateView(APIView):
     serializer_class = LessonSerializer
 
     @extend_schema(
-        summary="Создать новый урок",
+        summary="Создать урок",
         tags=["Lessons"],
         request=LessonSerializer,
         responses={
             201: LessonSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
+            401: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -605,20 +445,20 @@ class LessonDetailView(APIView):
     serializer_class = LessonSerializer
 
     @extend_schema(
-        summary="Получить информацию о уроке",
+        summary="Урок",
         tags=["Lessons"],
         parameters=[
             OpenApiParameter(
                 name='lesson_slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug урока'),
+            ),
         ],
         responses={
             200: LessonSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
+            401: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_enrollment
@@ -641,14 +481,14 @@ class LessonDetailView(APIView):
                 name='lesson_slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug урока'),
+            ),
         ],
         request=LessonSerializer,
         responses={
             200: LessonSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
+            401: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -667,13 +507,13 @@ class LessonDetailView(APIView):
                 name='lesson_slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug урока'),
+            ),
         ],
         responses={
             204: None,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            404: {"description": "Урок не найден.", "schema": SCHEMA_LESSON_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_LESSON_500},
+            401: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -687,12 +527,12 @@ class HomeworkListCreateView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Получить список домашних заданий",
+        summary="Список домашек",
         tags=["Homeworks"],
         responses={
-            200: HomeworkSerializer(many=True),
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            200: HomeworkDetailSerializer(many=True),
+            401: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_enrollment
@@ -703,27 +543,27 @@ class HomeworkListCreateView(APIView):
         if cached is not None:
             return Response(cached)
         qs = _homework_queryset_for_lesson(course_slug, lesson_slug)
-        data = HomeworkSerializer(qs, many=True).data
+        data = HomeworkDetailSerializer(qs, many=True).data
         cache.set(key, data)
         return Response(data)
 
     @extend_schema(
-        summary="Создать домашнее задание",
-        description="Создаёт домашнее задание вместе с вопросами и задачами.",
+        summary="Создать домашку",
         tags=["Homeworks"],
-        request=HomeworkCreateSerializer,
+        request=HomeworkSerializer,
         responses={
-            201: HomeworkSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            201: HomeworkDetailSerializer,
+            401: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
     def post(self, request, course_slug, lesson_slug):
-        serializer = HomeworkCreateSerializer(data=request.data)
+        lesson = _get_lesson_or_404(course_slug, lesson_slug)
+        serializer = HomeworkSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        homework = serializer.save()
-        response_serializer = HomeworkSerializer(homework)
+        homework = serializer.save(lesson=lesson)
+        response_serializer = HomeworkDetailSerializer(homework)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -731,21 +571,20 @@ class HomeworkDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Получить домашнее задание",
-        description="Возвращает домашнее задание с задачами и вопросами",
+        summary="Домашка",
         tags=["Homeworks"],
         parameters=[
             OpenApiParameter(
                 name='homework_slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug домашнего задания'),
+            ),
         ],
         responses={
-            200: HomeworkSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            404: {"description": "Домашнее задание не найдено.", "schema": SCHEMA_HOMEWORK_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            200: HomeworkDetailSerializer,
+            401: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_enrollment
@@ -756,53 +595,52 @@ class HomeworkDetailView(APIView):
         if cached is not None:
             return Response(cached)
         homework = _get_homework_or_404(course_slug, lesson_slug, homework_slug)
-        data = HomeworkSerializer(homework).data
+        data = HomeworkDetailSerializer(homework).data
         cache.set(key, data)
         return Response(data)
 
     @extend_schema(
-        summary="Обновить домашнее задание",
-        description="Обновляет домашнее задание.",
+        summary="Обновить домашку",
         tags=["Homeworks"],
         parameters=[
             OpenApiParameter(
                 name='homework_slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug домашнего задания'),
+            ),
         ],
-        request=HomeworkCreateSerializer,
+        request=HomeworkSerializer,
         responses={
-            200: HomeworkSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            404: {"description": "Домашнее задание не найдено.", "schema": SCHEMA_HOMEWORK_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            200: HomeworkDetailSerializer,
+            401: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
     def patch(self, request, course_slug, lesson_slug, homework_slug):
         homework = _get_homework_or_404(course_slug, lesson_slug, homework_slug)
-        serializer = HomeworkCreateSerializer(homework, data=request.data, partial=True)
+        serializer = HomeworkSerializer(homework, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         homework = serializer.save()
-        response_serializer = HomeworkSerializer(homework)
+        response_serializer = HomeworkDetailSerializer(homework)
         return Response(response_serializer.data)
 
     @extend_schema(
-        summary="Удалить домашнее задание",
+        summary="Удалить домашку",
         tags=["Homeworks"],
         parameters=[
             OpenApiParameter(
                 name='homework_slug',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
-                description='slug домашнего задания'),
+            ),
         ],
         responses={
             204: None,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            404: {"description": "Домашнее задание не найдено.", "schema": SCHEMA_HOMEWORK_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            401: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -817,15 +655,15 @@ class TaskCreateView(APIView):
     serializer_class = TaskSerializer
 
     @extend_schema(
-        summary="Создать задачу в домашнем задании",
+        summary="Создать задачу",
         tags=["Tasks"],
         request=TaskSerializer,
         responses={
             201: TaskSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
-            404: {"description": "Домашнее задание не найдено.", "schema": SCHEMA_HOMEWORK_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -849,16 +687,15 @@ class TaskDetailView(APIView):
                 name='task_id',
                 type=OpenApiTypes.UUID,
                 location=OpenApiParameter.PATH,
-                description='id задачи',
             ),
         ],
         request=TaskSerializer,
         responses={
             200: TaskSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
-            404: {"description": "Задача не найдена.", "schema": SCHEMA_TASK_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -877,15 +714,14 @@ class TaskDetailView(APIView):
                 name='task_id',
                 type=OpenApiTypes.UUID,
                 location=OpenApiParameter.PATH,
-                description='id задачи',
             ),
         ],
         responses={
             204: None,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
-            404: {"description": "Задача не найдена.", "schema": SCHEMA_TASK_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -900,15 +736,15 @@ class QuestionCreateView(APIView):
     serializer_class = QuestionSerializer
 
     @extend_schema(
-        summary="Создать вопрос в домашнем задании",
+        summary="Создать вопрос",
         tags=["Questions"],
         request=QuestionSerializer,
         responses={
             201: QuestionSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
-            404: {"description": "Домашнее задание не найдено.", "schema": SCHEMA_HOMEWORK_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -932,16 +768,15 @@ class QuestionDetailView(APIView):
                 name='question_id',
                 type=OpenApiTypes.UUID,
                 location=OpenApiParameter.PATH,
-                description='id вопроса',
             ),
         ],
         request=QuestionSerializer,
         responses={
             200: QuestionSerializer,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
-            404: {"description": "Вопрос не найден.", "schema": SCHEMA_QUESTION_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author
@@ -960,15 +795,14 @@ class QuestionDetailView(APIView):
                 name='question_id',
                 type=OpenApiTypes.UUID,
                 location=OpenApiParameter.PATH,
-                description='id вопроса',
             ),
         ],
         responses={
             204: None,
-            401: {"description": "Не авторизован", "schema": SCHEMA_401},
-            403: {"description": "Доступ запрещен.", "schema": SCHEMA_403},
-            404: {"description": "Вопрос не найден.", "schema": SCHEMA_QUESTION_404},
-            500: {"description": "Внутренняя ошибка сервера.", "schema": SCHEMA_HOMEWORK_500},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         }
     )
     @require_course_author

@@ -312,50 +312,68 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertIn('task', item_types)
         self.assertIn('question', item_types)
 
-    def test_homework_create_with_items(self):
+    def test_homework_create_then_tasks_and_questions_via_separate_endpoints(self):
         self.authenticate_user(self.teacher)
-        data = {
-            'lesson_id': str(self.lesson.lesson_id),
+        base = f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/'
+        create_data = {
             'title': 'New Homework',
             'deadline': (timezone.now() + timedelta(days=14)).isoformat(),
-            'items': [
-                {'type': 'task', 'text': 'Task item', 'max_points': 5},
-                {'type': 'question', 'text': 'Question item?', 'answer_options': ['A', 'B'], 'correct_ans': 'A'}
-            ]
         }
-        response = self.client.post(
-            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/',
-            data,
-            format='json'
-        )
+        response = self.client.post(base, create_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Homework')
         self.assertIn('items', response.data)
-        self.assertEqual(len(response.data['items']), 2)
+        self.assertEqual(len(response.data['items']), 0)
 
         new_homework = Homework.objects.get(title='New Homework')
+        hw_path = f'{base}{new_homework.slug}/'
+
+        r_task = self.client.post(
+            f'{hw_path}tasks/',
+            {'text': 'Task item', 'max_points': 5},
+            format='json',
+        )
+        self.assertEqual(r_task.status_code, status.HTTP_201_CREATED)
+
+        r_q = self.client.post(
+            f'{hw_path}questions/',
+            {
+                'text': 'Question item?',
+                'answer_options': ['A', 'B'],
+                'correct_ans': 'A',
+            },
+            format='json',
+        )
+        self.assertEqual(r_q.status_code, status.HTTP_201_CREATED)
+
         self.assertEqual(Task.objects.filter(homework=new_homework).count(), 1)
         self.assertEqual(Question.objects.filter(homework=new_homework).count(), 1)
 
-    def test_homework_update_with_items_by_id(self):
+    def test_homework_patch_title_and_tasks_via_task_endpoints(self):
         old_task = Task.objects.create(homework=self.homework, text='Old Task', max_points=10)
 
         self.authenticate_user(self.teacher)
-        update_data = {
-            'title': 'Updated Homework',
-            'items': [
-                {'type': 'task', 'id': str(old_task.task_id), 'text': 'Updated Old Task', 'max_points': 15},
-                {'type': 'task', 'text': 'New Task', 'max_points': 20}
-            ]
-        }
         response = self.client.patch(
             f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/',
-            update_data,
-            format='json'
+            {'title': 'Updated Homework'},
+            format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Updated Homework')
-        self.assertEqual(len(response.data['items']), 2)
+
+        r_patch_task = self.client.patch(
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/{old_task.task_id}/',
+            {'text': 'Updated Old Task', 'max_points': 15},
+            format='json',
+        )
+        self.assertEqual(r_patch_task.status_code, status.HTTP_200_OK)
+
+        r_new_task = self.client.post(
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/',
+            {'text': 'New Task', 'max_points': 20},
+            format='json',
+        )
+        self.assertEqual(r_new_task.status_code, status.HTTP_201_CREATED)
 
         self.homework.refresh_from_db()
         self.assertEqual(self.homework.title, 'Updated Homework')
@@ -363,23 +381,15 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertTrue(Task.objects.filter(homework=self.homework, task_id=old_task.task_id, text='Updated Old Task').exists())
         self.assertTrue(Task.objects.filter(homework=self.homework, text='New Task').exists())
 
-    def test_homework_update_removes_missing_items(self):
+    def test_homework_delete_task_via_delete_endpoint(self):
         task1 = Task.objects.create(homework=self.homework, text='Task 1', max_points=10)
         task2 = Task.objects.create(homework=self.homework, text='Task 2', max_points=20)
 
         self.authenticate_user(self.teacher)
-        update_data = {
-            'items': [
-                {'type': 'task', 'id': str(task1.task_id), 'text': 'Task 1 Updated', 'max_points': 15}
-            ]
-        }
-        response = self.client.patch(
-            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/',
-            update_data,
-            format='json'
+        response = self.client.delete(
+            f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/{task2.task_id}/',
         )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['items']), 1)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         self.assertEqual(Task.objects.filter(homework=self.homework).count(), 1)
         self.assertTrue(Task.objects.filter(task_id=task1.task_id).exists())
@@ -398,7 +408,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(Homework.objects.filter(lesson=self.lesson).count(), initial_count - 1)
         self.assertFalse(Homework.objects.filter(slug=new_homework.slug).exists())
 
-    def test_homework_items_sorted_by_created_at(self):
+    def test_homework_items_sorted_by_number_then_created_at(self):
         task1 = Task.objects.create(homework=self.homework, text='Task 1', max_points=10)
         question1 = Question.objects.create(
             homework=self.homework,
@@ -416,8 +426,8 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(len(response.data['items']), 3)
 
         items = response.data['items']
-        created_times = [item['created_at'] for item in items]
-        self.assertEqual(created_times, sorted(created_times))
+        sort_keys = [(item['number'], item['created_at']) for item in items]
+        self.assertEqual(sort_keys, sorted(sort_keys))
 
     def test_non_enrolled_student_cannot_access(self):
         other_student = create_test_user(email='other@test.com', role='student')

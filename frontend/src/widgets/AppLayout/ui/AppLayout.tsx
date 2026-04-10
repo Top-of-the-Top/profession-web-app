@@ -3,7 +3,6 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
 import {
-  Sparkles,
   House,
   ShoppingBag,
   CalendarDays,
@@ -55,7 +54,6 @@ export default function AppLayout() {
   }, [hasToken, user]);
 
   const navItems = [
-    { href: '/app', label: 'Тосты', icon: Sparkles, id: 'toasts' },
     { href: '/app/home', label: 'Домашняя', icon: House, id: 'home' },
     {
       href: '/app/store',

@@ -26,30 +26,34 @@ export interface CourseApiAnswer {
 export type CourseContentType = 'published' | 'draft';
 
 export interface AppCourseLesson {
-  lesson_id: number | string;
-  lesson_number: string;
+  lesson_id: string;
+  lesson_number: number;
   title: string;
   slug: string;
   type?: CourseContentType;
 }
 
 export interface AppCourseSection {
+  section_id: string;
   section_number: number;
-  section_id: number;
   title: string;
   lessons: AppCourseLesson[];
   type?: CourseContentType;
 }
 
-export interface AppCourseMeta {
-  completed_sections_id: number[];
-  completed_lessons_id: number[];
+export interface CourseHomeMeta {
+  completed_sections_id: string[];
+  completed_lessons_id: string[];
 }
 
-export interface AppCourseContentResponse {
+export interface CourseHomeResponse {
+  course_id: string;
+  title: string;
   content: AppCourseSection[];
-  meta: AppCourseMeta;
+  meta: CourseHomeMeta;
 }
+
+export type AppCourseContentResponse = CourseHomeResponse;
 
 export interface Lesson {
   lesson_id: number;
@@ -80,15 +84,36 @@ export interface PurchasedCourseItem {
   is_active: boolean;
 }
 
+export interface LessonCreatePayload {
+  title: string;
+  section?: string;
+}
+
+export interface LessonPatchPayload {
+  title?: string;
+  section?: string | null;
+  type?: CourseContentType;
+  date_time?: string | null;
+}
+
+export interface CoursePatchPayload {
+  title?: string;
+  sub_title?: string;
+  description?: string;
+  price?: number;
+  type?: CourseContentType;
+}
+
 export type AppHomeCoursesSource = 'my-courses' | 'store' | 'landing';
 
 export const APP_HOME_COURSES_SOURCE = 'store' as AppHomeCoursesSource;
 
 type RawCoursesResponse = Course[] | CourseApiAnswer;
 type RawCourseBySlugResponse = Course | { course: Course };
-type RawAppCourseContentResponse =
-  | AppCourseContentResponse
-  | { content: AppCourseSection; meta?: Partial<AppCourseMeta> };
+type RawCourseHomeResponse = Partial<CourseHomeResponse> & {
+  content?: AppCourseSection | AppCourseSection[];
+  meta?: Record<string, unknown>;
+};
 
 function normalizeCoursesResponse(raw: RawCoursesResponse): CourseApiAnswer {
   if (Array.isArray(raw)) {
@@ -112,21 +137,31 @@ function normalizeCourseBySlugResponse(raw: RawCourseBySlugResponse): Course {
   return raw;
 }
 
-function normalizeAppCourseContentResponse(
-  raw: RawAppCourseContentResponse,
-): AppCourseContentResponse {
-  const content = Array.isArray(raw.content) ? raw.content : [raw.content];
-  const meta = raw.meta ?? {};
+function normalizeIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item));
+}
+
+function normalizeCourseHomeResponse(raw: RawCourseHomeResponse): CourseHomeResponse {
+  const rawContent = raw.content;
+  const content: AppCourseSection[] = Array.isArray(rawContent)
+    ? rawContent
+    : rawContent != null
+      ? [rawContent as AppCourseSection]
+      : [];
+
+  const metaObj =
+    raw.meta != null && typeof raw.meta === 'object' && !Array.isArray(raw.meta)
+      ? (raw.meta as Record<string, unknown>)
+      : {};
 
   return {
+    course_id: String(raw.course_id ?? ''),
+    title: String(raw.title ?? ''),
     content,
     meta: {
-      completed_sections_id: Array.isArray(meta.completed_sections_id)
-        ? meta.completed_sections_id
-        : [],
-      completed_lessons_id: Array.isArray(meta.completed_lessons_id)
-        ? meta.completed_lessons_id
-        : [],
+      completed_sections_id: normalizeIdList(metaObj.completed_sections_id),
+      completed_lessons_id: normalizeIdList(metaObj.completed_lessons_id),
     },
   };
 }
@@ -158,12 +193,47 @@ export const courseApi = {
       .then(normalizeCourseBySlugResponse);
   },
 
-  getAppCourseContentBySlug(slug: string): Promise<AppCourseContentResponse> {
+  getCourseHomeBySlug(slug: string): Promise<CourseHomeResponse> {
     return apiClient
-      .request<RawAppCourseContentResponse>(`/api/app/courses/${slug}/`, {
+      .request<RawCourseHomeResponse>(`/api/app/courses/${slug}/home/`, {
         method: 'GET',
       })
-      .then(normalizeAppCourseContentResponse);
+      .then(normalizeCourseHomeResponse);
+  },
+
+  patchCourse(slug: string, payload: CoursePatchPayload): Promise<Course> {
+    return apiClient.request<Course>(`/api/app/courses/${slug}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  createLesson(courseSlug: string, payload: LessonCreatePayload): Promise<Lesson> {
+    return apiClient.request<Lesson>(`/api/courses/${courseSlug}/lessons/`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  patchLesson(
+    courseSlug: string,
+    lessonSlug: string,
+    payload: LessonPatchPayload,
+  ): Promise<Lesson> {
+    return apiClient.request<Lesson>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  deleteLesson(courseSlug: string, lessonSlug: string): Promise<void> {
+    return apiClient.request<void>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
+      { method: 'DELETE' },
+    );
   },
 
   getLessons(courseSlug: string): Promise<Lesson[]> {

@@ -12,6 +12,7 @@ import {
   PageTransition,
   Spinner,
 } from '@shared/ui';
+import type { CourseLessonDetail } from '@shared/api/courseApi';
 import type { LessonLayout, Block } from '../../../features/course-builder';
 import {
   FONT_SIZE_STEPS,
@@ -19,7 +20,6 @@ import {
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
 import { useCourseBySlug, useLessonBySlug } from '@shared/api/queries/courses';
-import { USE_MOCK, MOCK_LESSON, MOCK_COURSE_TITLE } from './mockLessonData';
 import styles from './LessonViewPage.module.css';
 
 /* ── Block views (read-only, reused from CourseRenderer logic) ── */
@@ -312,6 +312,44 @@ const WebinarLinksWidget: React.FC<{
   </div>
 );
 
+const TEST_RECORDING_URL = 'https://kinescope.io/embed/t1go93i9aP3NG6VNPxiCC6';
+const MOCK_LESSON_DETAIL: CourseLessonDetail = {
+  lesson_id: 'mock-lesson-id-1',
+  lesson_title: 'Тестовый урок (mock)',
+  content: '{"id":"mock-lesson-id-1","title":"Тестовый урок (mock)","blocks":[]}',
+  recording_url: TEST_RECORDING_URL,
+  homework_id: null,
+  homework_deadline: null,
+  started_at: null,
+};
+
+const LessonRecording: React.FC<{ recording: string | null }> = ({ recording }) => {
+  const value = (recording?.trim() || TEST_RECORDING_URL).trim();
+
+  if (!value) return null;
+
+  const isHttpLink = /^https?:\/\//i.test(value);
+
+  return (
+    <section className={styles.recordingSection}>
+      <h2 className={styles.recordingTitle}>Запись урока</h2>
+      {isHttpLink ? (
+        <div className={styles.recordingIframeWrap}>
+          <iframe
+            src={value}
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
+            allowFullScreen
+            className={styles.recordingIframe}
+            title="Запись урока"
+          />
+        </div>
+      ) : (
+        <div className={styles.mediaPlaceholder}>Запись урока недоступна</div>
+      )}
+    </section>
+  );
+};
+
 /* ── Page ── */
 
 export default function LessonViewPage() {
@@ -321,19 +359,15 @@ export default function LessonViewPage() {
   }>();
   const navigate = useNavigate();
 
-  const courseQuery = useCourseBySlug(
-    USE_MOCK ? undefined : courseSlug,
-  );
-  const lessonQuery = useLessonBySlug(
-    USE_MOCK ? undefined : courseSlug,
-    USE_MOCK ? undefined : lessonSlug,
-  );
+  const courseQuery = useCourseBySlug(courseSlug);
+  const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
 
-  const courseTitle = USE_MOCK
-    ? MOCK_COURSE_TITLE
-    : (courseQuery.data?.title ?? null);
+  const courseTitle =
+    courseQuery.data?.title ??
+    courseSlug?.replace(/-/g, ' ') ??
+    'Курс';
 
-  const lessonDetail = USE_MOCK ? MOCK_LESSON : (lessonQuery.data ?? null);
+  const lessonDetail = lessonQuery.data ?? MOCK_LESSON_DETAIL;
 
   const lessonLayout = useMemo<LessonLayout | null>(() => {
     if (!lessonDetail) return null;
@@ -348,9 +382,7 @@ export default function LessonViewPage() {
     }
   }, [lessonDetail]);
 
-  const loading = !USE_MOCK && (courseQuery.isLoading || lessonQuery.isLoading);
-  const error = courseQuery.error || lessonQuery.error;
-
+  const loading = courseQuery.isLoading || lessonQuery.isLoading;
   if (loading) {
     return (
       <div className={styles.page}>
@@ -361,13 +393,11 @@ export default function LessonViewPage() {
     );
   }
 
-  if (error || !courseTitle || !lessonDetail) {
+  if (!lessonDetail) {
     return (
       <div className={styles.page}>
         <div className={styles.errorBox}>
-          <p className={styles.errorText}>
-            {error ? 'Не удалось загрузить урок' : 'Урок недоступен'}
-          </p>
+          <p className={styles.errorText}>Урок недоступен</p>
           <Button variant="secondary" onClick={() => navigate(-1)}>
             Назад
           </Button>
@@ -419,6 +449,7 @@ export default function LessonViewPage() {
           </div>
 
           <main className={styles.main}>
+            <LessonRecording recording={lessonDetail.recording_url} />
             {lessonLayout && <LessonContent layout={lessonLayout} />}
           </main>
         </div>

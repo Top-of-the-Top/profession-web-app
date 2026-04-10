@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Link,
   useNavigate,
@@ -20,6 +20,15 @@ import {
   Trash2,
 } from 'lucide-react';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -30,50 +39,91 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Input,
+  Label,
   PageTransition,
   Spinner,
 } from '@shared/ui';
 import type {
   AppCourseLesson,
   AppCourseSection,
-  AppCourseContentResponse,
+  CourseHomeMeta,
+  CourseHomeResponse,
 } from '@shared/api/courseApi';
-import { useAppCourseBySlug, useCourseBySlug } from '@shared/api/queries/courses';
+import { useCourseHomeBySlug } from '@shared/api/queries/courses';
+import {
+  useCreateLesson,
+  useDeleteLesson,
+  useToggleLessonType,
+} from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac/useRole';
+import { notifyInfo } from '@shared/lib/sileo/notify';
 import { cn } from '@shared/lib/utils';
 import styles from './CourseLessonsPage.module.css';
-import {
-  USE_MOCK,
-  MOCK_APP_COURSE,
-  MOCK_COURSE_PAGE_TITLE,
-} from './mockCourseLessonsData';
 
 function idKey(id: number | string): string {
   return String(id);
 }
 
-function isLessonCompleted(
-  lessonId: number | string,
-  completed: number[],
-): boolean {
+function isLessonCompleted(lessonId: string, completed: string[]): boolean {
   const key = idKey(lessonId);
   return completed.some((c) => String(c) === key);
 }
 
-function isSectionCompleted(sectionId: number, completed: number[]): boolean {
-  return completed.includes(sectionId);
+function isSectionCompleted(sectionId: string, completed: string[]): boolean {
+  return completed.some((c) => String(c) === sectionId);
 }
 
 function findSectionIdForLessonSlug(
   sections: AppCourseSection[],
   lessonSlug: string | null,
-): number | null {
+): string | null {
   if (!lessonSlug) return null;
   const s = sections.find((sec) =>
     sec.lessons.some((l) => l.slug === lessonSlug),
   );
   return s?.section_id ?? null;
 }
+
+const MOCK_COURSE_HOME: CourseHomeResponse = {
+  course_id: 'mock-course-id',
+  title: 'Программирование (mock)',
+  content: [
+    {
+      section_id: 'mock-section-1',
+      section_number: 1,
+      title: 'Введение',
+      type: 'published',
+      lessons: [
+        {
+          lesson_id: 'mock-lesson-id-1',
+          lesson_number: 1,
+          title: 'Первый урок',
+          slug: 'mock-lesson-1',
+          type: 'published',
+        },
+        {
+          lesson_id: 'mock-lesson-id-2',
+          lesson_number: 2,
+          title: 'Второй урок',
+          slug: 'mock-lesson-2',
+          type: 'draft',
+        },
+      ],
+    },
+  ],
+  meta: {
+    completed_sections_id: ['mock-section-1'],
+    completed_lessons_id: ['mock-lesson-id-1'],
+  },
+};
 
 function StreakCard() {
   return (
@@ -187,27 +237,21 @@ function StudentStatusIcon({ done }: { done: boolean }) {
 
 export default function CourseLessonsPage() {
   const { slug } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const highlightLesson = searchParams.get('lesson');
   const { hasAny } = useRole();
   const isStaff = hasAny('teacher', 'moderator');
 
-  const appQuery = useAppCourseBySlug(USE_MOCK ? undefined : slug);
-  const catalogQuery = useCourseBySlug(USE_MOCK ? undefined : slug);
+  const homeQuery = useCourseHomeBySlug(slug);
 
-  const payload: AppCourseContentResponse | undefined = USE_MOCK
-    ? MOCK_APP_COURSE
-    : appQuery.data;
+  const payload: CourseHomeResponse = homeQuery.data ?? MOCK_COURSE_HOME;
 
-  const title = USE_MOCK
-    ? MOCK_COURSE_PAGE_TITLE
-    : (catalogQuery.data?.title ??
-      slug?.replace(/-/g, ' ') ??
-      'Курс');
+  const title =
+    (payload?.title && payload.title.trim() !== '' ? payload.title : null) ??
+    slug?.replace(/-/g, ' ') ??
+    'Курс';
 
-  const loading = !USE_MOCK && appQuery.isLoading;
-  const error = !USE_MOCK && appQuery.error;
+  const loading = homeQuery.isLoading;
 
   const { content, meta } = payload ?? {
     content: [],
@@ -227,9 +271,7 @@ export default function CourseLessonsPage() {
     return { done, total };
   }, [allLessons, meta.completed_lessons_id]);
 
-  const [openSections, setOpenSections] = useState<Set<number>>(
-    () => (USE_MOCK ? new Set([3, 4]) : new Set()),
-  );
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (!highlightLesson || !content.length) return;
@@ -239,7 +281,7 @@ export default function CourseLessonsPage() {
     }
   }, [highlightLesson, content]);
 
-  const toggleSection = (sectionId: number, open: boolean) => {
+  const toggleSection = (sectionId: string, open: boolean) => {
     setOpenSections((prev) => {
       const next = new Set(prev);
       if (open) next.add(sectionId);
@@ -253,21 +295,6 @@ export default function CourseLessonsPage() {
       <div className={styles.page}>
         <div className={styles.centered}>
           <Spinner />
-        </div>
-      </div>
-    );
-  }
-
-  if (error || (!USE_MOCK && !appQuery.data)) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.errorBox}>
-          <p className={styles.errorText}>
-            {error ? 'Не удалось загрузить курс' : 'Курс недоступен'}
-          </p>
-          <Button variant="secondary" onClick={() => navigate('/app/home')}>
-            К курсам
-          </Button>
         </div>
       </div>
     );
@@ -298,7 +325,37 @@ export default function CourseLessonsPage() {
           </Breadcrumb>
         </div>
         <h1 className={styles.pageTitle}>{title}</h1>
-        <div className={styles.empty}>В этом курсе пока нет разделов.</div>
+        <div className={styles.layout}>
+          <div className={styles.mainColumn}>
+            <div className={styles.empty}>В этом курсе пока нет разделов.</div>
+            {isStaff ? (
+              <Button
+                type="button"
+                variant="outline"
+                className={styles.addSectionBtn}
+                onClick={() => notifyInfo({ title: 'В разработке' })}
+              >
+                <Plus size={18} strokeWidth={2} />
+                Добавить раздел
+              </Button>
+            ) : null}
+          </div>
+          <aside className={styles.sidebar}>
+            {isStaff ? (
+              <StaffStatsCard />
+            ) : (
+              <>
+                <StreakCard />
+                <StudentProgressCard
+                  lessonsDone={0}
+                  lessonsTotal={0}
+                  homeworkDone={0}
+                  homeworkTotal={0}
+                />
+              </>
+            )}
+          </aside>
+        </div>
       </PageTransition>
     );
   }
@@ -335,7 +392,7 @@ export default function CourseLessonsPage() {
             <SectionBlock
               key={section.section_id}
               section={section}
-              slug={slug ?? ''}
+              courseSlug={slug ?? ''}
               isStaff={isStaff}
               meta={meta}
               open={openSections.has(section.section_id)}
@@ -349,6 +406,7 @@ export default function CourseLessonsPage() {
               type="button"
               variant="outline"
               className={styles.addSectionBtn}
+              onClick={() => notifyInfo({ title: 'В разработке' })}
             >
               <Plus size={18} strokeWidth={2} />
               Добавить раздел
@@ -378,7 +436,7 @@ export default function CourseLessonsPage() {
 
 function SectionBlock({
   section,
-  slug,
+  courseSlug,
   isStaff,
   meta,
   open,
@@ -386,9 +444,9 @@ function SectionBlock({
   highlightLessonSlug,
 }: {
   section: AppCourseSection;
-  slug: string;
+  courseSlug: string;
   isStaff: boolean;
-  meta: AppCourseContentResponse['meta'];
+  meta: CourseHomeMeta;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   highlightLessonSlug: string | null;
@@ -397,6 +455,8 @@ function SectionBlock({
     section.section_id,
     meta.completed_sections_id,
   );
+
+  const stubAction = () => notifyInfo({ title: 'В разработке' });
 
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
@@ -422,10 +482,10 @@ function SectionBlock({
               role="group"
               onClick={(e) => e.stopPropagation()}
             >
-              <Button type="button" variant="ghost" size="icon-sm">
+              <Button type="button" variant="ghost" size="icon-sm" onClick={stubAction}>
                 <Pencil size={18} strokeWidth={2} />
               </Button>
-              <Button type="button" variant="ghost" size="icon-sm">
+              <Button type="button" variant="ghost" size="icon-sm" onClick={stubAction}>
                 <Trash2 size={18} strokeWidth={2} />
               </Button>
             </div>
@@ -454,7 +514,8 @@ function SectionBlock({
               <LessonRow
                 key={idKey(lesson.lesson_id)}
                 lesson={lesson}
-                slug={slug}
+                sectionNumber={section.section_number}
+                courseSlug={courseSlug}
                 isStaff={isStaff}
                 lessonDone={isLessonCompleted(
                   lesson.lesson_id,
@@ -465,10 +526,10 @@ function SectionBlock({
             ))}
 
             {isStaff ? (
-              <button type="button" className={styles.addLessonZone}>
-                <Plus size={18} strokeWidth={2} />
-                Добавить урок
-              </button>
+              <AddLessonDialog
+                courseSlug={courseSlug}
+                sectionId={section.section_id}
+              />
             ) : null}
           </div>
         </CollapsibleContent>
@@ -479,18 +540,24 @@ function SectionBlock({
 
 function LessonRow({
   lesson,
-  slug,
+  sectionNumber,
+  courseSlug,
   isStaff,
   lessonDone,
   highlighted,
 }: {
   lesson: AppCourseLesson;
-  slug: string;
+  sectionNumber: number;
+  courseSlug: string;
   isStaff: boolean;
   lessonDone: boolean;
   highlighted: boolean;
 }) {
+  const navigate = useNavigate();
+  const toggleType = useToggleLessonType(courseSlug);
+  const lessonLabel = `${sectionNumber}.${lesson.lesson_number} ${lesson.title}`;
   const published = lesson.type !== 'draft';
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (isStaff) {
     return (
@@ -504,11 +571,21 @@ function LessonRow({
         <span className={styles.dragHandleLesson} aria-hidden>
           <GripVertical size={16} strokeWidth={2} />
         </span>
-        <span className={styles.lessonTitle}>
-          {lesson.lesson_number} {lesson.title}
-        </span>
+        <span className={styles.lessonTitle}>{lessonLabel}</span>
         <div className={styles.staffLessonActions}>
-          <Button type="button" variant="outline" size="sm" className={styles.publishBtn}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={styles.publishBtn}
+            disabled={toggleType.isPending}
+            onClick={() =>
+              toggleType.mutate({
+                lessonSlug: lesson.slug,
+                currentType: lesson.type,
+              })
+            }
+          >
             {published ? 'Отозвать' : 'Опубликовать'}
           </Button>
           {published ? (
@@ -516,18 +593,31 @@ function LessonRow({
           ) : (
             <EyeOff size={20} className={styles.eyeDraft} strokeWidth={2} />
           )}
-          <Button type="button" variant="ghost" size="icon-sm">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() =>
+              navigate(
+                `/app/courses/${courseSlug}/lessons/${encodeURIComponent(lesson.slug)}`,
+              )
+            }
+          >
             <Pencil size={18} strokeWidth={2} />
           </Button>
-          <Button type="button" variant="ghost" size="icon-sm">
-            <Trash2 size={18} strokeWidth={2} />
-          </Button>
+          <DeleteLessonDialog
+            courseSlug={courseSlug}
+            lessonSlug={lesson.slug}
+            lessonTitle={lesson.title}
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+          />
         </div>
       </div>
     );
   }
 
-  const to = `/app/courses/${slug}/lessons/${encodeURIComponent(lesson.slug)}`;
+  const to = `/app/courses/${courseSlug}/lessons/${encodeURIComponent(lesson.slug)}`;
 
   return (
     <Link
@@ -538,10 +628,132 @@ function LessonRow({
         highlighted && styles.lessonRowHighlight,
       )}
     >
-      <span className={styles.lessonTitle}>
-        {lesson.lesson_number} {lesson.title}
-      </span>
+      <span className={styles.lessonTitle}>{lessonLabel}</span>
       <StudentStatusIcon done={lessonDone} />
     </Link>
+  );
+}
+
+function DeleteLessonDialog({
+  courseSlug,
+  lessonSlug,
+  lessonTitle,
+  open,
+  onOpenChange,
+}: {
+  courseSlug: string;
+  lessonSlug: string;
+  lessonTitle: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const deleteMutation = useDeleteLesson(courseSlug);
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogTrigger asChild>
+        <Button type="button" variant="ghost" size="icon-sm">
+          <Trash2 size={18} strokeWidth={2} />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Удалить урок?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Урок «{lessonTitle}» будет удалён без возможности восстановления.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Отмена</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={deleteMutation.isPending}
+            onClick={() =>
+              deleteMutation.mutate(lessonSlug, {
+                onSuccess: () => onOpenChange(false),
+              })
+            }
+          >
+            {deleteMutation.isPending ? 'Удаление…' : 'Удалить'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function AddLessonDialog({
+  courseSlug,
+  sectionId,
+}: {
+  courseSlug: string;
+  sectionId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const createMutation = useCreateLesson(courseSlug);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    createMutation.mutate(
+      { title: trimmed, section: sectionId },
+      {
+        onSuccess: () => {
+          setTitle('');
+          setOpen(false);
+        },
+      },
+    );
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setTitle('');
+      }}
+    >
+      <DialogTrigger asChild>
+        <button type="button" className={styles.addLessonZone}>
+          <Plus size={18} strokeWidth={2} />
+          Добавить урок
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Новый урок</DialogTitle>
+          </DialogHeader>
+          <div style={{ padding: '16px 0' }}>
+            <Label htmlFor="new-lesson-title">Название урока</Label>
+            <Input
+              id="new-lesson-title"
+              ref={inputRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Введите название"
+              autoFocus
+              disabled={createMutation.isPending}
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Отмена
+              </Button>
+            </DialogClose>
+            <Button
+              type="submit"
+              disabled={!title.trim() || createMutation.isPending}
+            >
+              {createMutation.isPending ? <Spinner /> : 'Создать'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -65,6 +65,9 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
     try {
       const user = await profileApi.getProfile();
       const { role, userId } = readRbacFromToken();
+      if (import.meta.env.DEV) {
+        console.log('[auth] role', role, 'userId', userId);
+      }
       set({ user, role, userId, isLoading: false, isAuthChecked: true });
     } catch (error) {
       const err = error as Error;

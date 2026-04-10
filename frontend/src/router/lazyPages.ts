@@ -19,7 +19,6 @@ const importMap = {
   cart: () => import('@pages/cart/Cart'),
   createLesson: () => import('@pages/lessonCreate/ui/CreateLessonPage'),
   lessonPreview: () => import('@pages/lessonPreview/ui/LessonPreviewPage'),
-  toastPlayground: () => import('@pages/toast-playground/ui/ToastPlaygroundPage'),
 };
 
 export const LandingPage = lazy(importMap.landing);
@@ -40,7 +39,6 @@ export const LessonViewPage = lazy(importMap.lessonView);
 export const CartPage = lazy(importMap.cart);
 export const CreateLessonPage = lazy(importMap.createLesson);
 export const LessonPreviewPage = lazy(importMap.lessonPreview);
-export const ToastPlaygroundPage = lazy(importMap.toastPlayground);
 
 export function preloadAppCore() {
   void importMap.appLayout();

@@ -113,8 +113,7 @@ export default function AppLayout() {
               {navItems.map(({ href, label, icon: Icon, id }) => {
                 const storeActive =
                   id === 'upload' &&
-                  (pathname.startsWith('/app/store') ||
-                    pathname.startsWith('/app/courses'));
+                  pathname.startsWith('/app/store');
                 return (
                   <NavLink
                     key={href}

@@ -6,7 +6,7 @@ export const courseKeys = {
   store: () => [...courseKeys.all, 'store'] as const,
   home: () => [...courseKeys.all, 'home'] as const,
   bySlug: (slug: string) => [...courseKeys.all, 'detail', slug] as const,
-  appBySlug: (slug: string) => [...courseKeys.all, 'app-detail', slug] as const,
+  courseHome: (slug: string) => [...courseKeys.all, 'home', slug] as const,
   lessons: (courseSlug: string) =>
     [...courseKeys.all, courseSlug, 'lessons'] as const,
   lesson: (courseSlug: string, lessonSlug: string) =>
@@ -35,10 +35,10 @@ export function useCourseBySlug(slug: string | undefined) {
   });
 }
 
-export function useAppCourseBySlug(slug: string | undefined) {
+export function useCourseHomeBySlug(slug: string | undefined) {
   return useQuery({
-    queryKey: courseKeys.appBySlug(slug!),
-    queryFn: () => courseApi.getAppCourseContentBySlug(slug!),
+    queryKey: courseKeys.courseHome(slug!),
+    queryFn: () => courseApi.getCourseHomeBySlug(slug!),
     enabled: !!slug,
   });
 }

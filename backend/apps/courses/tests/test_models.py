@@ -169,7 +169,7 @@ class CourseImagePathTest(BaseTestCase):
         course = Course(course_id=uuid.uuid4(), title='Test Course')
         path = course_image_path(course, 'image.PNG')
         self.assertTrue(path.startswith('courses/course_'))
-        self.assertTrue(path.endswith('.png'))  # должно быть в нижнем регистре
+        self.assertTrue(path.endswith('.png'))
 
     def test_image_path_generation_with_multiple_dots(self):
         course = Course(course_id=uuid.uuid4(), title='Test Course')

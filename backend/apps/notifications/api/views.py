@@ -12,6 +12,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import TokenError
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from .serializers import NotificationSerializer
 from ..models import Notification
 from apps.users.models import User
@@ -21,7 +23,12 @@ logger = logging.getLogger(__name__)
 
 
 
-@api_view(['GET']) # Решил проще данную штуку точечно сделать функцией. Введение cbv для этого избыточно
+@extend_schema(
+    tags=['Notifications'],
+    summary='Список уведомлений пользователя',
+    responses={200: NotificationSerializer(many=True)},
+)
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_notifications_for_user(request):
     user = request.user
@@ -36,6 +43,27 @@ def get_notifications_for_user(request):
     return Response(serializer.data)
 
 
+@extend_schema(
+    tags=['Notifications'],
+    summary='Поток уведомлений (SSE)',
+    description='Server-Sent Events; требуется query-параметр token (JWT access).',
+    parameters=[
+        OpenApiParameter(
+            name='token',
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description='JWT access token',
+        ),
+    ],
+    responses={
+        200: {
+            'description': 'Поток text/event-stream',
+            'content': {'text/event-stream': {}},
+        },
+        401: {'description': 'Нет или неверный token'},
+    },
+)
 async def sse_notifications(request):
     # async - функция корутина, которая умеет приостанавливать свое выполнение ( замораживаться в ожидании )
     # Под капотом async - создает state machine, которая умеет сохранять локальные переменные и контекст и соответственно состояние

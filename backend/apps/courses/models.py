@@ -1,6 +1,3 @@
-from datetime import timezone
-from tkinter.constants import CASCADE
-
 from django.db import models
 import os
 from django.core.exceptions import ValidationError
@@ -231,9 +228,7 @@ class Question(AbstractComponentModel, AutoIncrementMixin):
     question_id = models.UUIDField(primary_key=True, verbose_name="id", default=uuid.uuid4)
     question_number = models.PositiveIntegerField(verbose_name='Номер вопроса', blank=True)
     homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    # Пока работаем только с текстовыми вопросами. Без картинок и так далее
     text = models.CharField(max_length=200, verbose_name='Текст вопроса')
-    # Пока считаем, что всего может быть только 1 правильный ответ
     correct_ans = models.CharField(verbose_name='Правильный ответ на вопрос')
     answer_options = models.JSONField(verbose_name='Варианты ответов')
 
@@ -390,16 +385,14 @@ class Users_tasks_answers(AttemptStatusMixin, TimestampedMixin, AutoIncrementMix
     attempt = models.ForeignKey(
         Users_Homeworks_Attempts,
         on_delete=models.CASCADE,
-        related_name='task_answers')
+        related_name='task_answers'    )
 
-    # Как то проверять, что не больше чем max_points у соответствующего вопроса
     points = models.PositiveIntegerField(default=0)
 
-    # Пока не понятно, что загружаем в качестве ответа. Пока будет Text без ограничений.
     user_answer = models.TextField()
 
     def clean(self):
-        if self.points > self.task.max_points:  # Проверяем что выставлено корректное количество баллов
+        if self.points > self.task.max_points:
             raise ValidationError({
                 'points': f'За задание {self.task} можно получить максимум {self.task.max_points}'
             })

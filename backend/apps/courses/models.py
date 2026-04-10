@@ -1,6 +1,3 @@
-from datetime import timezone
-from tkinter.constants import CASCADE
-
 from django.db import models
 import os
 from django.core.exceptions import ValidationError

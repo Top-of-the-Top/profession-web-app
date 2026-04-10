@@ -11,6 +11,8 @@ from ..api.views import (
     CourseDTOList,
     CourseListView,
     PurchasedCoursesView,
+    course_list_cache_key,
+    landing_courses_cache_key,
 )
 from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
 from apps.users.models import User
@@ -63,6 +65,9 @@ class CourseDTOListUnitTest(SimpleTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('number_of_courses', response.data)
         self.assertIn('data', response.data)
+
+    def test_landing_and_app_course_list_use_distinct_cache_keys(self):
+        self.assertNotEqual(landing_courses_cache_key(), course_list_cache_key())
 
 
 class CourseViewSetUnitTest(SimpleTestCase):
@@ -255,6 +260,26 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         new_lesson = Lesson.objects.get(title='New Lesson')
         self.assertEqual(new_lesson.section, self.section)
+
+    def test_lesson_create_rejects_section_from_other_course(self):
+        from datetime import datetime
+
+        other_course = create_test_course(title='Other course')
+        foreign_section = create_test_section(other_course, title='Foreign')
+
+        self.authenticate_user(self.teacher)
+        data = {
+            'section': str(foreign_section.section_id),
+            'title': 'Lesson in wrong section',
+            'date_time': datetime.now().isoformat(),
+        }
+        response = self.client.post(
+            f'/api/courses/{self.course.slug}/lessons/',
+            data,
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Lesson.objects.filter(title='Lesson in wrong section').exists())
 
     def test_lesson_update_as_author(self):
         self.authenticate_user(self.teacher)

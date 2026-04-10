@@ -34,10 +34,10 @@ SCHEMA_DETAIL = {"type": "object", "properties": {"detail": {"type": "string"}}}
 
 
 def landing_courses_cache_key():
-    return "default:courses:list"
+    return "default:landing:courses:list"
 
 def course_list_cache_key():
-    return "default:courses:list"
+    return "default:app:courses:list"
 
 def course_detail_cache_key(slug):
     return f"default:courses:detail:{slug}"
@@ -264,13 +264,7 @@ class CourseHomePageView(APIView):
         }
     )
     def get(self, request, course_slug):
-        try:
-            course = Course.objects.get(slug=course_slug)
-        except Course.DoesNotExist:
-            return Response(
-                {'detail': 'Курс не найден'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        course = get_object_or_404(Course, slug=course_slug)
 
         user = request.user
 
@@ -302,10 +296,15 @@ def _get_lesson_or_404(course_slug, lesson_slug):
 
 
 def _homework_queryset_for_lesson(course_slug, lesson_slug):
-    return Homework.objects.filter(
-        lesson__slug=lesson_slug,
-        lesson__section__course__slug=course_slug,
-    ).order_by('homework_number')
+    return (
+        Homework.objects.filter(
+            lesson__slug=lesson_slug,
+            lesson__section__course__slug=course_slug,
+        )
+        .select_related('lesson')
+        .prefetch_related('question_set', 'task_set')
+        .order_by('homework_number')
+    )
 
 
 def _get_homework_or_404(course_slug, lesson_slug, homework_slug):
@@ -434,8 +433,15 @@ class LessonCreateView(APIView):
     )
     @require_course_author
     def post(self, request, course_slug):
+        course = get_object_or_404(Course, slug=course_slug)
         serializer = LessonSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        section = serializer.validated_data.get('section')
+        if section is not None and section.course_id != course.course_id:
+            return Response(
+                {'detail': 'Секция не принадлежит этому курсу.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

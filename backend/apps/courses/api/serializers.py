@@ -85,7 +85,7 @@ class SectionWithLessonsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Section
-        fields = ['section_id', 'section_number', 'title', 'lessons']
+        fields = ['section_id', 'section_number', 'title', 'lessons', 'slug']
 
 
 class SectionWithLessonsAndTypeSerializer(serializers.ModelSerializer):
@@ -93,7 +93,7 @@ class SectionWithLessonsAndTypeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Section
-        fields = ['section_id', 'section_number', 'title', 'type', 'lessons']
+        fields = ['section_id', 'section_number', 'title', 'type', 'lessons', 'slug']
 
 
 class CourseHomeSerializer(serializers.Serializer):

@@ -229,8 +229,7 @@
     opacity: 0;
   }
 
-  .sectionHeader:hover .dragHandle,
-  .sectionHeader:focus-within .dragHandle {
+  .sectionHeader:hover .dragHandle {
     opacity: 1;
   }
 }

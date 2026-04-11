@@ -1,9 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Check,
   ChevronDown,
-  ChevronUp,
   Eye,
   EyeOff,
   Flame,
@@ -42,7 +41,6 @@ import {
   useDeleteSection,
   usePatchSection,
   useToggleLessonType,
-  useToggleSectionType,
 } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac/useRole';
 import { cn } from '@shared/lib/utils';
@@ -59,17 +57,6 @@ function isLessonCompleted(lessonId: string, completed: string[]): boolean {
 
 function isSectionCompleted(sectionId: string, completed: string[]): boolean {
   return completed.some((c) => String(c) === sectionId);
-}
-
-function findSectionIdForLessonSlug(
-  sections: AppCourseSection[],
-  lessonSlug: string | null,
-): string | null {
-  if (!lessonSlug) return null;
-  const s = sections.find((sec) =>
-    sec.lessons.some((l) => l.slug === lessonSlug),
-  );
-  return s?.section_id ?? null;
 }
 
 function StreakCard() {
@@ -128,10 +115,7 @@ function StudentProgressCard({
           </span>
         </div>
         <div className={styles.progressTrack}>
-          <div
-            className={styles.progressFill}
-            style={{ width: `${hwPct}%` }}
-          />
+          <div className={styles.progressFill} style={{ width: `${hwPct}%` }} />
         </div>
       </div>
     </div>
@@ -167,7 +151,10 @@ function StaffStatsCard() {
 function StudentStatusIcon({ done }: { done: boolean }) {
   if (done) {
     return (
-      <span className={cn(styles.statusIcon, styles.statusIconDone)} aria-hidden>
+      <span
+        className={cn(styles.statusIcon, styles.statusIconDone)}
+        aria-hidden
+      >
         <Check size={14} strokeWidth={3} />
       </span>
     );
@@ -182,14 +169,8 @@ function StudentStatusIcon({ done }: { done: boolean }) {
   );
 }
 
-type CourseLessonsLocationState = { highlightLesson?: string };
-
 export default function CourseLessonsPage() {
   const { slug } = useParams<{ slug: string }>();
-  const location = useLocation();
-  const highlightLesson =
-    (location.state as CourseLessonsLocationState | null)?.highlightLesson ??
-    null;
   const { hasAny } = useRole();
   const isStaff = hasAny('teacher', 'moderator');
 
@@ -208,26 +189,20 @@ export default function CourseLessonsPage() {
 
   const allLessons = useMemo(
     () => content.flatMap((s) => s.lessons),
-    [content],
+    [content]
   );
 
   const lessonStats = useMemo(() => {
     const total = allLessons.length;
     const done = allLessons.filter((l) =>
-      isLessonCompleted(l.lesson_id, meta.completed_lessons_id),
+      isLessonCompleted(l.lesson_id, meta.completed_lessons_id)
     ).length;
     return { done, total };
   }, [allLessons, meta.completed_lessons_id]);
 
-  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
-
-  useEffect(() => {
-    if (!highlightLesson || !content.length) return;
-    const sid = findSectionIdForLessonSlug(content, highlightLesson);
-    if (sid != null) {
-      setOpenSections((prev) => new Set(prev).add(sid));
-    }
-  }, [highlightLesson, content]);
+  const [openSections, setOpenSections] = useState<Set<string>>(
+    () => new Set()
+  );
 
   const toggleSection = (sectionId: string, open: boolean) => {
     setOpenSections((prev) => {
@@ -269,8 +244,8 @@ export default function CourseLessonsPage() {
         <div className={styles.centered}>
           <div className={styles.errorBox}>
             <p className={styles.errorText}>
-              Не удалось загрузить программу курса. Проверьте, что вы записаны на
-              курс, и попробуйте снова.
+              Не удалось загрузить программу курса. Проверьте, что вы записаны
+              на курс, и попробуйте снова.
             </p>
             <Button type="button" onClick={() => void refetch()}>
               Попробовать снова
@@ -368,7 +343,6 @@ export default function CourseLessonsPage() {
               meta={meta}
               open={openSections.has(section.section_id)}
               onOpenChange={(o) => toggleSection(section.section_id, o)}
-              highlightLessonSlug={highlightLesson}
             />
           ))}
 
@@ -396,62 +370,29 @@ export default function CourseLessonsPage() {
 }
 
 function SectionStaffTools({
-  courseSlug,
-  section,
-  sectionSlug,
   canManageSection,
   editingTitle,
   onEditTitle,
   onDeleteSection,
   deletePending,
 }: {
-  courseSlug: string;
-  section: AppCourseSection;
-  sectionSlug: string;
   canManageSection: boolean;
   editingTitle: boolean;
   onEditTitle: () => void;
   onDeleteSection: () => void;
   deletePending: boolean;
 }) {
-  const toggleSectionType = useToggleSectionType(courseSlug);
-  const published = section.type !== 'draft';
-
   return (
     <div
       className={styles.staffSectionTools}
       role="group"
       onClick={(e) => e.stopPropagation()}
     >
-      {section.type !== undefined ? (
-        <>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={styles.publishBtn}
-            disabled={!canManageSection || toggleSectionType.isPending}
-            onClick={() => {
-              if (!canManageSection) return;
-              toggleSectionType.mutate({
-                sectionSlug,
-                currentType: section.type,
-              });
-            }}
-          >
-            {published ? 'Отозвать' : 'Опубликовать'}
-          </Button>
-          {published ? (
-            <Eye size={20} className={styles.eyePublished} strokeWidth={2} />
-          ) : (
-            <EyeOff size={20} className={styles.eyeDraft} strokeWidth={2} />
-          )}
-        </>
-      ) : null}
       <Button
         type="button"
         variant="ghost"
         size="icon-sm"
+        className={styles.staffIconEditBtn}
         disabled={!canManageSection || editingTitle}
         title={
           canManageSection
@@ -460,12 +401,13 @@ function SectionStaffTools({
         }
         onClick={onEditTitle}
       >
-        <Pencil size={18} strokeWidth={2} />
+        <Pencil size={20} strokeWidth={2} />
       </Button>
       <Button
         type="button"
         variant="ghost"
         size="icon-sm"
+        className={styles.staffIconDeleteBtn}
         disabled={!canManageSection || deletePending}
         title={
           canManageSection
@@ -474,7 +416,7 @@ function SectionStaffTools({
         }
         onClick={onDeleteSection}
       >
-        <Trash2 size={18} strokeWidth={2} />
+        <Trash2 size={20} strokeWidth={2} />
       </Button>
     </div>
   );
@@ -487,7 +429,6 @@ function SectionBlock({
   meta,
   open,
   onOpenChange,
-  highlightLessonSlug,
 }: {
   section: AppCourseSection;
   courseSlug: string;
@@ -495,7 +436,6 @@ function SectionBlock({
   meta: CourseHomeMeta;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  highlightLessonSlug: string | null;
 }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(section.title);
@@ -506,7 +446,7 @@ function SectionBlock({
   const createLesson = useCreateLesson(courseSlug);
   const sectionDone = isSectionCompleted(
     section.section_id,
-    meta.completed_sections_id,
+    meta.completed_sections_id
   );
 
   const sectionSlug = section.slug?.trim() ?? '';
@@ -549,7 +489,7 @@ function SectionBlock({
     if (!canManageSection) return;
     if (
       !window.confirm(
-        `Раздел «${section.title}» и все его уроки будут удалены без возможности восстановления. Продолжить?`,
+        `Раздел «${section.title}» и все его уроки будут удалены без возможности восстановления. Продолжить?`
       )
     ) {
       return;
@@ -583,166 +523,171 @@ function SectionBlock({
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
       <div className={styles.sectionCard}>
-        <div className={styles.sectionHeader}>
-          {isStaff ? (
-            <span className={styles.dragHandle} aria-hidden>
-              <GripVertical size={18} strokeWidth={2} />
-            </span>
-          ) : null}
-
-          {isStaff && editingTitle ? (
-            <div className={styles.sectionTitleEdit}>
-              <Input
-                className={styles.sectionTitleInput}
-                value={draftTitle}
-                onChange={(e) => setDraftTitle(e.target.value)}
-                placeholder="Название раздела"
-                disabled={patchSection.isPending}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveSectionTitle();
-                  if (e.key === 'Escape') cancelSectionTitleEdit();
-                }}
-              />
-              <Button
-                type="button"
-                size="sm"
-                disabled={
-                  !draftTitle.trim() || patchSection.isPending || !canManageSection
-                }
-                onClick={saveSectionTitle}
-              >
-                {patchSection.isPending ? <Spinner /> : 'Сохранить'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={patchSection.isPending}
-                onClick={cancelSectionTitleEdit}
-              >
-                Отмена
-              </Button>
-            </div>
-          ) : (
-            <CollapsibleTrigger asChild>
-              <button type="button" className={styles.sectionTitleBtn}>
-                <span className={styles.sectionTitleText}>
-                  {section.section_number}. {section.title}
+        <div className={styles.sectionCardWrapper}>
+          <div className={styles.sectionHeader}>
+            {isStaff ? (
+              <span className={styles.dragHandleSlot}>
+                <span className={styles.dragHandle} aria-hidden>
+                  <GripVertical size={18} strokeWidth={2} />
                 </span>
-              </button>
-            </CollapsibleTrigger>
-          )}
+              </span>
+            ) : null}
 
-          {isStaff ? (
-            <SectionStaffTools
-              courseSlug={courseSlug}
-              section={section}
-              sectionSlug={sectionSlug}
-              canManageSection={canManageSection}
-              editingTitle={editingTitle}
-              onEditTitle={() => {
-                if (!canManageSection) return;
-                setDraftTitle(section.title);
-                setEditingTitle(true);
-              }}
-              onDeleteSection={requestDeleteSection}
-              deletePending={deleteSectionMutation.isPending}
-            />
-          ) : (
-            <StudentStatusIcon done={sectionDone} />
-          )}
-
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className={styles.chevronBtn}
-              aria-label={open ? 'Свернуть раздел' : 'Развернуть раздел'}
-            >
-              {open ? (
-                <ChevronUp size={22} strokeWidth={2} />
-              ) : (
-                <ChevronDown size={22} strokeWidth={2} />
-              )}
-            </button>
-          </CollapsibleTrigger>
-        </div>
-
-        <CollapsibleContent>
-          <div className={styles.sectionBody}>
-            {section.lessons.map((lesson) => (
-              <LessonRow
-                key={idKey(lesson.lesson_id)}
-                lesson={lesson}
-                sectionNumber={section.section_number}
-                courseSlug={courseSlug}
-                isStaff={isStaff}
-                lessonDone={isLessonCompleted(
-                  lesson.lesson_id,
-                  meta.completed_lessons_id,
-                )}
-                highlighted={lesson.slug === highlightLessonSlug}
-              />
-            ))}
-
-            {isStaff && addingLesson ? (
-              <div className={styles.inlineAddLesson}>
+            {isStaff && editingTitle ? (
+              <div className={styles.sectionTitleEdit}>
                 <Input
-                  id={`new-lesson-input-${idKey(section.section_id)}`}
-                  className={cn(
-                    styles.inlineAddLessonInput,
-                    styles.addFlowInputAnim,
-                  )}
-                  value={newLessonTitle}
-                  onChange={(e) => setNewLessonTitle(e.target.value)}
-                  placeholder="Название"
-                  disabled={createLesson.isPending}
+                  className={styles.sectionTitleInput}
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  placeholder="Название раздела"
+                  disabled={patchSection.isPending}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') submitNewLesson();
-                    if (e.key === 'Escape') cancelNewLesson();
+                    if (e.key === 'Enter') saveSectionTitle();
+                    if (e.key === 'Escape') cancelSectionTitleEdit();
                   }}
                 />
-                <div
-                  className={cn(
-                    styles.addFlowActions,
-                    styles.addFlowActionsAnim,
-                  )}
-                >
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={
-                      !newLessonTitle.trim() || createLesson.isPending
-                    }
-                    onClick={submitNewLesson}
-                  >
-                    {createLesson.isPending ? <Spinner /> : 'Создать'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={createLesson.isPending}
-                    onClick={cancelNewLesson}
-                  >
-                    Отмена
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            {isStaff && !addingLesson ? (
-              <div className={styles.addFlowCollapsed}>
-                <button
+                <Button
                   type="button"
-                  className={styles.addLessonZone}
-                  onClick={() => setAddingLesson(true)}
+                  size="sm"
+                  disabled={
+                    !draftTitle.trim() ||
+                    patchSection.isPending ||
+                    !canManageSection
+                  }
+                  onClick={saveSectionTitle}
                 >
-                  <Plus size={18} strokeWidth={2} />
-                  Добавить
-                </button>
+                  {patchSection.isPending ? <Spinner /> : 'Сохранить'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={patchSection.isPending}
+                  onClick={cancelSectionTitleEdit}
+                >
+                  Отмена
+                </Button>
               </div>
-            ) : null}
+            ) : (
+              <CollapsibleTrigger asChild>
+                <button type="button" className={styles.sectionTitleBtn}>
+                  <span className={styles.sectionTitleText}>
+                    {section.section_number}. {section.title}
+                  </span>
+                </button>
+              </CollapsibleTrigger>
+            )}
+
+            {isStaff ? (
+              <SectionStaffTools
+                canManageSection={canManageSection}
+                editingTitle={editingTitle}
+                onEditTitle={() => {
+                  if (!canManageSection) return;
+                  setDraftTitle(section.title);
+                  setEditingTitle(true);
+                }}
+                onDeleteSection={requestDeleteSection}
+                deletePending={deleteSectionMutation.isPending}
+              />
+            ) : (
+              <StudentStatusIcon done={sectionDone} />
+            )}
+
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className={styles.chevronBtn}
+                aria-label={open ? 'Свернуть раздел' : 'Развернуть раздел'}
+              >
+                <ChevronDown
+                  size={22}
+                  strokeWidth={2}
+                  className={cn(
+                    styles.sectionChevron,
+                    open && styles.sectionChevronOpen
+                  )}
+                />
+              </button>
+            </CollapsibleTrigger>
           </div>
-        </CollapsibleContent>
+
+          <CollapsibleContent className={styles.sectionCollapsibleContent}>
+            <div className={styles.sectionBody}>
+              {section.lessons.map((lesson) => (
+                <LessonRow
+                  key={idKey(lesson.lesson_id)}
+                  lesson={lesson}
+                  sectionNumber={section.section_number}
+                  courseSlug={courseSlug}
+                  isStaff={isStaff}
+                  lessonDone={isLessonCompleted(
+                    lesson.lesson_id,
+                    meta.completed_lessons_id
+                  )}
+                />
+              ))}
+
+              {isStaff && addingLesson ? (
+                <div className={styles.inlineAddLesson}>
+                  <Input
+                    id={`new-lesson-input-${idKey(section.section_id)}`}
+                    className={cn(
+                      styles.inlineAddLessonInput,
+                      styles.addFlowInputAnim
+                    )}
+                    value={newLessonTitle}
+                    onChange={(e) => setNewLessonTitle(e.target.value)}
+                    placeholder="Название"
+                    disabled={createLesson.isPending}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') submitNewLesson();
+                      if (e.key === 'Escape') cancelNewLesson();
+                    }}
+                  />
+                  <div
+                    className={cn(
+                      styles.addFlowActions,
+                      styles.addFlowActionsAnim
+                    )}
+                  >
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={
+                        !newLessonTitle.trim() || createLesson.isPending
+                      }
+                      onClick={submitNewLesson}
+                    >
+                      {createLesson.isPending ? <Spinner /> : 'Создать'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={createLesson.isPending}
+                      onClick={cancelNewLesson}
+                    >
+                      Отмена
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+              {isStaff && !addingLesson ? (
+                <div className={styles.addFlowCollapsed}>
+                  <button
+                    type="button"
+                    className={styles.addLessonZone}
+                    onClick={() => setAddingLesson(true)}
+                  >
+                    <Plus size={18} strokeWidth={2} />
+                    Добавить урок
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </CollapsibleContent>
+        </div>
       </div>
     </Collapsible>
   );
@@ -754,14 +699,12 @@ function LessonRow({
   courseSlug,
   isStaff,
   lessonDone,
-  highlighted,
 }: {
   lesson: AppCourseLesson;
   sectionNumber: number;
   courseSlug: string;
   isStaff: boolean;
   lessonDone: boolean;
-  highlighted: boolean;
 }) {
   const navigate = useNavigate();
   const toggleType = useToggleLessonType(courseSlug);
@@ -773,7 +716,7 @@ function LessonRow({
   const requestDeleteLesson = () => {
     if (
       !window.confirm(
-        `Урок «${lesson.title}» будет удалён без возможности восстановления. Продолжить?`,
+        `Урок «${lesson.title}» будет удалён без возможности восстановления. Продолжить?`
       )
     ) {
       return;
@@ -783,15 +726,11 @@ function LessonRow({
 
   if (isStaff) {
     return (
-      <div
-        className={cn(
-          styles.lessonRow,
-          styles.lessonRowStaff,
-          highlighted && styles.lessonRowHighlight,
-        )}
-      >
-        <span className={styles.dragHandleLesson} aria-hidden>
-          <GripVertical size={16} strokeWidth={2} />
+      <div className={cn(styles.lessonRow, styles.lessonRowStaff)}>
+        <span className={styles.lessonDragHandleSlot}>
+          <span className={styles.lessonDragHandle} aria-hidden>
+            <GripVertical size={16} strokeWidth={2} />
+          </span>
         </span>
         <span className={styles.lessonTitle}>{lessonLabel}</span>
         <div className={styles.staffLessonActions}>
@@ -810,19 +749,28 @@ function LessonRow({
           >
             {published ? 'Отозвать' : 'Опубликовать'}
           </Button>
-          {published ? (
-            <Eye size={20} className={styles.eyePublished} strokeWidth={2} />
-          ) : (
-            <EyeOff size={20} className={styles.eyeDraft} strokeWidth={2} />
-          )}
+          <span
+            className={cn(
+              styles.staffEyeSlot,
+              published ? styles.staffEyePublished : styles.staffEyeDraft
+            )}
+            aria-hidden
+          >
+            {published ? (
+              <Eye size={18} strokeWidth={2} />
+            ) : (
+              <EyeOff size={18} strokeWidth={2} />
+            )}
+          </span>
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
+            className={styles.staffIconEditBtn}
             disabled={lessonCreatePending}
             onClick={() =>
               navigate(
-                `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`,
+                `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`
               )
             }
           >
@@ -832,6 +780,7 @@ function LessonRow({
             type="button"
             variant="ghost"
             size="icon-sm"
+            className={styles.staffIconDeleteBtn}
             disabled={lessonCreatePending || deleteLesson.isPending}
             title="Удалить урок"
             onClick={requestDeleteLesson}
@@ -846,14 +795,7 @@ function LessonRow({
   const to = `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`;
 
   return (
-    <Link
-      to={to}
-      className={cn(
-        styles.lessonRow,
-        styles.lessonRowStudent,
-        highlighted && styles.lessonRowHighlight,
-      )}
-    >
+    <Link to={to} className={cn(styles.lessonRow, styles.lessonRowStudent)}>
       <span className={styles.lessonTitle}>{lessonLabel}</span>
       <StudentStatusIcon done={lessonDone} />
     </Link>
@@ -902,7 +844,7 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
             onClick={() => setExpanded(true)}
           >
             <Plus size={18} strokeWidth={2} />
-            Добавить
+            Добавить раздел
           </Button>
         </div>
       ) : (
@@ -911,7 +853,7 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
             id="new-section-input"
             className={cn(
               styles.inlineAddSectionInput,
-              styles.addFlowInputAnim,
+              styles.addFlowInputAnim
             )}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -922,9 +864,7 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
               if (e.key === 'Escape') cancel();
             }}
           />
-          <div
-            className={cn(styles.addFlowActions, styles.addFlowActionsAnim)}
-          >
+          <div className={cn(styles.addFlowActions, styles.addFlowActionsAnim)}>
             <Button
               type="button"
               variant="outline"

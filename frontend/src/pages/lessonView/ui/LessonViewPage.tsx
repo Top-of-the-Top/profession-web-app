@@ -417,14 +417,7 @@ export default function LessonViewPage() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link
-                  to={`/app/courses/${courseSlug}`}
-                  state={
-                    lessonSlug
-                      ? { highlightLesson: lessonSlug }
-                      : undefined
-                  }
-                >
+                <Link to={`/app/courses/${courseSlug}`}>
                   {courseTitle}
                 </Link>
               </BreadcrumbLink>

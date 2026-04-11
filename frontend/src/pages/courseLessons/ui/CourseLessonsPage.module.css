@@ -141,26 +141,98 @@
 
 .sectionCard {
   background: #fff;
-  border-radius: 14px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-radius: 15px;
+  border: 1px solid #E5E5E5;
+  box-shadow: 0 2px 8px #E5E5E5;
   overflow: hidden;
+}
+
+.sectionCollapsibleContent {
+  overflow: hidden;
+}
+
+.sectionCollapsibleContent[data-state='open'] {
+  animation: courseSectionExpand 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sectionCollapsibleContent[data-state='closed'] {
+  animation: courseSectionCollapse 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes courseSectionExpand {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+  }
+}
+
+@keyframes courseSectionCollapse {
+  from {
+    height: var(--radix-collapsible-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sectionCollapsibleContent[data-state='open'],
+  .sectionCollapsibleContent[data-state='closed'] {
+    animation: none;
+  }
+
+  .sectionChevron {
+    transition: none;
+  }
 }
 
 .sectionHeader {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 14px 16px 14px 12px;
-  min-height: 52px;
+  padding: 10px 16px 10px 10px;
+	margin: 10px;
+	border-radius: 15px;
+	max-height: 35px;
+	transition: 0.2s;
+	/* box-sizing: border-box; */
+  /* min-height: 52px; */
+}
+
+.sectionHeader:hover {
+  background-color: #eff1f4;
+}
+
+.dragHandleSlot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex-shrink: 0;
 }
 
 .dragHandle {
   display: flex;
+  align-items: center;
+  justify-content: center;
   color: #94a3b8;
   flex-shrink: 0;
-  padding: 4px 2px;
+  padding: 4px 0;
   cursor: grab;
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
+
+@media (hover: hover) {
+  .dragHandle {
+    opacity: 0;
+  }
+
+  .sectionHeader:hover .dragHandle,
+  .sectionHeader:focus-within .dragHandle {
+    opacity: 1;
+  }
 }
 
 .sectionTitleBtn {
@@ -176,15 +248,27 @@
 }
 
 .sectionTitleText {
-  font-size: 0.9375rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 500;
 }
 
 .staffSectionTools {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 5px;
   flex-shrink: 0;
+}
+
+.staffSectionTools button.staffIconEditBtn:hover:not(:disabled),
+.staffLessonActions button.staffIconEditBtn:hover:not(:disabled) {
+  color: #191970;
+	background-color: transparent !important;
+}
+
+.staffSectionTools button.staffIconDeleteBtn:hover:not(:disabled),
+.staffLessonActions button.staffIconDeleteBtn:hover:not(:disabled) {
+  color: #cc0000;
+	background-color: transparent !important;
 }
 
 .chevronBtn {
@@ -202,8 +286,15 @@
 }
 
 .chevronBtn:hover {
-  background: #f1f5f9;
-  color: #1a1a1a;
+  background: transparent;
+}
+
+.sectionChevron {
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sectionChevronOpen {
+  transform: rotate(-180deg);
 }
 
 .statusIcon {
@@ -227,22 +318,26 @@
 }
 
 .sectionBody {
-  padding: 0 16px 14px 16px;
+  margin-left: 50px;
+  padding: 4px 16px 0 18px;
+  border-left: 2px solid #e5e5e5;
+  color: #64748b;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+	margin-bottom: 20px;
 }
+
 
 .lessonRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: 4px;
+  border-radius: 8px;
   text-decoration: none;
   color: inherit;
   box-sizing: border-box;
+	color: black;
 }
 
 .lessonRowStudent {
@@ -250,73 +345,115 @@
 }
 
 .lessonRowStudent:hover {
-  background: #f8fafc;
+  background: #EFF1F4;
   border-color: #e8eaed;
 }
 
 .lessonRowStaff {
-  background: #fafbfc;
-  border: 1px solid #eef0f3;
+  background: #fff;
 }
 
-.lessonRowHighlight {
-  background: #e8eaed;
-  border-color: #dce0e5;
+.lessonRowStaff:hover,
+.lessonRowStaff:focus-within {
+  background: #EFF1F4;
 }
 
-.lessonRowStaff.lessonRowHighlight {
-  background: #e8eef8;
-  border-color: #c5d4ef;
-}
-
-.dragHandleLesson {
+.lessonDragHandleSlot {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.lessonDragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #94a3b8;
   flex-shrink: 0;
+  padding: 4px 0;
+  cursor: grab;
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
+
+@media (hover: hover) {
+  .lessonDragHandle {
+    opacity: 0;
+  }
+
+  .lessonRowStaff:hover .lessonDragHandle,
+  .lessonRowStaff:focus-within .lessonDragHandle {
+    opacity: 1;
+  }
 }
 
 .lessonTitle {
   flex: 1;
   min-width: 0;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 500;
-  color: #1e293b;
+  color: black;
 }
 
 .staffLessonActions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .publishBtn {
   white-space: nowrap;
   font-size: 0.8125rem;
+	background-color: #E5E5E5 !important;
+	color: #191970 !important;
+	border-radius: 8px !important;
 }
 
-.eyePublished {
+.publishBtn:hover {
+	background-color: #191970 !important;
+	color: #E5E5E5 !important;
+}
+
+.staffEyeSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: calc(var(--spacing) * 8);
+  height: calc(var(--spacing) * 8);
+  box-sizing: border-box;
+  border-radius: 50%;
+}
+
+.staffEyePublished {
   color: #22c55e;
-  flex-shrink: 0;
+  background-color: #cde8cb;
 }
 
-.eyeDraft {
+.staffEyeDraft {
   color: #94a3b8;
-  flex-shrink: 0;
+  background-color: #f1f5f9;
+}
+
+.editBtn:hover {
+	background-color: transparent !important;
 }
 
 .addLessonZone {
   margin-top: 8px;
   width: 100%;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 8px;
-  padding: 14px 16px;
-  border: 2px dashed #cbd5e1;
+  padding: 10px 16px;
+  border: 1px dashed #94A3B8;
   border-radius: 12px;
   background: #fff;
-  color: #2d3a8c;
+  color: #64748B;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -332,9 +469,12 @@
   flex-shrink: 0;
   justify-content: center;
   gap: 8px;
-  border-style: dashed;
+	color: #94A3B8 !important;
+	border: 1px dashed #94A3B8 !important;
+	background-color: transparent !important;
   padding-top: 14px;
   padding-bottom: 14px;
+	border-radius: 15px !important;
 }
 
 .addFlowCollapsed {
@@ -400,12 +540,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
   margin-top: 8px;
-  padding: 14px 16px;
-  background: #fff;
-  border: 2px dashed #cbd5e1;
-  border-radius: 12px;
 }
 
 .inlineAddSectionInput {

@@ -6,9 +6,9 @@ from ..models import (
     Section,
     Question,
     Task,
+    Webinar,
 )
 from django.db.models import Prefetch
-
 from apps.users.models import User
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
@@ -293,3 +293,29 @@ class QuestionSerializer(serializers.ModelSerializer):
             'updated_at',
             'last_modified_by',
         )
+
+
+class WebinarSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Webinar
+        fields = [
+            'webinar_id', 'lesson', 'status',
+            'started_by', 'started_at', 'ended_at',
+            'recording_url',
+        ]
+        read_only_fields = [
+            'webinar_id', 'started_by', 'started_at',
+            'ended_at', 'recording_url',
+        ]
+
+
+class WebinarTokenSerializer(serializers.Serializer):
+    rtc_token = serializers.CharField()
+    agora_app_id = serializers.CharField()
+    channel_name = serializers.CharField()
+    uid = serializers.IntegerField()
+    whiteboard_app_id = serializers.CharField()
+    whiteboard_room_uuid = serializers.CharField()
+    whiteboard_room_token = serializers.CharField()
+    whiteboard_region = serializers.CharField()
+    role = serializers.CharField()

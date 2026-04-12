@@ -27,7 +27,7 @@
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30%;
+  grid-template-columns: minmax(0, 1fr) 25%;
   gap: 35px;
   align-items: start;
 }

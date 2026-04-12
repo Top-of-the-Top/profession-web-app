@@ -43,14 +43,14 @@ export const profileApi = {
   },
 
   verifyEmailChange(code: string): Promise<{ status: 'success' }> {
-    return apiClient.request<{ status: 'success' }>('/api/app/profile/verify_email/', {
+    return apiClient.request<{ status: 'success' }>('/api/app/profile/verify-email/', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });
   },
 
   verifyPhoneChange(code: string): Promise<{ status: 'success' }> {
-    return apiClient.request<{ status: 'success' }>('/api/app/profile/verify_phone/', {
+    return apiClient.request<{ status: 'success' }>('/api/app/profile/verify-phone/', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });

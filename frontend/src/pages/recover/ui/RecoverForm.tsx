@@ -1,54 +1,42 @@
-import { Button } from '../../../shared/ui';
+import { Button } from '@shared/ui';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../../../shared/ui';
-import { useState } from 'react';
-import { Field, FieldGroup, FieldLabel, Input } from '../../../shared/ui';
+} from '@shared/ui';
+import { useEffect, useRef, useState } from 'react';
+import { Field, FieldGroup, FieldLabel, Input } from '@shared/ui';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import styles from './RecoverPage.module.css';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { resetPassword } from '../api';
-import { prepareResetPasswordData } from '../../../shared/utils/validation';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
-import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
+import { recoverEmailPassword, recoverSetPassword } from '../api';
+import { prepareResetPasswordData } from '@shared/utils/validation';
+import { parseApiError } from '@shared/lib/api/parseApiError';
+import { messageForApiFailure, notifyError } from '@shared/lib/sileo/notify';
+import { useUserStore } from '@entities/user/model/userStore';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  recoverSetPasswordSchema,
+  type RecoverSetPasswordFormValues,
+} from '@shared/utils/formSchemas';
 
-const RECOVER_CHECKS: Array<{
-  when: (ctx: { token: string | null; password: string; confirm: string }) => boolean;
-  title: string;
-  description: string;
-}> = [
-  {
-    when: ({ token }) => !token,
-    title: 'ссылка недействительна',
-    description: 'Откройте ссылку из письма или запросите новую на странице сброса пароля.',
-  },
-  {
-    when: ({ password }) => password.length < 6,
-    title: 'короткий пароль',
-    description: 'Пароль должен быть не короче 6 символов.',
-  },
-  {
-    when: ({ password, confirm }) => password !== confirm,
-    title: 'пароли не совпадают',
-    description: 'Введите одинаковый пароль в оба поля.',
-  },
-];
-
-function notifyRecoverFailure(err: unknown) {
+function notifyRecoverFailure(
+  err: unknown,
+  scene: 'recoverEmail' | 'recoverSet',
+) {
   const parsed = parseApiError(err);
   if (!parsed) {
-    const fb = messageForApiFailure('recoverSet', 0, {});
+    const fb = messageForApiFailure(scene, 0, {});
     notifyError({
       title: fb.title,
       description: err instanceof Error ? err.message : fb.description,
     });
     return;
   }
-  const msg = messageForApiFailure('recoverSet', parsed.status, parsed.body);
+  const msg = messageForApiFailure(scene, parsed.status, parsed.body);
   notifyError({ title: msg.title, description: msg.description });
 }
 
@@ -57,30 +45,56 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
   const [success, setSuccess] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const login = useUserStore((s) => s.login);
+  const redirectTimeoutRef = useRef<number | null>(null);
   const token = searchParams.get('token');
+  const channelRaw = searchParams.get('channel');
+  const channel = channelRaw === 'phone' ? 'phone' : 'email';
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RecoverSetPasswordFormValues>({
+    resolver: zodResolver(recoverSetPasswordSchema),
+    defaultValues: { password: '', confirmPassword: '' },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  useEffect(
+    () => () => {
+      if (redirectTimeoutRef.current) {
+        window.clearTimeout(redirectTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
-    const form = e.currentTarget as HTMLFormElement;
-    const password = (form.elements.namedItem('password') as HTMLInputElement).value;
-    const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value;
-
-    const ctx = { token, password, confirm: confirmPassword };
-    const failed = RECOVER_CHECKS.find((c) => c.when(ctx));
-    if (failed) {
-      notifyError({ title: failed.title, description: failed.description });
-      setLoading(false);
+  const onSubmit = async ({
+    password,
+  }: RecoverSetPasswordFormValues) => {
+    if (!token) {
+      notifyError({
+        title: 'ссылка недействительна',
+        description: 'Откройте ссылку из письма или запросите новую на странице сброса пароля.',
+      });
       return;
     }
 
+    setLoading(true);
+    const payload = prepareResetPasswordData(password, token);
+
     try {
-      await resetPassword(prepareResetPasswordData(password, token!));
+      const loginPayload =
+        channel === 'email'
+          ? await recoverEmailPassword(payload)
+          : await recoverSetPassword(payload);
+      await login(loginPayload);
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 3000);
+      redirectTimeoutRef.current = window.setTimeout(
+        () => navigate('/app', { replace: true }),
+        1500,
+      );
     } catch (err) {
-      notifyRecoverFailure(err);
+      notifyRecoverFailure(err, channel === 'email' ? 'recoverEmail' : 'recoverSet');
     } finally {
       setLoading(false);
     }
@@ -97,7 +111,7 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
                 Пароль успешно изменен!
               </CardTitle>
               <CardDescription>
-                Теперь вы можете войти в свой аккаунт с новым паролем
+                Сейчас вы будете перенаправлены в приложение
               </CardDescription>
             </CardHeader>
             <CardContent className={styles.cardContent}>
@@ -106,15 +120,15 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
                   <CheckCircle2 size={48} />
                 </div>
                 <p style={{ textAlign: 'center', marginBottom: '20px' }}>
-                  Перенаправляем на страницу входа...
+                  Перенаправляем…
                 </p>
                 <Button
                   style={{ fontSize: '14px', marginTop: '20px' }}
                   type="button"
                   className={styles.submitButton}
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate('/app', { replace: true })}
                 >
-                  Перейти ко входу сейчас
+                  Перейти сейчас
                 </Button>
               </div>
             </CardContent>
@@ -137,7 +151,7 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
             <CardDescription>Введите новый пароль для вашего аккаунта</CardDescription>
           </CardHeader>
           <CardContent className={styles.cardContent}>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit(onSubmit)}>
               <FieldGroup className={styles.fieldGroup}>
                 <Field className={styles.field}>
                   <div className={styles.passwordHeader}>
@@ -145,17 +159,19 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
                   </div>
                   <Input
                     id="password"
-                    name="password"
                     type="password"
                     autoComplete="new-password"
                     placeholder="••••••••••••••"
-                    required
                     className={styles.input}
                     disabled={loading || !token}
+                    {...register('password')}
                   />
                   <CardDescription style={{ fontSize: '12px', marginTop: '4px' }}>
-                    Должен содержать минимум 6 символов
+                    Должен содержать минимум 8 символов
                   </CardDescription>
+                  {errors.password?.message ? (
+                    <CardDescription>{errors.password.message}</CardDescription>
+                  ) : null}
                 </Field>
                 <Field className={styles.field}>
                   <div className={styles.passwordHeader}>
@@ -163,14 +179,16 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
                   </div>
                   <Input
                     id="confirmPassword"
-                    name="confirmPassword"
                     type="password"
                     autoComplete="new-password"
                     placeholder="••••••••••••••"
-                    required
                     className={styles.input}
                     disabled={loading || !token}
+                    {...register('confirmPassword')}
                   />
+                  {errors.confirmPassword?.message ? (
+                    <CardDescription>{errors.confirmPassword.message}</CardDescription>
+                  ) : null}
                 </Field>
                 {!token && (
                   <div className={styles.tokenError}>

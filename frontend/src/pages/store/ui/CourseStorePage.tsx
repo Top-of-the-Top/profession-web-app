@@ -1,19 +1,21 @@
-// CourseStorePage.tsx
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { Button, Spinner, PageTransition } from '../../../shared/ui';
-import { courseApi, type CourseDTO } from '../../../shared/api/courseApi';
-import { cartApi } from '../../../shared/api/cartApi';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import { Button, Skeleton, PageTransition } from '@shared/ui';
+import type { CourseDTO } from '@shared/api/courseApi';
+import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
   notifyCartCourseAdded,
   notifyError,
   notifyWarning,
-} from '../../../shared/lib/sileo/notify';
-import { useCartSummaryStore } from '../../../entities/cart/model/cartSummaryStore';
+} from '@shared/lib/sileo/notify';
+import { useCourses } from '@shared/api/queries/courses';
+import { useCart } from '@shared/api/queries/cart';
+import { useAddToCart } from '@shared/api/mutations/cart';
 import styles from './CourseStorePage.module.css';
+
+const FALLBACK_IMAGE =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial,sans-serif' font-size='18' fill='%2364748b'>Нет фото</text></svg>";
 
 interface CourseCardProps {
   course: CourseDTO;
@@ -21,9 +23,10 @@ interface CourseCardProps {
   onAddToCart: () => void;
   disabled?: boolean;
   inCart?: boolean;
+  isAdding?: boolean;
 }
 
-const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart }: CourseCardProps) => {
+const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart, isAdding }: CourseCardProps) => {
   return (
     <div className={styles.courseCard}>
       <div className={styles.courseHeader}>
@@ -38,7 +41,10 @@ const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart }: CourseCa
           className={styles.courseImage}
           loading="lazy"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=No+Image';
+            const img = e.target as HTMLImageElement;
+            if (img.src !== FALLBACK_IMAGE) {
+              img.src = FALLBACK_IMAGE;
+            }
           }}
         />
       </div>
@@ -66,113 +72,85 @@ const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart }: CourseCa
             onAddToCart();
           }}
         >
-          {inCart ? 'В корзине' : 'В коризну'}
+          {inCart ? 'В корзине' : isAdding ? 'Добавляем...' : 'В корзину'}
         </Button>
       </div>
     </div>
   );
 };
 
+const StoreSkeleton = () => (
+  <PageTransition className={styles.catalog}>
+    <h2 className={styles.catalogTitle}>Каталог курсов</h2>
+    <div className={styles.coursesGrid}>
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <div key={idx} className={styles.courseCard}>
+          <div className={styles.courseHeader}>
+            <Skeleton className={styles.skeletonTitle} />
+            <Skeleton className={styles.skeletonSubtitle} />
+          </div>
+          <div className={styles.courseImageWrapper}>
+            <Skeleton className={styles.skeletonImage} />
+          </div>
+          <div className={styles.courseActions}>
+            <Skeleton className={styles.skeletonDetailsButton} />
+            <Skeleton className={styles.skeletonSelectButton} />
+          </div>
+        </div>
+      ))}
+    </div>
+  </PageTransition>
+);
+
+function isAuthLike(err: unknown) {
+  const msg = err instanceof Error ? err.message : '';
+  return msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401');
+}
+
 export default function CourseStorePage() {
   const navigate = useNavigate();
-  const [courses, setCourses] = useState<CourseDTO[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [addingSlug, setAddingSlug] = useState<string | null>(null);
-  const [inCartSlugs, setInCartSlugs] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const [coursesResponse, cartResponse] = await Promise.all([
-          courseApi.getCourses(),
-          cartApi.getCart().catch((err: unknown) => {
-            const message = (err as Error)?.message ?? '';
+  const { data: coursesData, isLoading, error, refetch } = useCourses();
+  const { data: cart } = useCart();
+  const addToCart = useAddToCart();
 
-            // Если не авторизованы / токен протух — просто считаем, что корзина пустая
-            if (
-              message === 'AUTH_EXPIRED' ||
-              message.includes('API_ERROR_401')
-            ) {
-              return null;
-            }
-
-            throw err;
-          }),
-        ]);
-
-        setCourses(coursesResponse.data);
-
-        if (cartResponse && Array.isArray(cartResponse.courses)) {
-          setInCartSlugs(
-            new Set(cartResponse.courses.map((course) => course.slug)),
-          );
-          useCartSummaryStore
-            .getState()
-            .setHasItems(cartResponse.courses.length > 0);
-        } else {
-          setInCartSlugs(new Set());
-        }
-      } catch (err) {
-        console.error('Ошибка загрузки курсов:', err);
-        setError('Не удалось загрузить курсы. Пожалуйста, попробуйте позже.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  const courses = coursesData?.data ?? [];
+  const inCartSlugs = new Set(cart?.courses?.map((c) => c.slug) ?? []);
 
   const handleCourseClick = (slug: string) => {
-    navigate(`/app/courses/${slug}`);
+    navigate(`/app/store/${slug}`);
   };
 
-  const handleAddToCart = async (slug: string, title: string) => {
-    setAddingSlug(slug);
-    try {
-      await cartApi.addCourse(slug);
-      notifyCartCourseAdded({
-        title: 'курс добавлен в корзину',
-        description: `«${title}» — можно перейти к оформлению.`
-      });
-      setInCartSlugs((prev) => {
-        const next = new Set(prev);
-        next.add(slug);
-        return next;
-      });
-      useCartSummaryStore.getState().setHasItems(true);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      if (msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401')) {
-        notifyWarning({
-          title: 'нужна авторизация',
-          description: 'Войдите в аккаунт, чтобы добавить курс в корзину.',
+  const handleAddToCart = (slug: string, title: string) => {
+    addToCart.mutate(slug, {
+      onSuccess: () => {
+        notifyCartCourseAdded({
+          title: 'курс добавлен в корзину',
+          description: `«Курс "${title}" добавлен в вашу корзину`,
         });
-        return;
-      }
-      const parsed = parseApiError(err);
-      if (parsed) {
-        const m = messageForApiFailure('cartAdd', parsed.status, parsed.body);
-        notifyError({ title: m.title, description: m.description });
-        return;
-      }
-      const fb = messageForApiFailure('cartAdd', 0, {});
-      notifyError({ title: fb.title, description: fb.description });
-    } finally {
-      setAddingSlug(null);
-    }
+      },
+      onError: (err: unknown) => {
+        if (isAuthLike(err)) {
+          notifyWarning({
+            title: 'нужна авторизация',
+            description: 'Войдите в аккаунт, чтобы добавить курс в корзину.',
+          });
+          return;
+        }
+        const parsed = parseApiError(err);
+        if (parsed) {
+          const m = messageForApiFailure('cartAdd', parsed.status, parsed.body);
+          notifyError({ title: m.title, description: m.description });
+          return;
+        }
+        const fb = messageForApiFailure('cartAdd', 0, {});
+        notifyError({ title: fb.title, description: fb.description });
+      },
+    });
   };
 
-  if (loading) {
-    return (
-      <div className={styles.catalog}>
-        <h2 className={styles.catalogTitle}>Каталог курсов</h2>
-        <Spinner />
-      </div>
-    );
+  if (isLoading) {
+    return <StoreSkeleton />;
   }
 
   if (error) {
@@ -180,8 +158,10 @@ export default function CourseStorePage() {
       <div className={styles.catalog}>
         <h2 className={styles.catalogTitle}>Каталог курсов</h2>
         <div className={styles.errorState}>
-          <p className={styles.errorMessage}>{error}</p>
-          <Button onClick={() => window.location.reload()}>
+          <p className={styles.errorMessage}>
+            Не удалось загрузить курсы. Пожалуйста, попробуйте позже.
+          </p>
+          <Button onClick={() => void refetch()}>
             Попробовать снова
           </Button>
         </div>
@@ -205,7 +185,8 @@ export default function CourseStorePage() {
               course={course}
               onClick={() => handleCourseClick(course.slug)}
               onAddToCart={() => handleAddToCart(course.slug, course.title)}
-              disabled={addingSlug === course.slug}
+              disabled={addToCart.isPending && addToCart.variables === course.slug}
+              isAdding={addToCart.isPending && addToCart.variables === course.slug}
               inCart={inCartSlugs.has(course.slug)}
             />
           ))}

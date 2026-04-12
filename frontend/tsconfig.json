@@ -14,8 +14,11 @@
       "@assets/*": ["src/assets/*"],
       "@entities/*": ["src/entities/*"],
       "@pages/*": ["src/pages/*"],
+      "@router/*": ["src/router/*"],
+      "@schemas/*": ["src/schemas/*"],
       "@shared/*": ["src/shared/*"],
-      "@widgets/*": ["src/widgets/*"]
+      "@widgets/*": ["src/widgets/*"],
+      "@components/*": ["src/components/*"]
     }
   }
 	

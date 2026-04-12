@@ -8,7 +8,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@shared/ui/Dialog'
+} from "../Dialog";
 
 function Command({
   className,

@@ -10,22 +10,27 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-  Spinner,
+  Skeleton,
   PageTransition,
-} from '../../../shared/ui';
+} from '@shared/ui';
 import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars } from 'lucide-react';
 import styles from './ProfilePage.module.css';
-import { cn } from '../../../shared/lib/utils';
+import { cn } from '@shared/lib/utils';
 import ChangeName from './ChangeName';
 import ConfirmContact from './ConfirmContact';
 import {
   profileApi,
   type ProfileData,
   type UpdateProfilePayload,
-} from '../../../shared/api/profileApi';
-import { useUserStore } from '../../../entities/user/model/userStore';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
-import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
+} from '@shared/api/profileApi';
+import { useUserStore } from '@entities/user/model/userStore';
+import { parseApiError } from '@shared/lib/api/parseApiError';
+import {
+  messageForApiFailure,
+  notifyError,
+  notifySuccess,
+} from '@shared/lib/sileo/notify';
+import { validateEmailOrPhone } from '@shared/utils/validation';
 
 function notifyProfileSaveError(err: unknown) {
   if (err instanceof Error && err.message === 'AUTH_EXPIRED') {
@@ -75,6 +80,62 @@ const ProfileField = ({
   </div>
 );
 
+const ProfileSkeleton = () => (
+  <PageTransition className={styles.profilePage}>
+    <div className={styles.wrapper}>
+      <Skeleton className={styles.skeletonProfileTitle} />
+      <Card className={styles.profilePageCard}>
+        <CardContent className={styles.profilePageContent}>
+          <div className={styles.profileSection}>
+            <div className={styles.profileField}>
+              <div className={styles.profileFieldContent}>
+                <Skeleton shape="circle" className={styles.skeletonAvatar} />
+                <div className={styles.profileFieldInfo}>
+                  <Skeleton className={styles.skeletonLabel} />
+                  <Skeleton className={styles.skeletonValueWide} />
+                </div>
+              </div>
+              <Skeleton shape="circle" className={styles.skeletonActionIcon} />
+            </div>
+          </div>
+
+          <div className={styles.profileSection}>
+            <Skeleton className={styles.skeletonSectionTitle} />
+            {Array.from({ length: 2 }).map((_, idx) => (
+              <div key={idx} className={styles.profileField}>
+                <div className={styles.profileFieldContent}>
+                  <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
+                  <div className={styles.profileFieldInfo}>
+                    <Skeleton className={styles.skeletonLabel} />
+                    <Skeleton className={styles.skeletonValue} />
+                  </div>
+                </div>
+                <Skeleton shape="circle" className={styles.skeletonActionIcon} />
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.profileSection}>
+            <Skeleton className={styles.skeletonSectionTitle} />
+            {Array.from({ length: 2 }).map((_, idx) => (
+              <div key={idx} className={styles.profileField}>
+                <div className={styles.profileFieldContent}>
+                  <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
+                  <div className={styles.profileFieldInfo}>
+                    <Skeleton className={styles.skeletonLabel} />
+                    <Skeleton className={styles.skeletonValue} />
+                  </div>
+                </div>
+                <Skeleton shape="circle" className={styles.skeletonActionIcon} />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  </PageTransition>
+);
+
 export default function ProfilePage() {
   const user = useUserStore((state) => state.user);
   const isLoading = useUserStore((state) => state.isLoading);
@@ -112,9 +173,9 @@ export default function ProfilePage() {
     }
   };
 
-  const toggleNameMenu = (e?: React.MouseEvent) => {
+  const openNameMenu = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setChangeMenuOpen((prev) => !prev);
+    setChangeMenuOpen(true);
   };
   const toggleEmailMenu = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -129,10 +190,9 @@ export default function ProfilePage() {
     setEmailMenuOpen(false);
     setPhoneMenuOpen(false);
   };
-  const anyMenuOpen =
-    isChangeNameMenuOpen || isEmailMenuOpen || isPhoneMenuOpen;
+  const contactOverlayOpen = isEmailMenuOpen || isPhoneMenuOpen;
 
-  if (isLoading && !profile) return <Spinner full />;
+  if (isLoading && !profile) return <ProfileSkeleton />;
   if (!profile) return <div>Профиль недоступен</div>;
 
   const handleNameSave = async (data: {
@@ -164,16 +224,22 @@ export default function ProfilePage() {
       setProfile(optimistic);
       setAvatarUrl(blobUrl ?? prevAvatar);
       setUser(optimistic);
-      setChangeMenuOpen(false);
 
       await profileApi.updateProfile(updateData);
 
       const fresh = await profileApi.getProfile();
-      setProfile(fresh);
-      setAvatarUrl(fresh.avatar);
-      setUser(fresh);
 
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      if (blobUrl && fresh.avatar === prevAvatar) {
+        const merged = { ...fresh, avatar: blobUrl };
+        setProfile(merged);
+        setAvatarUrl(blobUrl);
+        setUser(merged);
+      } else {
+        setProfile(fresh);
+        setAvatarUrl(fresh.avatar);
+        setUser(fresh);
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+      }
     } catch (err) {
       notifyProfileSaveError(err);
       setAvatarUrl(prevAvatar);
@@ -182,37 +248,81 @@ export default function ProfilePage() {
         setProfile(reverted);
         setUser(reverted);
       }
+      throw err;
     }
   };
 
-  const handleContactSave = async (
-    { contact }: { contact: string },
-    type: 'email' | 'phone'
+  const handleContactRequest = async (
+    rawContact: string,
+    type: 'email' | 'phone',
   ) => {
     try {
       if (type === 'email') {
-        await profileApi.updateProfile({ email: contact });
-        setProfile((prev) => {
-          const next = prev ? { ...prev, email: contact } : prev;
-          if (next) {
-            setUser(next);
-          }
-          return next;
-        });
-        setEmailMenuOpen(false);
+        await profileApi.updateProfile({ email: rawContact.trim() });
       } else {
-        await profileApi.updateProfile({ phone_number: contact });
-        setProfile((prev) => {
-          const next = prev ? { ...prev, phone_number: contact } : prev;
-          if (next) {
-            setUser(next);
-          }
-          return next;
-        });
-        setPhoneMenuOpen(false);
+        const v = validateEmailOrPhone(rawContact);
+        if (!v.isValid) {
+          notifyError({
+            title: 'проверьте номер',
+            description: 'Введите корректный номер телефона.',
+          });
+          throw new Error('invalid_phone');
+        }
+        await profileApi.updateProfile({ phone_number: v.normalized });
       }
+      notifySuccess({
+        title: 'код отправлен',
+        description:
+          type === 'email'
+            ? 'Проверьте почту и введите код ниже.'
+            : 'Проверьте SMS и введите код ниже.',
+      });
     } catch (err) {
+      if (err instanceof Error && err.message === 'invalid_phone') {
+        throw err;
+      }
       notifyProfileSaveError(err);
+      throw err;
+    }
+  };
+
+  const handleContactVerify = async (
+    code: string,
+    type: 'email' | 'phone',
+  ) => {
+    try {
+      if (type === 'email') {
+        await profileApi.verifyEmailChange(code);
+      } else {
+        await profileApi.verifyPhoneChange(code);
+      }
+      const fresh = await profileApi.getProfile();
+      setProfile(fresh);
+      setUser(fresh);
+      notifySuccess({
+        title: 'готово',
+        description:
+          type === 'email' ? 'Почта подтверждена и обновлена.' : 'Телефон подтверждён и обновлён.',
+      });
+      setEmailMenuOpen(false);
+      setPhoneMenuOpen(false);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'AUTH_EXPIRED') {
+        notifyError({
+          title: 'нужен повторный вход',
+          description: 'Сессия истекла. Войдите в аккаунт снова.',
+        });
+        return;
+      }
+      const parsed = parseApiError(err);
+      const scene =
+        type === 'email' ? 'profileVerifyEmail' : 'profileVerifyPhone';
+      if (parsed) {
+        const m = messageForApiFailure(scene, parsed.status, parsed.body);
+        notifyError({ title: m.title, description: m.description });
+        return;
+      }
+      notifyError({ title: 'ошибка', description: 'Повторите попытку.' });
     }
   };
 
@@ -224,13 +334,13 @@ export default function ProfilePage() {
 
   return (
     <PageTransition className={styles.profilePage}>
-      {anyMenuOpen && (
+      {contactOverlayOpen ? (
         <div className={styles.overlay} onClick={closeAllMenus} />
-      )}
+      ) : null}
 
       <ChangeName
-        isVisible={isChangeNameMenuOpen}
-        onClose={toggleNameMenu}
+        open={isChangeNameMenuOpen}
+        onOpenChange={setChangeMenuOpen}
         onSave={handleNameSave}
         currentFirstName={profile.first_name || ''}
         currentLastName={profile.last_name || ''}
@@ -240,13 +350,15 @@ export default function ProfilePage() {
         type="email"
         isVisible={isEmailMenuOpen}
         onClose={toggleEmailMenu}
-        onSave={(data) => handleContactSave(data, 'email')}
+        onRequestChange={(c) => handleContactRequest(c, 'email')}
+        onVerify={(code) => handleContactVerify(code, 'email')}
       />
       <ConfirmContact
         type="phone"
         isVisible={isPhoneMenuOpen}
         onClose={togglePhoneMenu}
-        onSave={(data) => handleContactSave(data, 'phone')}
+        onRequestChange={(c) => handleContactRequest(c, 'phone')}
+        onVerify={(code) => handleContactVerify(code, 'phone')}
       />
 
       <div className={styles.wrapper}>
@@ -254,7 +366,7 @@ export default function ProfilePage() {
         <Card className={styles.profilePageCard}>
           <CardContent className={styles.profilePageContent}>
             <div className={styles.profileSection}>
-              <div className={styles.profileField} onClick={toggleNameMenu}>
+              <div className={styles.profileField} onClick={openNameMenu}>
                 <div className={styles.profileFieldContent}>
                   <div className={styles.profileFieldIcon}>
                     <Avatar className={styles.fieldAvatar}>
@@ -278,7 +390,7 @@ export default function ProfilePage() {
                     variant="ghost"
                     size="icon"
                     className={styles.pencilEditButton}
-                    onClick={toggleNameMenu}
+                    onClick={openNameMenu}
                   >
                     <Pencil className={styles.pencilIcon} size={16} />
                   </Button>

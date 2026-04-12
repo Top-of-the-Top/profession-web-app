@@ -22,16 +22,19 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
-  },
-  "baseUrl": ".",
+    "noUncheckedSideEffectImports": true,
+    "baseUrl": ".",
     "paths": {
       "@app/*": ["src/app/*"],
       "@assets/*": ["src/assets/*"],
+      "@components/*": ["src/components/*"],
       "@entities/*": ["src/entities/*"],
       "@pages/*": ["src/pages/*"],
+      "@router/*": ["src/router/*"],
+      "@schemas/*": ["src/schemas/*"],
       "@shared/*": ["src/shared/*"],
       "@widgets/*": ["src/widgets/*"]
-    },
+    }
+  },
   "include": ["src"]
 }

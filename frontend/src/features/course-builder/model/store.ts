@@ -9,7 +9,6 @@ import {
   MIN_MEDIA_BLOCK_W,
   MIN_TEXT_BLOCK_H,
   MIN_TEXT_BLOCK_W,
-  FONT_SIZE_STEPS,
   DEFAULT_FONT_SIZE_INDEX,
 } from '../lib/constants';
 

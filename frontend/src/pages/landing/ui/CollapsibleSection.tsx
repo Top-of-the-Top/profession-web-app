@@ -3,7 +3,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '../../../shared/ui';
+} from '@shared/ui';
 
 const learningProcess = [
   {

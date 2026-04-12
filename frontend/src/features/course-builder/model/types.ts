@@ -75,6 +75,23 @@ export const parseLessonLayout = (data: unknown): LessonLayout => {
   return LessonLayoutSchema.parse(data);
 };
 
+export const parseLessonLayoutFromContentString = (raw: string): LessonLayout => {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error('EMPTY_LESSON_CONTENT');
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    throw new Error('INVALID_LESSON_CONTENT_JSON');
+  }
+  if (parsed && typeof parsed === 'object' && 'lesson' in parsed) {
+    return CoursePageSchema.parse(parsed).lesson;
+  }
+  return LessonLayoutSchema.parse(parsed);
+};
+
 export const serializeLessonLayout = (layout: LessonLayout): LessonLayoutDTO => {
   return LessonLayoutSchema.parse(layout);
 };

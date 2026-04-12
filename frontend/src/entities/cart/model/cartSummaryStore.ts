@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { cartApi } from '../../../shared/api/cartApi';
-import { authEvents } from '../../../shared/events/authEvents';
+import { cartApi } from '@shared/api/cartApi';
+import { authEvents } from '@shared/events/authEvents';
+import { tokenService } from '@shared/lib/auth/tokenService';
 
 type CartSummaryState = {
   hasItems: boolean | null;
@@ -17,7 +18,7 @@ export const useCartSummaryStore = create<CartSummaryState>((set) => ({
   setHasItems: (hasItems) => set({ hasItems }),
 
   refresh: async () => {
-    if (!localStorage.getItem('access_token')) {
+    if (!tokenService.hasToken()) {
       set({ hasItems: false });
       return;
     }

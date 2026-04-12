@@ -117,8 +117,8 @@ class AddToCartView(APIView):
             )
 
         cart_item = CartItem.objects.create(
-            cart_id=cart,
-            course_id=course,
+            cart_id=cart.cart_id,
+            course_id=course.course_id,
         )
 
         serializer = CartItemSerializer(cart_item)

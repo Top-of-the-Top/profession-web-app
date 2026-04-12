@@ -1,5 +1,3 @@
-// shared/utils/validation.ts
-
 export const validateEmailOrPhone = (value: string): {
   isValid: boolean;
   isEmail: boolean;
@@ -43,10 +41,28 @@ export const validateEmailOrPhone = (value: string): {
   };
 };
 
+type ContactValidation = ReturnType<typeof validateEmailOrPhone>;
+
+function getValidatedContact(emailOrPhone: string): ContactValidation {
+  const validation = validateEmailOrPhone(emailOrPhone);
+  if (!validation.isValid) {
+    throw new Error('Invalid email or phone number');
+  }
+  return validation;
+}
+
 
 export type PrepareDataOptions = {
   includePassword?: boolean;
   includeToken?: boolean;
+  token?: string;
+};
+
+type AuthPayload = {
+  email: string | null;
+  phone_number: string | null;
+  date_time: string;
+  password?: string;
   token?: string;
 };
 
@@ -55,13 +71,9 @@ export const prepareAuthData = (
   password?: string,
   options: PrepareDataOptions = {}
 ) => {
-  const validation = validateEmailOrPhone(emailOrPhone);
-  
-  if (!validation.isValid) {
-    throw new Error('Invalid email or phone number');
-  }
+  const validation = getValidatedContact(emailOrPhone);
 
-  const result: any = {
+  const result: AuthPayload = {
     email: validation.isEmail ? validation.normalized : null,
     phone_number: validation.isPhone ? validation.normalized : null,
     date_time: new Date().toISOString()
@@ -77,6 +89,44 @@ export const prepareAuthData = (
 
   return result;
 };
+
+/** Регистрация: одно поле контакта + пароль (без date_time). */
+export type RegisterPayload =
+  | { email: string; password: string }
+  | { phone_number: string; password: string };
+
+export function buildRegisterPayload(emailOrPhone: string, password: string): RegisterPayload {
+  const validation = getValidatedContact(emailOrPhone);
+  if (validation.isEmail) {
+    return { email: validation.normalized, password };
+  }
+  return { phone_number: validation.normalized, password };
+}
+
+export type ResetPayload = { email: string } | { phone_number: string };
+
+export function buildResetPayload(emailOrPhone: string): ResetPayload {
+  const validation = getValidatedContact(emailOrPhone);
+  if (validation.isEmail) {
+    return { email: validation.normalized };
+  }
+  return { phone_number: validation.normalized };
+}
+
+export type RegisterVerifyPayload =
+  | { email: string; code: string }
+  | { phone_number: string; code: string };
+
+export function buildRegisterVerifyPayload(
+  kind: 'email' | 'phone',
+  normalizedContact: string,
+  code: string,
+): RegisterVerifyPayload {
+  if (kind === 'email') {
+    return { email: normalizedContact, code };
+  }
+  return { phone_number: normalizedContact, code };
+}
 
 export const prepareResetPasswordData = (
   password: string,

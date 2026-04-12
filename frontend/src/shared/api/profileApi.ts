@@ -42,6 +42,20 @@ export const profileApi = {
     });
   },
 
+  verifyEmailChange(code: string): Promise<{ status: 'success' }> {
+    return apiClient.request<{ status: 'success' }>('/api/app/profile/verify_email/', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+
+  verifyPhoneChange(code: string): Promise<{ status: 'success' }> {
+    return apiClient.request<{ status: 'success' }>('/api/app/profile/verify_phone/', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+
 	// ПОКА НЕ ИСПОЛЬЗУЕТСЯ
   
   updateAvatar(file: File): Promise<{ status: 'success' }> {

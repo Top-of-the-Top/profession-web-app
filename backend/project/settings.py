@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 import sys
 from dotenv import load_dotenv
+import tempfile
 
 load_dotenv()
 
@@ -39,12 +40,14 @@ INSTALLED_APPS = [
     'storages',
     'django_celery_results',
     'apps.notifications.apps.NotificationsConfig',
+    'sms',
 ]
 
 USE_S3 = os.environ.get('USE_S3', 'False') == 'True'
 CORS_ALLOW_ALL_ORIGINS = True
 
 MIDDLEWARE = [
+    'project.middleware.RequestTimingMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -53,7 +56,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'crum.CurrentRequestUserMiddleware',
 ]
 
@@ -122,6 +124,43 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'My Profession Web App API',
     'DESCRIPTION': 'API для вашего проекта',
     'VERSION': '1.0.0',
+    'TAGS': [
+        {
+            'name': 'Landing',
+            'description': 'Публичный лендинг: превью списка курсов.',
+        },
+        {
+            'name': 'Home',
+            'description': 'Домашний экран приложения: купленные курсы пользователя.',
+        },
+        {
+            'name': 'Course',
+            'description': 'Каталог и карточка курса, главная курса, секции и уроки.',
+        },
+        {
+            'name': 'Homework',
+            'description': 'Домашние задания, задачи и вопросы (вложенные в урок).',
+        },
+        {
+            'name': 'Users',
+            'description': 'Пользователи, регистрация, профиль и роли.',
+        },
+        {
+            'name': 'Carts',
+            'description': 'Корзина и связанные с ней операции.',
+        },
+        {
+            'name': 'Payments',
+            'description': 'Оплата и платёжные сценарии.',
+        },
+        {
+            'name': 'Notifications',
+            'description': 'Уведомления пользователя: список и поток SSE.',
+        },
+    ],
+    'POSTPROCESSING_HOOKS': [
+        'project.openapi_hooks.canonicalize_tags',
+    ],
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -147,6 +186,12 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
 SERVER_EMAIL = os.getenv('SERVER_EMAIL', 'webmaster@localhost')
+
+
+SMS_BACKEND = os.getenv('SMS_BACKEND', 'sms.backends.console.SmsBackend')
+DEFAULT_FROM_SMS = os.getenv('DEFAULT_FROM_SMS', '+1234567890')
+NOTIFICORE_API_KEY = os.getenv('NOTIFICORE_API_KEY', '')
+NOTIFICORE_API_URL = os.getenv('NOTIFICORE_API_URL', '')
 
 if USE_S3:
     STORAGES = {
@@ -181,14 +226,127 @@ else:
     MEDIA_URL = '/media/'
     STATIC_URL = '/static/'
 
-REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/1')
 
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
-CELERY_RESULT_BACKEND = 'django-db'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
-CELERY_TASK_TRACK_STARTED = True
+if os.getenv('CI') or 'test' in sys.argv:
+    MEDIA_ROOT=tempfile.mkdtemp()
+    CELERY_TASK_ALWAYS_EAGER=True
+    CELERY_TASK_EAGER_PROPAGATES=True
+    BROKER_BACKEND='memory'
+    CELERY_BROKER_URL='memory://'
+else:
+    CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
+    CELERY_RESULT_BACKEND = 'django-db'
+    CELERY_ACCEPT_CONTENT = ['json']
+    CELERY_TASK_SERIALIZER = 'json'
+    CELERY_RESULT_SERIALIZER = 'json'
+    CELERY_TIMEZONE = TIME_ZONE
+    CELERY_TASK_TRACK_STARTED = True
 
 RABBITMQ_URL = os.getenv('RABBITMQ_URL', 'amqp://guest:guest@rabbitmq:5672//')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': {
+        'simple': {'format': '{message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'django.server': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
+        'daphne': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
+        'twisted': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
+    },
+}
+
+REDIS_PASS = os.getenv('REDIS_PASS', '')
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # Имя сервиса в docker-compose
+REDIS_PORT = os.getenv('REDIS_PORT', '6379')
+REDIS_KEY_PREFIX = os.getenv('REDIS_KEY_PREFIX', '')
+REDIS_BASE_URL = f'redis://:{REDIS_PASS}@{REDIS_HOST}:{REDIS_PORT}'
+
+if os.getenv('CI') or 'test' in sys.argv:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/tmp/django_test_cache',
+            'TIMEOUT': 60,
+            'OPTIONS': {
+                'MAX_ENTRIES': 100,
+            }
+        },
+        'hot': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/tmp/django_test_hot_cache',
+            'TIMEOUT': 10,
+        },
+        'cold': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/tmp/django_test_cold_cache',
+            'TIMEOUT': 300,
+        },
+        'landing': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/tmp/django_test_landing_cache',
+            'TIMEOUT': 600,
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': f'{REDIS_BASE_URL}/1',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'PASSWORD': REDIS_PASS,
+                'SOCKET_CONNECT_TIMEOUT': 5, # Это таймаут на подключение
+                'SOCKET_TIMEOUT': 5, #  Это таймаут на чтение-запись
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 100,
+                    'retry_on_timeout': True,
+                    'socket_keepalive': True,
+                }
+            },
+            'KEY_PREFIX': REDIS_KEY_PREFIX,
+            'TIMEOUT': 600, # Время жизни кэша
+        },
+        'hot': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': f'{REDIS_BASE_URL}/0',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'PASSWORD': REDIS_PASS,
+                'SOCKET_CONNECT_TIMEOUT': 5,  # Это таймаут на подключение
+                'SOCKET_TIMEOUT': 5,  # Это таймаут на чтение-запись
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 100,
+                    'retry_on_timeout': True,
+                    'socket_keepalive': True,
+                }
+            },
+            'KEY_PREFIX': REDIS_KEY_PREFIX,
+            'TIMEOUT': 60,
+        },
+        'cold': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': f'{REDIS_BASE_URL}/2',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'PASSWORD': REDIS_PASS,
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 100,
+                    'retry_on_timeout': True,
+                    'socket_keepalive': True,
+                }
+            },
+            'KEY_PREFIX': REDIS_KEY_PREFIX,
+            'TIMEOUT': 3600,  # Время жизни кэша
+        },
+    }

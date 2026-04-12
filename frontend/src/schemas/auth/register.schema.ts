@@ -1,10 +1,52 @@
 import { z } from "zod";
 
-export const RegisterTokensSchema = z.object({
-	access_token: z.string(),
-	access_expires_at: z.string(),  // ISO string
-	refresh_token: z.string(),
-	refresh_expires_at: z.string(),
-});
+function pickUserFacingText(v: unknown): string | null {
+  if (typeof v === "string" && v.trim()) return v.trim();
+  if (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string")) {
+    return v.join(" ");
+  }
+  return null;
+}
 
-export type RegisterTokens = z.infer<typeof RegisterTokensSchema>;
+const DEFAULT_CODE_SENT =
+  "Код подтверждения отправлен на почту или телефон.";
+
+/**
+ * Ответ шага 1 регистрации. Допускаем вариации полей с бэка (detail/message, массивы DRF).
+ */
+export const RegisterCodeSentSchema = z
+  .object({
+    status: z.unknown(),
+    detail: z.unknown().optional(),
+    message: z.unknown().optional(),
+  })
+  .passthrough()
+  .transform((data) => {
+    const raw = data.status;
+    const statusNorm =
+      typeof raw === "string"
+        ? raw.trim().toLowerCase()
+        : String(raw ?? "").trim().toLowerCase();
+
+    if (statusNorm !== "code_sent") {
+      throw new z.ZodError([
+        {
+          code: z.ZodIssueCode.custom,
+          path: ["status"],
+          message: `Ожидался status "code_sent", получено: ${String(raw)}`,
+        },
+      ]);
+    }
+
+    const detail =
+      pickUserFacingText(data.detail) ??
+      pickUserFacingText(data.message) ??
+      DEFAULT_CODE_SENT;
+
+    return {
+      status: "code_sent" as const,
+      detail,
+    };
+  });
+
+export type RegisterCodeSent = z.infer<typeof RegisterCodeSentSchema>;

@@ -1,8 +1,6 @@
 import styles from './Footer.module.css';
 
-interface FooterProps {}
-
-export default function Footer({}: FooterProps) {
+export default function Footer() {
   return (
     <footer className={styles.footer}>
       <div className={styles.content}>

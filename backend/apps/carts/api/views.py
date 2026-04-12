@@ -6,6 +6,11 @@ from drf_spectacular.utils import extend_schema
 from ...courses.models import Course
 from ..models import Cart, CartItem
 from .serializers import CartItemSerializer, CartSerializer
+from django.core.cache import caches
+
+def cart_hot_cache_key(user_id: int) -> str:
+    return f"hot:carts:cart:{int(user_id)}"
+
 
 SCHEMA_401 = {
     "type": "object",
@@ -58,9 +63,18 @@ class CartView(APIView):
         },
     )
     def get(self, request):
+        hot_cache = caches["hot"]
+        cache_key = cart_hot_cache_key(request.user.id)
+
+        cached = hot_cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
+
         cart, _ = Cart.objects.get_or_create(user=request.user)
         serializer = CartSerializer(cart)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        data = serializer.data
+        hot_cache.set(cache_key, data)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class AddToCartView(APIView):
@@ -103,8 +117,8 @@ class AddToCartView(APIView):
             )
 
         cart_item = CartItem.objects.create(
-            cart_id=cart,
-            course_id=course,
+            cart_id=cart.cart_id,
+            course_id=course.course_id,
         )
 
         serializer = CartItemSerializer(cart_item)

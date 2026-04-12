@@ -1,52 +1,90 @@
 from django.urls import path
-from rest_framework.routers import SimpleRouter
 from . import views
 
 app_name = 'courses'
 
 urlpatterns = [
-    path('landing/courses/', views.CourseDTOList.as_view(),
-         name='course-list-preview'),
-    path('app/my-courses/', views.PurchasedCoursesView.as_view(),
-         name='my-courses'),
+    path(
+        'landing/courses/',
+        views.CourseDTOList.as_view(),
+        name='course-list-preview',
+    ),
 ]
 
-router = SimpleRouter()
+urlpatterns += [
+    path(
+        'app/my-courses/',
+        views.PurchasedCoursesView.as_view(),
+        name='my-courses',
+    ),
+]
 
-router.register(
-    r'app/courses',
-    views.CourseViewSet,
-    basename='courses'
-)
+urlpatterns += [
+    path(
+        'app/courses/<slug:course_slug>/home/',
+        views.CourseHomePageView.as_view(),
+        name='course-homepage',
+    ),
+    path('app/courses/', views.CourseListView.as_view(), name='courses-list'),
+    path(
+        'app/courses/<slug:slug>/',
+        views.CourseDetailView.as_view(),
+        name='courses-detail',
+    ),
+]
 
-router.register(
-    r'courses/(?P<course_slug>[^/.]+)/sections',
-    views.SectionViewSet,
-    basename='course-sections'
-)
+urlpatterns += [
+    path(
+        'courses/<slug:course_slug>/sections/',
+        views.SectionCreateView.as_view(),
+        name='course-sections-list',
+    ),
+    path(
+        'courses/<slug:course_slug>/sections/<slug:section_slug>/',
+        views.SectionDetailView.as_view(),
+        name='course-sections-detail',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/',
+        views.LessonCreateView.as_view(),
+        name='course-lessons-list',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/',
+        views.LessonDetailView.as_view(),
+        name='course-lessons-detail',
+    ),
+]
 
-router.register(
-    r'courses/(?P<course_slug>[^/.]+)/sections/(?P<section_slug>[^/.]+)/lessons',
-    views.LessonViewSet,
-    basename='section-lessons'
-)
-
-router.register(
-    r'courses/(?P<course_slug>[^/.]+)/sections/(?P<section_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks',
-    views.HomeworkViewSet,
-    basename='lesson-homeworks'
-)
-
-router.register(
-    r'courses/(?P<course_slug>[^/.]+)/sections/(?P<section_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks/(?P<homework_slug>[^/.]+)/questions',
-    views.QuestionViewSet,
-    basename='homework-questions'
-)
-
-router.register(
-    r'courses/(?P<course_slug>[^/.]+)/sections/(?P<section_slug>[^/.]+)/lessons/(?P<lesson_slug>[^/.]+)/homeworks/(?P<homework_slug>[^/.]+)/tasks',
-    views.TaskViewSet,
-    basename='homework-tasks'
-)
-
-urlpatterns += router.urls
+urlpatterns += [
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/',
+        views.HomeworkCreateView.as_view(),
+        name='lesson-homeworks-list',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/tasks/<uuid:task_id>/',
+        views.TaskDetailView.as_view(),
+        name='homework-tasks-detail',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/tasks/',
+        views.TaskCreateView.as_view(),
+        name='homework-tasks-list',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/questions/<uuid:question_id>/',
+        views.QuestionDetailView.as_view(),
+        name='homework-questions-detail',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/questions/',
+        views.QuestionCreateView.as_view(),
+        name='homework-questions-list',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/',
+        views.HomeworkDetailView.as_view(),
+        name='lesson-homeworks-detail',
+    ),
+]

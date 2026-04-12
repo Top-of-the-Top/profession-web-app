@@ -5,6 +5,7 @@ from django.dispatch import receiver
 from django.db.models.signals import pre_delete, pre_save
 import os
 from asgiref.sync import sync_to_async
+from .api.constants import MSG_EMAIL_ALREADY_EXISTS, MSG_PHONE_ALREADY_EXISTS
 
 
 class UserManager(BaseUserManager):
@@ -95,7 +96,7 @@ class User(AbstractUser):
         null=True,
         blank=True,
         db_index=True,
-        error_messages={'unique': 'Пользователь с таким email уже существует'},
+        error_messages={'unique': MSG_EMAIL_ALREADY_EXISTS},
         help_text='Введите email',
     )
 
@@ -105,7 +106,7 @@ class User(AbstractUser):
         null=True,
         blank=True,
         db_index=True,
-        error_messages={'unique': 'Пользователь с таким телефоном уже существует'},
+        error_messages={'unique': MSG_PHONE_ALREADY_EXISTS},
         help_text='Введите телефон',
     )
 
@@ -131,7 +132,10 @@ class User(AbstractUser):
     objects = UserManager()
 
     def get_purchased_courses_ids(self):
-        return list(self.purchased_courses.values_list('course_id', flat=True))
+        from django.utils import timezone
+        return list(self.purchased_courses.filter(
+            access_expires_at__gt=timezone.now()
+        ).values_list('course_id', flat=True))
 
     async def aget_purchased_course_ids(self):
         return await sync_to_async(self.get_purchased_courses_ids)()
@@ -146,10 +150,10 @@ class User(AbstractUser):
         return self.role == self.ROLE_MODERATOR
 
     def is_course_author(self, course):
-        return course.author == self or self in course.authors.all()
+        return self in course.authors.all()
 
     def is_enrolled(self, course):
-        return course in self.get_purchased_courses_ids()
+        return course.course_id in self.get_purchased_courses_ids()
 
     class Meta:
         verbose_name = 'Пользователь'

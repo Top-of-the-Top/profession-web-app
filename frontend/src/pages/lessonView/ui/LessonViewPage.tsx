@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Home, Clock3, PenTool, Video, CircleCheck } from 'lucide-react';
 import {
@@ -11,27 +11,16 @@ import {
   Button,
   PageTransition,
   Spinner,
-} from '../../../shared/ui';
-import {
-  courseApi,
-  type LessonDetail,
-} from '../../../shared/api/courseApi';
+} from '@shared/ui';
 import type { LessonLayout, Block } from '../../../features/course-builder';
 import {
   FONT_SIZE_STEPS,
   DEFAULT_FONT_SIZE_INDEX,
 } from '../../../features/course-builder/lib/constants';
-import { parseLessonLayout } from '../../../features/course-builder/model/types';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
-import {
-  messageForApiFailure,
-  notifyError,
-  notifyWarning,
-} from '../../../shared/lib/sileo/notify';
-import { USE_MOCK, MOCK_LESSON, MOCK_COURSE_TITLE } from './mockLessonData';
+import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
+import { useCourseHomeBySlug, useLessonBySlug } from '@shared/api/queries/courses';
 import styles from './LessonViewPage.module.css';
 
-/* ── Block views (read-only, reused from CourseRenderer logic) ── */
 
 const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
   html,
@@ -118,9 +107,9 @@ const LessonContent: React.FC<{ layout: LessonLayout }> = ({ layout }) => {
 const HomeworkWidget: React.FC<{
   courseSlug: string;
   lessonSlug: string;
-  homeworkSlug: string | null;
+  homeworkId: number | string | null;
   deadline: string | null;
-}> = ({ courseSlug, lessonSlug, homeworkSlug, deadline }) => {
+}> = ({ courseSlug, lessonSlug, homeworkId, deadline }) => {
   const formattedDeadline = deadline
     ? (() => {
         try {
@@ -145,9 +134,9 @@ const HomeworkWidget: React.FC<{
       {formattedDeadline && (
         <p className={styles.deadlineText}>Дедлайн: {formattedDeadline}</p>
       )}
-      {homeworkSlug ? (
+      {homeworkId != null && homeworkId !== '' ? (
         <Link
-          to={`/app/courses/${courseSlug}/lessons/${lessonSlug}/homework/${homeworkSlug}`}
+          to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(String(homeworkId))}`}
           className={styles.homeworkButton}
         >
           Перейти к заданию
@@ -160,7 +149,6 @@ const HomeworkWidget: React.FC<{
 };
 
 const ProgressWidget: React.FC = () => {
-  // Заглушка (реальные данные вернем позже)
   const passedLessons = { done: 12, total: 24 };
   const submittedHomeworks = { done: 8, total: 11 };
 
@@ -322,30 +310,32 @@ const WebinarLinksWidget: React.FC<{
   </div>
 );
 
-/* ── Error handling ── */
+const LessonRecording: React.FC<{ recording: string | null }> = ({ recording }) => {
+  const value = recording?.trim();
 
-function isAuthLike(err: unknown) {
-  const msg = err instanceof Error ? err.message : '';
-  return msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401');
-}
+  if (!value) return null;
 
-function notifyLoadError(err: unknown) {
-  if (isAuthLike(err)) {
-    notifyWarning({
-      title: 'нужна авторизация',
-      description: 'Войдите, чтобы открыть урок.',
-    });
-    return;
-  }
-  const parsed = parseApiError(err);
-  if (parsed) {
-    const m = messageForApiFailure('courseDetail', parsed.status, parsed.body);
-    notifyError({ title: m.title, description: m.description });
-    return;
-  }
-  const fb = messageForApiFailure('courseDetail', 0, {});
-  notifyError({ title: fb.title, description: fb.description });
-}
+  const isHttpLink = /^https?:\/\//i.test(value);
+
+  return (
+    <section className={styles.recordingSection}>
+      <h2 className={styles.recordingTitle}>Запись урока</h2>
+      {isHttpLink ? (
+        <div className={styles.recordingIframeWrap}>
+          <iframe
+            src={value === "https://example.com/recordings/mock-lesson" ? "https://kinescope.io/t1go93i9aP3NG6VNPxiCC6" : value}
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
+            allowFullScreen
+            className={styles.recordingIframe}
+            title="Запись урока"
+          />
+        </div>
+      ) : (
+        <div className={styles.mediaPlaceholder}>Запись урока недоступна</div>
+      )}
+    </section>
+  );
+};
 
 /* ── Page ── */
 
@@ -356,78 +346,30 @@ export default function LessonViewPage() {
   }>();
   const navigate = useNavigate();
 
-  const [courseTitle, setCourseTitle] = useState<string | null>(null);
-  const [lessonDetail, setLessonDetail] = useState<LessonDetail | null>(null);
-  const [lessonLayout, setLessonLayout] = useState<LessonLayout | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const homeQuery = useCourseHomeBySlug(courseSlug);
+  const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
 
-  useEffect(() => {
-    if (USE_MOCK) {
-      setLessonDetail(MOCK_LESSON);
-      setCourseTitle(MOCK_COURSE_TITLE);
-      try {
-        setLessonLayout(parseLessonLayout(MOCK_LESSON.content));
-      } catch {
-        setLessonLayout({ id: 'mock', title: MOCK_LESSON.title, blocks: [] });
-      }
-      setLoading(false);
-      return;
+  const courseTitle =
+    homeQuery.data?.title ??
+    courseSlug?.replace(/-/g, ' ') ??
+    'Курс';
+
+  const lessonDetail = lessonQuery.data;
+
+  const lessonLayout = useMemo<LessonLayout | null>(() => {
+    if (!lessonDetail) return null;
+    try {
+      return parseLessonLayoutFromContentString(lessonDetail.content);
+    } catch {
+      return {
+        id: String(lessonDetail.lesson_id),
+        title: lessonDetail.lesson_title,
+        blocks: [],
+      };
     }
+  }, [lessonDetail]);
 
-    if (!courseSlug || !lessonSlug) {
-      setError('Урок не указан в адресе');
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const run = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [courseRes, lesson] = await Promise.all([
-          courseApi.getCourseBySlug(courseSlug),
-          courseApi.getLessonBySlug(courseSlug, lessonSlug),
-        ]);
-
-        if (cancelled) return;
-
-        setCourseTitle(courseRes.course.title);
-        setLessonDetail(lesson);
-
-        try {
-          const layout = parseLessonLayout(lesson.content);
-          setLessonLayout(layout);
-        } catch {
-          setLessonLayout({
-            id: String(lesson.lesson_id),
-            title: lesson.title,
-            blocks: [],
-          });
-        }
-      } catch (err) {
-        notifyLoadError(err);
-        if (!cancelled) {
-          setError(
-            isAuthLike(err)
-              ? 'Нужна авторизация'
-              : 'Не удалось загрузить урок',
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [courseSlug, lessonSlug]);
-
+  const loading = lessonQuery.isLoading;
   if (loading) {
     return (
       <div className={styles.page}>
@@ -438,14 +380,23 @@ export default function LessonViewPage() {
     );
   }
 
-  if (error || !courseTitle || !lessonDetail) {
+  if (lessonQuery.isError || !lessonDetail) {
     return (
       <div className={styles.page}>
-        <div className={styles.errorBox}>
-          <p className={styles.errorText}>{error ?? 'Урок недоступен'}</p>
-          <Button variant="secondary" onClick={() => navigate(-1)}>
-            Назад
-          </Button>
+        <div className={styles.centered}>
+          <div className={styles.errorBox}>
+            <p className={styles.errorText}>
+              Не удалось загрузить урок. Проверьте доступ и попробуйте снова.
+            </p>
+            <div className={styles.errorActions}>
+              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+                Назад
+              </Button>
+              <Button type="button" onClick={() => void lessonQuery.refetch()}>
+                Попробовать снова
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -466,14 +417,14 @@ export default function LessonViewPage() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link to={`/app/courses/${courseSlug}/lessons`}>
+                <Link to={`/app/courses/${courseSlug}`}>
                   {courseTitle}
                 </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{lessonDetail.title}</BreadcrumbPage>
+              <BreadcrumbPage>{lessonDetail.lesson_title}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -483,25 +434,26 @@ export default function LessonViewPage() {
         <div className={styles.mainColumn}>
           <div className={styles.lessonHeader}>
             <div className={styles.lessonHeaderTrapezoid}>
-              <h1 className={styles.lessonTitleTrapezoid}>{lessonDetail.title}</h1>
+              <h1 className={styles.lessonTitleTrapezoid}>{lessonDetail.lesson_title}</h1>
             </div>
           </div>
 
           <main className={styles.main}>
+            <LessonRecording recording={lessonDetail.recording_url} />
             {lessonLayout && <LessonContent layout={lessonLayout} />}
           </main>
         </div>
 
         <aside className={styles.sidebar}>
-          <TimerWidget targetIso={lessonDetail.date} />
+          <TimerWidget targetIso={lessonDetail.started_at} />
           <WebinarLinksWidget
-            boardUrl={lessonDetail.board_url}
-            webinarUrl={lessonDetail.webinar_url}
+            boardUrl={null}
+            webinarUrl={lessonDetail.recording_url}
           />
           <HomeworkWidget
-            courseSlug={courseSlug ?? 'mock-course'}
-            lessonSlug={lessonSlug ?? lessonDetail.slug}
-            homeworkSlug={lessonDetail.homework_slug}
+            courseSlug={courseSlug ?? ''}
+            lessonSlug={lessonSlug ?? ''}
+            homeworkId={lessonDetail.homework_id}
             deadline={lessonDetail.homework_deadline}
           />
           <ProgressWidget />

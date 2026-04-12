@@ -219,3 +219,35 @@
 	text-align: center;
 	margin-top: 25px;
 }
+
+.otpHint {
+  font-size: 13px;
+  color: #6b7280;
+  /* text-align: center; */
+  margin-top: 4px;
+}
+
+/* Назад: тёмный текст, не как основная синяя кнопка */
+.backButton {
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  background-color: #fff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: none !important;
+}
+
+.backButton:hover:not(:disabled) {
+  background-color: #f9fafb !important;
+  color: #111827 !important;
+  border-color: #9ca3af !important;
+  transform: none;
+}
+
+.backButton:disabled {
+  opacity: 0.55;
+}

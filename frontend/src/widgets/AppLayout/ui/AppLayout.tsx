@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
 import {
-  Sparkles,
   House,
   ShoppingBag,
   CalendarDays,
@@ -9,10 +10,13 @@ import {
 } from 'lucide-react';
 import {
   Button,
-} from '../../../shared/ui';
-import { cn } from '../../../shared/lib/utils';
-import { useUserStore } from '../../../entities/user/model/userStore';
-import { useCartSummaryStore } from '../../../entities/cart/model/cartSummaryStore';
+  Spinner,
+  ContentErrorFallback,
+} from '@shared/ui';
+import { cn } from '@shared/lib/utils';
+import { useUserStore } from '@entities/user/model/userStore';
+import { tokenService } from '@shared/lib/auth/tokenService';
+import { useCart } from '@shared/api/queries/cart';
 import {
   connectNotificationSSE,
   disconnectNotificationSSE,
@@ -23,22 +27,14 @@ import styles from './AppLayout.module.css';
 export default function AppLayout() {
   const { pathname } = useLocation();
   const user = useUserStore((state) => state.user);
-  const hasToken = Boolean(localStorage.getItem('access_token'));
-  const cartHasItems = useCartSummaryStore((s) => s.hasItems);
-  const refreshCartSummary = useCartSummaryStore((s) => s.refresh);
-  const resetCartSummary = useCartSummaryStore((s) => s.reset);
+  const hasToken = tokenService.hasToken();
+
+  const { data: cart } = useCart();
+  const cartHasItems = (cart?.courses?.length ?? 0) > 0;
 
   const initials = [user?.first_name?.at(0), user?.last_name?.at(-1)]
     .filter(Boolean)
     .join('');
-
-  useEffect(() => {
-    if (!hasToken) {
-      resetCartSummary();
-      return;
-    }
-    void refreshCartSummary();
-  }, [hasToken, refreshCartSummary, resetCartSummary]);
 
   useEffect(() => {
     if (hasToken && user) {
@@ -58,7 +54,6 @@ export default function AppLayout() {
   }, [hasToken, user]);
 
   const navItems = [
-    { href: '/app', label: 'Тосты', icon: Sparkles, id: 'toasts' },
     { href: '/app/home', label: 'Домашняя', icon: House, id: 'home' },
     {
       href: '/app/store',
@@ -116,8 +111,7 @@ export default function AppLayout() {
               {navItems.map(({ href, label, icon: Icon, id }) => {
                 const storeActive =
                   id === 'upload' &&
-                  (pathname.startsWith('/app/store') ||
-                    pathname.startsWith('/app/courses'));
+                  pathname.startsWith('/app/store');
                 return (
                   <NavLink
                     key={href}
@@ -182,7 +176,18 @@ export default function AppLayout() {
         </div>
 
         <main className={styles.main}>
-          <Outlet />
+          <QueryErrorResetBoundary>
+            {({ reset }) => (
+              <ErrorBoundary
+                onReset={reset}
+                FallbackComponent={ContentErrorFallback}
+              >
+                <Suspense fallback={<Spinner full />}>
+                  <Outlet />
+                </Suspense>
+              </ErrorBoundary>
+            )}
+          </QueryErrorResetBoundary>
         </main>
       </div>
     </div>

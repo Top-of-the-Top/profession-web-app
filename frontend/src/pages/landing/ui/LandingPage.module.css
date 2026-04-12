@@ -94,17 +94,17 @@ html {
 /* Хиро-секция */
 .hero {
   position: relative;
+	justify-content: flex-start;
   display: flex;
   flex-direction: row;
-  justify-content: space-around;
   gap: 40px;
   padding-top: 30px;
   margin-top: 120px; /* уменьшил с 220px, так как шапка фиксированная, но на мобиле добавим адаптацию */
   padding-bottom: 80px; /* убрал огромный запас, фон будет адаптирован */
-  background-image: url('landing/landing-circles.svg');
+  background-image: url('landing-circles.svg');
   background-repeat: no-repeat;
   background-position: 20% -30px;
-  background-size: 550px auto;
+  background-size: 500px auto;
   background-origin: content-box;
 }
 
@@ -115,7 +115,7 @@ html {
   background-repeat: no-repeat;
   background-position: -1px -10px;
   background-size: contain;
-  background-image: url('landing/landing-children.svg');
+  background-image: url('landing-children.svg');
 }
 
 .heroTitle {
@@ -281,6 +281,31 @@ html {
   border-radius: 12px;
   display: block;
   pointer-events: none;
+}
+
+.skeletonTrackTitle {
+  width: 150px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.skeletonTrackPrice {
+  width: 128px;
+  height: 34px;
+}
+
+.skeletonTrackButtonRow {
+  width: 172px;
+  height: 44px;
+  border-radius: 999px;
+}
+
+.skeletonTrackImage {
+  width: 100%;
+  max-width: 180px;
+  height: 100%;
+  max-height: 150px;
+  border-radius: 12px;
 }
 
 .trackButton {
@@ -522,7 +547,8 @@ html {
   }
 
   .hero {
-    flex-direction: column; /* ставим текст и картинку в колонку */
+    flex-direction: column;
+		justify-content: flex-start;
     align-items: center;
     text-align: center;
     margin-top: 100px;

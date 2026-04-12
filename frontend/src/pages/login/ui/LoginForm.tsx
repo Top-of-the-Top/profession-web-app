@@ -1,4 +1,4 @@
-import { Button } from '../../../shared/ui';
+import { Button } from '@shared/ui';
 import {
   Card,
   CardContent,
@@ -9,16 +9,20 @@ import {
   FieldGroup,
   FieldLabel,
   Input,
-} from '../../../shared/ui';
-import { cn } from '../../../shared/lib/utils';
+} from '@shared/ui';
+import { cn } from '@shared/lib/utils';
 import styles from './LoginPage.module.css';
-import { useContext, useState } from 'react';
-import { AuthContext } from '../../../context/AuthContext';
+import { useState } from 'react';
+import { useUserStore } from '@entities/user/model/userStore';
 import { loginUser } from '../api';
 import { Link, useNavigate } from 'react-router-dom';
 import { ZodError } from 'zod';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
-import { messageForApiFailure, notifyError } from '../../../shared/lib/sileo/notify';
+import { parseApiError } from '@shared/lib/api/parseApiError';
+import { messageForApiFailure, notifyError } from '@shared/lib/sileo/notify';
+import { preloadRegisterRoute, preloadResetRoute } from '@router/lazyPages';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginFormSchema, type LoginFormValues } from '@shared/utils/formSchemas';
 
 function notifyLoginFailure(err: unknown) {
   if (err instanceof Error && err.message === 'Invalid email or phone number') {
@@ -43,18 +47,22 @@ function notifyLoginFailure(err: unknown) {
 
 export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
   const navigate = useNavigate();
-  const authContext = useContext(AuthContext);
+  const login = useUserStore((s) => s.login);
   const [loading, setLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: { emailOrPhone: '', password: '' },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async ({ emailOrPhone, password }: LoginFormValues) => {
     setLoading(true);
-    const form = e.currentTarget as HTMLFormElement;
-    const emailOrPhone = (form.elements.namedItem('email') as HTMLInputElement).value;
-    const password = (form.elements.namedItem('password') as HTMLInputElement).value;
     try {
-      const tokens = await loginUser({ emailOrPhone, password });
-      authContext?.login(tokens);
+      const payload = await loginUser({ emailOrPhone, password });
+      await login(payload);
       navigate('/app', { replace: true });
     } catch (err) {
       if (err instanceof ZodError) {
@@ -80,7 +88,7 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
             <CardDescription>Введите данные ниже, чтобы войти в систему</CardDescription>
           </CardHeader>
           <CardContent className={styles.cardContent}>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit(onSubmit)}>
               <FieldGroup className={styles.fieldGroup}>
                 <Field className={styles.field}>
                   <FieldLabel htmlFor="email">Почта или номер телефона</FieldLabel>
@@ -89,9 +97,13 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                     type="text"
                     autoComplete="email"
                     placeholder="Почта/телефон"
-                    required
                     className={styles.input}
+                    disabled={loading}
+                    {...register('emailOrPhone')}
                   />
+                  {errors.emailOrPhone?.message ? (
+                    <CardDescription>{errors.emailOrPhone.message}</CardDescription>
+                  ) : null}
                 </Field>
                 <Field className={styles.field}>
                   <div className={styles.passwordHeader}>
@@ -102,9 +114,13 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                     type="password"
                     autoComplete="password"
                     placeholder="Пароль"
-                    required
                     className={styles.input}
+                    disabled={loading}
+                    {...register('password')}
                   />
+                  {errors.password?.message ? (
+                    <CardDescription>{errors.password.message}</CardDescription>
+                  ) : null}
                 </Field>
                 <Field>
                   <Button
@@ -143,12 +159,22 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                   <div className={styles.linksContainer}>
                     <div className={styles.linkRow}>
                       <span>Нет аккаунта? </span>
-                      <Link to="/register" className={styles.link}>
+                      <Link
+                        to="/register"
+                        className={styles.link}
+                        onPointerEnter={preloadRegisterRoute}
+                        onFocus={preloadRegisterRoute}
+                      >
                         Зарегистрироваться
                       </Link>
                     </div>
                     <div className={styles.linkRow}>
-                      <Link to="/reset" className={styles.link}>
+                      <Link
+                        to="/reset"
+                        className={styles.link}
+                        onPointerEnter={preloadResetRoute}
+                        onFocus={preloadResetRoute}
+                      >
                         Забыли пароль?
                       </Link>
                     </div>

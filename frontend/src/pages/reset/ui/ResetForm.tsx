@@ -1,25 +1,34 @@
-import { Button } from '../../../shared/ui';
+import { Button } from '@shared/ui';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../../../shared/ui';
+} from '@shared/ui';
 import { useState } from 'react';
-import { Field, FieldGroup, FieldLabel, Input } from '../../../shared/ui';
+import { Field, FieldGroup, FieldLabel, Input } from '@shared/ui';
 import { ArrowLeft } from 'lucide-react';
 import styles from './ResetPage.module.css';
 import { Link, useNavigate } from 'react-router-dom';
 import { resetUser } from '../api';
-import { validateEmailOrPhone } from '../../../shared/utils/validation';
+import { validateEmailOrPhone } from '@shared/utils/validation';
 import { ZodError } from 'zod';
-import { parseApiError } from '../../../shared/lib/api/parseApiError';
+import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
   notifyError,
   notifySuccess,
-} from '../../../shared/lib/sileo/notify';
+} from '@shared/lib/sileo/notify';
+import { verifyRecoverPhoneCode } from '@pages/recover/api';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  resetPhoneCodeSchema,
+  resetRequestSchema,
+  type ResetPhoneCodeFormValues,
+  type ResetRequestFormValues,
+} from '@shared/utils/formSchemas';
 
 function notifyResetFailure(err: unknown) {
   const parsed = parseApiError(err);
@@ -35,40 +44,70 @@ function notifyResetFailure(err: unknown) {
   notifyError({ title: msg.title, description: msg.description });
 }
 
+function notifyRecoverPhoneFailure(err: unknown) {
+  const parsed = parseApiError(err);
+  if (!parsed) {
+    const fb = messageForApiFailure('recoverPhone', 0, {});
+    notifyError({
+      title: fb.title,
+      description: err instanceof Error ? err.message : fb.description,
+    });
+    return;
+  }
+  const msg = messageForApiFailure('recoverPhone', parsed.status, parsed.body);
+  notifyError({ title: msg.title, description: msg.description });
+}
+
+type Phase = 'request' | 'emailSent' | 'phoneCode';
+
 export default function ResetForm({
-  className,
   ...props
 }: React.ComponentProps<'div'>) {
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [phase, setPhase] = useState<Phase>('request');
+  const [normalizedPhone, setNormalizedPhone] = useState<string | null>(null);
   const navigate = useNavigate();
+  const {
+    register: registerRequest,
+    handleSubmit: handleRequestSubmit,
+    formState: { errors: requestErrors },
+  } = useForm<ResetRequestFormValues>({
+    resolver: zodResolver(resetRequestSchema),
+    defaultValues: { emailOrPhone: '' },
+  });
+  const {
+    register: registerCode,
+    handleSubmit: handleCodeSubmit,
+    formState: { errors: codeErrors },
+  } = useForm<ResetPhoneCodeFormValues>({
+    resolver: zodResolver(resetPhoneCodeSchema),
+    defaultValues: { code: '' },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onRequestSubmit = async ({ emailOrPhone }: ResetRequestFormValues) => {
     setLoading(true);
-
-    const form = e.currentTarget as HTMLFormElement;
-    const emailOrPhone = (form.elements.namedItem('email') as HTMLInputElement)
-      .value;
-
     const validation = validateEmailOrPhone(emailOrPhone);
 
-    if (!validation.isValid) {
-      notifyError({
-        title: 'проверьте контакт',
-        description: 'Введите корректный email или номер телефона.',
-      });
-      setLoading(false);
-      return;
-    }
-
     try {
-      await resetUser({ emailOrPhone });
-      notifySuccess({
-        title: 'ссылка отправлена',
-        description: 'Проверьте почту или SMS — там будет ссылка для сброса пароля.',
-      });
-      setSuccess(true);
+      const res = await resetUser({ emailOrPhone });
+      if (validation.isEmail) {
+        notifySuccess({
+          title: 'письмо отправлено',
+          description:
+            res.detail ??
+            'Проверьте почту — там будет ссылка для сброса пароля.',
+        });
+        setPhase('emailSent');
+      } else {
+        notifySuccess({
+          title: 'SMS отправлено',
+          description:
+            res.detail ??
+            'Код для сброса пароля отправлен на телефон.',
+        });
+        setNormalizedPhone(validation.normalized);
+        setPhase('phoneCode');
+      }
     } catch (err) {
       if (err instanceof ZodError) {
         notifyError({
@@ -83,23 +122,51 @@ export default function ResetForm({
     }
   };
 
+  const onPhoneCodeSubmit = async ({ code }: ResetPhoneCodeFormValues) => {
+    if (!normalizedPhone) return;
+    setLoading(true);
+    try {
+      const { token } = await verifyRecoverPhoneCode({
+        phone_number: normalizedPhone,
+        code,
+      });
+      navigate(
+        `/recover?token=${encodeURIComponent(token)}&channel=phone`,
+      );
+    } catch (err) {
+      if (err instanceof ZodError) {
+        notifyError({
+          title: 'некорректный ответ сервера',
+          description: 'Обновите страницу или попробуйте позже.',
+        });
+        return;
+      }
+      notifyRecoverPhoneFailure(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className={styles.loginPage} {...props}>
       <div className={styles.loginWrapper}>
-        <img className={styles.logo} src="landing/profession-logo-blue.svg" alt="" />
+        <img className={styles.logo} src="/profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
             <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>
               Сброс пароля
             </CardTitle>
             <CardDescription>
-              {success
-                ? 'Ссылка для сброса пароля отправлена на вашу почту или телефон'
-                : 'Введите свой адрес электронной почты или номер телефона, и мы вышлем вам ссылку для сброса вашего пароля'}
+              {phase === 'request' &&
+                'Введите адрес электронной почты или номер телефона.'}
+              {phase === 'emailSent' &&
+                'Ссылка для сброса пароля отправлена на вашу почту.'}
+              {phase === 'phoneCode' &&
+                'Введите 6-значный код из SMS, затем задайте новый пароль.'}
             </CardDescription>
           </CardHeader>
           <CardContent className={styles.cardContent}>
-            {success ? (
+            {phase === 'emailSent' ? (
               <div className={styles.successMessage}>
                 <Button
                   style={{ fontSize: '14px', marginTop: '20px' }}
@@ -110,8 +177,51 @@ export default function ResetForm({
                   Вернуться ко входу
                 </Button>
               </div>
+            ) : phase === 'phoneCode' ? (
+              <form onSubmit={handleCodeSubmit(onPhoneCodeSubmit)}>
+                <FieldGroup className={styles.fieldGroup}>
+                  <Field className={styles.field}>
+                    <FieldLabel htmlFor="code">Код из SMS</FieldLabel>
+                    <Input
+                      id="code"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="••••••"
+                      maxLength={6}
+                      className={styles.input}
+                      disabled={loading}
+                      {...registerCode('code')}
+                    />
+                    {codeErrors.code?.message ? (
+                      <CardDescription>{codeErrors.code.message}</CardDescription>
+                    ) : null}
+                  </Field>
+                  <Button
+                    style={{ fontSize: '14px' }}
+                    type="submit"
+                    className={styles.submitButton}
+                    disabled={loading}
+                  >
+                    {loading ? 'Проверка...' : 'Продолжить'}
+                  </Button>
+                  <div className={styles.linksContainer}>
+                    <div className={styles.linkRow}>
+                      <button
+                        type="button"
+                        className={styles.link}
+                        onClick={() => {
+                          setPhase('request');
+                          setNormalizedPhone(null);
+                        }}
+                      >
+                        <ArrowLeft size={20} /> Назад
+                      </button>
+                    </div>
+                  </div>
+                </FieldGroup>
+              </form>
             ) : (
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleRequestSubmit(onRequestSubmit)}>
                 <FieldGroup className={styles.fieldGroup}>
                   <Field className={styles.field}>
                     <FieldLabel htmlFor="email">
@@ -119,14 +229,16 @@ export default function ResetForm({
                     </FieldLabel>
                     <Input
                       id="email"
-                      name="email"
                       type="text"
                       placeholder="Почта/телефон"
                       autoComplete="email"
-                      required
                       className={styles.input}
                       disabled={loading}
+                      {...registerRequest('emailOrPhone')}
                     />
+                    {requestErrors.emailOrPhone?.message ? (
+                      <CardDescription>{requestErrors.emailOrPhone.message}</CardDescription>
+                    ) : null}
                     <CardDescription
                       style={{ fontSize: '12px', marginTop: '4px' }}
                     >
@@ -140,7 +252,7 @@ export default function ResetForm({
                     className={styles.submitButton}
                     disabled={loading}
                   >
-                    {loading ? 'Отправка...' : 'Отправить ссылку'}
+                    {loading ? 'Отправка...' : 'Отправить'}
                   </Button>
 
                   <div className={styles.linksContainer}>

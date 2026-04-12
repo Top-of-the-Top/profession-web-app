@@ -1,14 +1,12 @@
-// shared/api/interceptor.ts
-import { authEvents } from '../events/authEvents';
+import { authEvents } from '@shared/events/authEvents';
+import { tokenService, type Tokens } from '@shared/lib/auth/tokenService';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-export type TokensResponse = {
-  access_token: string;
-  refresh_token: string;
-  access_expires_at?: string;
-  refresh_expires_at?: string;
-};
+export type TokensResponse = Tokens;
+
+/** Параметры fetch: без передачи Bearer (для логина, регистрации, сброса пароля и т.д.). */
+export type ApiRequestInit = RequestInit & { skipAuth?: boolean };
 
 export class ApiClient {
   private buildHeaders(
@@ -44,64 +42,50 @@ export class ApiClient {
   }
 
   private logout() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('access_expires_at');
-    localStorage.removeItem('refresh_expires_at');
+    tokenService.clearTokens();
     authEvents.dispatchEvent(new Event('logout'));
   }
 
-  private async refreshTokens(): Promise<TokensResponse | null> {
-    const refresh_token = localStorage.getItem('refresh_token');
-    if (!refresh_token) return null;
+  private async refreshTokens(): Promise<Tokens | null> {
+    const refreshToken = tokenService.getRefreshToken();
+    if (!refreshToken) return null;
 
-    // Слэш в конце обязателен: в urls.py путь `auth/token/refresh/`. Без слэша Django
-    // отдаёт редирект, и POST при следовании за редиректом часто превращается в GET без тела.
     const response = await fetch(`${API_URL}/api/auth/token/refresh/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token }),
+      body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
     if (!response.ok) return null;
 
-    const tokens: TokensResponse = await response.json();
-    localStorage.setItem('access_token', tokens.access_token);
-    localStorage.setItem('refresh_token', tokens.refresh_token);
-    if (tokens.access_expires_at) {
-      localStorage.setItem('access_expires_at', tokens.access_expires_at);
-    }
-    if (tokens.refresh_expires_at) {
-      localStorage.setItem('refresh_expires_at', tokens.refresh_expires_at);
-    }
+    const tokens: Tokens = await response.json();
+    tokenService.setTokens(tokens);
 
     return tokens;
   }
 
-  async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
+  async request<T>(endpoint: string, options: ApiRequestInit = {}): Promise<T> {
+    const { skipAuth = false, ...fetchOptions } = options;
     const url = `${API_URL}${endpoint}`;
-    const accessToken = localStorage.getItem('access_token');
-    
-    const isFormData = options.body instanceof FormData;
+    const accessToken = skipAuth ? undefined : tokenService.getAccessToken() ?? undefined;
+
+    const isFormData = fetchOptions.body instanceof FormData;
 
     let response = await fetch(url, {
-      ...options,
-      headers: this.buildHeaders(options.headers, accessToken ?? undefined, isFormData),
+      ...fetchOptions,
+      headers: this.buildHeaders(fetchOptions.headers, accessToken, isFormData),
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
+      if (response.status === 401 && !skipAuth) {
         const tokens = await this.refreshTokens();
         if (!tokens) {
           this.logout();
           throw new Error('AUTH_EXPIRED');
         }
         response = await fetch(url, {
-          ...options,
-          headers: this.buildHeaders(options.headers, tokens.access_token, isFormData),
+          ...fetchOptions,
+          headers: this.buildHeaders(fetchOptions.headers, tokens.access_token, isFormData),
         });
       }
     }

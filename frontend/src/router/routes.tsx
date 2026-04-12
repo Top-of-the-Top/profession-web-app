@@ -13,9 +13,9 @@ import {
   CreateLessonPage,
   LessonPreviewPage,
   LessonViewPage,
-  ToastPlaygroundPage,
-} from '../pages';
-import AppLayout from '../widgets/AppLayout/ui/AppLayout';
+  NotAuthorizedPage,
+  AppLayout,
+} from './lazyPages';
 
 import type { AppRoute } from './types';
 
@@ -45,25 +45,26 @@ export const routes: AppRoute[] = [
     element: <AppLayout />,
     protected: true,
     children: [
-      { index: true, element: <ToastPlaygroundPage /> },
+      { index: true, element: <AppHomePage /> },
       { path: 'home', element: <AppHomePage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'store', element: <CourseStorePage /> },
       {
-        path: 'courses/:slug/lessons',
-        element: <CourseLessonsPage />,
+        path: 'store/:slug',
+        element: <CoursePreviewPage />,
       },
       {
-        path: 'courses/:slug/lessons/:lessonSlug',
+        path: 'courses/:slug/:lessonSlug',
         element: <LessonViewPage />,
       },
       {
         path: 'courses/:slug',
-        element: <CoursePreviewPage />,
+        element: <CourseLessonsPage />,
       },
       {
         path: 'create',
         element: <CreateLessonPage />,
+				roles: ['teacher', 'moderator']
       },
       {
         path: 'lesson/preview',
@@ -73,13 +74,10 @@ export const routes: AppRoute[] = [
         path: 'cart',
         element: <CartPage />,
       },
-      // { path: 'modify', element: <ModifyPage /> },
-      // { path: 'distribute', element: <DistributePage /> },
+      {
+        path: 'not-authorized',
+        element: <NotAuthorizedPage />,
+      },
     ],
   },
-  // {
-  //   path: '/cart',
-  //   element: <CartPage />,
-  //   protected: true,
-  // },
 ];

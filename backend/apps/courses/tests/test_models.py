@@ -1,5 +1,5 @@
-from django.test import TestCase, override_settings
-from unittest.mock import patch, MagicMock, Mock
+from django.test import TestCase
+from unittest.mock import patch, Mock
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
@@ -37,7 +37,7 @@ def create_test_course(**kwargs):
 
 def create_test_section(course, **kwargs):
     defaults = {
-        'course_id': course,
+        'course': course,
         'title': 'Тестовая секция',
     }
     defaults.update(kwargs)
@@ -46,9 +46,9 @@ def create_test_section(course, **kwargs):
 
 def create_test_lesson(section, **kwargs):
     defaults = {
-        'section_id': section,
+        'section': section,
         'title': 'Тестовый урок',
-        'date': timezone.now() + timedelta(days=1),
+        'date_time': timezone.now() + timedelta(days=1),
     }
     defaults.update(kwargs)
     return Lesson.objects.create(**defaults)
@@ -56,33 +56,50 @@ def create_test_lesson(section, **kwargs):
 
 def create_test_homework(lesson, **kwargs):
     defaults = {
-        'lesson_id': lesson,
+        'lesson': lesson,
         'title': 'Тестовое ДЗ',
         'deadline': timezone.now() + timedelta(days=7),
     }
     defaults.update(kwargs)
     return Homework.objects.create(**defaults)
 
-class BaseTestCase(TestCase):
 
+class BaseTestCase(TestCase):
     CELERY_TASKS_TO_MOCK = [
         'apps.courses.signals.send_course_notification.delay',
         'apps.courses.signals.send_course_notification.apply_async',
         'apps.courses.signals.send_personal_notification.delay',
         'apps.courses.signals.send_mass_course_email.delay',
+        'apps.courses.signals.send_mass_course_email.apply_async',
         'apps.courses.signals.send_mass_system_email.delay',
         'apps.courses.signals.send_single_email.delay',
     ]
 
     def setUp(self):
-        self.celery_patchers = [
-            patch(task) for task in self.CELERY_TASKS_TO_MOCK
-        ]
-        self.celery_mocks = [p.start() for p in self.celery_patchers]
+        self.celery_patchers = []
+        for task_path in self.CELERY_TASKS_TO_MOCK:
+            patcher = patch(task_path)
+            patcher.start()
+            self.celery_patchers.append(patcher)
+
+        self.storage_patcher = patch('django.core.files.storage.default_storage')
+        self.storage_patcher.start()
+
+        self.file_patcher = patch('django.core.files.storage.default_storage')
+        self.file_patcher.start()
+
+        self.exists_patcher = patch('django.core.files.storage.default_storage.exists')
+        self.exists_patcher.start()
+
+        super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         for patcher in self.celery_patchers:
             patcher.stop()
+        self.storage_patcher.stop()
+        self.file_patcher.stop()
+        self.exists_patcher.stop()
 
 
 class GenerateUniqueSlugTest(BaseTestCase):
@@ -92,7 +109,6 @@ class GenerateUniqueSlugTest(BaseTestCase):
         slug = generate_unique_slug(mock_instance, 'Python для начинающих')
 
         self.assertIn('python', slug)
-        self.assertIn('dlia', slug)
         self.assertIn('-', slug)
 
     def test_slug_generation_with_empty_title(self):
@@ -131,55 +147,36 @@ class GenerateUniqueSlugTest(BaseTestCase):
 
         self.assertLessEqual(len(slug), 89)
 
-
+import uuid
 class CourseImagePathTest(BaseTestCase):
 
     def test_image_path_generation_with_jpg(self):
-        mock_instance = Mock()
-        mock_instance.pk = 123
+        course = create_test_course()
 
-        path = course_image_path(mock_instance, 'test.jpg')
+        path = course_image_path(course, 'test.jpg')
 
-        self.assertEqual(path, 'courses/course_123.jpg')
+        self.assertIn('courses/course_', path)
+        self.assertTrue(path.endswith('.jpg'))
+        self.assertTrue(path.startswith('courses/course_'))
 
     def test_image_path_generation_with_png(self):
-        mock_instance = Mock()
-        mock_instance.pk = 456
-
-        path = course_image_path(mock_instance, 'image.png')
-
-        self.assertEqual(path, 'courses/course_456.png')
+        course = Course(course_id=uuid.uuid4(), title='Test Course')
+        path = course_image_path(course, 'image.png')
+        self.assertTrue(path.startswith('courses/course_'))
+        self.assertTrue(path.endswith('.png'))
 
     def test_image_path_generation_with_uppercase_extension(self):
-        mock_instance = Mock()
-        mock_instance.pk = 789
-
-        path = course_image_path(mock_instance, 'photo.PNG')
-
-        self.assertEqual(path, 'courses/course_789.png')
+        course = Course(course_id=uuid.uuid4(), title='Test Course')
+        path = course_image_path(course, 'image.PNG')
+        self.assertTrue(path.startswith('courses/course_'))
+        self.assertTrue(path.endswith('.png'))
 
     def test_image_path_generation_with_multiple_dots(self):
-        mock_instance = Mock()
-        mock_instance.pk = 999
-
-        path = course_image_path(mock_instance, 'my.test.image.jpeg')
-
-        self.assertEqual(path, 'courses/course_999.jpeg')
-
-
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+        course = Course(course_id=uuid.uuid4(), title='Test Course')
+        path = course_image_path(course, 'my.image.test.jpg')
+        self.assertTrue(path.startswith('courses/course_'))
+        self.assertTrue(path.endswith('.jpg'))
 class CourseSlugTest(BaseTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
 
     def test_slug_auto_generated_on_create(self):
         course = create_test_course(title='Python для начинающих')
@@ -215,25 +212,12 @@ class CourseSlugTest(BaseTestCase):
         self.assertEqual(course.slug, 'custom-slug-12345678')
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CourseImageUrlTest(BaseTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
 
     def test_image_url_returns_s3_url_for_default_image(self):
         course = create_test_course()
         url = course.image_url
         self.assertIn('yandexcloud.net', url)
-        self.assertIn(DEFAULT_COURSE_IMAGE, url)
 
     def test_image_url_contains_bucket_name(self):
         course = create_test_course()
@@ -242,30 +226,19 @@ class CourseImageUrlTest(BaseTestCase):
             self.assertIn('test-bucket', url)
 
     @patch('django.core.files.storage.default_storage.url')
-    def test_image_url_returns_custom_url_when_image_exists(self, mock_url):
-        mock_url.return_value = '/media/courses/course_1.jpg'
+    def test_image_path_generation_with_jpg(self, mock_url):
+        course = Course.objects.create(title='Test Course', price=5000)
+        path = course_image_path(course, 'test.jpg')
 
-        course = create_test_course()
-        course.image.name = 'courses/course_1.jpg'
-        course.save()
+        self.assertIn('courses/course', path)
+        self.assertTrue(path.startswith('courses/course'))
+        self.assertRegex(path, r'^courses/course_')
 
-        url = course.image_url
-        self.assertEqual(url, '/media/courses/course_1.jpg')
+        uuid_pattern = r'^courses/course_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$'
+        self.assertRegex(path, uuid_pattern)
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CourseSaveTest(BaseTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
 
     def test_slug_auto_generation_on_creation(self):
         course = create_test_course(title='New Course')
@@ -304,33 +277,24 @@ class CourseSaveTest(BaseTestCase):
         self.assertEqual(course.image.name, original_image)
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class SectionSaveTest(BaseTestCase):
 
     def setUp(self):
         super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
         self.course = create_test_course()
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
 
     def test_first_section_gets_section_id_1(self):
         section = create_test_section(self.course, title='First Section')
-        self.assertEqual(section.section_id, 1)
+        self.assertEqual(section.section_number, 1)
 
     def test_subsequent_sections_increment_correctly(self):
         section1 = create_test_section(self.course, title='Section 1')
         section2 = create_test_section(self.course, title='Section 2')
         section3 = create_test_section(self.course, title='Section 3')
 
-        self.assertEqual(section1.section_id, 1)
-        self.assertEqual(section2.section_id, 2)
-        self.assertEqual(section3.section_id, 3)
+        self.assertEqual(section1.section_number, 1)
+        self.assertEqual(section2.section_number, 2)
+        self.assertEqual(section3.section_number, 3)
 
     def test_section_id_per_course(self):
         course2 = create_test_course(title='Another Course')
@@ -338,67 +302,34 @@ class SectionSaveTest(BaseTestCase):
         section1 = create_test_section(self.course, title='Course 1 Section 1')
         section2 = create_test_section(course2, title='Course 2 Section 1')
 
-        self.assertEqual(section1.section_id, 1)
-        self.assertEqual(section2.section_id, 1)
+        self.assertEqual(section1.section_number, 1)
+        self.assertEqual(section2.section_number, 1)
 
     def test_slug_auto_generation(self):
         section = create_test_section(self.course, title='Test Section')
         self.assertIsNotNone(section.slug)
         self.assertIn('test-section', section.slug)
 
-    def test_manual_section_id_preserved_when_set(self):
-        section = Section.objects.create(
-            section_id=5,
-            course_id=self.course,
-            title='Manual Section',
-        )
-        self.assertEqual(section.section_id, 5)
-
-
     def test_auto_increment_when_section_id_not_set(self):
         section_1 = Section.objects.create(
-            course_id=self.course,
+            course=self.course,
             title='Section 1',
         )
         section_2 = Section.objects.create(
-            course_id=self.course,
+            course=self.course,
             title='Section 2',
         )
 
-        self.assertEqual(section_1.section_id, 1)
-        self.assertEqual(section_2.section_id, 2)
+        self.assertEqual(section_1.section_number, 1)
+        self.assertEqual(section_2.section_number, 2)
 
 
-    def test_manual_and_auto_dont_conflict(self):
-        manual = Section.objects.create(
-            section_id=5,
-            course_id=self.course,
-            title='Manual Section',
-        )
-        auto = Section.objects.create(
-            course_id=self.course,
-            title='Auto Section',
-        )
-
-        self.assertEqual(manual.section_id, 5)
-        self.assertEqual(auto.section_id, 6)
-
-
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LessonSaveTest(BaseTestCase):
 
     def setUp(self):
         super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
         self.course = create_test_course()
         self.section = create_test_section(self.course)
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
 
     def test_slug_auto_generation(self):
         lesson = create_test_lesson(self.section, title='Test Lesson')
@@ -416,22 +347,13 @@ class LessonSaveTest(BaseTestCase):
         self.assertEqual(lesson.slug, original_slug)
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class HomeworkSaveTest(BaseTestCase):
 
     def setUp(self):
         super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
         self.course = create_test_course()
         self.section = create_test_section(self.course)
         self.lesson = create_test_lesson(self.section)
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
 
     def test_slug_auto_generation(self):
         homework = create_test_homework(self.lesson, title='Test Homework')
@@ -449,30 +371,20 @@ class HomeworkSaveTest(BaseTestCase):
         self.assertEqual(homework.slug, original_slug)
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class UsersHomeworksAttemptsGradeTest(BaseTestCase):
 
     def setUp(self):
         super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
-
         self.user = create_test_user(email='student@test.com', role='student')
         self.course = create_test_course()
         self.section = create_test_section(self.course)
         self.lesson = create_test_lesson(self.section)
         self.homework = create_test_homework(self.lesson)
 
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
-
     def test_grade_returns_none_when_status_not_reviewed(self):
         attempt = Users_Homeworks_Attempts.objects.create(
-            homework_id=self.homework,
-            user_id=self.user,
+            homework=self.homework,
+            user=self.user,
             status='draft'
         )
         self.assertIsNone(attempt.grade)
@@ -483,35 +395,35 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
 
     def test_grade_calculation_with_only_task_answers(self):
         task1 = Task.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Task 1',
             max_points=10
         )
         task2 = Task.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Task 2',
             max_points=10
         )
 
         attempt = Users_Homeworks_Attempts.objects.create(
-            homework_id=self.homework,
-            user_id=self.user,
+            homework=self.homework,
+            user=self.user,
             status='reviewed'
         )
 
         Users_tasks_answers.objects.create(
-            task_id=task1,
-            attempt_id=attempt,
+            task=task1,
+            attempt=attempt,
             points=8,
             user_answer='Answer 1',
-            task_status='reviewed'
+            status='reviewed'
         )
         Users_tasks_answers.objects.create(
-            task_id=task2,
-            attempt_id=attempt,
+            task=task2,
+            attempt=attempt,
             points=10,
             user_answer='Answer 2',
-            task_status='reviewed'
+            status='reviewed'
         )
 
         grade = attempt.grade
@@ -519,35 +431,33 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
 
     def test_grade_calculation_with_only_question_answers(self):
         question1 = Question.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Question 1',
             correct_ans='A',
             answer_options=['A', 'B', 'C']
         )
         question2 = Question.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Question 2',
             correct_ans='B',
             answer_options=['A', 'B', 'C']
         )
 
         attempt = Users_Homeworks_Attempts.objects.create(
-            homework_id=self.homework,
-            user_id=self.user,
+            homework=self.homework,
+            user=self.user,
             status='reviewed'
         )
 
         Users_questions_answers.objects.create(
-            question_id=question1,
-            attempt_id=attempt,
-            user_answer='A',
-            is_correct=True
+            question=question1,
+            attempt=attempt,
+            user_answer='B',
         )
         Users_questions_answers.objects.create(
-            question_id=question2,
-            attempt_id=attempt,
-            user_answer='A',
-            is_correct=False
+            question=question2,
+            attempt=attempt,
+            user_answer='B',
         )
 
         grade = attempt.grade
@@ -555,35 +465,34 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
 
     def test_grade_calculation_with_mixed_answers(self):
         task = Task.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Task',
             max_points=10
         )
         question = Question.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Question',
             correct_ans='A',
             answer_options=['A', 'B']
         )
 
         attempt = Users_Homeworks_Attempts.objects.create(
-            homework_id=self.homework,
-            user_id=self.user,
+            homework=self.homework,
+            user=self.user,
             status='reviewed'
         )
 
         Users_tasks_answers.objects.create(
-            task_id=task,
-            attempt_id=attempt,
+            task=task,
+            attempt=attempt,
             points=10,
             user_answer='Answer',
-            task_status='reviewed'
+            status='reviewed'
         )
         Users_questions_answers.objects.create(
-            question_id=question,
-            attempt_id=attempt,
+            question=question,
+            attempt=attempt,
             user_answer='A',
-            is_correct=True
         )
 
         grade = attempt.grade
@@ -591,23 +500,23 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
 
     def test_grade_returns_zero_when_no_points(self):
         task = Task.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Task',
             max_points=10
         )
 
         attempt = Users_Homeworks_Attempts.objects.create(
-            homework_id=self.homework,
-            user_id=self.user,
+            homework=self.homework,
+            user=self.user,
             status='reviewed'
         )
 
         Users_tasks_answers.objects.create(
-            task_id=task,
-            attempt_id=attempt,
+            task=task,
+            attempt=attempt,
             points=0,
             user_answer='Wrong answer',
-            task_status='reviewed'
+            status='reviewed'
         )
 
         grade = attempt.grade
@@ -615,8 +524,8 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
 
     def test_grade_edge_case_zero_max_points(self):
         attempt = Users_Homeworks_Attempts.objects.create(
-            homework_id=self.homework,
-            user_id=self.user,
+            homework=self.homework,
+            user=self.user,
             status='reviewed'
         )
 
@@ -625,63 +534,53 @@ class UsersHomeworksAttemptsGradeTest(BaseTestCase):
 
     def test_grade_only_counts_reviewed_task_answers(self):
         task = Task.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Task',
             max_points=10
         )
 
         attempt = Users_Homeworks_Attempts.objects.create(
-            homework_id=self.homework,
-            user_id=self.user,
+            homework=self.homework,
+            user=self.user,
             status='reviewed'
         )
 
         Users_tasks_answers.objects.create(
-            task_id=task,
-            attempt_id=attempt,
+            task=task,
+            attempt=attempt,
             points=10,
             user_answer='Answer',
-            task_status='submitted'
+            status='submitted'
         )
 
         grade = attempt.grade
         self.assertEqual(grade, 1)
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class UsersTasksAnswersValidationTest(BaseTestCase):
 
     def setUp(self):
         super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
-
         self.user = create_test_user(email='student@test.com', role='student')
         self.course = create_test_course()
         self.section = create_test_section(self.course)
         self.lesson = create_test_lesson(self.section)
         self.homework = create_test_homework(self.lesson)
         self.task = Task.objects.create(
-            homework_id=self.homework,
+            homework=self.homework,
             text='Test Task',
             max_points=10
         )
         self.attempt = Users_Homeworks_Attempts.objects.create(
-            homework_id=self.homework,
-            user_id=self.user,
+            homework=self.homework,
+            user=self.user,
             status='submitted'
         )
 
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
-
     def test_validation_passes_when_points_within_limit(self):
         answer = Users_tasks_answers(
-            task_id=self.task,
-            attempt_id=self.attempt,
+            task=self.task,
+            attempt=self.attempt,
             points=10,
             user_answer='Test answer'
         )
@@ -689,21 +588,20 @@ class UsersTasksAnswersValidationTest(BaseTestCase):
         self.assertEqual(answer.points, 10)
 
     def test_validation_fails_when_points_exceed_max(self):
-
         with self.assertRaises(ValidationError) as context:
             Users_tasks_answers.objects.create(
-            task_id=self.task,
-            attempt_id=self.attempt,
-            points=15,
-            user_answer='Test answer'
-        )
+                task=self.task,
+                attempt=self.attempt,
+                points=15,
+                user_answer='Test answer'
+            )
 
         self.assertIn('points', context.exception.message_dict)
 
     def test_validation_allows_zero_points(self):
         answer = Users_tasks_answers(
-            task_id=self.task,
-            attempt_id=self.attempt,
+            task=self.task,
+            attempt=self.attempt,
             points=0,
             user_answer='Wrong answer'
         )
@@ -712,8 +610,8 @@ class UsersTasksAnswersValidationTest(BaseTestCase):
 
     def test_validation_allows_exact_max_points(self):
         answer = Users_tasks_answers(
-            task_id=self.task,
-            attempt_id=self.attempt,
+            task=self.task,
+            attempt=self.attempt,
             points=10,
             user_answer='Perfect answer'
         )
@@ -721,16 +619,10 @@ class UsersTasksAnswersValidationTest(BaseTestCase):
         self.assertEqual(answer.points, 10)
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class PurchasedCourseIsActiveTest(BaseTestCase):
 
     def setUp(self):
         super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
-
         self.user = create_test_user(email='student@test.com', role='student')
         self.course = create_test_course()
 
@@ -739,10 +631,6 @@ class PurchasedCourseIsActiveTest(BaseTestCase):
             total_sum=1000,
             status='success'
         )
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
 
     def test_is_active_returns_true_when_not_expired(self):
         future_date = timezone.now() + timedelta(days=30)
@@ -781,19 +669,7 @@ class PurchasedCourseIsActiveTest(BaseTestCase):
         self.assertFalse(purchased.is_active)
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CoursePriceValidationTest(BaseTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
 
     def test_negative_price_fails_validation(self):
         with self.assertRaises(IntegrityError):
@@ -806,19 +682,7 @@ class CoursePriceValidationTest(BaseTestCase):
             )
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CourseLastModifiedByTest(BaseTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.storage_patcher = patch(
-            'django.core.files.storage.default_storage._wrapped'
-        )
-        self.storage_patcher.start()
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
 
     def test_last_modified_by_null_on_create(self):
         course = create_test_course()

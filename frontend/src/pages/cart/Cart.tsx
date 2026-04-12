@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Card,
@@ -6,18 +5,18 @@ import {
   CardHeader,
   CardTitle,
   Button,
-  Spinner,
+  Skeleton,
   PageTransition,
-} from '../../shared/ui';
-import { cartApi, type CartResponse } from '../../shared/api/cartApi';
-import { useCartSummaryStore } from '../../entities/cart/model/cartSummaryStore';
-import { parseApiError } from '../../shared/lib/api/parseApiError';
+} from '@shared/ui';
+import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
   notifyError,
   notifyWarning,
-} from '../../shared/lib/sileo/notify';
-import { cn } from '../../shared/lib/utils';
+} from '@shared/lib/sileo/notify';
+import { useCart } from '@shared/api/queries/cart';
+import { useRemoveFromCart } from '@shared/api/mutations/cart';
+import { cn } from '@shared/lib/utils';
 import styles from './Cart.module.css';
 
 import { X } from 'lucide-react';
@@ -35,109 +34,86 @@ function isAuthLike(err: unknown) {
   return msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401');
 }
 
-function notifyCartLoadError(err: unknown) {
-  if (isAuthLike(err)) {
-    notifyWarning({
-      title: 'нужна авторизация',
-      description: 'Войдите, чтобы открыть корзину.',
-    });
-    return;
-  }
-  const parsed = parseApiError(err);
-  if (parsed) {
-    const m = messageForApiFailure('cartLoad', parsed.status, parsed.body);
-    notifyError({ title: m.title, description: m.description });
-    return;
-  }
-  const fb = messageForApiFailure('cartLoad', 0, {});
-  notifyError({ title: fb.title, description: fb.description });
-}
-
-function notifyCartRemoveError(err: unknown) {
-  if (isAuthLike(err)) {
-    notifyWarning({
-      title: 'сессия устарела',
-      description: 'Войдите снова и повторите действие.',
-    });
-    return;
-  }
-  const parsed = parseApiError(err);
-  if (parsed) {
-    const m = messageForApiFailure('cartRemove', parsed.status, parsed.body);
-    notifyError({ title: m.title, description: m.description });
-    return;
-  }
-  const fb = messageForApiFailure('cartRemove', 0, {});
-  notifyError({ title: fb.title, description: fb.description });
+function CartSkeleton() {
+  return (
+    <PageTransition className={styles.cartPage}>
+      <h1 className={styles.cartTitle}>Корзина</h1>
+      <div className={styles.cartLayout}>
+        <div className={styles.cartList}>
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className={styles.cartItem}>
+              <div className={styles.cartItemInfo}>
+                <Skeleton className={styles.skeletonItemTitle} />
+                <Skeleton className={styles.skeletonItemSubtitle} />
+              </div>
+              <div className={styles.cartItemPriceBlock}>
+                <Skeleton className={styles.skeletonItemPeriod} />
+                <Skeleton className={styles.skeletonItemPrice} />
+                <Skeleton className={styles.skeletonItemHint} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <aside className={styles.cartSummary}>
+          <Card className={styles.summaryCard}>
+            <CardHeader className={styles.summaryHeader}>
+              <Skeleton className={styles.skeletonSummaryTitle} />
+              <Skeleton className={styles.skeletonSummaryAmount} />
+            </CardHeader>
+            <CardContent className={styles.summaryContent}>
+              <Skeleton className={styles.skeletonPayButton} />
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
+    </PageTransition>
+  );
 }
 
 export default function CartPage() {
-  const [cart, setCart] = useState<CartResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: cart, isLoading: loading, error, refetch } = useCart();
+  const removeFromCart = useRemoveFromCart();
 
-  const loadCart = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await cartApi.getCart();
-      setCart(data);
-      useCartSummaryStore.getState().setHasItems(data.courses.length > 0);
-    } catch (err) {
-      notifyCartLoadError(err);
-      if (isAuthLike(err)) {
-        useCartSummaryStore.getState().setHasItems(false);
-      }
-      setError(
-        isAuthLike(err)
-          ? 'Нужна авторизация'
-          : 'Не удалось загрузить корзину',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadCart();
-  }, [loadCart]);
-
-  const handleRemove = async (slug: string) => {
-    if (!cart) return;
-
-    const prevCourses = cart.courses;
-    const updatedCourses = prevCourses.filter((c) => c.slug !== slug);
-    setCart({ ...cart, courses: updatedCourses });
-
-    try {
-      await cartApi.removeCourse(slug);
-      useCartSummaryStore
-        .getState()
-        .setHasItems(updatedCourses.length > 0);
-    } catch (err) {
-      setCart({ ...cart, courses: prevCourses });
-      notifyCartRemoveError(err);
-    }
+  const handleRemove = (slug: string) => {
+    removeFromCart.mutate(slug, {
+      onError: (err) => {
+        if (isAuthLike(err)) {
+          notifyWarning({
+            title: 'сессия устарела',
+            description: 'Войдите снова и повторите действие.',
+          });
+          return;
+        }
+        const parsed = parseApiError(err);
+        if (parsed) {
+          const m = messageForApiFailure('cartRemove', parsed.status, parsed.body);
+          notifyError({ title: m.title, description: m.description });
+          return;
+        }
+        const fb = messageForApiFailure('cartRemove', 0, {});
+        notifyError({ title: fb.title, description: fb.description });
+      },
+    });
   };
 
   if (loading) {
-    return (
-      <div className={styles.cartPage}>
-        <Spinner full />
-      </div>
-    );
+    return <CartSkeleton />;
   }
 
   if (error) {
+    const errMsg = isAuthLike(error)
+      ? 'Нужна авторизация'
+      : 'Не удалось загрузить корзину';
+
     return (
       <div className={styles.cartPage}>
         <h1 className={styles.cartTitle}>Корзина</h1>
         <div className={styles.centerBlock}>
-          <p>{error}</p>
+          <p>{errMsg}</p>
           <Button
             style={{ marginTop: 16 }}
             variant="secondary"
-            onClick={() => void loadCart()}
+            onClick={() => void refetch()}
           >
             Повторить
           </Button>

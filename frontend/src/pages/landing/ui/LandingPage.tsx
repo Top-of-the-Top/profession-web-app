@@ -1,9 +1,9 @@
 import styles from './LandingPage.module.css';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { cn } from '../../../shared/lib/utils';
+import { cn } from '@shared/lib/utils';
 import { Menu, X } from 'lucide-react';
-import { Button, Card, CardTitle, Spinner } from '../../../shared/ui';
+import { Button, Card, CardTitle, Skeleton } from '@shared/ui';
 import { ArrowUpRight } from 'lucide-react';
 import {
   Pagination,
@@ -13,34 +13,23 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from '../../../shared/ui/Pagination';
+} from '@shared/ui/Pagination';
 import CollapsibleSection from './CollapsibleSection';
 import Footer from './Footer';
-import { type Track } from '../../../schemas/types';
-import { internalLandingApi } from '../api';
+import { useLandingCourses } from '@shared/api/queries/landing';
+import { preloadAuthFormBundles } from '@router/lazyPages';
 
 export default function LandingPage() {
   const navigate = useNavigate();
 
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { data: landingData, isLoading: loading } = useLandingCourses();
+  const tracks = landingData?.data ?? [];
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 6;
 
   const toggleMenu = () => setIsMenuOpen((prev) => !prev);
-  useEffect(() => {
-    internalLandingApi
-      .getCourses()
-      .then((data) => {
-        setTracks(data.data);
-        setCurrentPage(1);
-      })
-      .catch((error) => {
-        console.error('Ошибка загрузки курсов:', error);
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   const totalPages = Math.ceil(tracks.length / PAGE_SIZE);
   const pagedTracks = tracks.slice(
@@ -53,6 +42,11 @@ export default function LandingPage() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (loading) return;
+    preloadAuthFormBundles();
+  }, [loading]);
 
   const visiblePageNumbers = (() => {
     if (totalPages <= 1) return [];
@@ -78,6 +72,27 @@ export default function LandingPage() {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+
+  const trackSkeletons = Array.from({ length: PAGE_SIZE }).map((_, idx) => (
+    <Card key={`track-skeleton-${idx}`} className={styles.trackCard}>
+      <div className={styles.trackCardLayout}>
+        <div className={styles.trackCardLeft}>
+          <div className={styles.trackCardTop}>
+            <div className={styles.trackHeader}>
+              <Skeleton className={styles.skeletonTrackTitle} />
+            </div>
+            <Skeleton className={styles.skeletonTrackPrice} />
+          </div>
+          <div className={styles.trackCardActions}>
+            <Skeleton className={styles.skeletonTrackButtonRow} />
+          </div>
+        </div>
+        <div className={styles.trackImageCol}>
+          <Skeleton className={styles.skeletonTrackImage} />
+        </div>
+      </div>
+    </Card>
+  ));
 
   // Скролл по якорям
   useEffect(() => {
@@ -139,6 +154,8 @@ export default function LandingPage() {
           <div className={styles.desktopAuth}>
             <Button
               onClick={() => navigate('/login')}
+              onPointerEnter={preloadAuthFormBundles}
+              onFocus={preloadAuthFormBundles}
               variant="outline"
               size="lg"
             >
@@ -146,6 +163,8 @@ export default function LandingPage() {
             </Button>
             <Button
               onClick={() => navigate('/register')}
+              onPointerEnter={preloadAuthFormBundles}
+              onFocus={preloadAuthFormBundles}
               variant="primary"
               size="lg"
             >
@@ -185,6 +204,8 @@ export default function LandingPage() {
         <div className={styles.mobileAuth}>
           <Button
             onClick={() => navigate('/login')}
+            onPointerEnter={preloadAuthFormBundles}
+            onFocus={preloadAuthFormBundles}
             variant="outline"
             size="lg"
           >
@@ -192,6 +213,8 @@ export default function LandingPage() {
           </Button>
           <Button
             onClick={() => navigate('/register')}
+            onPointerEnter={preloadAuthFormBundles}
+            onFocus={preloadAuthFormBundles}
             variant="primary"
             size="lg"
           >
@@ -215,6 +238,8 @@ export default function LandingPage() {
               <div className={styles.heroCta}>
                 <Button
                   onClick={() => navigate('/register')}
+                  onPointerEnter={preloadAuthFormBundles}
+                  onFocus={preloadAuthFormBundles}
                   asChild
                   size="lg"
                   className={styles.buttonInline}
@@ -223,7 +248,7 @@ export default function LandingPage() {
                 </Button>
               </div>
             </div>
-            <div className={styles.children}></div>
+            {/* <div className={styles.children}></div> */}
           </section>
 
           <section className={styles.section}>
@@ -242,7 +267,7 @@ export default function LandingPage() {
 
             <div className={styles.tracksGrid}>
               {loading ? (
-                <Spinner />
+                trackSkeletons
               ) : (
                 pagedTracks.map((track) => (
                   <Card
@@ -250,6 +275,7 @@ export default function LandingPage() {
                     className={styles.trackCard}
                     style={{ backgroundColor: track.bgColor }}
                     onClick={() => navigate('/register')}
+                    onPointerEnter={preloadAuthFormBundles}
                   >
                     <div className={styles.trackCardLayout}>
                       <div className={styles.trackCardLeft}>

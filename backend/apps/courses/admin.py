@@ -1,4 +1,4 @@
-from .models import Course, Section, Lesson, Homework, Task, Question, Users_tasks_answers, Users_Homeworks_Attempts, Users_questions_answers, PurchasedCourse
+from .models import Course, Section, Lesson, Homework, Task, Question, Users_tasks_answers, Users_Homeworks_Attempts, Users_questions_answers, PurchasedCourse, Webinar
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -80,3 +80,10 @@ class PurchasedCourseAdmin(admin.ModelAdmin):
         'is_active')
     list_filter = ('access_expires_at',)
     search_fields = ('user__email_cipher', 'course__title')
+
+
+@admin.register(Webinar)
+class WebinarAdmin(admin.ModelAdmin):
+    list_display = ('lesson', 'status', 'started_by', 'started_at', 'ended_at')
+    list_filter = ('status',)
+    readonly_fields = ('webinar_id', 'agora_channel_name', 'whiteboard_room_uuid', 'recording_resource_id', 'recording_sid')

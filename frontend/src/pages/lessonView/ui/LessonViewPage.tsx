@@ -323,7 +323,7 @@ const LessonRecording: React.FC<{ recording: string | null }> = ({ recording }) 
       {isHttpLink ? (
         <div className={styles.recordingIframeWrap}>
           <iframe
-            src={value}
+            src={value === "https://example.com/recordings/mock-lesson" ? "https://kinescope.io/t1go93i9aP3NG6VNPxiCC6" : value}
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
             allowFullScreen
             className={styles.recordingIframe}

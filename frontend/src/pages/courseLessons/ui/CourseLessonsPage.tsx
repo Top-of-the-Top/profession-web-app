@@ -4,12 +4,10 @@ import {
   Check,
   ChevronDown,
   Eye,
-  EyeOff,
-  Flame,
+  EyeClosed,
   GripVertical,
   Home,
   Pencil,
-  Pause,
   Plus,
   Trash2,
 } from 'lucide-react';
@@ -59,16 +57,35 @@ function isSectionCompleted(sectionId: string, completed: string[]): boolean {
   return completed.some((c) => String(c) === sectionId);
 }
 
-function StreakCard() {
+const STREAK_FIRE_SRC = `${import.meta.env.BASE_URL}course/yellow-fire.svg`;
+
+function StreakCard({ streakDays = 13 }: { streakDays?: number }) {
   return (
-    <div className={styles.sideCard}>
-      <p className={styles.sideCardTitle}>Ваша серия вебинаров</p>
-      <p className={styles.sideCardHint}>
-        Не пропусти следующий, чтобы серия росла
-      </p>
-      <div className={styles.streakRow}>
-        <span className={styles.streakNumber}>13</span>
-        <Flame className={styles.streakFlame} size={28} strokeWidth={1.75} />
+    <div className={cn(styles.sideCard, styles.streakCard)}>
+      <div className={styles.streakCardLayout}>
+        <div className={styles.streakCardTextCol}>
+          <p className={styles.streakCardTitle}>
+            Ваша серия
+            <br />
+            вебинаров
+          </p>
+          <p className={styles.streakCardSubtitle}>
+            Не пропусти следующий,
+            <br />
+            чтобы серия росла
+          </p>
+        </div>
+        <div className={styles.streakVisualCol}>
+          <span className={styles.streakNumber}>{streakDays}</span>
+          <img
+            src={STREAK_FIRE_SRC}
+            alt=""
+            className={styles.streakFireImg}
+            width={58}
+            height={107}
+            decoding="async"
+          />
+        </div>
       </div>
     </div>
   );
@@ -91,8 +108,17 @@ function StudentProgressCard({
     homeworkTotal > 0 ? Math.round((homeworkDone / homeworkTotal) * 100) : 0;
 
   return (
-    <div className={styles.sideCard}>
-      <p className={styles.sideCardTitle}>Ваш прогресс</p>
+    <div
+      className={cn(
+        styles.sideCard,
+        styles.statSidebarCard,
+        styles.studentProgressCard
+      )}
+    >
+      <div className={styles.progressCardHead}>
+        <span className={styles.progressLiveDot} aria-hidden />
+        <p className={styles.progressCardTitle}>Ваш прогресс</p>
+      </div>
       <div className={styles.progressBlock}>
         <div className={styles.progressHeader}>
           <span>Пройдено уроков</span>
@@ -102,7 +128,7 @@ function StudentProgressCard({
         </div>
         <div className={styles.progressTrack}>
           <div
-            className={styles.progressFill}
+            className={styles.progressFillStudent}
             style={{ width: `${lessonsPct}%` }}
           />
         </div>
@@ -115,7 +141,10 @@ function StudentProgressCard({
           </span>
         </div>
         <div className={styles.progressTrack}>
-          <div className={styles.progressFill} style={{ width: `${hwPct}%` }} />
+          <div
+            className={styles.progressFillStudent}
+            style={{ width: `${hwPct}%` }}
+          />
         </div>
       </div>
     </div>
@@ -164,7 +193,10 @@ function StudentStatusIcon({ done }: { done: boolean }) {
       className={cn(styles.statusIcon, styles.statusIconPending)}
       aria-hidden
     >
-      <Pause size={14} strokeWidth={2.5} />
+      <span className={styles.statusIconPendingBars}>
+        <span className={styles.statusIconPendingBar} />
+        <span className={styles.statusIconPendingBar} />
+      </span>
     </span>
   );
 }
@@ -401,7 +433,7 @@ function SectionStaffTools({
         }
         onClick={onEditTitle}
       >
-        <Pencil size={20} strokeWidth={2} />
+        <Pencil size={21} strokeWidth={2} />
       </Button>
       <Button
         type="button"
@@ -416,7 +448,7 @@ function SectionStaffTools({
         }
         onClick={onDeleteSection}
       >
-        <Trash2 size={20} strokeWidth={2} />
+        <Trash2 size={21} strokeWidth={2} />
       </Button>
     </div>
   );
@@ -525,13 +557,13 @@ function SectionBlock({
       <div className={styles.sectionCard}>
         <div className={styles.sectionCardWrapper}>
           <div className={styles.sectionHeader}>
-            {isStaff ? (
-              <span className={styles.dragHandleSlot}>
-                <span className={styles.dragHandle} aria-hidden>
+            <span className={styles.dragHandleSlot} aria-hidden>
+              {isStaff ? (
+                <span className={styles.dragHandle}>
                   <GripVertical size={18} strokeWidth={2} />
                 </span>
-              </span>
-            ) : null}
+              ) : null}
+            </span>
 
             {isStaff && editingTitle ? (
               <div className={styles.sectionTitleEdit}>
@@ -759,7 +791,7 @@ function LessonRow({
             {published ? (
               <Eye size={18} strokeWidth={2} />
             ) : (
-              <EyeOff size={18} strokeWidth={2} />
+              <EyeClosed size={18} strokeWidth={2} />
             )}
           </span>
           <Button
@@ -774,7 +806,7 @@ function LessonRow({
               )
             }
           >
-            <Pencil size={18} strokeWidth={2} />
+            <Pencil size={21} strokeWidth={2} />
           </Button>
           <Button
             type="button"
@@ -785,7 +817,7 @@ function LessonRow({
             title="Удалить урок"
             onClick={requestDeleteLesson}
           >
-            <Trash2 size={18} strokeWidth={2} />
+            <Trash2 size={21} strokeWidth={2} />
           </Button>
         </div>
       </div>

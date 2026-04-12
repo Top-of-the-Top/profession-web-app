@@ -2,7 +2,7 @@
   width: 100%;
   min-height: 100%;
   padding: 28px 40px 48px;
-  background-color: #f0f2f5;
+  background-color: #E2E8F0;
   box-sizing: border-box;
 }
 
@@ -27,8 +27,8 @@
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 28px;
+  grid-template-columns: minmax(0, 1fr) 30%;
+  gap: 35px;
   align-items: start;
 }
 
@@ -58,9 +58,85 @@
 .sideCard {
   background: #fff;
   border-radius: 14px;
-  padding: 20px 22px;
+  padding: 10px 22px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.statSidebarCard {
+  border-radius: 22px;
+  padding: 20px 20px 18px;
+  box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+  border: 1px solid #e8eaed;
+}
+
+.streakCard {
+  overflow: hidden;
+  background: #f5f5f5;
+  border-radius: 28px;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 2px 14px rgba(15, 23, 42, 0.05);
+  padding: 20px 0 20px 24px;
+}
+
+.streakCardLayout {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  min-height: 128px;
+}
+
+.streakCardTextCol {
+  flex: 1;
+  min-width: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-right: 4px;
+}
+
+.streakCardTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  max-width: 10.5em;
+}
+
+.streakCardSubtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: #8e8e8e;
+  line-height: 1.38;
+  max-width: 15em;
+}
+
+.streakVisualCol {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  align-self: center;
+  gap: 2px;
+  /* margin-right: -14px; */
+}
+
+.streakNumber {
+  font-size: 5rem;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.streakFireImg {
+  height: 96px;
+  width: auto;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+  object-position: left center;
+  pointer-events: none;
+  user-select: none;
 }
 
 .sideCardTitle {
@@ -77,23 +153,38 @@
   line-height: 1.4;
 }
 
-.streakRow {
+.progressCardHead {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
+  margin-bottom: 2px;
 }
 
-.streakNumber {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  line-height: 1;
-}
-
-.streakFlame {
-  color: #ef4444;
+.progressLiveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #86efac;
   flex-shrink: 0;
+  box-shadow: 0 0 0 2px #ecfdf5;
+}
+
+.progressCardTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.studentProgressCard .progressBlock:first-of-type {
+  margin-top: 12px;
+}
+
+.progressFillStudent {
+  height: 100%;
+  border-radius: 999px;
+  background: #1a1a1a;
+  transition: width 0.25s ease;
 }
 
 .progressBlock {
@@ -258,6 +349,14 @@
   flex-shrink: 0;
 }
 
+.staffSectionTools .staffIconEditBtn svg,
+.staffSectionTools .staffIconDeleteBtn svg,
+.staffLessonActions .staffIconEditBtn svg,
+.staffLessonActions .staffIconDeleteBtn svg {
+  width: 21px;
+  height: 21px;
+}
+
 .staffSectionTools button.staffIconEditBtn:hover:not(:disabled),
 .staffLessonActions button.staffIconEditBtn:hover:not(:disabled) {
   color: #191970;
@@ -300,8 +399,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 23px;
+  height: 23px;
   border-radius: 999px;
   flex-shrink: 0;
 }
@@ -312,12 +411,28 @@
 }
 
 .statusIconPending {
-  background: #f97316;
-  color: #fff;
+  background: #F5D6A9;
+  color: #EEA949;
+	border: 2px solid #EEA949;
+}
+
+.statusIconPendingBars {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.statusIconPendingBar {
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background-color: currentColor;
 }
 
 .sectionBody {
   margin-left: 50px;
+	margin-right: 45px;
   padding: 4px 16px 0 18px;
   border-left: 2px solid #e5e5e5;
   color: #64748b;
@@ -434,7 +549,6 @@
 
 .staffEyeDraft {
   color: #94a3b8;
-  background-color: #f1f5f9;
 }
 
 .editBtn:hover {

@@ -37,10 +37,10 @@ class RequestTimingMiddleware:
 
         log_entry = (
             f"{Term.GRAY}{Term.RESET}{Term.YELLOW}SYNC{Term.RESET}{Term.GRAY}{Term.RESET} "
-            f"{Term.GRAY}│{Term.RESET} {Term.WHITE}{Term.BOLD}{request.method:<7}{Term.RESET} "
-            f"{Term.GRAY}│{Term.RESET} {Term.CYAN}{request.path:<40}{Term.RESET} "
-            f"{Term.GRAY}│{Term.RESET} {status_color}{status:<3}{Term.RESET} "
-            f"{Term.GRAY}│{Term.RESET} {time_color}{duration:.4f}s{Term.RESET}"
+            f"{Term.GRAY}|{Term.RESET} {Term.WHITE}{Term.BOLD}{request.method:<7}{Term.RESET} "
+            f"{Term.GRAY}|{Term.RESET} {Term.CYAN}{request.path:<40}{Term.RESET} "
+            f"{Term.GRAY}|{Term.RESET} {status_color}{status:<3}{Term.RESET} "
+            f"{Term.GRAY}|{Term.RESET} {time_color}{duration:.4f}s{Term.RESET}"
         )
 
         sys.stdout.write(log_entry + '\n')

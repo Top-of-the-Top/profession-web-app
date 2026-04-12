@@ -448,3 +448,91 @@ class PurchasedCourse(models.Model):
     def is_active(self):
         from django.utils import timezone
         return timezone.now() < self.access_expires_at
+    
+
+class Webinar(TimestampedMixin):
+    PENDING_STATUS = 'pending'
+    LIVE_STATUS = 'live'
+    ENDED_STATUS = 'ended'
+
+    STATUS_CHOICES = [
+        (PENDING_STATUS, 'Ожидание'),
+        (LIVE_STATUS, 'В эфире'),
+        (ENDED_STATUS, 'Завершен'),
+    ]
+
+    webinar_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        verbose_name='id',
+    )
+    lesson = models.OneToOneField(
+        Lesson, 
+        on_delete=models.CASCADE,
+        related_name='webinar',
+        verbose_name='Урок'
+    )
+    started_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='started_webinars',
+        verbose_name='Кто запустил',
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=PENDING_STATUS,
+        verbose_name='Статус',
+    )
+
+    agora_channel_name = models.CharField(
+        max_length=64,
+        unique=True,
+        blank=True,
+        verbose_name='Agora Channel Name',
+    )
+
+    whiteboard_room_uuid = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name='Whiteboard Room UUID',
+    )
+
+    recording_resource_id = models.CharField(
+        max_length=256,
+        blank=True,
+    )
+    recording_sid = models.CharField(
+        max_length=256,
+        blank=True,
+    )
+    recording_url = models.URLField(
+        blank=True,
+        verbose_name='Ссылка на запись',
+    )
+
+    started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Начало',
+    )
+    ended_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Конец',
+    )
+
+    def save(self, *args, **kwargs):
+        if not self.agora_channel_name:
+            self.agora_channel_name = f"webinar-{str(self.lesson.lesson_id)[:8]}"
+        super().save(*args, **kwargs)
+    
+    class Meta:
+        verbose_name = 'Вебинар'
+        verbose_name_plural = 'Вебинары'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Вебинар: {self.lesson.title}"
+    

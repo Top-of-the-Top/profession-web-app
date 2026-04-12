@@ -9,31 +9,26 @@ urlpatterns = [
         views.CourseDTOList.as_view(),
         name='course-list-preview',
     ),
-]
-
-urlpatterns += [
     path(
         'app/my-courses/',
         views.PurchasedCoursesView.as_view(),
         name='my-courses',
     ),
-]
-
-urlpatterns += [
     path(
         'app/courses/<slug:course_slug>/home/',
         views.CourseHomePageView.as_view(),
         name='course-homepage',
     ),
-    path('app/courses/', views.CourseListView.as_view(), name='courses-list'),
+    path(
+        'app/courses/',
+        views.CourseListView.as_view(),
+        name='courses-list'
+    ),
     path(
         'app/courses/<slug:slug>/',
         views.CourseDetailView.as_view(),
         name='courses-detail',
     ),
-]
-
-urlpatterns += [
     path(
         'courses/<slug:course_slug>/sections/',
         views.SectionCreateView.as_view(),
@@ -54,9 +49,6 @@ urlpatterns += [
         views.LessonDetailView.as_view(),
         name='course-lessons-detail',
     ),
-]
-
-urlpatterns += [
     path(
         'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/',
         views.HomeworkCreateView.as_view(),
@@ -86,5 +78,26 @@ urlpatterns += [
         'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/',
         views.HomeworkDetailView.as_view(),
         name='lesson-homeworks-detail',
+    ),
+
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/start/',
+        views.WebinarStartView.as_view(),
+        name='webinar-start',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/stop/',
+        views.WebinarStopView.as_view(),
+        name='webinar-stop',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/join/',
+        views.WebinarJoinView.as_view(),
+        name='webinar-join',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/recording/start/',
+        views.WebinarRecordingStartView.as_view(),
+        name='webinar-recording-start',
     ),
 ]

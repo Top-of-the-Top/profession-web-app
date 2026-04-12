@@ -12,6 +12,7 @@ from ..models import (
     Section,
     Task,
     Question,
+    Webinar,
 )
 from .serializers import (
     CourseDTOSerializer,
@@ -27,10 +28,16 @@ from .serializers import (
     TaskSerializer,
     QuestionSerializer,
 )
+from .agora_utils import (
+    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room, generate_whiteboard_room_token, 
+    recording_acquire, recording_start, recording_stop, ROLE_PUBLISHER, ROLE_SUBSCRIBER,
+)
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
 from django.core.cache import caches
+from django.utils import timezone
+import os
 
 from .schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
 
@@ -832,3 +839,188 @@ class QuestionDetailView(APIView):
         question = _get_question_or_404(course_slug, lesson_slug, homework_slug, question_id)
         question.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class WebinarStartView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, course_slug, lesson_slug):
+        lesson = get_object_or_404(
+            Lesson.objects.select_related('section__course'),
+            slug=lesson_slug,
+            section__course__slug=course_slug,
+        )
+        course = lesson.section.course
+        if not course.authors.filter(pk=request.user.pk).exists():
+            return Response(
+                {'detail': 'Только автор курса может запускать вебинар'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        webinar, created = Webinar.objects.get_or_create(
+            lesson=lesson,
+            defaults={'started_by': request.user},
+        )
+
+        if webinar.status == 'live':
+            return Response(
+                {'detail': 'Вебинар уже запущен'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not webinar.whiteboard_room_uuid:
+            try:
+                webinar.whiteboard_room_uuid = create_whiteboard_room()
+            except Exception:
+                return Response(
+                    {'detail': 'Не удалось создать комнату доски. Попробуйте позже.'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+        webinar.status = 'live'
+        webinar.started_by = request.user
+        webinar.started_at = timezone.now()
+        webinar.recording_resource_id = ''
+        webinar.recording_sid = ''
+        webinar.ended_at = None
+        webinar.save()
+
+        return Response({'detail': 'Вебинар запущен', 'webinar_id': str(webinar.webinar_id)})
+    
+
+class WebinarStopView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, course_slug, lesson_slug):
+        lesson = get_object_or_404(
+            Lesson.objects.select_related('section__course'),
+            slug=lesson_slug,
+            section__course__slug=course_slug,
+        )
+        course = lesson.section.course
+        if not course.authors.filter(pk=request.user.pk).exists():
+            return Response(
+                {'detail': 'Только автор курса может останавливать вебинар'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        webinar = get_object_or_404(Webinar, lesson=lesson)
+
+        if webinar.recording_resource_id and webinar.recording_sid:
+            try:
+                result = recording_stop(
+                    channel_name=webinar.agora_channel_name,
+                    uid='1',
+                    resource_id=webinar.recording_resource_id,
+                    sid=webinar.recording_sid,
+                )
+                server_response = result.get('serverResponse', {})
+                file_list = server_response.get('fileList', [])
+                if file_list:
+                    webinar.recording_url = file_list[0].get('fileName', '')
+            except Exception:
+                pass
+
+        webinar.status = 'ended'
+        webinar.ended_at = timezone.now()
+        webinar.save()
+
+        return Response({'detail': 'Вебинар завершен'})
+
+
+class WebinarJoinView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, course_slug, lesson_slug):
+        lesson = get_object_or_404(
+            Lesson.objects.select_related('section__course'),
+            slug=lesson_slug,
+            section__course__slug=course_slug,
+        )
+        course = lesson.section.course
+
+        is_teacher = course.authors.filter(pk=request.user.pk).exists()
+        is_student = request.user.is_enrolled(course)
+
+        if not is_teacher and not is_student:
+            return Response(
+                {'detail': 'Нет доступа к вебинару'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        try:
+            webinar = Webinar.objects.get(lesson=lesson, status='live')
+        except Webinar.DoesNotExist:
+            return Response(
+                {'detail': 'Вебинар не запущен'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        uid = user_uid_from_uuid(request.user.pk)
+        rtc_role = ROLE_PUBLISHER
+        whiteboard_role = 'admin' if is_teacher else 'writer'
+        user_role = 'teacher' if is_teacher else 'student'
+
+        rtc_token = generate_rtc_token(
+            channel_name=webinar.agora_channel_name,
+            uid=uid,
+            role=rtc_role,
+        )
+
+        whiteboard_room_token = generate_whiteboard_room_token(
+            room_uuid=webinar.whiteboard_room_uuid,
+            role=whiteboard_role,
+        )
+
+        return Response({
+            'rtc_token': rtc_token,
+            'agora_app_id': os.getenv('AGORA_APP_ID'),
+            'channel_name': webinar.agora_channel_name,
+            'uid': uid,
+            'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),
+            'whiteboard_room_uuid': webinar.whiteboard_room_uuid,
+            'whiteboard_room_token': whiteboard_room_token,
+            'whiteboard_region': os.getenv('AGORA_WHITEBOARD_REGION', 'eu'),
+            'role': user_role,
+        })
+
+
+class WebinarRecordingStartView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, course_slug, lesson_slug):
+        lesson = get_object_or_404(
+            Lesson.objects.select_related('section__course'),
+            slug=lesson_slug,
+            section__course__slug=course_slug,
+        )
+        course = lesson.section.course
+        if not course.authors.filter(pk=request.user.pk).exists():
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        webinar = get_object_or_404(Webinar, lesson=lesson, status='live')
+        recording_uid = '1'
+
+        resource_id = recording_acquire(
+            channel_name=webinar.agora_channel_name,
+            uid=recording_uid,
+        )
+
+        recording_token = generate_rtc_token(
+            channel_name=webinar.agora_channel_name,
+            uid=int(recording_uid),
+            role=ROLE_SUBSCRIBER,
+        )
+
+        sid = recording_start(
+            channel_name=webinar.agora_channel_name,
+            uid=recording_uid,
+            resource_id=resource_id,
+            token=recording_token,
+        )
+
+        webinar.recording_resource_id = resource_id
+        webinar.recording_sid = sid
+        webinar.save()
+
+        return Response({'detail': 'Запись началась'})

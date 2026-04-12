@@ -300,8 +300,8 @@ class CartAuthUnitTests(SimpleTestCase):
 
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             mock_item_create.assert_called_once_with(
-                cart_id=self.mock_cart,
-                course_id=self.mock_course
+                cart_id=self.mock_cart.cart_id,
+                course_id=self.mock_course.course_id
             )
 
     def test_add_to_cart_view_course_already_in_cart(self):

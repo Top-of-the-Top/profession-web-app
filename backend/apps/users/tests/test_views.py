@@ -454,10 +454,11 @@ class RegisterViewIntegrationTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.register_url = reverse('users:register')
-        self.verify_url = reverse('users:register_verify')
+        self.verify_url = reverse('users:register-verify')
 
     def _register_and_verify(self, email, password):
-        with patch('apps.users.api.views.send_verification_email'):
+        with patch('apps.users.api.views.send_verification_email'), \
+             patch('apps.users.api.views.check_contact_rate_limit', return_value=(True, 0)):
             reg_response = self.client.post(
                 self.register_url,
                 {'email': email, 'password': password},
@@ -512,7 +513,8 @@ class RegisterViewIntegrationTest(TestCase):
             password='testpass123'
         )
 
-        with patch('apps.users.api.views.send_verification_email'):
+        with patch('apps.users.api.views.send_verification_email'), \
+             patch('apps.users.api.views.check_contact_rate_limit', return_value=(True, 0)):
             response = self.client.post(
                 self.register_url,
                 {'email': email, 'password': 'testpass123'},
@@ -576,7 +578,7 @@ class RefreshTokenViewIntegrationTest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.url = reverse('users:token_refresh')
+        self.url = reverse('users:token-refresh')
         self.user = User.objects.create_user(
             email_cipher=encrypt_data('test@example.com'),
             password='testpass123'

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Home, Clock3, PenTool, Video, CircleCheck } from 'lucide-react';
+import { Home, Clock3, Video, CircleCheck } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,6 +19,8 @@ import {
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
 import { useCourseHomeBySlug, useLessonBySlug } from '@shared/api/queries/courses';
+import { useStartWebinar } from '@shared/api/mutations/webinar';
+import { useRole } from '@shared/lib/rbac';
 import styles from './LessonViewPage.module.css';
 
 
@@ -276,39 +278,51 @@ const TimerWidget: React.FC<{ targetIso: string | null }> = ({ targetIso }) => {
   );
 };
 
-const WebinarLinksWidget: React.FC<{
-  boardUrl: string | null;
-  webinarUrl: string | null;
-}> = ({ boardUrl, webinarUrl }) => (
-  <div className={styles.linksRow}>
-    <a
-      href={boardUrl ?? '#'}
-      target="_blank"
-      rel="noreferrer"
-      className={`${styles.quickLinkButton} ${!boardUrl ? styles.quickLinkDisabled : ''}`}
-      aria-disabled={!boardUrl}
-      onClick={(e) => {
-        if (!boardUrl) e.preventDefault();
-      }}
-    >
-      <PenTool size={20} />
-      <span>Доска</span>
-    </a>
-    <a
-      href={webinarUrl ?? '#'}
-      target="_blank"
-      rel="noreferrer"
-      className={`${styles.quickLinkButton} ${!webinarUrl ? styles.quickLinkDisabled : ''}`}
-      aria-disabled={!webinarUrl}
-      onClick={(e) => {
-        if (!webinarUrl) e.preventDefault();
-      }}
-    >
-      <Video size={20} />
-      <span>Вебинар</span>
-    </a>
-  </div>
-);
+const WebinarWidget: React.FC<{
+  courseSlug: string;
+  lessonSlug: string;
+  isTeacher: boolean;
+}> = ({ courseSlug, lessonSlug, isTeacher }) => {
+  const navigate = useNavigate();
+  const startWebinar = useStartWebinar(courseSlug, lessonSlug);
+
+  const webinarUrl = `/app/courses/${courseSlug}/${lessonSlug}/webinar`;
+
+  const handleStartWebinar = () => {
+    startWebinar.mutate(undefined, {
+      onSuccess: () => navigate(webinarUrl),
+    });
+  };
+
+  const handleJoinWebinar = () => {
+    navigate(webinarUrl);
+  };
+
+  return (
+    <div className={styles.linksRow}>
+      {isTeacher ? (
+        <button
+          type="button"
+          className={styles.quickLinkButton}
+          onClick={handleStartWebinar}
+          disabled={startWebinar.isPending}
+        >
+          <Video size={20} />
+          <span>{startWebinar.isPending ? 'Запуск...' : 'Начать вебинар'}</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={styles.quickLinkButton}
+          onClick={handleJoinWebinar}
+        >
+          <Video size={20} />
+          <span>Подключиться к вебинару</span>
+        </button>
+      )}
+    </div>
+  );
+};
 
 const LessonRecording: React.FC<{ recording: string | null }> = ({ recording }) => {
   const value = recording?.trim();
@@ -345,6 +359,8 @@ export default function LessonViewPage() {
     lessonSlug: string;
   }>();
   const navigate = useNavigate();
+  const { hasAny } = useRole();
+  const isTeacher = hasAny('teacher', 'moderator');
 
   const homeQuery = useCourseHomeBySlug(courseSlug);
   const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
@@ -446,9 +462,10 @@ export default function LessonViewPage() {
 
         <aside className={styles.sidebar}>
           <TimerWidget targetIso={lessonDetail.started_at} />
-          <WebinarLinksWidget
-            boardUrl={null}
-            webinarUrl={lessonDetail.recording_url}
+          <WebinarWidget
+            courseSlug={courseSlug ?? ''}
+            lessonSlug={lessonSlug ?? ''}
+            isTeacher={isTeacher}
           />
           <HomeworkWidget
             courseSlug={courseSlug ?? ''}

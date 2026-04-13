@@ -22,7 +22,11 @@ export type ApiFailureScene =
   | 'cartLoad'
   | 'cartAdd'
   | 'cartRemove'
-  | 'courseDetail';
+  | 'courseDetail'
+  | 'webinarStart'
+  | 'webinarJoin'
+  | 'webinarRecording'
+  | 'webinarStop';
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -278,6 +282,22 @@ const SCENE_FALLBACK: Record<ApiFailureScene, UserFacingMessage> = {
     title: 'не удалось загрузить курс',
     description: 'Обновите страницу или откройте курс из каталога.',
   },
+  webinarStart: {
+    title: 'не удалось запустить вебинар',
+    description: 'Повторите попытку.',
+  },
+  webinarJoin: {
+    title: 'не удалось подключиться',
+    description: 'Проверьте, что вебинар запущен.',
+  },
+  webinarRecording: {
+    title: 'не удалось начать запись',
+    description: 'Повторите попытку.',
+  },
+  webinarStop: {
+    title: 'не удалось завершить вебинар',
+    description: 'Повторите попытку.',
+  },
 };
 
 const SCENE_STATUS_FALLBACK: Partial<
@@ -429,6 +449,54 @@ const SCENE_STATUS_FALLBACK: Partial<
     500: {
       title: 'сервер не отвечает',
       description: 'Попробуйте позже.',
+    },
+  },
+  webinarStart: {
+    400: {
+      title: 'вебинар уже запущен',
+      description: 'Вебинар для этого урока уже идёт.',
+    },
+    403: {
+      title: 'нет доступа',
+      description: 'Вы не являетесь автором курса.',
+    },
+    404: {
+      title: 'урок не найден',
+      description: 'Проверьте ссылку.',
+    },
+    502: {
+      title: 'ошибка создания доски',
+      description: 'Не удалось создать доску. Попробуйте позже.',
+    },
+  },
+  webinarJoin: {
+    403: {
+      title: 'нет доступа',
+      description: 'У вас нет доступа к этому вебинару.',
+    },
+    404: {
+      title: 'вебинар не запущен',
+      description: 'Дождитесь, пока преподаватель запустит вебинар.',
+    },
+  },
+  webinarRecording: {
+    403: {
+      title: 'нет доступа',
+      description: 'Только автор курса может управлять записью.',
+    },
+    404: {
+      title: 'вебинар не запущен',
+      description: 'Вебинар не найден или уже завершён.',
+    },
+  },
+  webinarStop: {
+    403: {
+      title: 'нет доступа',
+      description: 'Только автор курса может завершить вебинар.',
+    },
+    404: {
+      title: 'вебинар не найден',
+      description: 'Вебинар уже завершён или не был запущен.',
     },
   },
 };
@@ -585,6 +653,13 @@ export function resolveApiFailureMessage(
           description: 'Проверьте ссылку или вернитесь в каталог.',
         };
       }
+      break;
+    }
+    case 'webinarStart':
+    case 'webinarJoin':
+    case 'webinarRecording':
+    case 'webinarStop': {
+      if (status === 401) mapped = messageFromAuthDetail(body);
       break;
     }
     default:

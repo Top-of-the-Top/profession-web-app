@@ -14,6 +14,7 @@ import {
   LessonPreviewPage,
   LessonViewPage,
   NotAuthorizedPage,
+  WebinarPage,
   AppLayout,
 } from './lazyPages';
 
@@ -52,6 +53,10 @@ export const routes: AppRoute[] = [
       {
         path: 'store/:slug',
         element: <CoursePreviewPage />,
+      },
+      {
+        path: 'courses/:slug/:lessonSlug/webinar',
+        element: <WebinarPage />,
       },
       {
         path: 'courses/:slug/:lessonSlug',

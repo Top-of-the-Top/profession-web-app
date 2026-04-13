@@ -872,7 +872,7 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
           <Button
             type="button"
             variant="outline"
-            className={styles.addSectionBtn}
+            className={styles.addSectionTriggerBtn}
             onClick={() => setExpanded(true)}
           >
             <Plus size={18} strokeWidth={2} />
@@ -899,8 +899,8 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
           <div className={cn(styles.addFlowActions, styles.addFlowActionsAnim)}>
             <Button
               type="button"
-              variant="outline"
-              className={styles.addSectionBtn}
+              variant="primary"
+              className={styles.addSectionSubmitBtn}
               disabled={!title.trim() || createMutation.isPending}
               onClick={submit}
             >
@@ -915,7 +915,7 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               disabled={createMutation.isPending}
               onClick={cancel}

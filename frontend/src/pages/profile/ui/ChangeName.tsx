@@ -1,4 +1,5 @@
 import { useState, useEffect, type ChangeEvent, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Button,
   Input,
@@ -6,15 +7,9 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   Spinner,
 } from '@shared/ui';
-import { Camera } from 'lucide-react';
+import { X } from 'lucide-react';
 import styles from './ChangeName.module.css';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -100,6 +95,14 @@ export default function ChangeName({
     fileInputRef.current?.click();
   };
 
+  const handleDeleteAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const onSubmit = handleSubmit(async ({ firstName, lastName }) => {
     setSavePending(true);
     try {
@@ -116,15 +119,40 @@ export default function ChangeName({
     }
   });
 
-  return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className={styles.dialogContent}>
-        <DialogHeader>
-          <DialogTitle>Личные данные</DialogTitle>
-          <DialogDescription className="sr-only">
-            Измените имя, фамилию и при необходимости фото профиля
-          </DialogDescription>
-        </DialogHeader>
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !savePending) {
+        handleDialogOpenChange(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, savePending, handleDialogOpenChange]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <>
+      <div
+        className={styles.overlay}
+        onClick={() => {
+          if (!savePending) handleDialogOpenChange(false);
+        }}
+      />
+      <div className={styles.container} role="dialog" aria-modal="true">
+        <div className={styles.titleHeader}>
+          <h2 className={styles.title}>Личные данные</h2>
+          <button
+            className={styles.closeButton}
+            onClick={() => handleDialogOpenChange(false)}
+            type="button"
+            aria-label="Закрыть"
+            disabled={savePending}
+          >
+            <X size={18} />
+          </button>
+        </div>
 
         <div className={styles.header}>
           <div className={styles.avatarContainer}>
@@ -154,8 +182,16 @@ export default function ChangeName({
             type="button"
             disabled={savePending}
           >
-            <Camera size={16} style={{ marginRight: '8px' }} />
-            {avatarPreview ? 'Изменить фото' : 'Загрузить фото'}
+            Изменить
+          </Button>
+          <Button
+            variant="secondary"
+            className={styles.deleteButton}
+            onClick={handleDeleteAvatar}
+            type="button"
+            disabled={savePending || (!avatarPreview && !avatarFile)}
+          >
+            Удалить
           </Button>
         </div>
 
@@ -167,7 +203,6 @@ export default function ChangeName({
             <Input
               id="firstName"
               className={styles.input}
-              placeholder="Введите имя"
               disabled={savePending}
               {...register('firstName')}
             />
@@ -183,7 +218,6 @@ export default function ChangeName({
             <Input
               id="lastName"
               className={styles.input}
-              placeholder="Введите фамилию"
               disabled={savePending}
               {...register('lastName')}
             />
@@ -193,15 +227,7 @@ export default function ChangeName({
           </div>
         </form>
 
-        <DialogFooter className={styles.dialogFooter}>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={savePending}
-            onClick={() => handleDialogOpenChange(false)}
-          >
-            Отмена
-          </Button>
+        <div className={styles.dialogFooter}>
           <Button
             type="submit"
             form={formId}
@@ -210,8 +236,10 @@ export default function ChangeName({
           >
             {savePending ? <Spinner /> : 'Сохранить'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </>
+    ,
+    document.body
   );
 }

@@ -190,7 +190,6 @@ export default function ProfilePage() {
     setEmailMenuOpen(false);
     setPhoneMenuOpen(false);
   };
-  const contactOverlayOpen = isEmailMenuOpen || isPhoneMenuOpen;
 
   if (isLoading && !profile) return <ProfileSkeleton />;
   if (!profile) return <div>Профиль недоступен</div>;
@@ -334,10 +333,6 @@ export default function ProfilePage() {
 
   return (
     <PageTransition className={styles.profilePage}>
-      {contactOverlayOpen ? (
-        <div className={styles.overlay} onClick={closeAllMenus} />
-      ) : null}
-
       <ChangeName
         open={isChangeNameMenuOpen}
         onOpenChange={setChangeMenuOpen}

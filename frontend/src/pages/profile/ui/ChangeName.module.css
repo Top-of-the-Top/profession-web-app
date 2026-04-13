@@ -1,67 +1,134 @@
-.dialogContent {
+.overlay {
+  position: fixed;
+  inset: 0;
+  width: 100dvw;
+  height: 100dvh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+}
+
+.container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
   max-width: 480px;
+  padding: 20px 20px 22px;
+  background-color: #f5f5f6;
+  border: 1px solid #d8d8dc;
+  border-radius: 16px;
+  z-index: 9999;
+}
+
+.titleHeader {
+  position: relative;
+  border-bottom: 1px solid rgb(226, 226, 226);
+  margin: 0 0 15px 0;
+  padding-bottom: 8px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  padding-right: 40px;
+  text-align: left;
+}
+
+.closeButton {
+  position: absolute;
+  top: -2px;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #111827;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.closeButton:hover:not(:disabled) {
+  background-color: #e6e6ea;
+  color: #111827;
+}
+
+.closeButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .dialogFooter {
+  display: flex;
+  justify-content: stretch;
   flex-wrap: wrap;
-  gap: calc(var(--spacing) * 2);
+  gap: 0;
 }
 
 .header {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 10px;
-  padding-bottom: 24px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
 }
 
 .avatarFallback {
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
   background-color: #191970;
   color: white;
 }
 
 .changeButton {
-  background-color: var(--muted);
-  color: var(--muted-foreground);
+  min-width: 120px;
+  height: 40px;
+  background-color: #dce1ee !important;
+  color: #3559b5 !important;
+  font-size: 16px;
   font-weight: 500;
-  padding: 8px 16px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  border-radius: 10px;
+  transition: background-color 0.2s ease;
 }
 
 .changeButton:hover {
-  transform: scale(1.03) !important;
+  background-color: #d2d8e8 !important;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .input {
   height: 44px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background-color: var(--background);
-  color: var(--foreground);
+  border-radius: 10px;
+  border: 2px solid #dfdfdf;
+  background-color: #f5f5f6;
+  color: #0f172a;
   padding: 0 12px;
-  font-size: 15px;
+  font-size: 16px;
   transition: all 0.2s ease;
 }
 
@@ -76,23 +143,24 @@
 }
 
 .errorText {
-  color: var(--destructive);
-  font-size: 12px;
+  color: #dc2626;
+  font-size: 14px;
 }
 
 .saveButton {
-  min-width: 140px;
-  height: 48px;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
   background-color: #191970 !important;
   color: white;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 12px;
+  font-size: 16px !important;
+  font-weight: 500;
+  border-radius: 10px;
   transition: all 0.2s ease;
 }
 
 .saveButton:hover {
-  transform: scale(1.01) !important;
+  background-color: #161660 !important;
 }
 
 .saveButton:active {
@@ -100,8 +168,40 @@
 }
 
 @media (max-width: 640px) {
-  .dialogContent {
+  .container {
     max-width: 100%;
+    margin-inline: 12px;
+    padding: 18px 16px 18px;
+  }
+
+  .title {
+    font-size: 19px;
+  }
+
+  .changeButton,
+  .deleteButton {
+    min-width: 0;
+    width: 100%;
+    height: 38px;
+    font-size: 14px;
+  }
+
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .label {
+    font-size: 15px;
+  }
+
+  .input {
+    height: 42px;
+    font-size: 16px;
+  }
+
+  .saveButton {
+    height: 42px;
+    font-size: 16px !important;
   }
 
   .header {
@@ -116,8 +216,8 @@
 }
 
 .avatar {
-  width: 80px;
-  height: 80px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -130,30 +230,29 @@
   display: block;
 }
 
-.removeAvatarButton {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background-color: #ef4444;
-  color: white;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.removeAvatarButton:hover {
-  background-color: #dc2626;
-}
-
 .changeButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 16px;
+  margin-left: 8px;
+  gap: 0;
+}
+
+.deleteButton {
+  min-width: 100px;
+  height: 40px;
+  background-color: #e1e1e3 !important;
+  color: #737373 !important;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 10px;
+  transition: background-color 0.2s ease;
+}
+
+.deleteButton:hover:not(:disabled) {
+  background-color: #d6d6d9 !important;
+}
+
+.deleteButton:disabled {
+  opacity: 0.6;
 }

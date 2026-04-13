@@ -859,7 +859,7 @@ class WebinarStartView(APIView):
 
         webinar, created = Webinar.objects.get_or_create(
             lesson=lesson,
-            defaults={'started_by': request.user},
+            started_by=request.user,
         )
 
         if webinar.status == 'live':

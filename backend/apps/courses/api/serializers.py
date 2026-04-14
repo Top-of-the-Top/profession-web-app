@@ -309,6 +309,16 @@ class WebinarSerializer(serializers.ModelSerializer):
         ]
 
 
+class UserWebinarListItemSerializer(serializers.Serializer):
+
+    course_title = serializers.CharField()
+    course_slug = serializers.CharField()
+    lesson_title = serializers.CharField()
+    lesson_slug = serializers.CharField()
+    started_at = serializers.DateTimeField(allow_null=True)
+    ended_at = serializers.DateTimeField(allow_null=True)
+
+
 class WebinarTokenSerializer(serializers.Serializer):
     rtc_token = serializers.CharField()
     agora_app_id = serializers.CharField()

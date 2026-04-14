@@ -5,6 +5,7 @@ from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 from rest_framework import status
 import tempfile
 from django.utils import timezone
+from django.core.cache import caches
 from datetime import timedelta
 
 from ..api.views import (
@@ -14,7 +15,7 @@ from ..api.views import (
     course_list_cache_key,
     landing_courses_cache_key,
 )
-from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
+from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse, Webinar
 from apps.users.models import User
 from apps.users.api.utils import encrypt_data, get_tokens_for_user
 from apps.payments.models import Payment
@@ -215,6 +216,65 @@ class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertTrue(response.data[0]['is_active'])
 
 
+class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
+
+    def setUp(self):
+        super().setUp()
+        caches['cold'].clear()
+        self.client = APIClient()
+        self.teacher = create_test_user(email='teacher_web@test.com', role='teacher')
+        self.course = create_test_course(title='Webinar Course')
+        self.course.authors.add(self.teacher)
+        self.section = create_test_section(self.course)
+        self.lesson = create_test_lesson(self.section, title='Webinar Lesson')
+        self.student = self.create_enrolled_student(self.course)
+
+    def test_requires_auth(self):
+        response = self.client.get('/api/app/my-schedule/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_student_sees_webinar_for_enrolled_course(self):
+        started = timezone.now() - timedelta(hours=2)
+        ended = timezone.now() - timedelta(hours=1)
+        Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.ENDED_STATUS,
+            started_at=started,
+            ended_at=ended,
+        )
+        self.authenticate_user(self.student)
+        response = self.client.get('/api/app/my-schedule/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        row = response.data[0]
+        self.assertEqual(row['course_title'], self.course.title)
+        self.assertEqual(row['course_slug'], self.course.slug)
+        self.assertEqual(row['lesson_title'], self.lesson.title)
+        self.assertEqual(row['lesson_slug'], self.lesson.slug)
+        self.assertIsNotNone(row['started_at'])
+        self.assertIsNotNone(row['ended_at'])
+
+    def test_student_does_not_see_other_course_webinar(self):
+        other = create_test_course(title='Other webinar course')
+        sec = create_test_section(other)
+        les = create_test_lesson(sec)
+        Webinar.objects.create(lesson=les, status=Webinar.PENDING_STATUS)
+        self.authenticate_user(self.student)
+        response = self.client.get('/api/app/my-schedule/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_teacher_sees_webinar_as_author_without_purchase(self):
+        Webinar.objects.create(lesson=self.lesson, status=Webinar.PENDING_STATUS)
+        solo_teacher = create_test_user(email='solo_teacher@test.com', role='teacher')
+        self.course.authors.add(solo_teacher)
+        self.authenticate_user(solo_teacher)
+        response = self.client.get('/api/app/my-schedule/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['lesson_slug'], self.lesson.slug)
+
+
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
@@ -249,10 +309,8 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertIn('homeworks', response.data['content'])
 
     def test_lesson_create_as_author(self):
-        from datetime import datetime
-
         self.authenticate_user(self.teacher)
-        data = {'section': self.section.section_id, 'title': 'New Lesson', 'date_time': datetime.now()}
+        data = {'section': self.section.section_id, 'title': 'New Lesson'}
         response = self.client.post(
             f'/api/courses/{self.course.slug}/lessons/',
             data,
@@ -265,8 +323,6 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(new_lesson.section, self.section)
 
     def test_lesson_create_rejects_section_from_other_course(self):
-        from datetime import datetime
-
         other_course = create_test_course(title='Other course')
         foreign_section = create_test_section(other_course, title='Foreign')
 
@@ -274,7 +330,6 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         data = {
             'section': str(foreign_section.section_id),
             'title': 'Lesson in wrong section',
-            'date_time': datetime.now().isoformat(),
         }
         response = self.client.post(
             f'/api/courses/{self.course.slug}/lessons/',

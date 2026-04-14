@@ -15,12 +15,17 @@ urlpatterns = [
         name='my-courses',
     ),
     path(
+        'app/my-schedule/',
+        views.MyScheduleView.as_view(),
+        name='my-schedule',
+    ),
+    path(
         'app/courses/<slug:course_slug>/home/',
         views.CourseHomePageView.as_view(),
         name='course-homepage',
     ),
     path(
-        'app/courses/',
+        'app/courses/', 
         views.CourseListView.as_view(),
         name='courses-list'
     ),

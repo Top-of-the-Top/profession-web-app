@@ -1,3 +1,4 @@
+from .utils.rbac_utils import filter_homework_queryset_for_visibility
 from ..models import (
     Course,
     PurchasedCourse,
@@ -104,16 +105,26 @@ class CourseHomeSerializer(serializers.Serializer):
 
     @extend_schema_field(SectionWithLessonsAndTypeSerializer(many=True))
     def get_content(self, obj):
-        lesson_qs = Lesson.objects.order_by('lesson_number')
-        sections = (
-            Section.objects.filter(course=obj)
-            .order_by('section_number')
-            .prefetch_related(Prefetch('lesson_set', queryset=lesson_qs))
-        )
         is_author = self.context.get('is_author', False)
 
         if is_author:
+            lesson_qs = Lesson.objects.order_by('lesson_number')
+            sections = (
+                Section.objects.filter(course=obj)
+                .order_by('section_number')
+                .prefetch_related(Prefetch('lesson_set', queryset=lesson_qs))
+            )
             return SectionWithLessonsAndTypeSerializer(sections, many=True).data
+
+        if obj.type != Course.PUBLISHED_STATUS:
+            return []
+
+        lesson_qs = Lesson.objects.filter(type=Lesson.PUBLISHED_STATUS).order_by('lesson_number')
+        sections = (
+            Section.objects.filter(course=obj, type=Section.PUBLISHED_STATUS)
+            .order_by('section_number')
+            .prefetch_related(Prefetch('lesson_set', queryset=lesson_qs))
+        )
         return SectionWithLessonsSerializer(sections, many=True).data
 
     @extend_schema_field(OpenApiTypes.OBJECT)
@@ -144,6 +155,10 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(LessonContentReadSerializer)
     def get_content(self, obj):
+        include_drafts = self.context.get('include_drafts', False)
+        hws = filter_homework_queryset_for_visibility(
+            obj.homework_set.all(), include_drafts
+        )
         return {
             'recording_url': 'https://example.com/recordings/mock-lesson',
             'started_at': '2026-01-15T10:00:00+00:00',
@@ -154,7 +169,7 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
                     'homework_slug': h.slug,
                     'deadline': h.deadline,
                 }
-                for h in obj.homework_set.all()
+                for h in hws
             ],
         }
 

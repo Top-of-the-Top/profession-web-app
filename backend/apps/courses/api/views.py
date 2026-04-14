@@ -19,6 +19,7 @@ from .serializers import (
     PurchasedCourseSerializer,
     CourseListResponseSerializer,
     LessonSerializer,
+    LessonSimpleCreateSerializer,
     LessonCreateSerializer,
     LessonDetailReadSerializer,
     HomeworkSerializer,
@@ -452,19 +453,15 @@ class SectionDetailView(APIView):
     methods=['POST'],
     summary='Создать урок',
     description=(
-        'Тело: `section`, `title`, `type` (по умолчанию draft), опционально `content` '
-        '— объект `{ document, assets }`. `document` — JSON-строка или объект: внутри полей '
-        'плейсхолдеры `local://<n>` соответствуют `asset_id` в `assets`. '
-        '`assets[]`: `asset_id` (1,2,…), `asset_type` (image / video / mime), '
-        '`asset_file` — имя поля в FormData (по умолчанию `asset_<id>`). '
-        'Без файлов — JSON; с файлами — multipart: поле `content` JSON-строкой '
-        'и бинарники `asset_1`, `asset_2`, … В `document` в БД подставлены URL на S3 '
-        '(путь `courses/course_<id>/lessons/<lesson_id>/asset_<n>.<ext>`).'
+        'Тело: `section`, `title`, `type` (по умолчанию draft). '
+        'Поле `content` в POST не допускается — контент и вложения задаются PUT '
+        '(создание урока с контентом: `PUT /api/courses/{slug}/lessons/` или обновление: '
+        '`PUT /api/courses/{slug}/lessons/{lesson_slug}/`).'
     ),
     tags=['Course'],
-    request=LessonCreateSerializer,
+    request=LessonSimpleCreateSerializer,
     responses={
-        201: LessonCreateSerializer,
+        201: LessonSerializer,
         400: {'schema': SCHEMA_VALIDATION},
         401: {'schema': SCHEMA_DETAIL},
         403: {'schema': SCHEMA_DETAIL},
@@ -503,13 +500,16 @@ class LessonCreateView(APIView):
     @require_course_author
     def post(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug)
-        serializer = LessonCreateSerializer(
+        serializer = LessonSimpleCreateSerializer(
             data=request.data,
             context={'request': request, 'course': course},
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        lesson = serializer.save()
+        return Response(
+            LessonSerializer(lesson).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @require_course_author
     def put(self, request, course_slug):
@@ -584,7 +584,7 @@ class LessonDetailView(APIView):
     @require_course_author
     def put(self, request, course_slug, lesson_slug):
         course = get_object_or_404(Course, slug=course_slug)
-        lesson = _get_lesson_or_404(course_slug, lesson_slug)
+        lesson = get_lesson_or_404(course_slug, lesson_slug, include_drafts=True)
         serializer = LessonCreateSerializer(
             lesson,
             data=request.data,

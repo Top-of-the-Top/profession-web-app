@@ -43,6 +43,8 @@ export type HomeworkQuestion = z.infer<typeof HomeworkQuestionSchema>;
 
 export const HomeworkLayoutSchema = z.object({
   lessonId: z.string().min(1),
+  title: z.string().default(''),
+  deadline: z.string().default(''),
   questions: z.array(HomeworkQuestionSchema),
 });
 

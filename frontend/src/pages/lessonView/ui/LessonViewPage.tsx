@@ -21,6 +21,7 @@ import { parseLessonLayoutFromContentString } from '../../../features/course-bui
 import type { LessonHomework } from '@shared/api/courseApi';
 import { useCourseHomeBySlug, useLessonBySlug } from '@shared/api/queries/courses';
 import { useStartWebinar } from '@shared/api/mutations/webinar';
+import { useToggleHomeworkType } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac';
 import styles from './LessonViewPage.module.css';
 
@@ -124,8 +125,15 @@ const HomeworkWidget: React.FC<{
   courseSlug: string;
   lessonSlug: string;
   homeworks: LessonHomework[];
-}> = ({ courseSlug, lessonSlug, homeworks }) => {
-  if (homeworks.length === 0) {
+  isTeacher: boolean;
+}> = ({ courseSlug, lessonSlug, homeworks, isTeacher }) => {
+  const toggleType = useToggleHomeworkType(courseSlug, lessonSlug);
+
+  const visible = isTeacher
+    ? homeworks
+    : homeworks.filter((hw) => hw.type === 'published');
+
+  if (visible.length === 0) {
     return (
       <div className={styles.sidebarCard}>
         <div className={styles.sidebarCardHeader}>
@@ -142,18 +150,46 @@ const HomeworkWidget: React.FC<{
       <div className={styles.sidebarCardHeader}>
         <CircleCheck size={18} />
         <span className={styles.sidebarCardTitle}>
-          {homeworks.length === 1 ? 'Задание' : 'Задания'}
+          {visible.length === 1 ? 'Задание' : 'Задания'}
         </span>
       </div>
-      {homeworks.map((hw) => (
+      {visible.map((hw) => (
         <div key={hw.homework_id} className={styles.homeworkItem}>
+          {isTeacher && (
+            <div className={styles.homeworkStatusRow}>
+              <span
+                className={
+                  hw.type === 'published'
+                    ? styles.hwBadgePublished
+                    : styles.hwBadgeDraft
+                }
+              >
+                {hw.type === 'published' ? 'опубликовано' : 'черновик'}
+              </span>
+              <button
+                type="button"
+                className={styles.hwToggleButton}
+                disabled={toggleType.isPending}
+                onClick={() =>
+                  toggleType.mutate({
+                    homeworkSlug: hw.homework_slug,
+                    currentType: hw.type,
+                  })
+                }
+              >
+                {hw.type === 'published' ? 'В черновик' : 'Опубликовать'}
+              </button>
+            </div>
+          )}
           {hw.deadline && (
             <p className={styles.deadlineText}>
               Дедлайн: {formatDeadline(hw.deadline)}
             </p>
           )}
           <Link
-            to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`}
+            to={
+              `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`
+            }
             className={styles.homeworkButton}
           >
             {hw.title || 'Перейти к заданию'}
@@ -338,6 +374,22 @@ const WebinarWidget: React.FC<{
   );
 };
 
+const LessonEditWidget: React.FC<{
+  courseSlug: string;
+  lessonSlug: string;
+}> = ({ courseSlug, lessonSlug }) => {
+  return (
+    <div className={styles.linksRow}>
+      <Link
+        to={`/app/courses/${courseSlug}/${lessonSlug}/edit`}
+        className={styles.quickLinkButton}
+      >
+        Редактировать урок
+      </Link>
+    </div>
+  );
+};
+
 const LessonRecording: React.FC<{ recording: string | null }> = ({ recording }) => {
   const value = recording?.trim();
 
@@ -481,10 +533,17 @@ export default function LessonViewPage() {
             lessonSlug={lessonSlug ?? ''}
             isTeacher={isTeacher}
           />
+          {isTeacher && (
+            <LessonEditWidget
+              courseSlug={courseSlug ?? ''}
+              lessonSlug={lessonSlug ?? ''}
+            />
+          )}
           <HomeworkWidget
             courseSlug={courseSlug ?? ''}
             lessonSlug={lessonSlug ?? ''}
             homeworks={lessonDetail.homeworks}
+            isTeacher={isTeacher}
           />
           <ProgressWidget />
         </aside>

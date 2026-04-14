@@ -3,8 +3,89 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-	justify-content: space-between;
+  justify-content: space-between;
   flex: 1;
+}
+
+.homeworkSwitchBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: min(920px, 100%);
+  margin: 0 auto 10px;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+.homeworkSwitchButton {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.homeworkSwitchButtonActive {
+  border-color: #396fdb;
+  background: #edf3ff;
+  color: #396fdb;
+}
+
+.homeworkHeader {
+  display: flex;
+  gap: 12px;
+  padding: 0 8px 12px;
+  width: min(920px, 100%);
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.homeworkTitleInput {
+  flex: 1;
+  border: none;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 8px 4px;
+  font-size: 15px;
+  font-weight: 500;
+  background: transparent;
+  transition: border-color 0.2s;
+}
+
+.homeworkTitleInput:focus {
+  outline: none;
+  border-bottom-color: #191970;
+}
+
+.homeworkTitleInput::placeholder {
+  color: #9ca3af;
+}
+
+.homeworkDeadlineInput {
+  width: 220px;
+  border: none;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 8px 4px;
+  font-size: 13px;
+  background: transparent;
+  color: #374151;
+  transition: border-color 0.2s;
+}
+
+.homeworkDeadlineInput:focus {
+  outline: none;
+  border-bottom-color: #191970;
+}
+
+.homeworkLoadingHint {
+  width: min(920px, 100%);
+  margin: 0 auto 10px;
+  padding: 0 8px;
+  color: #64748b;
+  font-size: 12px;
+  box-sizing: border-box;
 }
 
 .homeworkWrapper {
@@ -355,7 +436,12 @@
 }
 
 .buttonSecondary:hover {
-	background-color: #979494;
+  background-color: #979494;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 768px) {

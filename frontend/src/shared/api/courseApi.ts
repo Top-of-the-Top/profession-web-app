@@ -70,10 +70,58 @@ export interface Lesson {
 }
 
 export interface LessonHomework {
-  homework_id: number;
+  homework_id: string;
   title: string;
   deadline: string;
   homework_slug: string;
+  type: CourseContentType;
+}
+
+export interface HomeworkDetailItem {
+  type: 'question' | 'task';
+  id: string;
+  number: number;
+  text: string;
+  answer_options?: string[] | null;
+  correct_ans?: string | null;
+  max_points?: number | null;
+  created_at: string;
+}
+
+export interface HomeworkDetail {
+  homework_id: string;
+  homework_number: number;
+  lesson_id: string;
+  title: string;
+  slug: string;
+  deadline: string;
+  type: CourseContentType;
+  created_at: string;
+  updated_at: string;
+  items: HomeworkDetailItem[];
+}
+
+export interface HomeworkCreatePayload {
+  title: string;
+  deadline: string;
+  type?: CourseContentType;
+}
+
+export interface HomeworkPatchPayload {
+  title?: string;
+  deadline?: string;
+  type?: CourseContentType;
+}
+
+export interface QuestionCreatePayload {
+  text: string;
+  correct_ans?: string | null;
+  answer_options?: string[] | null;
+}
+
+export interface TaskCreatePayload {
+  text: string;
+  max_points?: number;
 }
 
 export interface CourseLessonDetail {
@@ -139,10 +187,6 @@ export interface CoursePatchPayload {
   price?: number;
   type?: CourseContentType;
 }
-
-export type AppHomeCoursesSource = 'my-courses' | 'store' | 'landing';
-
-export const APP_HOME_COURSES_SOURCE = 'store' as AppHomeCoursesSource;
 
 type RawCoursesResponse = Course[] | CourseApiAnswer;
 type RawCourseBySlugResponse = Course | { course: Course };
@@ -234,16 +278,6 @@ function normalizeLessonDetailRead(raw: RawLessonDetailResponse): CourseLessonDe
     homeworks: Array.isArray(c.homeworks) ? c.homeworks : [],
     meta: raw.meta ?? {},
   };
-}
-
-function catalogRowsToPurchasedShim(rows: CourseDTO[]): PurchasedCourseItem[] {
-  return rows.map((course) => ({
-    id: String(course.course_id),
-    course,
-    payment: 0,
-    access_expires_at: null,
-    is_active: true,
-  }));
 }
 
 const ASSET_PART_PREFIX = 'asset_' as const;
@@ -437,21 +471,76 @@ export const courseApi = {
     });
   },
 
-  async getCoursesForAppHome(): Promise<PurchasedCourseItem[]> {
-    if (APP_HOME_COURSES_SOURCE === 'my-courses') {
-      return this.getMyCourses();
-    }
+  getCoursesForAppHome(): Promise<PurchasedCourseItem[]> {
+    return this.getMyCourses();
+  },
 
-    const res: CourseApiAnswer =
-      APP_HOME_COURSES_SOURCE === 'landing'
-        ? await apiClient
-            .request<CourseApiAnswer>('/api/landing/courses/', {
-              method: 'GET',
-              skipAuth: true,
-            })
-            .then((raw) => normalizeCoursesResponse(raw as RawCoursesResponse))
-        : await this.getCourses();
+  createHomework(
+    courseSlug: string,
+    lessonSlug: string,
+    payload: HomeworkCreatePayload,
+  ): Promise<HomeworkDetail> {
+    return apiClient.request<HomeworkDetail>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
+  },
 
-    return catalogRowsToPurchasedShim(res.data ?? []);
+  getHomeworkDetail(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+  ): Promise<HomeworkDetail> {
+    return apiClient.request<HomeworkDetail>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
+      { method: 'GET' },
+    );
+  },
+
+  patchHomework(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+    payload: HomeworkPatchPayload,
+  ): Promise<HomeworkDetail> {
+    return apiClient.request<HomeworkDetail>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+    );
+  },
+
+  deleteHomework(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+  ): Promise<void> {
+    return apiClient.request<void>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
+      { method: 'DELETE' },
+    );
+  },
+
+  createQuestion(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+    payload: QuestionCreatePayload,
+  ): Promise<unknown> {
+    return apiClient.request(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/questions/`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
+  },
+
+  createTask(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+    payload: TaskCreatePayload,
+  ): Promise<unknown> {
+    return apiClient.request(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
   },
 };

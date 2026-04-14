@@ -141,6 +141,7 @@ class HomeworkBriefSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=120)
     homework_slug = serializers.SlugField()
     deadline = serializers.DateTimeField()
+    type = serializers.CharField()
 
 
 class LessonContentReadSerializer(serializers.Serializer):
@@ -174,6 +175,7 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
                     'title': h.title,
                     'homework_slug': h.slug,
                     'deadline': h.deadline,
+                    'type': h.type,
                 }
                 for h in hws
             ],
@@ -274,29 +276,39 @@ class LessonCreateSerializer(serializers.Serializer):
     content = LessonContentPayloadSerializer(required=False, allow_null=True)
 
     def to_internal_value(self, data):
-        if hasattr(data, 'get'):
-            raw = data.get('content')
-            if isinstance(raw, str):
-                stripped = raw.strip()
-                if not stripped:
-                    if hasattr(data, '_mutable'):
-                        data = data.copy()
-                    else:
-                        data = dict(data) if isinstance(data, dict) else data.copy()
-                    data['content'] = None
-                else:
-                    try:
-                        parsed = json.loads(raw)
-                    except json.JSONDecodeError as e:
-                        raise serializers.ValidationError(
-                            {'content': 'Невалидный JSON в поле content.'}
-                        ) from e
-                    if hasattr(data, '_mutable'):
-                        data = data.copy()
-                    else:
-                        data = dict(data) if isinstance(data, dict) else data.copy()
-                    data['content'] = parsed
-        return super().to_internal_value(data)
+        if not hasattr(data, 'get'):
+            return super().to_internal_value(data)
+
+        raw_content = data.get('content')
+        normalized_content = raw_content
+
+        if isinstance(raw_content, str):
+            stripped = raw_content.strip()
+            if not stripped:
+                normalized_content = None
+            else:
+                try:
+                    normalized_content = json.loads(raw_content)
+                except json.JSONDecodeError as e:
+                    raise serializers.ValidationError(
+                        {'content': 'Невалидный JSON в поле content.'}
+                    ) from e
+
+        payload = {
+            'content': normalized_content,
+        }
+        title_sentinel = object()
+        raw_title = data.get('title', title_sentinel)
+        if raw_title is not title_sentinel:
+            payload['title'] = raw_title
+        raw_section = data.get('section')
+        if raw_section not in (None, ''):
+            payload['section'] = raw_section
+        raw_type = data.get('type')
+        if raw_type not in (None, ''):
+            payload['type'] = raw_type
+
+        return super().to_internal_value(payload)
 
     def validate_section(self, section):
         course = self.context.get('course')

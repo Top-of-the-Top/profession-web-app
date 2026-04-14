@@ -60,9 +60,10 @@ export function connectNotificationSSE() {
         message: payload.message,
         created_at: new Date(payload.created_at),
       });
+      const toastDescription = payload.message.replace(/\n+/g, ' ').trim();
       notifyInfo({
         title: payload.title,
-        description: payload.message,
+        description: toastDescription,
       });
     } catch (err) {
       console.error(`SSE Error: ${err}`);

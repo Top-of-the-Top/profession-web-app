@@ -511,6 +511,12 @@
   color: black;
 }
 
+.lessonTitleLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+
 .staffLessonActions {
   display: flex;
   align-items: center;

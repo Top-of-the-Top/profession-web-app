@@ -1,13 +1,25 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { GripHorizontal, GripVertical, X, Trash2 } from 'lucide-react';
 import { useHomeworkStore } from '../../model/homeworkStore';
 import { cn } from '@shared/lib/utils';
+import { notifyWarning } from '@shared/lib/sileo/notify';
+import {
+  useCreateHomeworkWithItems,
+  type CreateHomeworkWithItemsPayload,
+} from '@shared/api/mutations/courses';
+import { useHomeworkDetail } from '@shared/api/queries/courses';
 import type {
+  HomeworkLayout,
   HomeworkQuestion,
   HomeworkQuestionType,
   HomeworkOption,
 } from '../../model/homeworkTypes';
+import type {
+  CourseContentType,
+  HomeworkDetail,
+  LessonHomework,
+} from '@shared/api/courseApi';
 import styles from './HomeworkBuilder.module.css';
 
 type SingleQuestion = Extract<HomeworkQuestion, { type: 'single' }>;
@@ -18,9 +30,108 @@ const QUESTION_TYPE_LABELS: Record<HomeworkQuestionType, string> = {
   file: 'Файл',
 };
 
-export const HomeworkBuilder: React.FC = () => {
+interface HomeworkBuilderProps {
+  courseSlug: string;
+  lessonSlug: string;
+  lessonHomeworks: LessonHomework[];
+}
+
+function toDatetimeLocalValue(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function mapHomeworkDetailToLayout(
+  detail: HomeworkDetail,
+  lessonId: string,
+): HomeworkLayout {
+  const questions: HomeworkQuestion[] = detail.items.map((item) => {
+    if (item.type === 'question') {
+      const options = (item.answer_options ?? []).map((text, idx) => ({
+        id: `${item.id}-opt-${idx}`,
+        text,
+        isCorrect: item.correct_ans === text,
+      }));
+      return {
+        id: item.id,
+        type: 'single',
+        title: item.text,
+        score: item.max_points ?? 0,
+        options,
+      };
+    }
+    return {
+      id: item.id,
+      type: 'text',
+      title: item.text,
+      description: '',
+      score: item.max_points ?? 0,
+    };
+  });
+
+  return {
+    lessonId,
+    title: detail.title,
+    deadline: toDatetimeLocalValue(detail.deadline),
+    questions,
+  };
+}
+
+function mapLayoutToPayload(
+  layout: ReturnType<typeof useHomeworkStore.getState>['layout'],
+  targetType: CourseContentType,
+): CreateHomeworkWithItemsPayload {
+  const items: CreateHomeworkWithItemsPayload['items'] = [];
+
+  for (const q of layout.questions) {
+    if (q.type === 'single') {
+      const correctOpt = q.options.find((o) => o.isCorrect);
+      items.push({
+        kind: 'question',
+        payload: {
+          text: q.title,
+          answer_options: q.options.map((o) => o.text),
+          correct_ans: correctOpt?.text ?? null,
+        },
+      });
+    } else {
+      items.push({
+        kind: 'task',
+        payload: {
+          text: q.title || (q as Extract<HomeworkQuestion, { type: 'text' } | { type: 'file' }>).description,
+          max_points: q.score,
+        },
+      });
+    }
+  }
+
+  return {
+    homework: {
+      title: layout.title,
+      deadline: new Date(layout.deadline).toISOString(),
+      type: targetType,
+    },
+    items,
+  };
+}
+
+export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
+  courseSlug,
+  lessonSlug,
+  lessonHomeworks,
+}) => {
   const {
     layout,
+    initialize: initHomework,
+    setTitle,
+    setDeadline,
     addQuestion,
     updateQuestion,
     removeQuestion,
@@ -31,8 +142,84 @@ export const HomeworkBuilder: React.FC = () => {
     reorderOptions,
   } = useHomeworkStore();
 
+  const [selectedHomeworkSlug, setSelectedHomeworkSlug] = useState<string>('new');
+  const createMutation = useCreateHomeworkWithItems(courseSlug, lessonSlug);
+  const selectedHomeworkQuery = useHomeworkDetail(
+    courseSlug,
+    lessonSlug,
+    selectedHomeworkSlug === 'new' ? undefined : selectedHomeworkSlug,
+  );
+  const switchItems = useMemo(
+    () => [
+      { slug: 'new', title: 'Новое ДЗ' },
+      ...lessonHomeworks.map((hw) => ({
+        slug: hw.homework_slug,
+        title: hw.title || hw.homework_slug,
+      })),
+    ],
+    [lessonHomeworks],
+  );
+
+  useEffect(() => {
+    setSelectedHomeworkSlug((current) => {
+      if (current !== 'new' && lessonHomeworks.some((h) => h.homework_slug === current)) {
+        return current;
+      }
+      if (lessonHomeworks.length === 0) return 'new';
+      return lessonHomeworks[0].homework_slug;
+    });
+  }, [lessonHomeworks]);
+
+  useEffect(() => {
+    if (selectedHomeworkSlug === 'new') {
+      initHomework(`${courseSlug}/${lessonSlug}`, {
+        lessonId: `${courseSlug}/${lessonSlug}`,
+        title: '',
+        deadline: '',
+        questions: [],
+      });
+      return;
+    }
+    if (!selectedHomeworkQuery.data) return;
+    initHomework(
+      `${courseSlug}/${lessonSlug}`,
+      mapHomeworkDetailToLayout(
+        selectedHomeworkQuery.data,
+        `${courseSlug}/${lessonSlug}`,
+      ),
+    );
+  }, [
+    selectedHomeworkSlug,
+    selectedHomeworkQuery.data,
+    courseSlug,
+    lessonSlug,
+    initHomework,
+  ]);
+
   const handlePaletteClick = (type: HomeworkQuestionType) => {
     addQuestion(type);
+  };
+
+  const validate = (): boolean => {
+    if (!layout.title.trim()) {
+      notifyWarning({ title: 'Укажите название задания' });
+      return false;
+    }
+    if (!layout.deadline) {
+      notifyWarning({ title: 'Укажите дедлайн' });
+      return false;
+    }
+    if (layout.questions.length === 0) {
+      notifyWarning({ title: 'Добавьте хотя бы один вопрос' });
+      return false;
+    }
+    return true;
+  };
+
+  const handleSave = (targetType: CourseContentType) => {
+    if (!validate()) return;
+    const payload = mapLayoutToPayload(layout, targetType);
+    createMutation.mutate(payload);
   };
 
   const toggleCorrectOption = (question: SingleQuestion, optionId: string) => {
@@ -152,12 +339,42 @@ export const HomeworkBuilder: React.FC = () => {
       return;
     }
 
-    // default: reorder questions
     reorderQuestions(source.index, destination.index);
   };
 
   return (
     <div className={styles.homeworkLayout}>
+      <div className={styles.homeworkSwitchBar}>
+        {switchItems.map((item) => (
+          <button
+            key={item.slug}
+            type="button"
+            className={`${styles.homeworkSwitchButton} ${
+              selectedHomeworkSlug === item.slug ? styles.homeworkSwitchButtonActive : ''
+            }`}
+            onClick={() => setSelectedHomeworkSlug(item.slug)}
+          >
+            {item.title}
+          </button>
+        ))}
+      </div>
+      <div className={styles.homeworkHeader}>
+        <input
+          className={styles.homeworkTitleInput}
+          placeholder="Название домашнего задания"
+          value={layout.title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <input
+          type="datetime-local"
+          className={styles.homeworkDeadlineInput}
+          value={layout.deadline}
+          onChange={(e) => setDeadline(e.target.value)}
+        />
+      </div>
+      {selectedHomeworkQuery.isFetching && selectedHomeworkSlug !== 'new' && (
+        <div className={styles.homeworkLoadingHint}>Загрузка выбранного ДЗ...</div>
+      )}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className={styles.homeworkWrapper}>
           <Droppable droppableId="questions" type="question">
@@ -313,12 +530,16 @@ export const HomeworkBuilder: React.FC = () => {
           <button
             type="button"
             className={`${styles.button} ${styles.buttonSecondary}`}
+            disabled={createMutation.isPending}
+            onClick={() => handleSave('draft')}
           >
             Сохранить черновик
           </button>
           <button
             type="button"
             className={`${styles.button} ${styles.buttonPrimary}`}
+            disabled={createMutation.isPending}
+            onClick={() => handleSave('published')}
           >
             Прикрепить ДЗ
           </button>

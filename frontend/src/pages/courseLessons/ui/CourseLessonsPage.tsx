@@ -743,6 +743,7 @@ function LessonRow({
   const lessonLabel = `${sectionNumber}.${lesson.lesson_number} ${lesson.title}`;
   const published = lesson.type !== 'draft';
   const lessonCreatePending = lesson.lesson_id.startsWith('optimistic:');
+  const lessonViewTo = `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`;
 
   const requestDeleteLesson = () => {
     if (
@@ -763,7 +764,12 @@ function LessonRow({
             <GripVertical size={16} strokeWidth={2} />
           </span>
         </span>
-        <span className={styles.lessonTitle}>{lessonLabel}</span>
+        <Link
+          to={lessonViewTo}
+          className={cn(styles.lessonTitle, styles.lessonTitleLink)}
+        >
+          {lessonLabel}
+        </Link>
         <div className={styles.staffLessonActions}>
           <Button
             type="button"
@@ -823,7 +829,7 @@ function LessonRow({
     );
   }
 
-  const to = `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`;
+  const to = lessonViewTo;
 
   return (
     <Link to={to} className={cn(styles.lessonRow, styles.lessonRowStudent)}>

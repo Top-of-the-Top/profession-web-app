@@ -71,7 +71,7 @@ def course_notification_signal(sender, instance, created, **kwargs):
 
 def get_reminder_task_id_for_homework(homework_id, reminder_type, task_type):
     unique_key = f"homework_{homework_id}_reminder_{reminder_type}_{task_type}"
-    return int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15)
+    return str(int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15))
 
 @receiver(pre_save, sender=Homework)
 def track_homework_changes(sender, instance, **kwargs):
@@ -204,7 +204,7 @@ def handle_pre_deadline_delete(sender, instance, **kwargs):
 
 def get_reminder_task_id_for_lesson(lesson_id, reminder_type, task_type):
     unique_key = f"lesson_{lesson_id}_reminder_{reminder_type}_{task_type}"
-    return int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15)
+    return str(int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15))
 
 
 

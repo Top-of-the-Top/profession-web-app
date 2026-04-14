@@ -11,6 +11,7 @@ import { serializeCoursePage } from '../../model/types';
 import { GRID_CELL_SIZE, GRID_COLS } from '../../lib/constants';
 import { HomeworkBuilder } from '../HomeworkBuilder';
 import { useHomeworkStore } from '../../model/homeworkStore';
+import type { LessonHomework } from '@shared/api/courseApi';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -28,6 +29,7 @@ import 'react-resizable/css/styles.css';
 interface CourseBuilderProps {
   courseSlug: string;
   lessonSlug: string;
+  lessonHomeworks: LessonHomework[];
   onSave: (payload: SubmitPayload) => void;
   saving?: boolean;
 }
@@ -77,6 +79,7 @@ function sanitizeWysiwygHtml(html: string): string {
 export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   courseSlug,
   lessonSlug,
+  lessonHomeworks,
   onSave,
   saving,
 }) => {
@@ -488,7 +491,13 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
             </div>
           )}
 
-          {activeTab === 'homework' && <HomeworkBuilder />}
+          {activeTab === 'homework' && (
+            <HomeworkBuilder
+              courseSlug={courseSlug}
+              lessonSlug={lessonSlug}
+              lessonHomeworks={lessonHomeworks}
+            />
+          )}
         </div>
       </div>
 

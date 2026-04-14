@@ -88,6 +88,7 @@ export default function LessonEditPage() {
       <CourseBuilder
         courseSlug={courseSlug!}
         lessonSlug={lessonSlug!}
+        lessonHomeworks={lessonDetail.homeworks}
         onSave={handleSave}
         saving={saveMutation.isPending}
       />

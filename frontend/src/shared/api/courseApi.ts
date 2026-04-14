@@ -356,18 +356,32 @@ export const courseApi = {
 
   createLesson(courseSlug: string, payload: LessonCreatePayload): Promise<Lesson> {
     const hasFiles = payload.files && Object.keys(payload.files).length > 0;
-    const body = hasFiles
-      ? buildLessonFormData(payload)
-      : JSON.stringify({
-          title: payload.title,
-          section: payload.section,
-          lesson_num: payload.lesson_num,
-          content: { document: payload.document ?? '', assets: [] },
-        });
+    const hasDocument =
+      payload.document != null && String(payload.document).trim() !== '';
+
+    if (hasFiles || hasDocument) {
+      const body = hasFiles
+        ? buildLessonFormData(payload)
+        : JSON.stringify({
+            title: payload.title,
+            section: payload.section,
+            type: 'draft',
+            content: { document: payload.document ?? '', assets: [] },
+          });
+
+      return apiClient.request<Lesson>(`/api/courses/${courseSlug}/lessons/`, {
+        method: 'PUT',
+        body,
+      });
+    }
 
     return apiClient.request<Lesson>(`/api/courses/${courseSlug}/lessons/`, {
       method: 'POST',
-      body,
+      body: JSON.stringify({
+        title: payload.title,
+        section: payload.section,
+        type: 'draft',
+      }),
     });
   },
 

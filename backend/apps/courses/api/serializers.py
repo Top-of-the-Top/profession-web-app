@@ -180,6 +180,49 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
         }
 
 
+class LessonSimpleCreateSerializer(serializers.ModelSerializer):
+    """
+    POST /api/courses/{slug}/lessons/ — только каркас урока (как раньше), без content/document.
+    """
+
+    section = serializers.PrimaryKeyRelatedField(
+        queryset=Section.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    title = serializers.CharField(max_length=120)
+    type = serializers.ChoiceField(
+        choices=Lesson._meta.get_field('type').choices,
+        default=PublishableMixin.DRAFT_STATUS,
+        required=False,
+    )
+
+    class Meta:
+        model = Lesson
+        fields = ('section', 'title', 'type')
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if request is not None:
+            data = getattr(request, 'data', None)
+            if data is not None and data.get('content') is not None:
+                raise serializers.ValidationError(
+                    {
+                        'content': 'Создание с контентом и вложениями выполняйте запросом '
+                        'PUT на этот же URL.'
+                    }
+                )
+        return attrs
+
+    def validate_section(self, section):
+        course = self.context.get('course')
+        if course is None:
+            return section
+        if section is not None and section.course_id != course.course_id:
+            raise serializers.ValidationError('Секция не принадлежит этому курсу.')
+        return section
+
+
 class LessonDocumentStrField(serializers.Field):
     """
     Фронт шлёт либо JSON-объект (в теле application/json), либо строку (после multipart).
@@ -212,7 +255,7 @@ class LessonContentPayloadSerializer(serializers.Serializer):
 
 class LessonCreateSerializer(serializers.Serializer):
     """
-    POST /api/courses/{slug}/lessons/: section, title, type, опционально content.
+    PUT /api/courses/{slug}/lessons/: section, title, type, опционально content.
     content: { document (JSON-строка или объект), assets: [{ asset_id, asset_type, asset_file? }] }.
     Файлы в multipart: поля asset_1, asset_2 или имена из asset_file.
     """

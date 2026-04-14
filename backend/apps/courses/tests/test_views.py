@@ -326,11 +326,27 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Lesson')
-        self.assertIn('content', response.data)
-        self.assertIn('document', response.data['content'])
+        self.assertNotIn('content', response.data)
+        self.assertIn('lesson_id', response.data)
+        self.assertEqual(response.data.get('document', ''), '')
 
         new_lesson = Lesson.objects.get(title='New Lesson')
         self.assertEqual(new_lesson.section, self.section)
+
+    def test_lesson_create_post_rejects_content_use_put(self):
+        self.authenticate_user(self.teacher)
+        response = self.client.post(
+            f'/api/courses/{self.course.slug}/lessons/',
+            {
+                'section': str(self.section.section_id),
+                'title': 'With content',
+                'type': 'draft',
+                'content': {'document': '{}', 'assets': []},
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Lesson.objects.filter(title='With content').exists())
 
     def test_lesson_create_rejects_section_from_other_course(self):
         other_course = create_test_course(title='Other course')
@@ -571,7 +587,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
-    """POST с content: document (JSON + local://n) и multipart asset_n."""
+    """PUT с content: document (JSON + local://n) и multipart asset_n."""
 
     def setUp(self):
         super().setUp()
@@ -599,7 +615,7 @@ class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
         }
         self.authenticate_user(self.teacher)
         png = SimpleUploadedFile('x.png', b'\x89PNG\r\n\x1a\n', content_type='image/png')
-        response = self.client.post(
+        response = self.client.put(
             f'/api/courses/{self.course.slug}/lessons/',
             {
                 'section': str(self.section.section_id),

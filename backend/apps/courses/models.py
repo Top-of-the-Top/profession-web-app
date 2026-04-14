@@ -104,6 +104,11 @@ class Course(AbstractComponentModel):
         verbose_name='Изображение курса',
         default=DEFAULT_COURSE_IMAGE,
     )
+    kinescope_folder_id = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name='Kinescope folder id'
+    )
 
     @property
     def image_url(self):
@@ -511,6 +516,28 @@ class Webinar(TimestampedMixin):
         blank=True,
         verbose_name='Ссылка на запись',
     )
+
+    KINESCOPE_UPLOAD_STATUS_CHOICES = [
+        ('none', 'Нет загрузки'),
+        ('pending', 'В очереди'),
+        ('uploading', 'Загружается'),
+        ('processing', 'Обрабатывается'),
+        ('ready', 'Готово'),
+        ('failed', 'Ошибка'),
+    ]
+    kinescope_video_id = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name='Kenescope video id',
+    )
+    kinescope_upload_status = models.CharField(
+        max_length=20,
+        null=False,
+        choices=KINESCOPE_UPLOAD_STATUS_CHOICES,
+        default='none',
+        verbose_name='Статут загрузки в кинескоп',
+    )    
+
 
     started_at = models.DateTimeField(
         null=True,

@@ -14,7 +14,7 @@ from ..api.views import (
     course_list_cache_key,
     landing_courses_cache_key,
 )
-from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
+from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse, Webinar
 from apps.users.models import User
 from apps.users.api.utils import encrypt_data, get_tokens_for_user
 from apps.payments.models import Payment
@@ -213,6 +213,64 @@ class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertIsInstance(response.data, list)
         self.assertEqual(len(response.data), 1)
         self.assertTrue(response.data[0]['is_active'])
+
+
+class MyWebinarsViewTest(BaseTestCase, ViewTestMixin):
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+        self.teacher = create_test_user(email='teacher_web@test.com', role='teacher')
+        self.course = create_test_course(title='Webinar Course')
+        self.course.authors.add(self.teacher)
+        self.section = create_test_section(self.course)
+        self.lesson = create_test_lesson(self.section, title='Webinar Lesson')
+        self.student = self.create_enrolled_student(self.course)
+
+    def test_requires_auth(self):
+        response = self.client.get('/api/app/my-webinars/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_student_sees_webinar_for_enrolled_course(self):
+        started = timezone.now() - timedelta(hours=2)
+        ended = timezone.now() - timedelta(hours=1)
+        Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.ENDED_STATUS,
+            started_at=started,
+            ended_at=ended,
+        )
+        self.authenticate_user(self.student)
+        response = self.client.get('/api/app/my-webinars/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        row = response.data[0]
+        self.assertEqual(row['course_title'], self.course.title)
+        self.assertEqual(row['course_slug'], self.course.slug)
+        self.assertEqual(row['lesson_title'], self.lesson.title)
+        self.assertEqual(row['lesson_slug'], self.lesson.slug)
+        self.assertIsNotNone(row['started_at'])
+        self.assertIsNotNone(row['ended_at'])
+
+    def test_student_does_not_see_other_course_webinar(self):
+        other = create_test_course(title='Other webinar course')
+        sec = create_test_section(other)
+        les = create_test_lesson(sec)
+        Webinar.objects.create(lesson=les, status=Webinar.PENDING_STATUS)
+        self.authenticate_user(self.student)
+        response = self.client.get('/api/app/my-webinars/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_teacher_sees_webinar_as_author_without_purchase(self):
+        Webinar.objects.create(lesson=self.lesson, status=Webinar.PENDING_STATUS)
+        solo_teacher = create_test_user(email='solo_teacher@test.com', role='teacher')
+        self.course.authors.add(solo_teacher)
+        self.authenticate_user(solo_teacher)
+        response = self.client.get('/api/app/my-webinars/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['lesson_slug'], self.lesson.slug)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

@@ -154,7 +154,7 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
     lesson_id = serializers.UUIDField(read_only=True)
     content = serializers.SerializerMethodField()
 
-    class Meta:
+    class Meta: 	
         model = Lesson
         fields = ('lesson_id', 'title', 'content')
 

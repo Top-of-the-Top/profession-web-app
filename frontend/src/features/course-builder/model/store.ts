@@ -58,6 +58,18 @@ const rectsIntersect = (a: Block, b: Block): boolean => {
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
+const LOCAL_ASSET_RE = /^local:\/\/(\d+)$/;
+const REMOTE_ASSET_RE = /\/asset_(\d+)(?:\.[^/?#]+)?(?:[?#].*)?$/;
+
+const extractAssetId = (url: string | undefined): number | null => {
+  if (!url) return null;
+  const localMatch = url.match(LOCAL_ASSET_RE);
+  if (localMatch) return Number(localMatch[1]);
+  const remoteMatch = url.match(REMOTE_ASSET_RE);
+  if (remoteMatch) return Number(remoteMatch[1]);
+  return null;
+};
+
 export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
   layout: createEmptyLayout(),
   pendingFiles: {},
@@ -260,14 +272,26 @@ export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
     const serialized = serializeLessonLayout(layout);
     const blockAssetIds: Record<string, string> = {};
     const filesByAssetId: Record<string, File> = {};
-    let nextAssetId = 1;
+    const usedAssetIds = new Set<number>();
+
+    for (const block of serialized.blocks) {
+      if (block.type !== 'photo' && block.type !== 'video') continue;
+      const currentAssetId = extractAssetId(block.url);
+      if (currentAssetId != null) usedAssetIds.add(currentAssetId);
+    }
+
+    let nextAssetId = usedAssetIds.size > 0 ? Math.max(...usedAssetIds) + 1 : 1;
 
     for (const block of serialized.blocks) {
       if (
         (block.type === 'photo' || block.type === 'video') &&
         pendingFiles[block.id]
       ) {
+        while (usedAssetIds.has(nextAssetId)) {
+          nextAssetId += 1;
+        }
         const assetId = String(nextAssetId);
+        usedAssetIds.add(nextAssetId);
         nextAssetId += 1;
         blockAssetIds[block.id] = assetId;
         filesByAssetId[assetId] = pendingFiles[block.id];

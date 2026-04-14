@@ -12,7 +12,7 @@ from ..models import (
     Webinar,
     PublishableMixin,
 )
-from ..lesson_content import resolve_lesson_document_string
+from ..lesson_content import resolve_lesson_document_string, parse_content_value
 from django.db.models import Prefetch
 from apps.users.models import User
 from rest_framework import serializers
@@ -306,26 +306,71 @@ class LessonCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError('Секция не принадлежит этому курсу.')
         return section
 
-    def create(self, validated_data):
+    def _resolve_document(self, lesson, content_payload):
+        doc_str = content_payload['document']
+        assets = list(content_payload.get('assets') or [])
+        return resolve_lesson_document_string(
+            self.context['course'].course_id,
+            lesson.lesson_id,
+            doc_str,
+            assets,
+            self.context['request'].FILES,
+        )
+
+    def _extract_content_payload(self, validated_data):
         content_payload = validated_data.pop('content', None)
+        if content_payload is not None:
+            return content_payload
+
+        initial_data = getattr(self, 'initial_data', None)
+        if hasattr(initial_data, 'get'):
+            raw = initial_data.get('content')
+        elif isinstance(initial_data, dict):
+            raw = initial_data.get('content')
+        else:
+            raw = None
+
+        parsed = parse_content_value(raw)
+        if parsed is None:
+            return None
+
+        serializer = LessonContentPayloadSerializer(data=parsed)
+        serializer.is_valid(raise_exception=True)
+        return serializer.validated_data
+
+    def create(self, validated_data):
+        content_payload = self._extract_content_payload(validated_data)
         lesson = Lesson.objects.create(**validated_data)
         if content_payload is not None:
-            doc_str = content_payload['document']
-            assets = list(content_payload.get('assets') or [])
             try:
-                resolved = resolve_lesson_document_string(
-                    self.context['course'].course_id,
-                    lesson.lesson_id,
-                    doc_str,
-                    assets,
-                    self.context['request'].FILES,
-                )
+                resolved = self._resolve_document(lesson, content_payload)
             except ValueError as e:
                 lesson.delete()
                 raise serializers.ValidationError({'content': str(e)}) from e
             lesson.document = resolved
             lesson.save(update_fields=['document'])
         return lesson
+
+    def update(self, instance, validated_data):
+        content_payload = self._extract_content_payload(validated_data)
+
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+
+        update_fields = list(validated_data.keys())
+
+        if content_payload is not None:
+            try:
+                resolved = self._resolve_document(instance, content_payload)
+            except ValueError as e:
+                raise serializers.ValidationError({'content': str(e)}) from e
+            instance.document = resolved
+            update_fields.append('document')
+
+        if update_fields:
+            instance.save(update_fields=update_fields)
+
+        return instance
 
     def to_representation(self, instance):
         data = LessonSerializer(instance).data

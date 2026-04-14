@@ -20,7 +20,6 @@ from .serializers import (
     CourseListResponseSerializer,
     LessonSerializer,
     LessonCreateSerializer,
-    LessonSimpleCreateSerializer,
     LessonDetailReadSerializer,
     HomeworkSerializer,
     HomeworkDetailSerializer,
@@ -451,15 +450,21 @@ class SectionDetailView(APIView):
 
 @extend_schema(
     methods=['POST'],
-    summary='Создать урок (кратко)',
+    summary='Создать урок',
     description=(
-        'Только поля модели: `section`, `title`, `type` (по умолчанию draft). '
-        'Без `content` и без загрузки файлов — как раньше.'
+        'Тело: `section`, `title`, `type` (по умолчанию draft), опционально `content` '
+        '— объект `{ document, assets }`. `document` — JSON-строка или объект: внутри полей '
+        'плейсхолдеры `local://<n>` соответствуют `asset_id` в `assets`. '
+        '`assets[]`: `asset_id` (1,2,…), `asset_type` (image / video / mime), '
+        '`asset_file` — имя поля в FormData (по умолчанию `asset_<id>`). '
+        'Без файлов — JSON; с файлами — multipart: поле `content` JSON-строкой '
+        'и бинарники `asset_1`, `asset_2`, … В `document` в БД подставлены URL на S3 '
+        '(путь `courses/course_<id>/lessons/<lesson_id>/asset_<n>.<ext>`).'
     ),
     tags=['Course'],
-    request=LessonSimpleCreateSerializer,
+    request=LessonCreateSerializer,
     responses={
-        201: LessonSerializer,
+        201: LessonCreateSerializer,
         400: {'schema': SCHEMA_VALIDATION},
         401: {'schema': SCHEMA_DETAIL},
         403: {'schema': SCHEMA_DETAIL},
@@ -498,16 +503,13 @@ class LessonCreateView(APIView):
     @require_course_author
     def post(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug)
-        serializer = LessonSimpleCreateSerializer(
+        serializer = LessonCreateSerializer(
             data=request.data,
             context={'request': request, 'course': course},
         )
         serializer.is_valid(raise_exception=True)
-        lesson = serializer.save()
-        return Response(
-            LessonSerializer(lesson).data,
-            status=status.HTTP_201_CREATED,
-        )
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @require_course_author
     def put(self, request, course_slug):
@@ -523,6 +525,7 @@ class LessonCreateView(APIView):
 
 class LessonDetailView(APIView):
     permission_classes = (IsAuthenticated,)
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
     serializer_class = LessonSerializer
 
     @extend_schema(
@@ -568,9 +571,9 @@ class LessonDetailView(APIView):
                 location=OpenApiParameter.PATH,
             ),
         ],
-        request=LessonSerializer,
+        request=LessonCreateSerializer,
         responses={
-            200: LessonSerializer,
+            200: LessonCreateSerializer,
             400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
@@ -580,8 +583,14 @@ class LessonDetailView(APIView):
     )
     @require_course_author
     def put(self, request, course_slug, lesson_slug):
+        course = get_object_or_404(Course, slug=course_slug)
         lesson = _get_lesson_or_404(course_slug, lesson_slug)
-        serializer = LessonSerializer(lesson, data=request.data, partial=True)
+        serializer = LessonCreateSerializer(
+            lesson,
+            data=request.data,
+            partial=True,
+            context={'request': request, 'course': course},
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

@@ -27,6 +27,7 @@ from .serializers import (
     SectionSerializer,
     TaskSerializer,
     QuestionSerializer,
+    UserWebinarListItemSerializer,
 )
 from .agora_utils import (
     generate_rtc_token, user_uid_from_uuid, create_whiteboard_room, generate_whiteboard_room_token, 
@@ -36,6 +37,7 @@ from rest_framework import generics
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
 from django.core.cache import caches
+from django.db.models import F
 from django.utils import timezone
 import os
 
@@ -257,6 +259,52 @@ class PurchasedCoursesView(APIView):
         serializer = PurchasedCourseSerializer(purchased, many=True)
         cache.set(key, serializer.data)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+def _accessible_course_ids_for_user(user):
+    if user.is_moderator():
+        return None
+    ids = set(user.get_purchased_courses_ids())
+    if user.is_teacher():
+        authored = Course.objects.filter(authors=user).values_list('course_id', flat=True)
+        ids.update(authored)
+    return ids
+    
+class MyScheduleView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary="Расписание вебинаров по моим курсам",
+        description=(
+            'Список вебинаров уроков курсов, к которым у пользователя есть доступ '
+            '(активная покупка и/или авторство; модератор — все). '
+            'Один SQL-запрос, поля курса и урока из связей lesson → section → course.'
+        ),
+        tags=["Home"],
+        responses={
+            200: UserWebinarListItemSerializer(many=True),
+            401: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    )
+    def get(self, request):
+        course_ids = _accessible_course_ids_for_user(request.user)
+        qs = Webinar.objects.all()
+        if course_ids is not None:
+            qs = qs.filter(lesson__section__course_id__in=course_ids)
+
+        rows = (
+            qs.values(
+                course_title=F('lesson__section__course__title'),
+                course_slug=F('lesson__section__course__slug'),
+                lesson_title=F('lesson__title'),
+                lesson_slug=F('lesson__slug'),
+                started_at=F('started_at'),
+                ended_at=F('ended_at'),
+            )
+            .order_by(F('started_at').desc(nulls_last=True), '-created_at')
+        )
+        return Response(list(rows))
 
 
 class CourseHomePageView(APIView):
@@ -1024,3 +1072,10 @@ class WebinarRecordingStartView(APIView):
         webinar.save()
 
         return Response({'detail': 'Запись началась'})
+
+class ScheduleView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+
+        return Response({'detail': 'Расписание'})

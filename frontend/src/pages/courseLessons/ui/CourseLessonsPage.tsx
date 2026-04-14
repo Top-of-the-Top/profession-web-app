@@ -537,7 +537,6 @@ function SectionBlock({
         await createLesson.mutateAsync({
           title: trimmed,
           section: section.section_id,
-          date_time: new Date().toISOString(),
         });
         setNewLessonTitle('');
         setAddingLesson(false);

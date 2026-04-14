@@ -70,10 +70,23 @@ function sanitizeWysiwygHtml(html: string): string {
     .replace(/<!--\s*\(figma\)[\s\S]*?\(\/figma\)\s*-->/g, '');
 }
 
+function inferAssetType(file: File): string {
+  if (file.type.startsWith('video/')) return 'video';
+  return 'image';
+}
+
 export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
   const navigate = useNavigate();
-  const { layout, setTitle, addBlockAt, updateBlock, removeBlock, toJSON } =
-    useLessonBuilderStore();
+  const {
+    layout,
+    setTitle,
+    addBlockAt,
+    updateBlock,
+    setBlockFile,
+    removeBlock,
+    toJSON,
+    toSubmitPayload,
+  } = useLessonBuilderStore();
   const { initialize: initHomework, toJSON: homeworkToJSON } = useHomeworkStore();
 
   const [mounted, setMounted] = useState(false);
@@ -188,6 +201,22 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
     }
   };
 
+  const buildContractPreview = () => {
+    const payload = toSubmitPayload();
+    const assets = Object.entries(payload.files).map(([assetId, file]) => ({
+      asset_id: Number(assetId),
+      asset_type: inferAssetType(file),
+      asset_file: `asset_${assetId}`,
+    }));
+    return {
+      content: {
+        document: payload.document,
+        assets,
+      },
+      files: payload.files,
+    };
+  };
+
   const renderBlockBody = (block: Block) => {
     if (block.type === 'text') {
       const collapsed = collapsedEditors[block.id] ?? true;
@@ -226,12 +255,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () =>
-                  updateBlock(block.id, {
-                    url: reader.result as string,
-                  } as Block);
-                reader.readAsDataURL(file);
+                setBlockFile(block.id, file);
                 e.target.value = '';
               }}
             />
@@ -281,12 +305,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () =>
-                  updateBlock(block.id, {
-                    url: reader.result as string,
-                  } as Block);
-                reader.readAsDataURL(file);
+                setBlockFile(block.id, file);
                 e.target.value = '';
               }}
             />
@@ -459,12 +478,8 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                     type="button"
                     className={`${styles.button} ${styles.buttonSecondary}`}
                     onClick={() => {
-                      const lessonData = toJSON();
-                      const homeworkData = homeworkToJSON();
-                      const hw = homeworkData.questions.length > 0 ? homeworkData : null;
-                      const page = serializeCoursePage(lessonData, hw);
-                       
-                      console.log('CoursePageDTO (draft):', JSON.stringify(page));
+                      const payload = buildContractPreview();
+                      console.log('LessonSubmitPayload (draft):', payload);
                     }}
                   >
                     Сохранить черновик
@@ -473,6 +488,8 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                     type="button"
                     className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={() => {
+                      const payload = buildContractPreview();
+                      console.log('LessonSubmitPayload (preview):', payload);
                       const lessonData = toJSON();
                       const homeworkData = homeworkToJSON();
                       const hw = homeworkData.questions.length > 0 ? homeworkData : null;

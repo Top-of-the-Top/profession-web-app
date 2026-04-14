@@ -324,19 +324,16 @@
 /* ── Webinar quick links ── */
 
 .linksRow {
-  display: grid;
-  grid-template-columns: repeat(2, auto);
-  gap: 10px;
   justify-content: center;
-  width: 80%;
-  margin: 0 auto;
-	margin-bottom: 20px;
+  width: 100%;
 }
 
 .quickLinkButton {
   display: inline-flex;
+	width: 100%;
   align-items: center;
   justify-content: center;
+	cursor: pointer;
   gap: 8px;
   background: #fff;
   color: #191970;
@@ -384,6 +381,14 @@
 
 .homeworkButton:hover {
   background: #1e2a6e;
+}
+
+.homeworkItem {
+  margin-bottom: 10px;
+}
+
+.homeworkItem:last-child {
+  margin-bottom: 0;
 }
 
 .noHomework {

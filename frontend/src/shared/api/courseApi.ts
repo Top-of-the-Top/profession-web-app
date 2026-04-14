@@ -69,14 +69,21 @@ export interface Lesson {
   last_modified_by: number | null;
 }
 
+export interface LessonHomework {
+  homework_id: number;
+  title: string;
+  deadline: string;
+  homework_slug: string;
+}
+
 export interface CourseLessonDetail {
-  lesson_id: number | string;
-  lesson_title: string;
-  content: string;
+  lesson_id: number;
+  title: string;
+  document: string;
   recording_url: string | null;
-  homework_id: number | string | null;
-  homework_deadline: string | null;
   started_at: string | null;
+  homeworks: LessonHomework[];
+  meta: Record<string, unknown>;
 }
 
 export interface PurchasedCourseItem {
@@ -111,7 +118,9 @@ export interface SectionRecord {
 export interface LessonCreatePayload {
   title: string;
   section?: string;
-  date_time?: string | null;
+  lesson_num?: number;
+  document?: string;
+  files?: Record<string, File>;
 }
 
 export interface LessonPatchPayload {
@@ -140,21 +149,16 @@ type RawCourseHomeResponse = Partial<CourseHomeResponse> & {
   meta?: Record<string, unknown>;
 };
 
-type RawLessonDetailContent = {
-  recording_url?: string;
-  started_at?: string | null;
-  homeworks?: Array<{
-    homework_id: string;
-    title: string;
-    homework_slug: string;
-    deadline: string;
-  }>;
-};
-
 type RawLessonDetailResponse = {
-  lesson_id: string;
+  lesson_id: number;
   title: string;
-  content: RawLessonDetailContent | string;
+  content: {
+    document?: string;
+    recording_url?: string;
+    started_at?: string | null;
+    homeworks?: LessonHomework[];
+  };
+  meta?: Record<string, unknown>;
 };
 
 function normalizeCoursesResponse(raw: RawCoursesResponse): CourseApiAnswer {
@@ -218,28 +222,15 @@ function normalizeCourseHomeResponse(raw: RawCourseHomeResponse): CourseHomeResp
 }
 
 function normalizeLessonDetailRead(raw: RawLessonDetailResponse): CourseLessonDetail {
-  const contentVal = raw.content;
-  const nest =
-    typeof contentVal === 'object' && contentVal !== null && !Array.isArray(contentVal)
-      ? (contentVal as RawLessonDetailContent)
-      : null;
-  const builderContent =
-    typeof contentVal === 'string'
-      ? contentVal
-      : JSON.stringify({
-          id: String(raw.lesson_id),
-          title: raw.title,
-          blocks: [],
-        });
-  const firstHw = nest?.homeworks?.[0];
+  const c = raw.content ?? {};
   return {
     lesson_id: raw.lesson_id,
-    lesson_title: raw.title,
-    content: builderContent,
-    recording_url: nest?.recording_url ?? null,
-    homework_id: firstHw?.homework_id ?? null,
-    homework_deadline: firstHw?.deadline ?? null,
-    started_at: nest?.started_at ?? null,
+    title: raw.title,
+    document: c.document ?? '',
+    recording_url: c.recording_url ?? null,
+    started_at: c.started_at ?? null,
+    homeworks: Array.isArray(c.homeworks) ? c.homeworks : [],
+    meta: raw.meta ?? {},
   };
 }
 
@@ -251,6 +242,41 @@ function catalogRowsToPurchasedShim(rows: CourseDTO[]): PurchasedCourseItem[] {
     access_expires_at: null,
     is_active: true,
   }));
+}
+
+const ASSET_PART_PREFIX = 'asset_' as const;
+
+function guessAssetType(file: File): string {
+  if (file.type.startsWith('video/')) return 'video';
+  return 'image';
+}
+
+function buildLessonFormData(payload: LessonCreatePayload): FormData {
+  const { title, section, lesson_num, document, files } = payload;
+  const fd = new FormData();
+  fd.set('title', title);
+  if (section != null) fd.set('section', section);
+  if (lesson_num != null) fd.set('lesson_num', String(lesson_num));
+
+  const assetIds = files ? Object.keys(files) : [];
+  const assets = assetIds.map((id) => ({
+    asset_id: Number(id),
+    asset_type: guessAssetType(files![id]),
+    asset_file: `${ASSET_PART_PREFIX}${id}`,
+  }));
+
+  const content: Record<string, unknown> = {
+    document: document ?? '',
+    assets,
+  };
+  fd.set('content', JSON.stringify(content));
+
+  for (const id of assetIds) {
+    const file = files![id];
+    fd.set(`${ASSET_PART_PREFIX}${id}`, file, file.name || id);
+  }
+
+  return fd;
 }
 
 export const courseApi = {
@@ -322,9 +348,19 @@ export const courseApi = {
   },
 
   createLesson(courseSlug: string, payload: LessonCreatePayload): Promise<Lesson> {
+    const hasFiles = payload.files && Object.keys(payload.files).length > 0;
+    const body = hasFiles
+      ? buildLessonFormData(payload)
+      : JSON.stringify({
+          title: payload.title,
+          section: payload.section,
+          lesson_num: payload.lesson_num,
+          content: { document: payload.document ?? '', assets: [] },
+        });
+
     return apiClient.request<Lesson>(`/api/courses/${courseSlug}/lessons/`, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body,
     });
   },
 

@@ -18,6 +18,7 @@ import {
   DEFAULT_FONT_SIZE_INDEX,
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
+import type { LessonHomework } from '@shared/api/courseApi';
 import { useCourseHomeBySlug, useLessonBySlug } from '@shared/api/queries/courses';
 import { useStartWebinar } from '@shared/api/mutations/webinar';
 import { useRole } from '@shared/lib/rbac';
@@ -106,46 +107,59 @@ const LessonContent: React.FC<{ layout: LessonLayout }> = ({ layout }) => {
 
 /* ── Sidebar widgets ── */
 
+function formatDeadline(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
 const HomeworkWidget: React.FC<{
   courseSlug: string;
   lessonSlug: string;
-  homeworkId: number | string | null;
-  deadline: string | null;
-}> = ({ courseSlug, lessonSlug, homeworkId, deadline }) => {
-  const formattedDeadline = deadline
-    ? (() => {
-        try {
-          return new Intl.DateTimeFormat('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            hour: '2-digit',
-            minute: '2-digit',
-          }).format(new Date(deadline));
-        } catch {
-          return deadline;
-        }
-      })()
-    : null;
+  homeworks: LessonHomework[];
+}> = ({ courseSlug, lessonSlug, homeworks }) => {
+  if (homeworks.length === 0) {
+    return (
+      <div className={styles.sidebarCard}>
+        <div className={styles.sidebarCardHeader}>
+          <CircleCheck size={18} />
+          <span className={styles.sidebarCardTitle}>Задание</span>
+        </div>
+        <div className={styles.noHomework}>Задание не назначено</div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.sidebarCard}>
       <div className={styles.sidebarCardHeader}>
         <CircleCheck size={18} />
-        <span className={styles.sidebarCardTitle}>Задание</span>
+        <span className={styles.sidebarCardTitle}>
+          {homeworks.length === 1 ? 'Задание' : 'Задания'}
+        </span>
       </div>
-      {formattedDeadline && (
-        <p className={styles.deadlineText}>Дедлайн: {formattedDeadline}</p>
-      )}
-      {homeworkId != null && homeworkId !== '' ? (
-        <Link
-          to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(String(homeworkId))}`}
-          className={styles.homeworkButton}
-        >
-          Перейти к заданию
-        </Link>
-      ) : (
-        <div className={styles.noHomework}>Задание не назначено</div>
-      )}
+      {homeworks.map((hw) => (
+        <div key={hw.homework_id} className={styles.homeworkItem}>
+          {hw.deadline && (
+            <p className={styles.deadlineText}>
+              Дедлайн: {formatDeadline(hw.deadline)}
+            </p>
+          )}
+          <Link
+            to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`}
+            className={styles.homeworkButton}
+          >
+            {hw.title || 'Перейти к заданию'}
+          </Link>
+        </div>
+      ))}
     </div>
   );
 };
@@ -373,13 +387,13 @@ export default function LessonViewPage() {
   const lessonDetail = lessonQuery.data;
 
   const lessonLayout = useMemo<LessonLayout | null>(() => {
-    if (!lessonDetail) return null;
+    if (!lessonDetail?.document) return null;
     try {
-      return parseLessonLayoutFromContentString(lessonDetail.content);
+      return parseLessonLayoutFromContentString(lessonDetail.document);
     } catch {
       return {
         id: String(lessonDetail.lesson_id),
-        title: lessonDetail.lesson_title,
+        title: lessonDetail.title,
         blocks: [],
       };
     }
@@ -440,7 +454,7 @@ export default function LessonViewPage() {
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{lessonDetail.lesson_title}</BreadcrumbPage>
+              <BreadcrumbPage>{lessonDetail.title}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -450,7 +464,7 @@ export default function LessonViewPage() {
         <div className={styles.mainColumn}>
           <div className={styles.lessonHeader}>
             <div className={styles.lessonHeaderTrapezoid}>
-              <h1 className={styles.lessonTitleTrapezoid}>{lessonDetail.lesson_title}</h1>
+              <h1 className={styles.lessonTitleTrapezoid}>{lessonDetail.title}</h1>
             </div>
           </div>
 
@@ -470,8 +484,7 @@ export default function LessonViewPage() {
           <HomeworkWidget
             courseSlug={courseSlug ?? ''}
             lessonSlug={lessonSlug ?? ''}
-            homeworkId={lessonDetail.homework_id}
-            deadline={lessonDetail.homework_deadline}
+            homeworks={lessonDetail.homeworks}
           />
           <ProgressWidget />
         </aside>

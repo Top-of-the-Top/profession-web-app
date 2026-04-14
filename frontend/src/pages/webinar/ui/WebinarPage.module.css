@@ -1,7 +1,10 @@
 .page {
-  display: flex;
+  display: grid;
   flex-direction: column;
-  height: 100vh;
+  /* max-height: 100vh; */
+	grid-template-rows: 90% 5%;
+	gap: 20px;
+	height: 90vh;
   width: 100%;
   overflow: hidden;
   background: var(--background);

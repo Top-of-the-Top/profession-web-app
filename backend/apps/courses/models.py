@@ -180,7 +180,6 @@ class Lesson(AbstractComponentModel, AutoIncrementMixin):
     section = models.ForeignKey(Section, on_delete=models.CASCADE, null=True, verbose_name='ID секции')
     title = models.CharField(max_length=120, verbose_name='Название урока')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
-    date_time = models.DateTimeField(verbose_name='Время проведения урока', null=True, blank=True)
 
     def __str__(self):
         return self.title

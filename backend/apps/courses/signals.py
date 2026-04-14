@@ -213,17 +213,23 @@ def track_lesson_changes(sender, instance, **kwargs):
 
     try:
         old = Lesson.objects.get(pk=instance.pk)
-        instance._date_time_changed = old.date_time != instance.date_time
-        instance._old_date_time = old.date_time
+        old_dt = getattr(old, 'date_time', None)
+        new_dt = getattr(instance, 'date_time', None)
+        instance._date_time_changed = old_dt != new_dt
+        instance._old_date_time = old_dt
     except Lesson.DoesNotExist:
         pass
 
 @receiver(post_save, sender=Lesson)
 def handle_lesson_reminders(sender, instance, created, **kwargs):
+    notify_author(instance, 'создан' if created else 'изменен')
+
+    lesson_dt = getattr(instance, 'date_time', None)
+    if lesson_dt is None or instance.section_id is None:
+        return
+
     cours = instance.section.course
     now = timezone.now()
-
-    notify_author(instance, 'создан' if created else 'изменен')
 
     reminder_configs = [
         ('24h', timedelta(days=1), 'До занятия остался 24 часа'),
@@ -235,7 +241,7 @@ def handle_lesson_reminders(sender, instance, created, **kwargs):
 
     if created or (date_time_changed and old_time_date):
         for r_type, delta, base_message in reminder_configs:
-            eta = instance.date_time - delta
+            eta = lesson_dt - delta
 
             if eta > now:
                 notif_task_id = get_reminder_task_id_for_lesson(instance.pk, r_type, 'notification')
@@ -245,7 +251,7 @@ def handle_lesson_reminders(sender, instance, created, **kwargs):
                 message = (
                     f'{base_message}.\n'
                     f'Урок: "{instance.title}"\n'
-                    f'Дата проведения: {instance.date_time.strftime("%d.%m %H:%M")}'
+                    f'Дата проведения: {lesson_dt.strftime("%d.%m %H:%M")}'
                 )
 
                 send_course_notification.apply_async(

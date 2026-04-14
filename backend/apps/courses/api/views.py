@@ -304,12 +304,12 @@ class MyScheduleView(APIView):
 
         rows = (
             qs.values(
+                'started_at',
+                'ended_at',
                 course_title=F('lesson__section__course__title'),
                 course_slug=F('lesson__section__course__slug'),
                 lesson_title=F('lesson__title'),
                 lesson_slug=F('lesson__slug'),
-                started_at=F('started_at'),
-                ended_at=F('ended_at'),
             )
             .order_by(F('started_at').desc(nulls_last=True), '-created_at')
         )

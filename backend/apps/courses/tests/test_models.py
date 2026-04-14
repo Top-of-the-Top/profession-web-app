@@ -48,7 +48,6 @@ def create_test_lesson(section, **kwargs):
     defaults = {
         'section': section,
         'title': 'Тестовый урок',
-        'date_time': timezone.now() + timedelta(days=1),
     }
     defaults.update(kwargs)
     return Lesson.objects.create(**defaults)

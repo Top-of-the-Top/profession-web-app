@@ -5,6 +5,7 @@ import { ImageUp, PictureInPicture, Trash2 } from 'lucide-react';
 import GridLayout from 'react-grid-layout';
 import type { Layout, LayoutItem } from 'react-grid-layout';
 import { useLessonBuilderStore } from '../../model/store';
+import type { SubmitPayload } from '../../model/store';
 import type { Block, BlockType } from '../../model/types';
 import { serializeCoursePage } from '../../model/types';
 import { GRID_CELL_SIZE, GRID_COLS } from '../../lib/constants';
@@ -25,7 +26,10 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 interface CourseBuilderProps {
-  courseId: number;
+  courseSlug: string;
+  lessonSlug: string;
+  onSave: (payload: SubmitPayload) => void;
+  saving?: boolean;
 }
 
 const BLOCK_LABELS: Record<BlockType, string> = {
@@ -70,12 +74,12 @@ function sanitizeWysiwygHtml(html: string): string {
     .replace(/<!--\s*\(figma\)[\s\S]*?\(\/figma\)\s*-->/g, '');
 }
 
-function inferAssetType(file: File): string {
-  if (file.type.startsWith('video/')) return 'video';
-  return 'image';
-}
-
-export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
+export const CourseBuilder: React.FC<CourseBuilderProps> = ({
+  courseSlug,
+  lessonSlug,
+  onSave,
+  saving,
+}) => {
   const navigate = useNavigate();
   const {
     layout,
@@ -102,8 +106,8 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
   }, []);
 
   useEffect(() => {
-    initHomework(String(courseId ?? ''));
-  }, [courseId, initHomework]);
+    initHomework(`${courseSlug}/${lessonSlug}`);
+  }, [courseSlug, lessonSlug, initHomework]);
 
   const gridLayout = blocksToLayout(layout.blocks);
   const draggableHandleProps = {
@@ -199,22 +203,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
       e.dataTransfer.setDragImage(node, Math.min(rect.width / 2, 80), 20);
       setTimeout(() => node.remove(), 0);
     }
-  };
-
-  const buildContractPreview = () => {
-    const payload = toSubmitPayload();
-    const assets = Object.entries(payload.files).map(([assetId, file]) => ({
-      asset_id: Number(assetId),
-      asset_type: inferAssetType(file),
-      asset_file: `asset_${assetId}`,
-    }));
-    return {
-      content: {
-        document: payload.document,
-        assets,
-      },
-      files: payload.files,
-    };
   };
 
   const renderBlockBody = (block: Block) => {
@@ -477,19 +465,15 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                   <button
                     type="button"
                     className={`${styles.button} ${styles.buttonSecondary}`}
-                    onClick={() => {
-                      const payload = buildContractPreview();
-                      console.log('LessonSubmitPayload (draft):', payload);
-                    }}
+                    disabled={saving}
+                    onClick={() => onSave(toSubmitPayload())}
                   >
-                    Сохранить черновик
+                    {saving ? 'Сохранение…' : 'Сохранить черновик'}
                   </button>
                   <button
                     type="button"
                     className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={() => {
-                      const payload = buildContractPreview();
-                      console.log('LessonSubmitPayload (preview):', payload);
                       const lessonData = toJSON();
                       const homeworkData = homeworkToJSON();
                       const hw = homeworkData.questions.length > 0 ? homeworkData : null;

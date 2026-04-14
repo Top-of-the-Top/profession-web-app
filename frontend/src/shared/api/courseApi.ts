@@ -128,6 +128,8 @@ export interface LessonPatchPayload {
   section?: string | null;
   type?: CourseContentType;
   date_time?: string | null;
+  document?: string;
+  files?: Record<string, File>;
 }
 
 export interface CoursePatchPayload {
@@ -251,13 +253,18 @@ function guessAssetType(file: File): string {
   return 'image';
 }
 
-function buildLessonFormData(payload: LessonCreatePayload): FormData {
-  const { title, section, lesson_num, document, files } = payload;
+function buildLessonFormData(
+  payload: LessonCreatePayload | LessonPatchPayload,
+): FormData {
   const fd = new FormData();
-  fd.set('title', title);
-  if (section != null) fd.set('section', section);
-  if (lesson_num != null) fd.set('lesson_num', String(lesson_num));
 
+  if (payload.title != null) fd.set('title', payload.title);
+  if ('section' in payload && payload.section != null)
+    fd.set('section', payload.section);
+  if ('lesson_num' in payload && (payload as LessonCreatePayload).lesson_num != null)
+    fd.set('lesson_num', String((payload as LessonCreatePayload).lesson_num));
+
+  const files = payload.files;
   const assetIds = files ? Object.keys(files) : [];
   const assets = assetIds.map((id) => ({
     asset_id: Number(id),
@@ -266,7 +273,7 @@ function buildLessonFormData(payload: LessonCreatePayload): FormData {
   }));
 
   const content: Record<string, unknown> = {
-    document: document ?? '',
+    document: payload.document ?? '',
     assets,
   };
   fd.set('content', JSON.stringify(content));
@@ -369,11 +376,22 @@ export const courseApi = {
     lessonSlug: string,
     payload: LessonPatchPayload,
   ): Promise<Lesson> {
+    const hasFiles = payload.files && Object.keys(payload.files).length > 0;
+    const hasDocument = payload.document != null;
+
+    let body: FormData | string;
+    if (hasFiles || hasDocument) {
+      body = buildLessonFormData(payload);
+    } else {
+      const { files: _f, document: _d, ...meta } = payload;
+      body = JSON.stringify(meta);
+    }
+
     return apiClient.request<Lesson>(
       `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
       {
         method: 'PUT',
-        body: JSON.stringify(payload),
+        body,
       },
     );
   },

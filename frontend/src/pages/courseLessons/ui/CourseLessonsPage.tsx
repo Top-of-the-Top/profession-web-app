@@ -801,7 +801,7 @@ function LessonRow({
             disabled={lessonCreatePending}
             onClick={() =>
               navigate(
-                `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`
+                `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}/edit`
               )
             }
           >

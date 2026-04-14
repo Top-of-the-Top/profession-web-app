@@ -8,6 +8,7 @@ import {
   type CourseHomeResponse,
   type Lesson,
   type LessonCreatePayload,
+  type LessonPatchPayload,
   type SectionCreatePayload,
   type SectionPatchPayload,
   type SectionRecord,
@@ -374,6 +375,30 @@ export function useDeleteLesson(courseSlug: string) {
     onError: (err) => {
       notifyError({
         title: 'Не удалось удалить урок',
+        description: errMsg(err),
+      });
+    },
+  });
+}
+
+export function useSaveLessonContent(
+  courseSlug: string,
+  lessonSlug: string,
+) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: LessonPatchPayload) =>
+      courseApi.updateLesson(courseSlug, lessonSlug, payload),
+    onSuccess: () => {
+      notifySuccess({ title: 'Урок сохранён' });
+      void qc.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+    },
+    onError: (err) => {
+      notifyError({
+        title: 'Не удалось сохранить урок',
         description: errMsg(err),
       });
     },

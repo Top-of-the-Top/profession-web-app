@@ -63,6 +63,20 @@ def create_test_homework(lesson, **kwargs):
     return Homework.objects.create(**defaults)
 
 
+def publish_course_tree(course):
+    course.type = Course.PUBLISHED_STATUS
+    course.save(update_fields=['type'])
+    for section in course.section_set.all():
+        section.type = Section.PUBLISHED_STATUS
+        section.save(update_fields=['type'])
+        for lesson in section.lesson_set.all():
+            lesson.type = Lesson.PUBLISHED_STATUS
+            lesson.save(update_fields=['type'])
+            for hw in lesson.homework_set.all():
+                hw.type = Homework.PUBLISHED_STATUS
+                hw.save(update_fields=['type'])
+
+
 class BaseTestCase(TestCase):
     CELERY_TASKS_TO_MOCK = [
         'apps.courses.signals.send_course_notification.delay',

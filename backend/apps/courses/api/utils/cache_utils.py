@@ -1,10 +1,15 @@
 from django.core.cache import caches
 from rest_framework.response import Response
 
-from apps.common.cache import delete_cache_keys
-
 
 DEFAULT_CACHE_ALIAS = 'default'
+
+
+def delete_cache_keys(cache_alias, *keys):
+    cache = caches[cache_alias]
+    for key in keys:
+        if key is not None:
+            cache.delete(key)
 
 
 def default_cache():

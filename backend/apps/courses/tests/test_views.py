@@ -25,6 +25,7 @@ from .test_models import (
     create_test_section,
     create_test_lesson,
     create_test_homework,
+    publish_course_tree,
 )
 
 
@@ -192,6 +193,7 @@ class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.user = create_test_user(email='student@test.com', role='student')
         self.course = create_test_course()
+        publish_course_tree(self.course)
 
     def tearDown(self):
         super().tearDown()
@@ -226,6 +228,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
         self.course.authors.add(self.teacher)
         self.section = create_test_section(self.course)
         self.lesson = create_test_lesson(self.section, title='Webinar Lesson')
+        publish_course_tree(self.course)
         self.student = self.create_enrolled_student(self.course)
 
     def test_requires_auth(self):
@@ -292,6 +295,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.section = create_test_section(self.course, title='Section 1')
         self.lesson = create_test_lesson(self.section, title='Lesson 1')
         self.homework = create_test_homework(self.lesson, title='HW 1')
+        publish_course_tree(self.course)
 
     def tearDown(self):
         super().tearDown()

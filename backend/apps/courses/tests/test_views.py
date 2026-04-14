@@ -310,10 +310,15 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertIn('recording_url', response.data['content'])
         self.assertIn('started_at', response.data['content'])
         self.assertIn('homeworks', response.data['content'])
+        self.assertIn('document', response.data['content'])
 
     def test_lesson_create_as_author(self):
         self.authenticate_user(self.teacher)
-        data = {'section': self.section.section_id, 'title': 'New Lesson'}
+        data = {
+            'section': self.section.section_id,
+            'title': 'New Lesson',
+            'type': 'draft',
+        }
         response = self.client.post(
             f'/api/courses/{self.course.slug}/lessons/',
             data,
@@ -321,6 +326,8 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Lesson')
+        self.assertIn('content', response.data)
+        self.assertIn('document', response.data['content'])
 
         new_lesson = Lesson.objects.get(title='New Lesson')
         self.assertEqual(new_lesson.section, self.section)
@@ -333,6 +340,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         data = {
             'section': str(foreign_section.section_id),
             'title': 'Lesson in wrong section',
+            'type': 'draft',
         }
         response = self.client.post(
             f'/api/courses/{self.course.slug}/lessons/',
@@ -345,7 +353,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
     def test_lesson_update_as_author(self):
         self.authenticate_user(self.teacher)
         update_data = {'title': 'Updated Lesson'}
-        response = self.client.patch(
+        response = self.client.put(
             f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/',
             update_data,
             format='json'
@@ -549,7 +557,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertIn(self.teacher, self.course.authors.all())
 
         data = {'title': 'Updated Lesson Title'}
-        response = self.client.patch(
+        response = self.client.put(
             f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/',
             data,
             format='json'
@@ -559,6 +567,55 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.lesson.refresh_from_db()
         self.assertEqual(self.lesson.title, 'Updated Lesson Title')
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
+    """POST с content: document (JSON + local://n) и multipart asset_n."""
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+        self.teacher = create_test_user(email='teacher_lesson_doc@test.com', role='teacher')
+        self.course = create_test_course()
+        self.course.authors.add(self.teacher)
+        self.section = create_test_section(self.course, title='Sec Lesson Doc')
+
+    def test_multipart_resolves_local_placeholder(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        doc = json.dumps({
+            'id': 'a',
+            'title': 'Новый урок',
+            'blocks': [
+                {'id': 'b', 'type': 'photo', 'url': 'local://1'},
+            ],
+        })
+        content = {
+            'document': doc,
+            'assets': [
+                {'asset_id': 1, 'asset_type': 'image', 'asset_file': 'asset_1'},
+            ],
+        }
+        self.authenticate_user(self.teacher)
+        png = SimpleUploadedFile('x.png', b'\x89PNG\r\n\x1a\n', content_type='image/png')
+        response = self.client.post(
+            f'/api/courses/{self.course.slug}/lessons/',
+            {
+                'section': str(self.section.section_id),
+                'title': 'Lesson local placeholder',
+                'type': 'draft',
+                'content': json.dumps(content),
+                'asset_1': png,
+            },
+            format='multipart',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        lesson = Lesson.objects.get(title='Lesson local placeholder')
+        self.assertNotIn('local://', lesson.document)
+        parsed = json.loads(lesson.document)
+        url = parsed['blocks'][0]['url']
+        self.assertTrue(url.startswith('http') or url.startswith('/media'), msg=url)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

@@ -364,7 +364,7 @@ export const courseApi = {
     });
   },
 
-  patchLesson(
+  updateLesson(
     courseSlug: string,
     lessonSlug: string,
     payload: LessonPatchPayload,
@@ -372,7 +372,7 @@ export const courseApi = {
     return apiClient.request<Lesson>(
       `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
       {
-        method: 'PATCH',
+        method: 'PUT',
         body: JSON.stringify(payload),
       },
     );

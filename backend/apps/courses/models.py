@@ -180,6 +180,11 @@ class Lesson(AbstractComponentModel, AutoIncrementMixin):
     section = models.ForeignKey(Section, on_delete=models.CASCADE, null=True, verbose_name='ID секции')
     title = models.CharField(max_length=120, verbose_name='Название урока')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
+    document = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='JSON урока после подстановки URL (local:// → хранилище)',
+    )
 
     def __str__(self):
         return self.title

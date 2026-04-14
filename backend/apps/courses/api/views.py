@@ -19,6 +19,7 @@ from .serializers import (
     PurchasedCourseSerializer,
     CourseListResponseSerializer,
     LessonSerializer,
+    LessonCreateSerializer,
     LessonDetailReadSerializer,
     HomeworkSerializer,
     HomeworkDetailSerializer,
@@ -33,6 +34,7 @@ from .utils.agora_utils import (
     recording_acquire, recording_start, recording_stop, ROLE_PUBLISHER, ROLE_SUBSCRIBER,
 )
 from rest_framework import generics
+from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
 from django.core.cache import caches
@@ -448,14 +450,25 @@ class SectionDetailView(APIView):
 
 class LessonCreateView(APIView):
     permission_classes = (IsAuthenticated,)
-    serializer_class = LessonSerializer
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    serializer_class = LessonCreateSerializer
 
     @extend_schema(
         summary="Создать урок",
+        description=(
+            'Тело: `section`, `title`, `type` (по умолчанию draft), опционально `content` '
+            '— объект `{ document, assets }`. `document` — JSON-строка или объект: внутри полей '
+            'плейсхолдеры `local://<n>` соответствуют `asset_id` в `assets`. '
+            '`assets[]`: `asset_id` (1,2,…), `asset_type` (image / video / mime), '
+            '`asset_file` — имя поля в FormData (по умолчанию `asset_<id>`). '
+            'Без файлов можно отправить JSON; с файлами — multipart: поле `content` JSON-строкой '
+            'и бинарники `asset_1`, `asset_2`, … После сохранения в `document` в БД подставлены URL на S3 '
+            '(путь `courses/course_<id>/lessons/<lesson_id>/asset_<n>.<ext>`).'
+        ),
         tags=["Course"],
-        request=LessonSerializer,
+        request=LessonCreateSerializer,
         responses={
-            201: LessonSerializer,
+            201: LessonCreateSerializer,
             400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
@@ -466,14 +479,11 @@ class LessonCreateView(APIView):
     @require_course_author
     def post(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug)
-        serializer = LessonSerializer(data=request.data)
+        serializer = LessonCreateSerializer(
+            data=request.data,
+            context={'request': request, 'course': course},
+        )
         serializer.is_valid(raise_exception=True)
-        section = serializer.validated_data.get('section')
-        if section is not None and section.course_id != course.course_id:
-            return Response(
-                {'detail': 'Секция не принадлежит этому курсу.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -516,7 +526,7 @@ class LessonDetailView(APIView):
         )
 
     @extend_schema(
-        summary="Обновить урок",
+        summary="Обновить урок (PUT)",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
@@ -536,8 +546,8 @@ class LessonDetailView(APIView):
         }
     )
     @require_course_author
-    def patch(self, request, course_slug, lesson_slug):
-        lesson = get_lesson_or_404(course_slug, lesson_slug, include_drafts=True)
+    def put(self, request, course_slug, lesson_slug):
+        lesson = _get_lesson_or_404(course_slug, lesson_slug)
         serializer = LessonSerializer(lesson, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()

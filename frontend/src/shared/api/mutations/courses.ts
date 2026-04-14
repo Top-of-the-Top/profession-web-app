@@ -316,7 +316,7 @@ export function useToggleLessonType(courseSlug: string) {
     }) => {
       const newType: CourseContentType =
         currentType === 'published' ? 'draft' : 'published';
-      return courseApi.patchLesson(courseSlug, lessonSlug, { type: newType });
+      return courseApi.updateLesson(courseSlug, lessonSlug, { type: newType });
     },
     onMutate: async ({ lessonSlug, currentType }) => {
       await qc.cancelQueries({

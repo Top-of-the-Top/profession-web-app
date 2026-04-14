@@ -1,4 +1,6 @@
 from .utils.rbac_utils import filter_homework_queryset_for_visibility
+import json
+
 from ..models import (
     Course,
     PurchasedCourse,
@@ -8,7 +10,9 @@ from ..models import (
     Question,
     Task,
     Webinar,
+    PublishableMixin,
 )
+from ..lesson_content import resolve_lesson_document_string
 from django.db.models import Prefetch
 from apps.users.models import User
 from rest_framework import serializers
@@ -140,6 +144,7 @@ class HomeworkBriefSerializer(serializers.Serializer):
 
 
 class LessonContentReadSerializer(serializers.Serializer):
+    document = serializers.CharField()
     recording_url = serializers.URLField()
     started_at = serializers.DateTimeField()
     homeworks = HomeworkBriefSerializer(many=True)
@@ -160,6 +165,7 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
             obj.homework_set.all(), include_drafts
         )
         return {
+            'document': obj.document or '',
             'recording_url': 'https://example.com/recordings/mock-lesson',
             'started_at': '2026-01-15T10:00:00+00:00',
             'homeworks': [
@@ -172,6 +178,117 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
                 for h in hws
             ],
         }
+
+
+class LessonDocumentStrField(serializers.Field):
+    """
+    Фронт шлёт либо JSON-объект (в теле application/json), либо строку (после multipart).
+    Внутри пайплайна — одна JSON-строка с плейсхолдерами local://n.
+    """
+
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            return data
+        if isinstance(data, dict):
+            return json.dumps(data, ensure_ascii=False)
+        raise serializers.ValidationError('document: ожидается JSON-объект или строка JSON.')
+
+
+class LessonAssetPayloadSerializer(serializers.Serializer):
+    asset_id = serializers.IntegerField(min_value=1)
+    asset_type = serializers.CharField(max_length=64)
+    asset_file = serializers.CharField(
+        max_length=128,
+        required=False,
+        allow_blank=True,
+        help_text='Имя поля FormData с файлом, по умолчанию asset_<asset_id>',
+    )
+
+
+class LessonContentPayloadSerializer(serializers.Serializer):
+    document = LessonDocumentStrField()
+    assets = LessonAssetPayloadSerializer(many=True, required=False, default=list)
+
+
+class LessonCreateSerializer(serializers.Serializer):
+    """
+    POST /api/courses/{slug}/lessons/: section, title, type, опционально content.
+    content: { document (JSON-строка или объект), assets: [{ asset_id, asset_type, asset_file? }] }.
+    Файлы в multipart: поля asset_1, asset_2 или имена из asset_file.
+    """
+
+    section = serializers.PrimaryKeyRelatedField(
+        queryset=Section.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    title = serializers.CharField(max_length=120)
+    type = serializers.ChoiceField(
+        choices=Lesson._meta.get_field('type').choices,
+        default=PublishableMixin.DRAFT_STATUS,
+        required=False,
+    )
+    content = LessonContentPayloadSerializer(required=False, allow_null=True)
+
+    def to_internal_value(self, data):
+        if hasattr(data, 'get'):
+            raw = data.get('content')
+            if isinstance(raw, str):
+                stripped = raw.strip()
+                if not stripped:
+                    if hasattr(data, '_mutable'):
+                        data = data.copy()
+                    else:
+                        data = dict(data) if isinstance(data, dict) else data.copy()
+                    data['content'] = None
+                else:
+                    try:
+                        parsed = json.loads(raw)
+                    except json.JSONDecodeError as e:
+                        raise serializers.ValidationError(
+                            {'content': 'Невалидный JSON в поле content.'}
+                        ) from e
+                    if hasattr(data, '_mutable'):
+                        data = data.copy()
+                    else:
+                        data = dict(data) if isinstance(data, dict) else data.copy()
+                    data['content'] = parsed
+        return super().to_internal_value(data)
+
+    def validate_section(self, section):
+        course = self.context.get('course')
+        if course is None:
+            return section
+        if section is not None and section.course_id != course.course_id:
+            raise serializers.ValidationError('Секция не принадлежит этому курсу.')
+        return section
+
+    def create(self, validated_data):
+        content_payload = validated_data.pop('content', None)
+        lesson = Lesson.objects.create(**validated_data)
+        if content_payload is not None:
+            doc_str = content_payload['document']
+            assets = list(content_payload.get('assets') or [])
+            try:
+                resolved = resolve_lesson_document_string(
+                    self.context['course'].course_id,
+                    lesson.lesson_id,
+                    doc_str,
+                    assets,
+                    self.context['request'].FILES,
+                )
+            except ValueError as e:
+                lesson.delete()
+                raise serializers.ValidationError({'content': str(e)}) from e
+            lesson.document = resolved
+            lesson.save(update_fields=['document'])
+        return lesson
+
+    def to_representation(self, instance):
+        data = LessonSerializer(instance).data
+        doc = data.pop('document', '')
+        data['content'] = {'document': doc, 'assets': []}
+        return data
 
 
 class LessonSerializer(serializers.ModelSerializer):

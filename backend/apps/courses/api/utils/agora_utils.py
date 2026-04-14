@@ -38,7 +38,7 @@ def _get_whiteboard_sdk_token():
     json={
       'accessKey': ak,
       'secretAccessKey': sk,
-      'lifespan': 3600000, 
+      'lifespan': 3600000,
       'role': 'admin',
     },
   )
@@ -91,7 +91,7 @@ def _get_recording_auth_header():
 
   credentials = f"{customer_id}:{customer_secret}"
   encoded = base64.b64encode(credentials.encode()).decode()
-  
+
   return f"Basic {encoded}"
 
 def recording_acquire(channel_name, uid):
@@ -163,4 +163,3 @@ def recording_stop(channel_name, uid, resource_id, sid):
   )
   response.raise_for_status()
   return response.json()
-

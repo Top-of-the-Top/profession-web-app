@@ -15,7 +15,7 @@ S3_BASE_URL = 'https://storage.yandexcloud.net'
 )
 def upload_recording_to_kinescope(self, webinar_id):
     from .models import Webinar
-    from .api.kinescope_utils import upload_video_by_url, create_folder
+    from .api.utils.kinescope_utils import upload_video_by_url, create_folder
 
     try:
         webinar = Webinar.objects.select_related('lesson__section__course').get(webinar_id=webinar_id)

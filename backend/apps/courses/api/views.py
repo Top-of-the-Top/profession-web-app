@@ -3,7 +3,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from django.db.models import Prefetch
 from ..models import (
     Course,
     PurchasedCourse,
@@ -29,50 +28,31 @@ from .serializers import (
     QuestionSerializer,
     UserWebinarListItemSerializer,
 )
-from .agora_utils import (
-    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room, generate_whiteboard_room_token, 
+from .utils.agora_utils import (
+    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room, generate_whiteboard_room_token,
     recording_acquire, recording_start, recording_stop, ROLE_PUBLISHER, ROLE_SUBSCRIBER,
 )
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
 from django.core.cache import caches
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 import os
 
 from .schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
-
-
-def landing_courses_cache_key():
-    return "default:landing:courses:list"
-
-def course_list_cache_key():
-    return "default:app:courses:list"
-
-def course_detail_cache_key(slug):
-    return f"default:courses:detail:{slug}"
-
-def purchased_courses_cache_key(user_id):
-    return f"default:courses:purchased:{int(user_id)}"
-
-def section_list_cache_key(course_slug):
-    return f"default:sections:list:{course_slug}"
-
-def section_detail_cache_key(course_slug, slug):
-    return f"default:sections:detail:{course_slug}:{slug}"
-
-def lesson_list_cache_key(course_slug):
-    return f"default:lessons:list:{course_slug}"
-
-def lesson_detail_cache_key(course_slug, slug):
-    return f"default:lessons:detail:{course_slug}:{slug}"
-
-def homework_detail_cache_key(course_slug, lesson_slug, slug):
-    return f"default:homeworks:detail:{course_slug}:{lesson_slug}:{slug}"
-
-def my_schedule_cache_key(user_id):
-    return f"default:schedule:list:{int(user_id)}"
+from .utils.cache_utils import (
+    cached_detail_response,
+    course_detail_cache_key,
+    course_list_cache_key,
+    homework_detail_cache_key,
+    landing_courses_cache_key,
+    lesson_detail_cache_key,
+    my_schedule_cache_key,
+    purchased_courses_cache_key,
+)
+from .utils.queryset_utils import get_homework_or_404, get_lesson_or_404
+from .utils.rbac_utils import course_content_visibility, published_lesson_hierarchy_q
 
 @extend_schema_view(
     list=extend_schema(
@@ -256,33 +236,25 @@ class PurchasedCoursesView(APIView):
         cached = cache.get(key)
         if cached is not None:
             return Response(cached, status=status.HTTP_200_OK)
-        purchased = PurchasedCourse.objects.filter(
-            user=request.user,
-        ).select_related('course', 'payment')
+        purchased = (
+            PurchasedCourse.objects.filter(user=request.user)
+            .filter(
+                Q(course__type=Course.PUBLISHED_STATUS)
+                | Q(course__authors=request.user)
+            )
+            .distinct()
+            .select_related('course', 'payment')
+        )
         serializer = PurchasedCourseSerializer(purchased, many=True)
         cache.set(key, serializer.data)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
-def _accessible_course_ids_for_user(user):
-    if user.is_moderator():
-        return None
-    ids = set(user.get_purchased_courses_ids())
-    if user.is_teacher():
-        authored = Course.objects.filter(authors=user).values_list('course_id', flat=True)
-        ids.update(authored)
-    return ids
 
 class MyScheduleView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         summary="Расписание вебинаров по моим курсам",
-        description=(
-            'Список вебинаров уроков курсов, к которым у пользователя есть доступ '
-            '(активная покупка и/или авторство; модератор — все). '
-            'Один SQL-запрос, поля курса и урока из связей lesson → section → course.'
-        ),
         tags=["Home"],
         responses={
             200: UserWebinarListItemSerializer(many=True),
@@ -291,16 +263,24 @@ class MyScheduleView(APIView):
         },
     )
     def get(self, request):
-        
         cache = caches["cold"]
         key = my_schedule_cache_key(request.user.id)
         cached = cache.get(key)
         if cached is not None:
             return Response(cached)
-        course_ids = _accessible_course_ids_for_user(request.user)
+        user = request.user
         qs = Webinar.objects.all()
-        if course_ids is not None:
-            qs = qs.filter(lesson__section__course_id__in=course_ids)
+        if not user.is_moderator():
+            authored_ids = set(
+                Course.objects.filter(authors=user).values_list('course_id', flat=True)
+            )
+            enrolled_ids = set(user.get_purchased_courses_ids())
+            only_enrolled = enrolled_ids - authored_ids
+            published_chain = published_lesson_hierarchy_q()
+            q = Q(lesson__section__course_id__in=authored_ids)
+            if only_enrolled:
+                q |= Q(lesson__section__course_id__in=only_enrolled) & published_chain
+            qs = qs.filter(q)
 
         rows = (
             qs.values(
@@ -341,56 +321,20 @@ class CourseHomePageView(APIView):
     )
     def get(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug)
-
         user = request.user
+        vis = course_content_visibility(user, course)
 
-        is_moderator = user.is_moderator()
-        is_author = user.is_teacher() and user.is_course_author(course)
-        is_enrolled = user.is_enrolled(course)
-
-        if not (is_enrolled or is_author or is_moderator):
+        if not vis.has_course_home_access():
             return Response(
                 {'detail': 'Вы не записаны на этот курс'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        show_type = is_author or is_moderator
-
         serializer = CourseHomeSerializer(
             course,
-            context={'is_author': show_type}
+            context={'is_author': vis.show_types_in_tree},
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-def _lesson_queryset_for_course(course_slug):
-    hw_qs = Homework.objects.order_by('homework_number', 'created_at')
-    return (
-        Lesson.objects.filter(section__course__slug=course_slug)
-        .select_related('section', 'section__course')
-        .prefetch_related(Prefetch('homework_set', queryset=hw_qs))
-        .order_by('lesson_number')
-    )
-
-
-def _get_lesson_or_404(course_slug, lesson_slug):
-    return get_object_or_404(_lesson_queryset_for_course(course_slug), slug=lesson_slug)
-
-
-def _homework_queryset_for_lesson(course_slug, lesson_slug):
-    return (
-        Homework.objects.filter(
-            lesson__slug=lesson_slug,
-            lesson__section__course__slug=course_slug,
-        )
-        .select_related('lesson')
-        .prefetch_related('question_set', 'task_set')
-        .order_by('homework_number')
-    )
-
-
-def _get_homework_or_404(course_slug, lesson_slug, homework_slug):
-    return get_object_or_404(_homework_queryset_for_lesson(course_slug, lesson_slug), slug=homework_slug)
 
 
 def _get_section_or_404(course_slug, section_slug):
@@ -558,15 +502,18 @@ class LessonDetailView(APIView):
     )
     @require_course_enrollment
     def get(self, request, course_slug, lesson_slug):
-        cache = caches["default"]
-        key = lesson_detail_cache_key(course_slug, lesson_slug)
-        cached = cache.get(key)
-        if cached is not None:
-            return Response(cached)
-        lesson = _get_lesson_or_404(course_slug, lesson_slug)
-        data = LessonDetailReadSerializer(lesson).data
-        cache.set(key, data)
-        return Response(data)
+        course = get_object_or_404(Course, slug=course_slug)
+        vis = course_content_visibility(request.user, course)
+        key = lesson_detail_cache_key(course_slug, lesson_slug, vis.cache_scope)
+        return cached_detail_response(
+            key,
+            lambda: LessonDetailReadSerializer(
+                get_lesson_or_404(
+                    course_slug, lesson_slug, include_drafts=vis.include_drafts
+                ),
+                context={'include_drafts': vis.include_drafts},
+            ).data,
+        )
 
     @extend_schema(
         summary="Обновить урок",
@@ -590,7 +537,7 @@ class LessonDetailView(APIView):
     )
     @require_course_author
     def patch(self, request, course_slug, lesson_slug):
-        lesson = _get_lesson_or_404(course_slug, lesson_slug)
+        lesson = get_lesson_or_404(course_slug, lesson_slug, include_drafts=True)
         serializer = LessonSerializer(lesson, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -616,7 +563,7 @@ class LessonDetailView(APIView):
     )
     @require_course_author
     def delete(self, request, course_slug, lesson_slug):
-        lesson = _get_lesson_or_404(course_slug, lesson_slug)
+        lesson = get_lesson_or_404(course_slug, lesson_slug, include_drafts=True)
         lesson.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -639,7 +586,7 @@ class HomeworkCreateView(APIView):
     )
     @require_course_author
     def post(self, request, course_slug, lesson_slug):
-        lesson = _get_lesson_or_404(course_slug, lesson_slug)
+        lesson = get_lesson_or_404(course_slug, lesson_slug, include_drafts=True)
         serializer = HomeworkSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         homework = serializer.save(lesson=lesson)
@@ -670,15 +617,22 @@ class HomeworkDetailView(APIView):
     )
     @require_course_enrollment
     def get(self, request, course_slug, lesson_slug, homework_slug):
-        cache = caches["default"]
-        key = homework_detail_cache_key(course_slug, lesson_slug, homework_slug)
-        cached = cache.get(key)
-        if cached is not None:
-            return Response(cached)
-        homework = _get_homework_or_404(course_slug, lesson_slug, homework_slug)
-        data = HomeworkDetailSerializer(homework).data
-        cache.set(key, data)
-        return Response(data)
+        course = get_object_or_404(Course, slug=course_slug)
+        vis = course_content_visibility(request.user, course)
+        key = homework_detail_cache_key(
+            course_slug, lesson_slug, homework_slug, vis.cache_scope
+        )
+        return cached_detail_response(
+            key,
+            lambda: HomeworkDetailSerializer(
+                get_homework_or_404(
+                    course_slug,
+                    lesson_slug,
+                    homework_slug,
+                    include_drafts=vis.include_drafts,
+                )
+            ).data,
+        )
 
     @extend_schema(
         summary="Обновить домашку",
@@ -702,7 +656,9 @@ class HomeworkDetailView(APIView):
     )
     @require_course_author
     def patch(self, request, course_slug, lesson_slug, homework_slug):
-        homework = _get_homework_or_404(course_slug, lesson_slug, homework_slug)
+        homework = get_homework_or_404(
+            course_slug, lesson_slug, homework_slug, include_drafts=True
+        )
         serializer = HomeworkSerializer(homework, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         homework = serializer.save()
@@ -729,7 +685,9 @@ class HomeworkDetailView(APIView):
     )
     @require_course_author
     def delete(self, request, course_slug, lesson_slug, homework_slug):
-        homework = _get_homework_or_404(course_slug, lesson_slug, homework_slug)
+        homework = get_homework_or_404(
+            course_slug, lesson_slug, homework_slug, include_drafts=True
+        )
         homework.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -753,7 +711,9 @@ class TaskCreateView(APIView):
     )
     @require_course_author
     def post(self, request, course_slug, lesson_slug, homework_slug):
-        homework = _get_homework_or_404(course_slug, lesson_slug, homework_slug)
+        homework = get_homework_or_404(
+            course_slug, lesson_slug, homework_slug, include_drafts=True
+        )
         serializer = TaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(homework=homework)
@@ -836,7 +796,9 @@ class QuestionCreateView(APIView):
     )
     @require_course_author
     def post(self, request, course_slug, lesson_slug, homework_slug):
-        homework = _get_homework_or_404(course_slug, lesson_slug, homework_slug)
+        homework = get_homework_or_404(
+            course_slug, lesson_slug, homework_slug, include_drafts=True
+        )
         serializer = QuestionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(homework=homework)

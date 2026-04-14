@@ -309,32 +309,24 @@ def handle_pre_lesson_delete(sender, instance, **kwargs):
 
     return
 
-from .api.views import (
-    landing_courses_cache_key,
-    course_list_cache_key,
-    course_detail_cache_key,
-    section_list_cache_key,
-    section_detail_cache_key,
-    lesson_list_cache_key,
-    lesson_detail_cache_key,
-    homework_detail_cache_key,
+from .api.utils.cache_utils import (
+    invalidate_on_course_model_change,
+    invalidate_on_homework_tree_change,
+    invalidate_on_lesson_model_change,
+    invalidate_on_section_model_change,
     purchased_courses_cache_key,
 )
 
 
 @receiver((pre_save, pre_delete), sender=Course)
 def invalidate_cold_course_cache(sender, instance, **kwargs):
-    caches["default"].delete(landing_courses_cache_key())
-    caches["default"].delete(course_list_cache_key())
-    caches["default"].delete(course_detail_cache_key(instance.slug))
+    invalidate_on_course_model_change(instance.slug)
 
 
 @receiver((pre_save, pre_delete), sender=Section)
 def invalidate_cold_section_cache(sender, instance, **kwargs):
     course_slug = instance.course.slug
-    caches["default"].delete(section_list_cache_key(course_slug))
-    caches["default"].delete(section_detail_cache_key(course_slug, instance.slug))
-    caches["default"].delete(course_detail_cache_key(course_slug))
+    invalidate_on_section_model_change(course_slug, instance.slug)
 
 
 @receiver((pre_save, pre_delete), sender=Lesson)
@@ -343,9 +335,7 @@ def invalidate_cold_lesson_cache(sender, instance, **kwargs):
     if section is None:
         return
     course_slug = section.course.slug
-    caches["default"].delete(lesson_list_cache_key(course_slug))
-    caches["default"].delete(lesson_detail_cache_key(course_slug, instance.slug))
-    caches["default"].delete(course_detail_cache_key(course_slug))
+    invalidate_on_lesson_model_change(course_slug, instance.slug)
 
 
 @receiver((pre_save, pre_delete), sender=Homework)
@@ -355,9 +345,7 @@ def invalidate_cold_homework_cache(sender, instance, **kwargs):
     if section is None:
         return
     course_slug = section.course.slug
-    caches["default"].delete(lesson_detail_cache_key(course_slug, lesson.slug))
-    caches["default"].delete(homework_detail_cache_key(course_slug, lesson.slug, instance.slug))
-    caches["default"].delete(course_detail_cache_key(course_slug))
+    invalidate_on_homework_tree_change(course_slug, lesson.slug, instance.slug)
 
 
 @receiver((pre_save, pre_delete), sender=Task)
@@ -368,9 +356,7 @@ def invalidate_cold_task_cache(sender, instance, **kwargs):
     if section is None:
         return
     course_slug = section.course.slug
-    caches["default"].delete(lesson_detail_cache_key(course_slug, lesson.slug))
-    caches["default"].delete(homework_detail_cache_key(course_slug, lesson.slug, hw.slug))
-    caches["default"].delete(course_detail_cache_key(course_slug))
+    invalidate_on_homework_tree_change(course_slug, lesson.slug, hw.slug)
 
 
 @receiver((pre_save, pre_delete), sender=Question)
@@ -381,9 +367,7 @@ def invalidate_cold_question_cache(sender, instance, **kwargs):
     if section is None:
         return
     course_slug = section.course.slug
-    caches["default"].delete(lesson_detail_cache_key(course_slug, lesson.slug))
-    caches["default"].delete(homework_detail_cache_key(course_slug, lesson.slug, hw.slug))
-    caches["default"].delete(course_detail_cache_key(course_slug))
+    invalidate_on_homework_tree_change(course_slug, lesson.slug, hw.slug)
 
 
 @receiver((pre_save, pre_delete), sender=PurchasedCourse)

@@ -33,7 +33,7 @@ def create_folder(name, project_id=None):
 def upload_video_by_url(video_url, title, parent_id=None):
     if parent_id is None:
         parent_id = os.getenv('KINESCOPE_PROJECT_ID', '')
-    
+
     response = requests.post(
         f'{KINESCOPE_UPLOADER_BASE}/video',
         headers={
@@ -79,4 +79,3 @@ def setup_drm_auth(callback_url, username, password, strict=True):
     )
     response.raise_for_status()
     return response.json()
-

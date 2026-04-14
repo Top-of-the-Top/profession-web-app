@@ -8,12 +8,11 @@ from django.utils import timezone
 from django.core.cache import caches
 from datetime import timedelta
 
+from ..api.utils.cache_utils import course_list_cache_key, landing_courses_cache_key
 from ..api.views import (
     CourseDTOList,
     CourseListView,
     PurchasedCoursesView,
-    course_list_cache_key,
-    landing_courses_cache_key,
 )
 from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse, Webinar
 from apps.users.models import User

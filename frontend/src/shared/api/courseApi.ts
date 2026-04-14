@@ -69,14 +69,69 @@ export interface Lesson {
   last_modified_by: number | null;
 }
 
+export interface LessonHomework {
+  homework_id: string;
+  title: string;
+  deadline: string;
+  homework_slug: string;
+  type: CourseContentType;
+}
+
+export interface HomeworkDetailItem {
+  type: 'question' | 'task';
+  id: string;
+  number: number;
+  text: string;
+  answer_options?: string[] | null;
+  correct_ans?: string | null;
+  max_points?: number | null;
+  created_at: string;
+}
+
+export interface HomeworkDetail {
+  homework_id: string;
+  homework_number: number;
+  lesson_id: string;
+  title: string;
+  slug: string;
+  deadline: string;
+  type: CourseContentType;
+  created_at: string;
+  updated_at: string;
+  items: HomeworkDetailItem[];
+}
+
+export interface HomeworkCreatePayload {
+  title: string;
+  deadline: string;
+  type?: CourseContentType;
+}
+
+export interface HomeworkPatchPayload {
+  title?: string;
+  deadline?: string;
+  type?: CourseContentType;
+}
+
+export interface QuestionCreatePayload {
+  text: string;
+  correct_ans?: string | null;
+  answer_options?: string[] | null;
+}
+
+export interface TaskCreatePayload {
+  text: string;
+  max_points?: number;
+}
+
 export interface CourseLessonDetail {
-  lesson_id: number | string;
-  lesson_title: string;
-  content: string;
+  lesson_id: number;
+  title: string;
+  document: string;
   recording_url: string | null;
-  homework_id: number | string | null;
-  homework_deadline: string | null;
   started_at: string | null;
+  homeworks: LessonHomework[];
+  meta: Record<string, unknown>;
 }
 
 export interface PurchasedCourseItem {
@@ -111,7 +166,9 @@ export interface SectionRecord {
 export interface LessonCreatePayload {
   title: string;
   section?: string;
-  date_time?: string | null;
+  lesson_num?: number;
+  document?: string;
+  files?: Record<string, File>;
 }
 
 export interface LessonPatchPayload {
@@ -119,6 +176,8 @@ export interface LessonPatchPayload {
   section?: string | null;
   type?: CourseContentType;
   date_time?: string | null;
+  document?: string;
+  files?: Record<string, File>;
 }
 
 export interface CoursePatchPayload {
@@ -129,10 +188,6 @@ export interface CoursePatchPayload {
   type?: CourseContentType;
 }
 
-export type AppHomeCoursesSource = 'my-courses' | 'store' | 'landing';
-
-export const APP_HOME_COURSES_SOURCE = 'store' as AppHomeCoursesSource;
-
 type RawCoursesResponse = Course[] | CourseApiAnswer;
 type RawCourseBySlugResponse = Course | { course: Course };
 type RawCourseHomeResponse = Partial<CourseHomeResponse> & {
@@ -140,21 +195,16 @@ type RawCourseHomeResponse = Partial<CourseHomeResponse> & {
   meta?: Record<string, unknown>;
 };
 
-type RawLessonDetailContent = {
-  recording_url?: string;
-  started_at?: string | null;
-  homeworks?: Array<{
-    homework_id: string;
-    title: string;
-    homework_slug: string;
-    deadline: string;
-  }>;
-};
-
 type RawLessonDetailResponse = {
-  lesson_id: string;
+  lesson_id: number;
   title: string;
-  content: RawLessonDetailContent | string;
+  content: {
+    document?: string;
+    recording_url?: string;
+    started_at?: string | null;
+    homeworks?: LessonHomework[];
+  };
+  meta?: Record<string, unknown>;
 };
 
 function normalizeCoursesResponse(raw: RawCoursesResponse): CourseApiAnswer {
@@ -218,39 +268,56 @@ function normalizeCourseHomeResponse(raw: RawCourseHomeResponse): CourseHomeResp
 }
 
 function normalizeLessonDetailRead(raw: RawLessonDetailResponse): CourseLessonDetail {
-  const contentVal = raw.content;
-  const nest =
-    typeof contentVal === 'object' && contentVal !== null && !Array.isArray(contentVal)
-      ? (contentVal as RawLessonDetailContent)
-      : null;
-  const builderContent =
-    typeof contentVal === 'string'
-      ? contentVal
-      : JSON.stringify({
-          id: String(raw.lesson_id),
-          title: raw.title,
-          blocks: [],
-        });
-  const firstHw = nest?.homeworks?.[0];
+  const c = raw.content ?? {};
   return {
     lesson_id: raw.lesson_id,
-    lesson_title: raw.title,
-    content: builderContent,
-    recording_url: nest?.recording_url ?? null,
-    homework_id: firstHw?.homework_id ?? null,
-    homework_deadline: firstHw?.deadline ?? null,
-    started_at: nest?.started_at ?? null,
+    title: raw.title,
+    document: c.document ?? '',
+    recording_url: c.recording_url ?? null,
+    started_at: c.started_at ?? null,
+    homeworks: Array.isArray(c.homeworks) ? c.homeworks : [],
+    meta: raw.meta ?? {},
   };
 }
 
-function catalogRowsToPurchasedShim(rows: CourseDTO[]): PurchasedCourseItem[] {
-  return rows.map((course) => ({
-    id: String(course.course_id),
-    course,
-    payment: 0,
-    access_expires_at: null,
-    is_active: true,
+const ASSET_PART_PREFIX = 'asset_' as const;
+
+function guessAssetType(file: File): string {
+  if (file.type.startsWith('video/')) return 'video';
+  return 'image';
+}
+
+function buildLessonFormData(
+  payload: LessonCreatePayload | LessonPatchPayload,
+): FormData {
+  const fd = new FormData();
+
+  if (payload.title != null) fd.set('title', payload.title);
+  if ('section' in payload && payload.section != null)
+    fd.set('section', payload.section);
+  if ('lesson_num' in payload && (payload as LessonCreatePayload).lesson_num != null)
+    fd.set('lesson_num', String((payload as LessonCreatePayload).lesson_num));
+
+  const files = payload.files;
+  const assetIds = files ? Object.keys(files) : [];
+  const assets = assetIds.map((id) => ({
+    asset_id: Number(id),
+    asset_type: guessAssetType(files![id]),
+    asset_file: `${ASSET_PART_PREFIX}${id}`,
   }));
+
+  const content: Record<string, unknown> = {
+    document: payload.document ?? '',
+    assets,
+  };
+  fd.set('content', JSON.stringify(content));
+
+  for (const id of assetIds) {
+    const file = files![id];
+    fd.set(`${ASSET_PART_PREFIX}${id}`, file, file.name || id);
+  }
+
+  return fd;
 }
 
 export const courseApi = {
@@ -322,22 +389,57 @@ export const courseApi = {
   },
 
   createLesson(courseSlug: string, payload: LessonCreatePayload): Promise<Lesson> {
+    const hasFiles = payload.files && Object.keys(payload.files).length > 0;
+    const hasDocument =
+      payload.document != null && String(payload.document).trim() !== '';
+
+    if (hasFiles || hasDocument) {
+      const body = hasFiles
+        ? buildLessonFormData(payload)
+        : JSON.stringify({
+            title: payload.title,
+            section: payload.section,
+            type: 'draft',
+            content: { document: payload.document ?? '', assets: [] },
+          });
+
+      return apiClient.request<Lesson>(`/api/courses/${courseSlug}/lessons/`, {
+        method: 'PUT',
+        body,
+      });
+    }
+
     return apiClient.request<Lesson>(`/api/courses/${courseSlug}/lessons/`, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        title: payload.title,
+        section: payload.section,
+        type: 'draft',
+      }),
     });
   },
 
-  patchLesson(
+  updateLesson(
     courseSlug: string,
     lessonSlug: string,
     payload: LessonPatchPayload,
   ): Promise<Lesson> {
+    const hasFiles = payload.files && Object.keys(payload.files).length > 0;
+    const hasDocument = payload.document != null;
+
+    let body: FormData | string;
+    if (hasFiles || hasDocument) {
+      body = buildLessonFormData(payload);
+    } else {
+      const { files: _f, document: _d, ...meta } = payload;
+      body = JSON.stringify(meta);
+    }
+
     return apiClient.request<Lesson>(
       `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
       {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
+        method: 'PUT',
+        body,
       },
     );
   },
@@ -369,21 +471,76 @@ export const courseApi = {
     });
   },
 
-  async getCoursesForAppHome(): Promise<PurchasedCourseItem[]> {
-    if (APP_HOME_COURSES_SOURCE === 'my-courses') {
-      return this.getMyCourses();
-    }
+  getCoursesForAppHome(): Promise<PurchasedCourseItem[]> {
+    return this.getMyCourses();
+  },
 
-    const res: CourseApiAnswer =
-      APP_HOME_COURSES_SOURCE === 'landing'
-        ? await apiClient
-            .request<CourseApiAnswer>('/api/landing/courses/', {
-              method: 'GET',
-              skipAuth: true,
-            })
-            .then((raw) => normalizeCoursesResponse(raw as RawCoursesResponse))
-        : await this.getCourses();
+  createHomework(
+    courseSlug: string,
+    lessonSlug: string,
+    payload: HomeworkCreatePayload,
+  ): Promise<HomeworkDetail> {
+    return apiClient.request<HomeworkDetail>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
+  },
 
-    return catalogRowsToPurchasedShim(res.data ?? []);
+  getHomeworkDetail(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+  ): Promise<HomeworkDetail> {
+    return apiClient.request<HomeworkDetail>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
+      { method: 'GET' },
+    );
+  },
+
+  patchHomework(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+    payload: HomeworkPatchPayload,
+  ): Promise<HomeworkDetail> {
+    return apiClient.request<HomeworkDetail>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+    );
+  },
+
+  deleteHomework(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+  ): Promise<void> {
+    return apiClient.request<void>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
+      { method: 'DELETE' },
+    );
+  },
+
+  createQuestion(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+    payload: QuestionCreatePayload,
+  ): Promise<unknown> {
+    return apiClient.request(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/questions/`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
+  },
+
+  createTask(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+    payload: TaskCreatePayload,
+  ): Promise<unknown> {
+    return apiClient.request(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
   },
 };

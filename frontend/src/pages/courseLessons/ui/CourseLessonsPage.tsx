@@ -537,7 +537,6 @@ function SectionBlock({
         await createLesson.mutateAsync({
           title: trimmed,
           section: section.section_id,
-          date_time: new Date().toISOString(),
         });
         setNewLessonTitle('');
         setAddingLesson(false);
@@ -744,6 +743,7 @@ function LessonRow({
   const lessonLabel = `${sectionNumber}.${lesson.lesson_number} ${lesson.title}`;
   const published = lesson.type !== 'draft';
   const lessonCreatePending = lesson.lesson_id.startsWith('optimistic:');
+  const lessonViewTo = `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`;
 
   const requestDeleteLesson = () => {
     if (
@@ -764,7 +764,12 @@ function LessonRow({
             <GripVertical size={16} strokeWidth={2} />
           </span>
         </span>
-        <span className={styles.lessonTitle}>{lessonLabel}</span>
+        <Link
+          to={lessonViewTo}
+          className={cn(styles.lessonTitle, styles.lessonTitleLink)}
+        >
+          {lessonLabel}
+        </Link>
         <div className={styles.staffLessonActions}>
           <Button
             type="button"
@@ -802,7 +807,7 @@ function LessonRow({
             disabled={lessonCreatePending}
             onClick={() =>
               navigate(
-                `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`
+                `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}/edit`
               )
             }
           >
@@ -824,7 +829,7 @@ function LessonRow({
     );
   }
 
-  const to = `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`;
+  const to = lessonViewTo;
 
   return (
     <Link to={to} className={cn(styles.lessonRow, styles.lessonRowStudent)}>
@@ -872,7 +877,7 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
           <Button
             type="button"
             variant="outline"
-            className={styles.addSectionBtn}
+            className={styles.addSectionTriggerBtn}
             onClick={() => setExpanded(true)}
           >
             <Plus size={18} strokeWidth={2} />
@@ -899,8 +904,8 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
           <div className={cn(styles.addFlowActions, styles.addFlowActionsAnim)}>
             <Button
               type="button"
-              variant="outline"
-              className={styles.addSectionBtn}
+              variant="primary"
+              className={styles.addSectionSubmitBtn}
               disabled={!title.trim() || createMutation.isPending}
               onClick={submit}
             >
@@ -915,7 +920,7 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               disabled={createMutation.isPending}
               onClick={cancel}

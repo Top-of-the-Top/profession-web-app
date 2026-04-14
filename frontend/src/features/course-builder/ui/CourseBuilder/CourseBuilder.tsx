@@ -5,11 +5,13 @@ import { ImageUp, PictureInPicture, Trash2 } from 'lucide-react';
 import GridLayout from 'react-grid-layout';
 import type { Layout, LayoutItem } from 'react-grid-layout';
 import { useLessonBuilderStore } from '../../model/store';
+import type { SubmitPayload } from '../../model/store';
 import type { Block, BlockType } from '../../model/types';
 import { serializeCoursePage } from '../../model/types';
 import { GRID_CELL_SIZE, GRID_COLS } from '../../lib/constants';
 import { HomeworkBuilder } from '../HomeworkBuilder';
 import { useHomeworkStore } from '../../model/homeworkStore';
+import type { LessonHomework } from '@shared/api/courseApi';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -25,7 +27,11 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 interface CourseBuilderProps {
-  courseId: number;
+  courseSlug: string;
+  lessonSlug: string;
+  lessonHomeworks: LessonHomework[];
+  onSave: (payload: SubmitPayload) => void;
+  saving?: boolean;
 }
 
 const BLOCK_LABELS: Record<BlockType, string> = {
@@ -70,10 +76,24 @@ function sanitizeWysiwygHtml(html: string): string {
     .replace(/<!--\s*\(figma\)[\s\S]*?\(\/figma\)\s*-->/g, '');
 }
 
-export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
+export const CourseBuilder: React.FC<CourseBuilderProps> = ({
+  courseSlug,
+  lessonSlug,
+  lessonHomeworks,
+  onSave,
+  saving,
+}) => {
   const navigate = useNavigate();
-  const { layout, setTitle, addBlockAt, updateBlock, removeBlock, toJSON } =
-    useLessonBuilderStore();
+  const {
+    layout,
+    setTitle,
+    addBlockAt,
+    updateBlock,
+    setBlockFile,
+    removeBlock,
+    toJSON,
+    toSubmitPayload,
+  } = useLessonBuilderStore();
   const { initialize: initHomework, toJSON: homeworkToJSON } = useHomeworkStore();
 
   const [mounted, setMounted] = useState(false);
@@ -89,8 +109,8 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
   }, []);
 
   useEffect(() => {
-    initHomework(String(courseId ?? ''));
-  }, [courseId, initHomework]);
+    initHomework(`${courseSlug}/${lessonSlug}`);
+  }, [courseSlug, lessonSlug, initHomework]);
 
   const gridLayout = blocksToLayout(layout.blocks);
   const draggableHandleProps = {
@@ -226,12 +246,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () =>
-                  updateBlock(block.id, {
-                    url: reader.result as string,
-                  } as Block);
-                reader.readAsDataURL(file);
+                setBlockFile(block.id, file);
                 e.target.value = '';
               }}
             />
@@ -281,12 +296,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () =>
-                  updateBlock(block.id, {
-                    url: reader.result as string,
-                  } as Block);
-                reader.readAsDataURL(file);
+                setBlockFile(block.id, file);
                 e.target.value = '';
               }}
             />
@@ -458,16 +468,10 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                   <button
                     type="button"
                     className={`${styles.button} ${styles.buttonSecondary}`}
-                    onClick={() => {
-                      const lessonData = toJSON();
-                      const homeworkData = homeworkToJSON();
-                      const hw = homeworkData.questions.length > 0 ? homeworkData : null;
-                      const page = serializeCoursePage(lessonData, hw);
-                       
-                      console.log('CoursePageDTO (draft):', JSON.stringify(page));
-                    }}
+                    disabled={saving}
+                    onClick={() => onSave(toSubmitPayload())}
                   >
-                    Сохранить черновик
+                    {saving ? 'Сохранение…' : 'Сохранить черновик'}
                   </button>
                   <button
                     type="button"
@@ -487,7 +491,13 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
             </div>
           )}
 
-          {activeTab === 'homework' && <HomeworkBuilder />}
+          {activeTab === 'homework' && (
+            <HomeworkBuilder
+              courseSlug={courseSlug}
+              lessonSlug={lessonSlug}
+              lessonHomeworks={lessonHomeworks}
+            />
+          )}
         </div>
       </div>
 

@@ -125,7 +125,7 @@ export default function AppLayout() {
                       )
                     }
                   >
-                    <Button variant="secondary" className={styles.navButton}>
+                    <Button variant="ghost" className={styles.navButton}>
                       <Icon className={styles.navIcon} strokeWidth={2} />
                       <span>{label}</span>
                     </Button>

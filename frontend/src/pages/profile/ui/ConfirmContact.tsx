@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button, Input, Label } from '@shared/ui';
 import { X, AlertCircle } from 'lucide-react';
 import styles from './ConfirmContact.module.css';
@@ -122,7 +123,9 @@ export default function ConfirmContact({
 
   if (!isVisible) return null;
 
-  return (
+  return createPortal(
+    <>
+      <div className={styles.overlay} onClick={handleClose} />
     <div className={styles.container}>
       <div className={styles.titleHeader}>
         <h2 className={styles.title}>{title}</h2>
@@ -238,5 +241,7 @@ export default function ConfirmContact({
         </form>
       )}
     </div>
+    </>,
+    document.body
   );
 }

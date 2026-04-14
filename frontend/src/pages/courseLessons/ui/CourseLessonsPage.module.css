@@ -511,6 +511,12 @@
   color: black;
 }
 
+.lessonTitleLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+
 .staffLessonActions {
   display: flex;
   align-items: center;
@@ -578,16 +584,21 @@
   border-color: #94a3b8;
 }
 
-.addSectionBtn {
+.addSectionTriggerBtn {
   flex-shrink: 0;
   justify-content: center;
   gap: 8px;
-	color: #94A3B8 !important;
-	border: 1px dashed #94A3B8 !important;
-	background-color: transparent !important;
+  color: #94A3B8 !important;
+  border: 1px dashed #94A3B8 !important;
+  background-color: transparent !important;
   padding-top: 14px;
   padding-bottom: 14px;
-	border-radius: 15px !important;
+  border-radius: 15px !important;
+}
+
+.addSectionSubmitBtn {
+  border-radius: 8px !important;
+  padding-inline: 14px !important;
 }
 
 .addFlowCollapsed {
@@ -603,11 +614,17 @@
   align-items: center;
   gap: 10px;
   width: 100%;
+  padding: 12px 14px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
 }
 
 .addSectionExpanded .inlineAddSectionInput {
   flex: 1;
   min-width: 200px;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .addFlowActions {

@@ -5,12 +5,18 @@ import {
   type AppCourseSection,
   type CourseContentType,
   type CoursePatchPayload,
+  type CourseLessonDetail,
   type CourseHomeResponse,
+  type HomeworkCreatePayload,
+  type HomeworkDetail,
   type Lesson,
   type LessonCreatePayload,
+  type LessonPatchPayload,
+  type QuestionCreatePayload,
   type SectionCreatePayload,
   type SectionPatchPayload,
   type SectionRecord,
+  type TaskCreatePayload,
 } from '../courseApi';
 import { courseKeys } from '../queries/courses';
 import { notifySuccess, notifyError } from '@shared/lib/sileo/notify';
@@ -316,7 +322,7 @@ export function useToggleLessonType(courseSlug: string) {
     }) => {
       const newType: CourseContentType =
         currentType === 'published' ? 'draft' : 'published';
-      return courseApi.patchLesson(courseSlug, lessonSlug, { type: newType });
+      return courseApi.updateLesson(courseSlug, lessonSlug, { type: newType });
     },
     onMutate: async ({ lessonSlug, currentType }) => {
       await qc.cancelQueries({
@@ -380,6 +386,30 @@ export function useDeleteLesson(courseSlug: string) {
   });
 }
 
+export function useSaveLessonContent(
+  courseSlug: string,
+  lessonSlug: string,
+) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: LessonPatchPayload) =>
+      courseApi.updateLesson(courseSlug, lessonSlug, payload),
+    onSuccess: () => {
+      notifySuccess({ title: 'Урок сохранён' });
+      void qc.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+    },
+    onError: (err) => {
+      notifyError({
+        title: 'Не удалось сохранить урок',
+        description: errMsg(err),
+      });
+    },
+  });
+}
+
 export function usePatchCourse(slug: string) {
   const qc = useQueryClient();
 
@@ -394,6 +424,157 @@ export function usePatchCourse(slug: string) {
     onError: (err) => {
       notifyError({
         title: 'Не удалось обновить курс',
+        description: errMsg(err),
+      });
+    },
+  });
+}
+
+export interface CreateHomeworkWithItemsPayload {
+  homework: HomeworkCreatePayload;
+  items: Array<
+    | { kind: 'question'; payload: QuestionCreatePayload }
+    | { kind: 'task'; payload: TaskCreatePayload }
+  >;
+}
+
+export function useCreateHomeworkWithItems(
+  courseSlug: string,
+  lessonSlug: string,
+) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (
+      input: CreateHomeworkWithItemsPayload,
+    ): Promise<HomeworkDetail> => {
+      const hw = await courseApi.createHomework(
+        courseSlug,
+        lessonSlug,
+        input.homework,
+      );
+
+      for (const item of input.items) {
+        if (item.kind === 'question') {
+          await courseApi.createQuestion(
+            courseSlug,
+            lessonSlug,
+            hw.slug,
+            item.payload,
+          );
+        } else {
+          await courseApi.createTask(
+            courseSlug,
+            lessonSlug,
+            hw.slug,
+            item.payload,
+          );
+        }
+      }
+
+      return hw;
+    },
+    onSuccess: () => {
+      notifySuccess({ title: 'Домашнее задание создано' });
+      void qc.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+    },
+    onError: (err) => {
+      notifyError({
+        title: 'Не удалось создать домашнее задание',
+        description: errMsg(err),
+      });
+    },
+  });
+}
+
+export function useToggleHomeworkType(
+  courseSlug: string,
+  lessonSlug: string,
+) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      homeworkSlug,
+      currentType,
+    }: {
+      homeworkSlug: string;
+      currentType: CourseContentType;
+    }) => {
+      const newType: CourseContentType =
+        currentType === 'published' ? 'draft' : 'published';
+      return courseApi.patchHomework(courseSlug, lessonSlug, homeworkSlug, {
+        type: newType,
+      });
+    },
+    onMutate: async ({ homeworkSlug, currentType }) => {
+      await qc.cancelQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+      const prev = qc.getQueryData<CourseLessonDetail>(
+        courseKeys.lesson(courseSlug, lessonSlug),
+      );
+
+      const newType: CourseContentType =
+        currentType === 'published' ? 'draft' : 'published';
+
+      qc.setQueryData<CourseLessonDetail>(
+        courseKeys.lesson(courseSlug, lessonSlug),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            homeworks: old.homeworks.map((hw) =>
+              hw.homework_slug === homeworkSlug
+                ? { ...hw, type: newType }
+                : hw,
+            ),
+          };
+        },
+      );
+
+      return { prev };
+    },
+    onError: (err, _vars, context) => {
+      if (context?.prev) {
+        qc.setQueryData(
+          courseKeys.lesson(courseSlug, lessonSlug),
+          context.prev,
+        );
+      }
+      notifyError({
+        title: 'Не удалось обновить статус задания',
+        description: errMsg(err),
+      });
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+    },
+  });
+}
+
+export function useDeleteHomework(
+  courseSlug: string,
+  lessonSlug: string,
+) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (homeworkSlug: string) =>
+      courseApi.deleteHomework(courseSlug, lessonSlug, homeworkSlug),
+    onSuccess: () => {
+      notifySuccess({ title: 'Домашнее задание удалено' });
+      void qc.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+    },
+    onError: (err) => {
+      notifyError({
+        title: 'Не удалось удалить домашнее задание',
         description: errMsg(err),
       });
     },

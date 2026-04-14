@@ -71,7 +71,7 @@ def course_notification_signal(sender, instance, created, **kwargs):
 
 def get_reminder_task_id_for_homework(homework_id, reminder_type, task_type):
     unique_key = f"homework_{homework_id}_reminder_{reminder_type}_{task_type}"
-    return int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15)
+    return str(int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15))
 
 @receiver(pre_save, sender=Homework)
 def track_homework_changes(sender, instance, **kwargs):
@@ -204,110 +204,9 @@ def handle_pre_deadline_delete(sender, instance, **kwargs):
 
 def get_reminder_task_id_for_lesson(lesson_id, reminder_type, task_type):
     unique_key = f"lesson_{lesson_id}_reminder_{reminder_type}_{task_type}"
-    return int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15)
+    return str(int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15))
 
-@receiver(pre_save, sender=Lesson)
-def track_lesson_changes(sender, instance, **kwargs):
-    if not instance.pk:
-        return
 
-    try:
-        old = Lesson.objects.get(pk=instance.pk)
-        old_dt = getattr(old, 'date_time', None)
-        new_dt = getattr(instance, 'date_time', None)
-        instance._date_time_changed = old_dt != new_dt
-        instance._old_date_time = old_dt
-    except Lesson.DoesNotExist:
-        pass
-
-@receiver(post_save, sender=Lesson)
-def handle_lesson_reminders(sender, instance, created, **kwargs):
-    notify_author(instance, 'создан' if created else 'изменен')
-
-    lesson_dt = getattr(instance, 'date_time', None)
-    if lesson_dt is None or instance.section_id is None:
-        return
-
-    cours = instance.section.course
-    now = timezone.now()
-
-    reminder_configs = [
-        ('24h', timedelta(days=1), 'До занятия остался 24 часа'),
-        ('1h', timedelta(hours=1), 'До занятия остался 1 час'),
-    ]
-
-    date_time_changed = getattr(instance, '_date_time_changed', False)
-    old_time_date = getattr(instance, '_old_date_time', None)
-
-    if created or (date_time_changed and old_time_date):
-        for r_type, delta, base_message in reminder_configs:
-            eta = lesson_dt - delta
-
-            if eta > now:
-                notif_task_id = get_reminder_task_id_for_lesson(instance.pk, r_type, 'notification')
-                email_task_id = get_reminder_task_id_for_lesson(instance.pk, r_type, 'email')
-
-                title = f'Напоминание: {instance.title}'
-                message = (
-                    f'{base_message}.\n'
-                    f'Урок: "{instance.title}"\n'
-                    f'Дата проведения: {lesson_dt.strftime("%d.%m %H:%M")}'
-                )
-
-                send_course_notification.apply_async(
-                    args=[cours, title, message],
-                    eta=eta,
-                    task_id=notif_task_id
-                )
-
-                send_mass_course_email.apply_async(
-                    args=[cours, title, message],
-                    eta=eta,
-                    task_id=email_task_id
-                )
-
-        return
-
-@receiver(pre_save, sender=Lesson)
-def handle_lesson_update(sender, instance, **kwargs):
-    reminder_configs = [
-        ('24h', timedelta(days=1), 'До занятия остался 24 часа'),
-        ('1h', timedelta(hours=1), 'До занятия остался 1 час'),
-    ]
-
-    date_time_changed = getattr(instance, '_date_time_changed', False)
-    old_time_date = getattr(instance, '_old_date_time', None)
-
-    if date_time_changed and old_time_date :
-        for r_type, _, _ in reminder_configs:
-            notif_task_id = get_reminder_task_id_for_lesson(instance.pk, r_type, 'notification')
-            email_task_id = get_reminder_task_id_for_lesson(instance.pk, r_type, 'email')
-
-            try:
-                celery_app.control.revoke(notif_task_id, terminate=True)
-                celery_app.control.revoke(email_task_id, terminate=True)
-            except Exception:
-                pass
-        return
-@receiver(pre_delete, sender=Lesson)
-def handle_pre_lesson_delete(sender, instance, **kwargs):
-
-    reminder_configs = [
-        ('24h', timedelta(days=1), 'До занятия остался 24 часа'),
-        ('1h', timedelta(hours=1), 'До занятия остался 1 час'),
-    ]
-
-    for r_type, _, _ in reminder_configs:
-        notif_task_id = get_reminder_task_id_for_lesson(instance.pk, r_type, 'notification')
-        email_task_id = get_reminder_task_id_for_lesson(instance.pk, r_type, 'email')
-
-        try:
-            celery_app.control.revoke(notif_task_id, terminate=True)
-            celery_app.control.revoke(email_task_id, terminate=True)
-        except Exception:
-            pass
-
-    return
 
 from .api.utils.cache_utils import (
     invalidate_on_course_model_change,

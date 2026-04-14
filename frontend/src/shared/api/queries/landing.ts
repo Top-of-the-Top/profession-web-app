@@ -9,6 +9,6 @@ export function useLandingCourses() {
   return useQuery({
     queryKey: landingKeys.courses,
     queryFn: () => internalLandingApi.getCourses(),
-    staleTime: 60_000,
+    staleTime: Infinity,
   });
 }

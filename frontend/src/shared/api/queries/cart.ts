@@ -13,5 +13,6 @@ export function useCart(options?: { enabled?: boolean }) {
     queryKey: cartKeys.all,
     queryFn: () => cartApi.getCart(),
     enabled: (options?.enabled ?? true) && hasToken,
+    staleTime: Infinity,
   });
 }

@@ -10,10 +10,11 @@ import {
   CoursePreviewPage,
   CourseLessonsPage,
   CartPage,
-  CreateLessonPage,
+  LessonEditPage,
   LessonPreviewPage,
   LessonViewPage,
   NotAuthorizedPage,
+  WebinarPage,
   AppLayout,
 } from './lazyPages';
 
@@ -54,17 +55,21 @@ export const routes: AppRoute[] = [
         element: <CoursePreviewPage />,
       },
       {
+        path: 'courses/:slug/:lessonSlug/webinar',
+        element: <WebinarPage />,
+      },
+      {
+        path: 'courses/:slug/:lessonSlug/edit',
+        element: <LessonEditPage />,
+        roles: ['teacher', 'moderator'],
+      },
+      {
         path: 'courses/:slug/:lessonSlug',
         element: <LessonViewPage />,
       },
       {
         path: 'courses/:slug',
         element: <CourseLessonsPage />,
-      },
-      {
-        path: 'create',
-        element: <CreateLessonPage />,
-				roles: ['teacher', 'moderator']
       },
       {
         path: 'lesson/preview',

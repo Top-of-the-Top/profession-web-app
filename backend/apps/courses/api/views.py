@@ -71,6 +71,9 @@ def lesson_detail_cache_key(course_slug, slug):
 def homework_detail_cache_key(course_slug, lesson_slug, slug):
     return f"default:homeworks:detail:{course_slug}:{lesson_slug}:{slug}"
 
+def my_schedule_cache_key(user_id):
+    return f"default:schedule:list:{int(user_id)}"
+
 @extend_schema_view(
     list=extend_schema(
         summary="Лендинг: список курсов",
@@ -269,7 +272,7 @@ def _accessible_course_ids_for_user(user):
         authored = Course.objects.filter(authors=user).values_list('course_id', flat=True)
         ids.update(authored)
     return ids
-    
+
 class MyScheduleView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -288,6 +291,12 @@ class MyScheduleView(APIView):
         },
     )
     def get(self, request):
+        
+        cache = caches["cold"]
+        key = my_schedule_cache_key(request.user.id)
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
         course_ids = _accessible_course_ids_for_user(request.user)
         qs = Webinar.objects.all()
         if course_ids is not None:
@@ -304,7 +313,9 @@ class MyScheduleView(APIView):
             )
             .order_by(F('started_at').desc(nulls_last=True), '-created_at')
         )
-        return Response(list(rows))
+        data = list(rows)
+        cache.set(key, data)
+        return Response(data)
 
 
 class CourseHomePageView(APIView):
@@ -1073,9 +1084,3 @@ class WebinarRecordingStartView(APIView):
 
         return Response({'detail': 'Запись началась'})
 
-class ScheduleView(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    def get(self, request):
-
-        return Response({'detail': 'Расписание'})

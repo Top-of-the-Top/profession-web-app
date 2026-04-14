@@ -1,23 +1,7 @@
 from functools import wraps
 from rest_framework.response import Response
 from rest_framework import status
-from django.core.exceptions import PermissionDenied
 from apps.courses.models import Course
-import json
-# TODO: Семен у меня это упало при /app/courses, отдал нейронке логи, она точечно только тут поправила. Откати назад если не то что то
-
-#
-# Исправил падение `500` на `/api/app/courses/`: проблема была в декораторах доступа для DRF `ViewSet`.
-
-# - В `backend/apps/users/api/decorators.py` декораторы ожидали сигнатуру `wrapper(request, ...)`, но для методов `ViewSet` первым аргументом приходит `self`.
-# - Из-за этого `request` фактически был объектом `CourseViewSet`, и происходил `AttributeError: 'CourseViewSet' object has no attribute 'user'`.
-# - Я переделал `require_moderator`, `require_course_author`, `require_course_enrollment` на универсальную сигнатуру `wrapper(*args, **kwargs)` и добавил извлечение `request` через helper `_extract_request(args)`.
-# - Вызов оборачиваемой функции теперь идёт как `view_func(*args, **kwargs)`, чтобы корректно работало и для методов класса, и для function-based view.
-# - Добавил защиту на случай, если `request` не удалось определить (возвращается `400` вместо крэша).
-#
-
-
-
 
 
 def _extract_request(args):
@@ -135,10 +119,7 @@ def require_course_enrollment(view_func):
         if request.user.is_moderator():
             return view_func(*args, **kwargs)
 
-        course_slug = (
-            kwargs.get('course_slug') or # TODO: оптимизировать данную штуку, рефакторить поле класса на course_slug для всех моделей для удобства
-            kwargs.get('slug')
-        )
+        course_slug = kwargs.get('course_slug') or kwargs.get('slug')
 
         if not course_slug:
             return Response(

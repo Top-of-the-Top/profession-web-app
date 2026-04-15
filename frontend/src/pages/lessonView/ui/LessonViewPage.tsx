@@ -9,7 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
-  PageTransition,
+  PageFrame,
   Spinner,
 } from '@shared/ui';
 import type { LessonLayout, Block } from '../../../features/course-builder';
@@ -466,17 +466,17 @@ export default function LessonViewPage() {
   const loading = lessonQuery.isLoading;
   if (loading) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <Spinner />
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   if (lessonQuery.isError || !lessonDetail) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <div className={styles.errorBox}>
             <p className={styles.errorText}>
@@ -496,13 +496,14 @@ export default function LessonViewPage() {
             </div>
           </div>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   return (
-    <PageTransition className={styles.page}>
-      <div className={styles.breadcrumbWrap}>
+    <PageFrame>
+      <div className={styles.body}>
+		<div className={styles.breadcrumbWrap}>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -568,6 +569,7 @@ export default function LessonViewPage() {
           <ProgressWidget />
         </aside>
       </div>
-    </PageTransition>
+      </div>
+    </PageFrame>
   );
 }

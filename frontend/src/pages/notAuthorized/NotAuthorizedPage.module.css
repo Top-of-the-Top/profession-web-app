@@ -1,4 +1,4 @@
-.root {
+.shell {
   background: #0a0a0a;
   color: #fff;
   font-family: 'Arial Black', Arial, sans-serif;
@@ -11,7 +11,7 @@
   position: relative;
 }
 
-.root::before {
+.shell::before {
   content: '';
   position: fixed;
   inset: 0;
@@ -20,7 +20,7 @@
   z-index: 0;
 }
 
-.container {
+.body {
   position: relative;
   z-index: 1;
   display: flex;

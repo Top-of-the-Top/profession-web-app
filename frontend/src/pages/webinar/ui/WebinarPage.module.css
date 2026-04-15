@@ -1,13 +1,20 @@
-.page {
+.shell {
   display: grid;
   flex-direction: column;
-  /* max-height: 100vh; */
 	grid-template-rows: 90% 5%;
 	gap: 20px;
 	height: 90vh;
   width: 100%;
   overflow: hidden;
   background: var(--background);
+}
+
+.stateCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  width: 100%;
 }
 
 .body {
@@ -30,14 +37,6 @@
   flex-direction: column;
   border-left: 1px solid var(--border);
   background: var(--card);
-}
-
-.centered {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  width: 100%;
 }
 
 .errorBox {

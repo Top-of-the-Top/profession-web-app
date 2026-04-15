@@ -1,19 +1,10 @@
-.cartPage {
-  width: 100%;
-  min-height: 100%;
-  padding: 54px;
-  background-color: #e2e8f0;
-  box-sizing: border-box;
-}
-
-/* Только пустая корзина: колонка + нижний блок растягивается и центрирует иконку/текст */
-.cartPageEmpty {
+.emptyLayout {
   display: flex;
   flex-direction: column;
   min-height: 100%;
 }
 
-.cartPageEmpty .emptyState {
+.emptyLayout .emptyState {
   flex: 1;
   min-height: 0;
 }
@@ -26,7 +17,7 @@
   text-align: left;
 }
 
-.cartLayout {
+.layout {
   margin: 0 40px;
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.9fr);
@@ -244,7 +235,7 @@
 }
 
 @media (max-width: 960px) {
-  .cartLayout {
+  .layout {
     grid-template-columns: 1fr;
   }
 
@@ -254,15 +245,11 @@
 }
 
 @media (max-width: 640px) {
-  .cartPage {
-    padding: 24px 16px;
-  }
-
   .cartTitle {
     margin: 0 0 16px 0;
   }
 
-  .cartLayout {
+  .layout {
     margin: 0;
   }
 

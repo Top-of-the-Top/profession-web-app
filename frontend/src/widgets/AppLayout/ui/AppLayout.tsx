@@ -24,6 +24,14 @@ import {
 
 import styles from './AppLayout.module.css';
 
+function isFullBleedAppPage(pathname: string) {
+  return (
+    pathname.endsWith('/webinar') ||
+    pathname.includes('/lesson/preview') ||
+    pathname === '/app/not-authorized'
+  );
+}
+
 export default function AppLayout() {
   const { pathname } = useLocation();
   const user = useUserStore((state) => state.user);
@@ -176,18 +184,25 @@ export default function AppLayout() {
         </div>
 
         <main className={styles.main}>
-          <QueryErrorResetBoundary>
-            {({ reset }) => (
-              <ErrorBoundary
-                onReset={reset}
-                FallbackComponent={ContentErrorFallback}
-              >
-                <Suspense fallback={<Spinner full />}>
-                  <Outlet />
-                </Suspense>
-              </ErrorBoundary>
+          <div
+            className={cn(
+              styles.pageShell,
+              isFullBleedAppPage(pathname) && styles.pageShellBleed,
             )}
-          </QueryErrorResetBoundary>
+          >
+            <QueryErrorResetBoundary>
+              {({ reset }) => (
+                <ErrorBoundary
+                  onReset={reset}
+                  FallbackComponent={ContentErrorFallback}
+                >
+                  <Suspense fallback={<Spinner full />}>
+                    <Outlet />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
+            </QueryErrorResetBoundary>
+          </div>
         </main>
       </div>
     </div>

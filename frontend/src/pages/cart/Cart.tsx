@@ -5,8 +5,8 @@ import {
   CardHeader,
   CardTitle,
   Button,
+  PageFrame,
   Skeleton,
-  PageTransition,
 } from '@shared/ui';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
@@ -16,7 +16,6 @@ import {
 } from '@shared/lib/sileo/notify';
 import { useCart } from '@shared/api/queries/cart';
 import { useRemoveFromCart } from '@shared/api/mutations/cart';
-import { cn } from '@shared/lib/utils';
 import styles from './Cart.module.css';
 
 import { X } from 'lucide-react';
@@ -36,9 +35,9 @@ function isAuthLike(err: unknown) {
 
 function CartSkeleton() {
   return (
-    <PageTransition className={styles.cartPage}>
+    <>
       <h1 className={styles.cartTitle}>Корзина</h1>
-      <div className={styles.cartLayout}>
+      <div className={styles.layout}>
         <div className={styles.cartList}>
           {Array.from({ length: 4 }).map((_, idx) => (
             <div key={idx} className={styles.cartItem}>
@@ -66,7 +65,7 @@ function CartSkeleton() {
           </Card>
         </aside>
       </div>
-    </PageTransition>
+    </>
   );
 }
 
@@ -86,7 +85,11 @@ export default function CartPage() {
         }
         const parsed = parseApiError(err);
         if (parsed) {
-          const m = messageForApiFailure('cartRemove', parsed.status, parsed.body);
+          const m = messageForApiFailure(
+            'cartRemove',
+            parsed.status,
+            parsed.body
+          );
           notifyError({ title: m.title, description: m.description });
           return;
         }
@@ -97,7 +100,11 @@ export default function CartPage() {
   };
 
   if (loading) {
-    return <CartSkeleton />;
+    return (
+      <PageFrame>
+        <CartSkeleton />
+      </PageFrame>
+    );
   }
 
   if (error) {
@@ -106,7 +113,7 @@ export default function CartPage() {
       : 'Не удалось загрузить корзину';
 
     return (
-      <div className={styles.cartPage}>
+      <PageFrame>
         <h1 className={styles.cartTitle}>Корзина</h1>
         <div className={styles.centerBlock}>
           <p>{errMsg}</p>
@@ -118,7 +125,7 @@ export default function CartPage() {
             Повторить
           </Button>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
@@ -126,7 +133,7 @@ export default function CartPage() {
 
   if (courses.length === 0) {
     return (
-      <div className={cn(styles.cartPage, styles.cartPageEmpty)}>
+      <PageFrame className={styles.emptyLayout}>
         <div className={styles.emptyState}>
           <img
             src="/cart-empty.svg"
@@ -143,7 +150,7 @@ export default function CartPage() {
             , чтобы подобрать <br /> подходящий формат обучения
           </p>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
@@ -151,10 +158,10 @@ export default function CartPage() {
   const formattedTotal = formatPrice(total);
 
   return (
-    <PageTransition className={styles.cartPage}>
+    <PageFrame>
       <h1 className={styles.cartTitle}>Корзина</h1>
 
-      <div className={styles.cartLayout}>
+      <div className={styles.layout}>
         <div className={styles.cartList}>
           {courses.map((course) => (
             <div key={course.course_id} className={styles.cartItem}>
@@ -190,12 +197,11 @@ export default function CartPage() {
               <span className={styles.summaryAmount}>{formattedTotal}</span>
             </CardHeader>
             <CardContent className={styles.summaryContent}>
-             
               <Button className={styles.payButton}>Перейти к оплате</Button>
             </CardContent>
           </Card>
         </aside>
       </div>
-    </PageTransition>
+    </PageFrame>
   );
 }

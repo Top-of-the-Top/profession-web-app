@@ -119,8 +119,19 @@ export interface QuestionCreatePayload {
   answer_options?: string[] | null;
 }
 
+export interface QuestionPatchPayload {
+  text?: string;
+  correct_ans?: string | null;
+  answer_options?: string[] | null;
+}
+
 export interface TaskCreatePayload {
   text: string;
+  max_points?: number;
+}
+
+export interface TaskPatchPayload {
+  text?: string;
   max_points?: number;
 }
 
@@ -532,6 +543,31 @@ export const courseApi = {
     );
   },
 
+  patchQuestion(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+    questionId: string,
+    payload: QuestionPatchPayload,
+  ): Promise<unknown> {
+    return apiClient.request(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/questions/${questionId}/`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+    );
+  },
+
+  deleteQuestion(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+    questionId: string,
+  ): Promise<void> {
+    return apiClient.request<void>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/questions/${questionId}/`,
+      { method: 'DELETE' },
+    );
+  },
+
   createTask(
     courseSlug: string,
     lessonSlug: string,
@@ -541,6 +577,31 @@ export const courseApi = {
     return apiClient.request(
       `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/`,
       { method: 'POST', body: JSON.stringify(payload) },
+    );
+  },
+
+  patchTask(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+    taskId: string,
+    payload: TaskPatchPayload,
+  ): Promise<unknown> {
+    return apiClient.request(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/${taskId}/`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+    );
+  },
+
+  deleteTask(
+    courseSlug: string,
+    lessonSlug: string,
+    homeworkSlug: string,
+    taskId: string,
+  ): Promise<void> {
+    return apiClient.request<void>(
+      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/${taskId}/`,
+      { method: 'DELETE' },
     );
   },
 };

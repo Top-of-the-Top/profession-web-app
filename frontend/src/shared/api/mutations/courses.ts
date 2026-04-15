@@ -431,6 +431,8 @@ export function usePatchCourse(slug: string) {
 }
 
 export interface CreateHomeworkWithItemsPayload {
+  homeworkSlug?: string;
+  previousItems?: Array<{ id: string; type: 'question' | 'task' }>;
   homework: HomeworkCreatePayload;
   items: Array<
     | { kind: 'question'; payload: QuestionCreatePayload }
@@ -448,11 +450,29 @@ export function useCreateHomeworkWithItems(
     mutationFn: async (
       input: CreateHomeworkWithItemsPayload,
     ): Promise<HomeworkDetail> => {
-      const hw = await courseApi.createHomework(
-        courseSlug,
-        lessonSlug,
-        input.homework,
-      );
+      const hw = input.homeworkSlug
+        ? await courseApi.patchHomework(
+            courseSlug,
+            lessonSlug,
+            input.homeworkSlug,
+            input.homework,
+          )
+        : await courseApi.createHomework(courseSlug, lessonSlug, input.homework);
+
+      if (input.homeworkSlug && input.previousItems?.length) {
+        for (const item of input.previousItems) {
+          if (item.type === 'question') {
+            await courseApi.deleteQuestion(
+              courseSlug,
+              lessonSlug,
+              hw.slug,
+              item.id,
+            );
+          } else {
+            await courseApi.deleteTask(courseSlug, lessonSlug, hw.slug, item.id);
+          }
+        }
+      }
 
       for (const item of input.items) {
         if (item.kind === 'question') {
@@ -474,15 +494,28 @@ export function useCreateHomeworkWithItems(
 
       return hw;
     },
-    onSuccess: () => {
-      notifySuccess({ title: 'Домашнее задание создано' });
+    onSuccess: (_homework, input) => {
+      notifySuccess({
+        title: input.homeworkSlug
+          ? 'Домашнее задание обновлено'
+          : 'Домашнее задание создано',
+      });
       void qc.invalidateQueries({
         queryKey: courseKeys.lesson(courseSlug, lessonSlug),
       });
+      if (input.homeworkSlug) {
+        void qc.invalidateQueries({
+          queryKey: courseKeys.homework(
+            courseSlug,
+            lessonSlug,
+            input.homeworkSlug,
+          ),
+        });
+      }
     },
     onError: (err) => {
       notifyError({
-        title: 'Не удалось создать домашнее задание',
+        title: 'Не удалось сохранить домашнее задание',
         description: errMsg(err),
       });
     },

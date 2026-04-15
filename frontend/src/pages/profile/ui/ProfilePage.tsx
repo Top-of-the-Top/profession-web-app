@@ -10,8 +10,8 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  PageFrame,
   Skeleton,
-  PageTransition,
 } from '@shared/ui';
 import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars } from 'lucide-react';
 import styles from './ProfilePage.module.css';
@@ -81,59 +81,59 @@ const ProfileField = ({
 );
 
 const ProfileSkeleton = () => (
-  <PageTransition className={styles.profilePage}>
-    <div className={styles.wrapper}>
-      <Skeleton className={styles.skeletonProfileTitle} />
-      <Card className={styles.profilePageCard}>
-        <CardContent className={styles.profilePageContent}>
-          <div className={styles.profileSection}>
-            <div className={styles.profileField}>
+  <PageFrame>
+    <div className={styles.body}>
+    <Skeleton className={styles.skeletonProfileTitle} />
+    <Card className={styles.profilePageCard}>
+      <CardContent className={styles.profilePageContent}>
+        <div className={styles.profileSection}>
+          <div className={styles.profileField}>
+            <div className={styles.profileFieldContent}>
+              <Skeleton shape="circle" className={styles.skeletonAvatar} />
+              <div className={styles.profileFieldInfo}>
+                <Skeleton className={styles.skeletonLabel} />
+                <Skeleton className={styles.skeletonValueWide} />
+              </div>
+            </div>
+            <Skeleton shape="circle" className={styles.skeletonActionIcon} />
+          </div>
+        </div>
+
+        <div className={styles.profileSection}>
+          <Skeleton className={styles.skeletonSectionTitle} />
+          {Array.from({ length: 2 }).map((_, idx) => (
+            <div key={idx} className={styles.profileField}>
               <div className={styles.profileFieldContent}>
-                <Skeleton shape="circle" className={styles.skeletonAvatar} />
+                <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
                 <div className={styles.profileFieldInfo}>
                   <Skeleton className={styles.skeletonLabel} />
-                  <Skeleton className={styles.skeletonValueWide} />
+                  <Skeleton className={styles.skeletonValue} />
                 </div>
               </div>
               <Skeleton shape="circle" className={styles.skeletonActionIcon} />
             </div>
-          </div>
+          ))}
+        </div>
 
-          <div className={styles.profileSection}>
-            <Skeleton className={styles.skeletonSectionTitle} />
-            {Array.from({ length: 2 }).map((_, idx) => (
-              <div key={idx} className={styles.profileField}>
-                <div className={styles.profileFieldContent}>
-                  <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
-                  <div className={styles.profileFieldInfo}>
-                    <Skeleton className={styles.skeletonLabel} />
-                    <Skeleton className={styles.skeletonValue} />
-                  </div>
+        <div className={styles.profileSection}>
+          <Skeleton className={styles.skeletonSectionTitle} />
+          {Array.from({ length: 2 }).map((_, idx) => (
+            <div key={idx} className={styles.profileField}>
+              <div className={styles.profileFieldContent}>
+                <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
+                <div className={styles.profileFieldInfo}>
+                  <Skeleton className={styles.skeletonLabel} />
+                  <Skeleton className={styles.skeletonValue} />
                 </div>
-                <Skeleton shape="circle" className={styles.skeletonActionIcon} />
               </div>
-            ))}
-          </div>
-
-          <div className={styles.profileSection}>
-            <Skeleton className={styles.skeletonSectionTitle} />
-            {Array.from({ length: 2 }).map((_, idx) => (
-              <div key={idx} className={styles.profileField}>
-                <div className={styles.profileFieldContent}>
-                  <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
-                  <div className={styles.profileFieldInfo}>
-                    <Skeleton className={styles.skeletonLabel} />
-                    <Skeleton className={styles.skeletonValue} />
-                  </div>
-                </div>
-                <Skeleton shape="circle" className={styles.skeletonActionIcon} />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <Skeleton shape="circle" className={styles.skeletonActionIcon} />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
     </div>
-  </PageTransition>
+  </PageFrame>
 );
 
 export default function ProfilePage() {
@@ -184,11 +184,6 @@ export default function ProfilePage() {
   const togglePhoneMenu = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     setPhoneMenuOpen((prev) => !prev);
-  };
-  const closeAllMenus = () => {
-    setChangeMenuOpen(false);
-    setEmailMenuOpen(false);
-    setPhoneMenuOpen(false);
   };
 
   if (isLoading && !profile) return <ProfileSkeleton />;
@@ -253,7 +248,7 @@ export default function ProfilePage() {
 
   const handleContactRequest = async (
     rawContact: string,
-    type: 'email' | 'phone',
+    type: 'email' | 'phone'
   ) => {
     try {
       if (type === 'email') {
@@ -285,10 +280,7 @@ export default function ProfilePage() {
     }
   };
 
-  const handleContactVerify = async (
-    code: string,
-    type: 'email' | 'phone',
-  ) => {
+  const handleContactVerify = async (code: string, type: 'email' | 'phone') => {
     try {
       if (type === 'email') {
         await profileApi.verifyEmailChange(code);
@@ -301,7 +293,9 @@ export default function ProfilePage() {
       notifySuccess({
         title: 'готово',
         description:
-          type === 'email' ? 'Почта подтверждена и обновлена.' : 'Телефон подтверждён и обновлён.',
+          type === 'email'
+            ? 'Почта подтверждена и обновлена.'
+            : 'Телефон подтверждён и обновлён.',
       });
       setEmailMenuOpen(false);
       setPhoneMenuOpen(false);
@@ -332,7 +326,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <PageTransition className={styles.profilePage}>
+    <>
       <ChangeName
         open={isChangeNameMenuOpen}
         onOpenChange={setChangeMenuOpen}
@@ -356,7 +350,8 @@ export default function ProfilePage() {
         onVerify={(code) => handleContactVerify(code, 'phone')}
       />
 
-      <div className={styles.wrapper}>
+      <PageFrame>
+        <div className={styles.body}>
         <h1 className={styles.profilePageTitle}>Личный кабинет</h1>
         <Card className={styles.profilePageCard}>
           <CardContent className={styles.profilePageContent}>
@@ -487,7 +482,8 @@ export default function ProfilePage() {
             </div>
           </CardContent>
         </Card>
-      </div>
-    </PageTransition>
+        </div>
+      </PageFrame>
+    </>
   );
 }

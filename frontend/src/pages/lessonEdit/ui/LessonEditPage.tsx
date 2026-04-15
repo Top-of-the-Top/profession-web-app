@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Spinner, PageTransition } from '@shared/ui';
+import { PageFrame, Spinner } from '@shared/ui';
 import { useLessonBySlug } from '@shared/api/queries/courses';
 import { useSaveLessonContent } from '@shared/api/mutations/courses';
 import { CourseBuilder, useLessonBuilderStore } from '../../../features/course-builder';
@@ -53,38 +53,32 @@ export default function LessonEditPage() {
 
   if (isError) {
     return (
-      <PageTransition>
-        <div className={styles.errorWrapper}>
-          <p>Не удалось загрузить урок</p>
-        </div>
-      </PageTransition>
+      <PageFrame className={styles.errorWrapper}>
+        <p>Не удалось загрузить урок</p>
+      </PageFrame>
     );
   }
 
   if (isLoading) {
     return (
-      <PageTransition>
-        <div className={styles.loaderWrapper}>
-          <Spinner size="lg" />
-        </div>
-      </PageTransition>
+      <PageFrame className={styles.loaderWrapper}>
+        <Spinner size="lg" />
+      </PageFrame>
     );
   }
 
   if (!lessonDetail) {
     return (
-      <PageTransition>
-        <div className={styles.errorWrapper}>
-          <p>Не удалось загрузить урок</p>
-        </div>
-      </PageTransition>
+      <PageFrame className={styles.errorWrapper}>
+        <p>Не удалось загрузить урок</p>
+      </PageFrame>
     );
   }
 
   if (!initialized) return null;
 
   return (
-    <PageTransition>
+    <PageFrame className={styles.builderRoot}>
       <CourseBuilder
         courseSlug={courseSlug!}
         lessonSlug={lessonSlug!}
@@ -92,6 +86,6 @@ export default function LessonEditPage() {
         onSave={handleSave}
         saving={saveMutation.isPending}
       />
-    </PageTransition>
+    </PageFrame>
   );
 }

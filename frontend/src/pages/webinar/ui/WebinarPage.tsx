@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Spinner } from '@shared/ui';
+import { Button, PageFrame, Spinner } from '@shared/ui';
 import { useWebinarJoin } from '@shared/api/queries/webinar';
 import { useStartRecording, useStopWebinar } from '@shared/api/mutations/webinar';
 import {
@@ -50,15 +50,15 @@ export default function WebinarPage() {
 
   if (isLoading) {
     return (
-      <div className={styles.centered}>
+      <PageFrame className={styles.stateCenter}>
         <Spinner />
-      </div>
+      </PageFrame>
     );
   }
 
   if (isError || !session) {
     return (
-      <div className={styles.centered}>
+      <PageFrame className={styles.stateCenter}>
         <div className={styles.errorBox}>
           <p className={styles.errorText}>
             Не удалось подключиться к вебинару. Проверьте, что вебинар запущен, и у вас есть доступ.
@@ -72,12 +72,12 @@ export default function WebinarPage() {
             </Button>
           </div>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   return (
-    <div className={styles.page}>
+    <PageFrame className={styles.shell}>
       <div className={styles.body}>
         <div className={styles.whiteboardArea}>
           <WhiteboardPanel
@@ -115,6 +115,6 @@ export default function WebinarPage() {
         onLeave={handleLeave}
         onStop={handleStop}
       />
-    </div>
+    </PageFrame>
   );
 }

@@ -3,43 +3,102 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   flex: 1;
 }
 
-.homeworkSwitchBar {
+.homeworkMain {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  width: min(920px, 100%);
-  margin: 0 auto 10px;
-  padding: 0 8px;
+  gap: 14px;
+  min-height: 0;
+  width: 100%;
+  flex: 1;
+}
+
+.homeworkCanvasColumn {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.homeworkSidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 0 8px rgba(15, 23, 42, 0.12);
+  padding: 12px;
   box-sizing: border-box;
+  max-height: 75vh;
+  overflow: auto;
+}
+
+.homeworkSidebarTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 10px;
+}
+
+.homeworkSwitchList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .homeworkSwitchButton {
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  color: #374151;
-  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1f2937;
+  border-radius: 10px;
   font-size: 12px;
-  padding: 4px 10px;
+  padding: 10px 12px;
   cursor: pointer;
   transition: 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
 }
 
 .homeworkSwitchButtonActive {
-  border-color: #396fdb;
+  border-color: #4d78cf;
   background: #edf3ff;
-  color: #396fdb;
+}
+
+.homeworkSwitchTitle {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.homeworkSwitchType {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 3px 7px;
+  flex-shrink: 0;
+}
+
+.homeworkSwitchTypeDraft {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.homeworkSwitchTypePublished {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .homeworkHeader {
   display: flex;
-  gap: 12px;
-  padding: 0 8px 12px;
-  width: min(920px, 100%);
-  margin: 0 auto;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  width: 100%;
+  margin: 0 0 10px;
   box-sizing: border-box;
 }
 
@@ -64,7 +123,7 @@
 }
 
 .homeworkDeadlineInput {
-  width: 220px;
+  width: 100%;
   border: none;
   border-bottom: 2px solid #e2e8f0;
   padding: 8px 4px;
@@ -445,6 +504,16 @@
 }
 
 @media (max-width: 768px) {
+  .homeworkMain {
+    flex-direction: column;
+  }
+
+  .homeworkSidebar {
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+
   .homeworkWrapper {
     min-height: 65vh;
     max-height: 65vh;

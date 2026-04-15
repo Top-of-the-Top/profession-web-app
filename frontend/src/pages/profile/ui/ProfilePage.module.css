@@ -10,15 +10,7 @@
   z-index: 110;
 }
 
-
-.profilePage {
-  width: 100%;
-  min-height: 100%;
-  background-color: #E2E8F0;
-  padding: 20px;
-  /* position: relative; */
-}
-.wrapper {
+.body {
   position: relative;
   z-index: 100;
   justify-self: center;
@@ -232,10 +224,6 @@
 
 /* Responsive */
 @media (max-width: 640px) {
-  .profilePage {
-    padding: 16px;
-  }
-
   .profilePageTitle {
     font-size: 20px;
     margin-bottom: 16px;

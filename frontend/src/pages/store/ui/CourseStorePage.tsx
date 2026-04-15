@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { Button, Skeleton, PageTransition } from '@shared/ui';
+import { Button, PageFrame, Skeleton } from '@shared/ui';
 import type { CourseDTO } from '@shared/api/courseApi';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
@@ -80,8 +80,8 @@ const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart, isAdding }
 };
 
 const StoreSkeleton = () => (
-  <PageTransition className={styles.catalog}>
-    <h2 className={styles.catalogTitle}>Каталог курсов</h2>
+  <>
+	<h2 className={styles.catalogTitle}>Каталог курсов</h2>
     <div className={styles.coursesGrid}>
       {Array.from({ length: 6 }).map((_, idx) => (
         <div key={idx} className={styles.courseCard}>
@@ -98,8 +98,7 @@ const StoreSkeleton = () => (
           </div>
         </div>
       ))}
-    </div>
-  </PageTransition>
+    </div></>
 );
 
 function isAuthLike(err: unknown) {
@@ -150,12 +149,16 @@ export default function CourseStorePage() {
   };
 
   if (isLoading) {
-    return <StoreSkeleton />;
+    return (
+      <PageFrame>
+        <StoreSkeleton />
+      </PageFrame>
+    );
   }
 
   if (error) {
     return (
-      <div className={styles.catalog}>
+      <PageFrame>
         <h2 className={styles.catalogTitle}>Каталог курсов</h2>
         <div className={styles.errorState}>
           <p className={styles.errorMessage}>
@@ -165,12 +168,12 @@ export default function CourseStorePage() {
             Попробовать снова
           </Button>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   return (
-    <PageTransition className={styles.catalog}>
+    <PageFrame>
       <h2 className={styles.catalogTitle}>Каталог курсов</h2>
 
       {courses.length === 0 ? (
@@ -192,6 +195,6 @@ export default function CourseStorePage() {
           ))}
         </div>
       )}
-    </PageTransition>
+    </PageFrame>
   );
 }

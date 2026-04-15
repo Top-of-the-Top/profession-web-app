@@ -9,7 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
-  PageTransition,
+  PageFrame,
   Spinner,
 } from '@shared/ui';
 import type { LessonLayout, Block } from '../../../features/course-builder';
@@ -19,12 +19,14 @@ import {
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
 import type { LessonHomework } from '@shared/api/courseApi';
-import { useCourseHomeBySlug, useLessonBySlug } from '@shared/api/queries/courses';
+import {
+  useCourseHomeBySlug,
+  useLessonBySlug,
+} from '@shared/api/queries/courses';
 import { useStartWebinar } from '@shared/api/mutations/webinar';
 import { useToggleHomeworkType } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac';
 import styles from './LessonViewPage.module.css';
-
 
 const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
   html,
@@ -45,7 +47,9 @@ const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
 
 const PhotoBlockView: React.FC<{ url: string }> = ({ url }) => {
   if (!url)
-    return <div className={styles.mediaPlaceholder}>Изображение не загружено</div>;
+    return (
+      <div className={styles.mediaPlaceholder}>Изображение не загружено</div>
+    );
   return (
     <div className={styles.photoBlock}>
       <img src={url} alt="" loading="lazy" />
@@ -66,7 +70,9 @@ const VideoBlockView: React.FC<{ url: string }> = ({ url }) => {
 function renderBlock(block: Block) {
   switch (block.type) {
     case 'text':
-      return <TextBlockView html={block.html} fontSizeIndex={block.fontSizeIndex} />;
+      return (
+        <TextBlockView html={block.html} fontSizeIndex={block.fontSizeIndex} />
+      );
     case 'photo':
       return <PhotoBlockView url={block.url} />;
     case 'video':
@@ -187,9 +193,7 @@ const HomeworkWidget: React.FC<{
             </p>
           )}
           <Link
-            to={
-              `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`
-            }
+            to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`}
             className={styles.homeworkButton}
           >
             {hw.title || 'Перейти к заданию'}
@@ -204,9 +208,11 @@ const ProgressWidget: React.FC = () => {
   const passedLessons = { done: 12, total: 24 };
   const submittedHomeworks = { done: 8, total: 11 };
 
-  const passedPct = Math.round((passedLessons.done / passedLessons.total) * 100);
+  const passedPct = Math.round(
+    (passedLessons.done / passedLessons.total) * 100
+  );
   const submittedPct = Math.round(
-    (submittedHomeworks.done / submittedHomeworks.total) * 100,
+    (submittedHomeworks.done / submittedHomeworks.total) * 100
   );
 
   return (
@@ -282,7 +288,9 @@ function getTimerState(targetIso: string | null): TimerState {
 }
 
 const TimerWidget: React.FC<{ targetIso: string | null }> = ({ targetIso }) => {
-  const [timer, setTimer] = useState<TimerState>(() => getTimerState(targetIso));
+  const [timer, setTimer] = useState<TimerState>(() =>
+    getTimerState(targetIso)
+  );
 
   useEffect(() => {
     setTimer(getTimerState(targetIso));
@@ -390,7 +398,9 @@ const LessonEditWidget: React.FC<{
   );
 };
 
-const LessonRecording: React.FC<{ recording: string | null }> = ({ recording }) => {
+const LessonRecording: React.FC<{ recording: string | null }> = ({
+  recording,
+}) => {
   const value = recording?.trim();
 
   if (!value) return null;
@@ -399,11 +409,15 @@ const LessonRecording: React.FC<{ recording: string | null }> = ({ recording }) 
 
   return (
     <section className={styles.recordingSection}>
-      <h2 className={styles.recordingTitle}>Запись урока</h2>
+      <h2 className={styles.recordingTitle}>Запись вебинара</h2>
       {isHttpLink ? (
         <div className={styles.recordingIframeWrap}>
           <iframe
-            src={value === "https://example.com/recordings/mock-lesson" ? "https://kinescope.io/t1go93i9aP3NG6VNPxiCC6" : value}
+            src={
+              value === 'https://example.com/recordings/mock-lesson'
+                ? 'https://kinescope.io/t1go93i9aP3NG6VNPxiCC6'
+                : value
+            }
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
             allowFullScreen
             className={styles.recordingIframe}
@@ -432,9 +446,7 @@ export default function LessonViewPage() {
   const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
 
   const courseTitle =
-    homeQuery.data?.title ??
-    courseSlug?.replace(/-/g, ' ') ??
-    'Курс';
+    homeQuery.data?.title ?? courseSlug?.replace(/-/g, ' ') ?? 'Курс';
 
   const lessonDetail = lessonQuery.data;
 
@@ -454,24 +466,28 @@ export default function LessonViewPage() {
   const loading = lessonQuery.isLoading;
   if (loading) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <Spinner />
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   if (lessonQuery.isError || !lessonDetail) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <div className={styles.errorBox}>
             <p className={styles.errorText}>
               Не удалось загрузить урок. Проверьте доступ и попробуйте снова.
             </p>
             <div className={styles.errorActions}>
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(-1)}
+              >
                 Назад
               </Button>
               <Button type="button" onClick={() => void lessonQuery.refetch()}>
@@ -480,18 +496,23 @@ export default function LessonViewPage() {
             </div>
           </div>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   return (
-    <PageTransition className={styles.page}>
-      <div className={styles.breadcrumbWrap}>
+    <PageFrame>
+      <div className={styles.body}>
+		<div className={styles.breadcrumbWrap}>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link to="/app/home" className={styles.homeLink} aria-label="Домашняя">
+                <Link
+                  to="/app/home"
+                  className={styles.homeLink}
+                  aria-label="Домашняя"
+                >
                   <Home size={18} strokeWidth={2} />
                 </Link>
               </BreadcrumbLink>
@@ -499,9 +520,7 @@ export default function LessonViewPage() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link to={`/app/courses/${courseSlug}`}>
-                  {courseTitle}
-                </Link>
+                <Link to={`/app/courses/${courseSlug}`}>{courseTitle}</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
@@ -516,13 +535,15 @@ export default function LessonViewPage() {
         <div className={styles.mainColumn}>
           <div className={styles.lessonHeader}>
             <div className={styles.lessonHeaderTrapezoid}>
-              <h1 className={styles.lessonTitleTrapezoid}>{lessonDetail.title}</h1>
+              <h1 className={styles.lessonTitleTrapezoid}>
+                {lessonDetail.title}
+              </h1>
             </div>
           </div>
 
           <main className={styles.main}>
-            <LessonRecording recording={lessonDetail.recording_url} />
             {lessonLayout && <LessonContent layout={lessonLayout} />}
+            <LessonRecording recording={lessonDetail.recording_url} />
           </main>
         </div>
 
@@ -548,6 +569,7 @@ export default function LessonViewPage() {
           <ProgressWidget />
         </aside>
       </div>
-    </PageTransition>
+      </div>
+    </PageFrame>
   );
 }

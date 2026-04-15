@@ -23,7 +23,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   Input,
-  PageTransition,
+  PageFrame,
   Spinner,
 } from '@shared/ui';
 import type {
@@ -247,7 +247,7 @@ export default function CourseLessonsPage() {
 
   if (!slug) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <div className={styles.errorBox}>
             <p className={styles.errorText}>Не указан адрес курса.</p>
@@ -256,23 +256,23 @@ export default function CourseLessonsPage() {
             </Button>
           </div>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   if (isLoading) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <Spinner />
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   if (isError || !payload) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <div className={styles.errorBox}>
             <p className={styles.errorText}>
@@ -284,14 +284,14 @@ export default function CourseLessonsPage() {
             </Button>
           </div>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   if (!content.length) {
     return (
-      <PageTransition className={styles.page}>
-        <div className={styles.breadcrumbWrap}>
+      <PageFrame>
+			<div className={styles.breadcrumbWrap}>
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
@@ -334,13 +334,13 @@ export default function CourseLessonsPage() {
             )}
           </aside>
         </div>
-      </PageTransition>
+      </PageFrame>
     );
   }
 
   return (
-    <PageTransition className={styles.page}>
-      <div className={styles.breadcrumbWrap}>
+    <PageFrame>
+		<div className={styles.breadcrumbWrap}>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -397,7 +397,7 @@ export default function CourseLessonsPage() {
           )}
         </aside>
       </div>
-    </PageTransition>
+    </PageFrame>
   );
 }
 

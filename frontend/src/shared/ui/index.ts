@@ -89,9 +89,9 @@
 
 	export { Switch } from './Switch'
 
+	export { PageFrame } from './PageFrame'
 	export { Spinner } from './Spinner'
 export { Skeleton } from './Skeleton'
-	export { PageTransition } from './PageTransition'
 
 	export {
 		Breadcrumb,

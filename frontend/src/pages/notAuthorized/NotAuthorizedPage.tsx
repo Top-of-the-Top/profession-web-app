@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
+import { PageFrame } from '@shared/ui';
 import styles from './NotAuthorizedPage.module.css';
 
 export default function NotAuthorizedPage() {
   return (
-    <div className={styles.root}>
-      <div className={styles.container}>
+    <PageFrame className={styles.shell}>
+      <div className={styles.body}>
         <span className={styles.code}>403</span>
 
         <div className={styles.message}>
@@ -18,6 +19,6 @@ export default function NotAuthorizedPage() {
       </div>
 
       <span className={styles.codeHint}>error_code: 403</span>
-    </div>
+    </PageFrame>
   );
 }

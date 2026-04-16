@@ -1,5 +1,6 @@
 from django.apps import AppConfig
 
 
-class AiConfig(AppConfig):
-    name = 'ai_chat_bot'
+class AiChatBotConfig(AppConfig):
+    name = 'apps.ai_chat_bot'
+    verbose_name = 'ИИ Ассистент и Чат'

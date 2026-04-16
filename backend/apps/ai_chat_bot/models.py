@@ -1,58 +1,8 @@
 from django.db import models
-from pgvector.django import VectorField
-from apps.courses.models import Course, Lesson
+from apps.courses.models import Course
 from apps.users.models import User
 from uuid import uuid4
 
-class Chunk(models.Model):
-
-  chunk_id = models.UUIDField(
-    primary_key=True,
-    verbose_name="id",
-    default=uuid4
-  )
-
-  course = models.ForeignKey( # Наверное можно убрать, но пока пусть будет
-    Course, 
-    on_delete=models.CASCADE,
-    verbose_name="Курс",
-    null=False,
-  )
-
-  lesson = models.ForeignKey(
-    Lesson,
-    on_delete=models.CASCADE,
-    verbose_name="Урок",
-    null=False,
-  )
-
-  content = models.TextField(
-    max_length=1000,
-    verbose_name="Контент",
-    null=False,
-    blank=False,
-  )
-
-  embedding = VectorField(
-    verbose_name="Эмбеддинг",
-    dimensions=1536,
-    null=False,
-    blank=False,
-  )
-
-  created_at = models.DateTimeField(
-    auto_now_add=True,
-    verbose_name="Дата создания",
-  )
-
-  class Meta:
-    verbose_name = "Чанк"
-    verbose_name_plural = "Чанки"
-    ordering = ['-created_at']
-    indexes = [
-      models.Index(fields=['embedding']),
-    ]
-  
 class ChatSession(models.Model):
 
   chat_session_id = models.UUIDField(
@@ -60,6 +10,14 @@ class ChatSession(models.Model):
     verbose_name="id",
     default=uuid4
   )
+
+  yandex_thread_id = models.CharField( # Это PK threadа который хранится в ресурсе яндекса
+        max_length=255, 
+        unique=True, 
+        verbose_name="Yandex Thread ID",
+        null=True, 
+        blank=True
+    )
 
   user = models.ForeignKey(
     User,
@@ -113,7 +71,7 @@ class ChatMessage(models.Model):
 
   content = models.TextField(
     max_length=1000,
-    verbose_name="Контент",
+    verbose_name="Сообщение",
     null=False,
     blank=False,
   )

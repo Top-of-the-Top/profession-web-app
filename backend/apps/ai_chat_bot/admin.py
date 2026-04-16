@@ -1,11 +1,5 @@
 from django.contrib import admin
-from .models import Chunk, ChatSession, ChatMessage
-
-@admin.register(Chunk)
-class ChunkAdmin(admin.ModelAdmin):
-  list_display = ['course', 'lesson', 'content']
-  list_filter = ['course', 'lesson']
-  search_fields = ['course__title', 'lesson__title', 'content']
+from .models import ChatSession, ChatMessage
 
 @admin.register(ChatSession)
 class ChatSessionAdmin(admin.ModelAdmin):

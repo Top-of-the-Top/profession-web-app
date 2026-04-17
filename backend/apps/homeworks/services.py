@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from django.db import transaction
 from django.utils import timezone
 from .models import Attempt, QuestionAnswer, TaskAnswer
-from apps.notifications.tasks import send_personal_notification
 
 class HomeworkServiceError(Exception):
     code = 'HOMEWORK_ERROR'
@@ -78,7 +77,7 @@ class AttemptService:
         return attempt
 
     @transaction.atomic
-    def submit(self, *, attempt, payload_attempt_id, send_at, items):
+    def submit(self, attempt, payload_attempt_id, send_at, items):
         if str(attempt.attempt_id) != str(payload_attempt_id):
             raise AttemptPayloadMismatch()
 

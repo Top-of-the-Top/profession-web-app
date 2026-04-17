@@ -1,8 +1,7 @@
 import uuid
-
+from enum import Enum 
 from django.core.exceptions import ValidationError
 from django.db import models
-
 from apps.users.models import User
 from apps.courses.models import Homework, Task, Question
 
@@ -137,3 +136,31 @@ class TaskAnswer(EstimatedMixin, TimestampedMixin):
 
     def __str__(self):
         return str(self.answer_id)
+    
+class FileType(Enum):
+    DOCUMENT = "pdf"
+    ARCHIVE = "zip"
+    IMAGE = "png"
+    TEXT = "txt"
+
+class TaskAnswerAttachment(models.Model):
+    FORMAT_CHOICES= [
+        (FileType.DOCUMENT, "Документ"), 
+        (FileType.ARCHIVE, "Архив"), 
+        (FileType.IMAGE, "Изображение"), 
+        (FileType.TEXT, "Текст"), 
+    ]
+
+    attachment_id = models.UUIDField(primary_key=True, verbose_name="id")
+    answer_id = models.ForeignKey(TaskAnswer, on_delete=models.CASCADE)
+    file_url = models.CharField(max_length=100, verbose_name="URL файла в S3 хранилище")
+    file_name = models.CharField(max_length=40, verbose_name="Название файла")
+    file_size = models.PositiveIntegerField(max=1024*1024*10, verbose_name="Размер файла")
+    file_format = models.CharField(verbose_name="Формат файла", choices=FORMAT_CHOICES, null=False)
+
+
+    class Meta:
+        verbose_name = 'Вложение'
+        verbose_name_plural = 'Вложение'
+        ordering = ['created_at']
+        unique_together = ('attempt', 'task')

@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-
 from django.db import transaction
 from django.utils import timezone
-
 from .models import Attempt, QuestionAnswer, TaskAnswer
+from apps.notifications.tasks import send_personal_notification
 
 class HomeworkServiceError(Exception):
     code = 'HOMEWORK_ERROR'
@@ -121,26 +120,27 @@ class AttemptService:
         )
 
     def _apply_items(self, attempt, items):
-        questions_by_id = {
-            str(qa.question_id): qa
-            for qa in attempt.question_answers.all()
-        }
-        tasks_by_id = {
-            str(ta.task_id): ta
-            for ta in attempt.task_answers.all()
-        }
+        homework = attempt.homework
+
+        question_by_id = {}
+        for qu in homework.question_answers.all():
+            question_by_id[qu.question_id] = qu 
+
+        task_by_id = {}
+        for ta in homework.task_answers.all():
+            task_by_id[ta.task_id] = ta 
+
 
         for item in items:
-            if item.type == 'question':
-                qa = questions_by_id.get(item.target_id)
+            if item.type == "question":
+                qa = question_by_id.get(item.target_id)
                 if qa is None:
                     raise AttemptItemNotFound(
                         details={'type': 'question', 'id': item.target_id},
                     )
                 QuestionAnswer.objects.filter(pk=qa.pk).update(user_answer=item.user_answer)
-
             elif item.type == 'task':
-                ta = tasks_by_id.get(item.target_id)
+                ta = task_by_id.get(item.target_id)
                 if ta is None:
                     raise AttemptItemNotFound(
                         details={'type': 'task', 'id': item.target_id},

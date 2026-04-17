@@ -184,12 +184,19 @@ class UploadFileRequestSerializer(serializers.Serializer):
     file_format = serializers.CharField(max_length=16)
 
 
-class UploadFileResponseSerializer(serializers.Serializer):
-    upload_url = serializers.URLField()
-    method = serializers.CharField(default='PUT')
-    s3_key = serializers.CharField()
-    headers = serializers.DictField(child=serializers.CharField())
-    expires_at = serializers.DateTimeField()
+class S3UploadFieldsSerializer(serializers.Serializer):
+    key = serializers.CharField(help_text="Путь к файлу в S3")
+    policy = serializers.CharField(help_text="Base64 policy condition")
+    x_amz_algorithm = serializers.CharField(source='x-amz-algorithm')
+    x_amz_credential = serializers.CharField(source='x-amz-credential')
+    x_amz_date = serializers.CharField(source='x-amz-date')
+    x_amz_signature = serializers.CharField(source='x-amz-signature')
+
+class S3UploadResponseSerializer(serializers.Serializer):
+    url = serializers.URLField(help_text="URL бакета (endpoint)")
+    method = serializers.CharField(default="POST", help_text="HTTP метод для загрузки")
+    expires_at = serializers.DateTimeField(help_text="Ссылка истекает в")
+    fields = S3UploadFieldsSerializer()
 
 
 class ErrorDetailItemSerializer(serializers.Serializer):

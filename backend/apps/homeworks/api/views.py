@@ -1,10 +1,12 @@
 import re
+from utils import create_presigned_json_response
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from uuid import uuid4
 
 from apps.courses.models import Homework
 from apps.homeworks.models import Attempt
@@ -20,7 +22,9 @@ from .serializers import (
     AttemptSerializer,
     AttemptSubmitSerializer,
     ErrorResponseSerializer,
-    AttemptListSerializer
+    AttemptListSerializer, 
+    UploadFileRequestSerializer,
+    S3UploadResponseSerializer,
 )
 
 
@@ -148,3 +152,58 @@ class HomeworkAttemptSubmitView(APIView):
         data = AttemptSerializer(attempt, context={'request': request}).data
         return Response(data, status=status.HTTP_201_CREATED)
 
+class UploadFileAttachmentView(APIView):
+    permission_classes = (IsAuthenticated, )
+    
+    @extend_schema(
+        summary='Загрузить файл в хранилище',
+        tags=['Homework'],
+        parameters=[HOMEWORK_SLUG_PARAM],
+        request=UploadFileRequestSerializer,
+        responses={
+            201: S3UploadResponseSerializer,
+            400: ErrorResponseSerializer, 
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            413: OpenApiTypes.OBJECT,
+            503: OpenApiTypes.OBJECT,
+        }
+    )
+    def post(self, request, homework_slug):
+        serializer = UploadFileRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _error_response(
+                code='VALIDATION_ERROR',
+                message='Ошибка в данных запроса',
+                details=serializer.errors
+            )
+        
+        payload = serializer.validated_data
+
+        if payload['file_size'] > 10 * 1024 * 1024:
+            return _error_response(
+                code='FILE_TOO_LARGE',
+                message='Файл больше 10 МБ',
+                http_status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+            )
+
+        unique_id = uuid4().hex[:8]
+        filepath = (
+            f"homeworks/{homework_slug}/"
+            f"task_{payload['task_id']}/"
+            f"attempt_{payload['attempt_id']}/"
+            f"{unique_id}_{payload['file_name']}.{payload['file_format']}"
+        )
+
+        data = create_presigned_json_response(filepath)
+        
+        if not data:
+            return _error_response(
+                code='STORAGE_ERROR',
+                message='Не удалось связаться с облачным хранилищем',
+                http_status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        data['method'] = 'POST'
+
+        return Response(data=data, status=status.HTTP_201_CREATED)

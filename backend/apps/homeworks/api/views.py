@@ -1,0 +1,131 @@
+import uuid
+from datetime import timedelta
+
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.courses.models import Homework
+
+from ..services import (
+    AttemptAlreadySubmitted,
+    AttemptItemNotFound,
+    AttemptPayloadMismatch,
+    AttemptService,
+    HomeworkServiceError,
+)
+from .serializers import (
+    AttemptSerializer,
+    AttemptSubmitSerializer,
+    ErrorResponseSerializer
+)
+
+
+UPLOAD_URL_TTL_MINUTES = 15
+
+
+HOMEWORK_SLUG_PARAM = OpenApiParameter(
+    name='homework_slug',
+    type=OpenApiTypes.STR,
+    location=OpenApiParameter.PATH,
+    required=True,
+)
+
+
+SERVICE_ERROR_STATUS_MAP = {
+    AttemptAlreadySubmitted: status.HTTP_409_CONFLICT,
+    AttemptItemNotFound: status.HTTP_400_BAD_REQUEST,
+    AttemptPayloadMismatch: status.HTTP_400_BAD_REQUEST,
+}
+
+
+def _error_response(exc, http_status=None):
+    payload = {
+        'status': 'error',
+        'code': exc.code,
+        'message': exc.message,
+        'details': exc.details or {},
+    }
+    if http_status is None:
+        http_status = SERVICE_ERROR_STATUS_MAP.get(type(exc), status.HTTP_400_BAD_REQUEST)
+    return Response(payload, status=http_status)
+
+
+class HomeworkAttemptView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary='Получить текущую попытку по домашке',
+        tags=['Homework'],
+        parameters=[HOMEWORK_SLUG_PARAM],
+        responses={
+            200: AttemptSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
+    def get(self, request, homework_slug):
+        homework = get_object_or_404(Homework, slug=homework_slug)
+
+        service = AttemptService()
+        try:
+            attempt = service.get_or_create_draft(user=request.user, homework=homework)
+        except HomeworkServiceError as exc:
+            return _error_response(exc)
+
+        data = AttemptSerializer(attempt, context={'request': request}).data
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class HomeworkAttemptSubmitView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary='Отправить попытку домашки на проверку',
+        tags=['Homework'],
+        parameters=[HOMEWORK_SLUG_PARAM],
+        request=AttemptSubmitSerializer,
+        responses={
+            201: AttemptSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            409: ErrorResponseSerializer,
+            413: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
+    def post(self, request, homework_slug):
+        homework = get_object_or_404(Homework, slug=homework_slug)
+
+        serializer = AttemptSubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = serializer.validated_data
+
+        service = AttemptService()
+
+        try:
+            attempt = service.get_or_create_draft(user=request.user, homework=homework)
+        except HomeworkServiceError as exc:
+            return _error_response(exc)
+
+        try:
+            attempt = service.submit(
+                attempt=attempt,
+                payload_attempt_id=payload['attempt_id'],
+                send_at=payload['send_at'],
+                items=payload['items'],
+            )
+        except HomeworkServiceError as exc:
+            return _error_response(exc)
+
+        data = AttemptSerializer(attempt, context={'request': request}).data
+        return Response(data, status=status.HTTP_201_CREATED)
+

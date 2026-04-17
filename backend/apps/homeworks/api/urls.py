@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     HomeworkAttemptSubmitView,
     HomeworkAttemptView,
+    HomeworkAttemptListView,
 )
 
 
@@ -20,4 +21,13 @@ urlpatterns = [
         HomeworkAttemptSubmitView.as_view(),
         name='attempt-submit',
     ),
+]
+
+
+urlpatterns += [
+  path(
+    'app/homeworks/attempts/',
+    HomeworkAttemptListView.as_view(),
+    name='attempts-list',
+  ),
 ]

@@ -1,8 +1,5 @@
-import uuid
-from datetime import timedelta
-
+import re
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -10,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.courses.models import Homework
+from apps.homeworks.models import Attempt
 
 from ..services import (
     AttemptAlreadySubmitted,
@@ -21,11 +19,9 @@ from ..services import (
 from .serializers import (
     AttemptSerializer,
     AttemptSubmitSerializer,
-    ErrorResponseSerializer
+    ErrorResponseSerializer,
+    AttemptListSerializer
 )
-
-
-UPLOAD_URL_TTL_MINUTES = 15
 
 
 HOMEWORK_SLUG_PARAM = OpenApiParameter(
@@ -83,12 +79,35 @@ class HomeworkAttemptView(APIView):
         data = AttemptSerializer(attempt, context={'request': request}).data
         return Response(data, status=status.HTTP_200_OK)
 
+class HomeworkAttemptListView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary='Получить список текущих домашек',
+        tags=['Home'],
+        responses={
+            200: AttemptListSerializer(many=True),
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            500: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request):
+        user = request.user 
+        attempts = Attempt.objects.filter(user=user).order_by('-created_at')
+        try:
+            data = AttemptListSerializer(attempts, many=True).data
+        except Exception as exc:
+            return _error_response(exc)
+
+        return Response(data, status=status.HTTP_200_OK)
 
 class HomeworkAttemptSubmitView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary='Отправить попытку домашки на проверку',
+        summary='Отправить домашку на проверку',
         tags=['Homework'],
         parameters=[HOMEWORK_SLUG_PARAM],
         request=AttemptSubmitSerializer,

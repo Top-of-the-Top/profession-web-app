@@ -111,6 +111,14 @@ class AttemptSerializer(serializers.ModelSerializer):
         return items
 
 
+class AttemptListSerializer(serializers.ModelSerializer):
+  homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
+  deadline = serializers.DateTimeField(source='homework.deadline', read_only=True)
+  score = serializers.IntegerField(source='grade', read_only=True, allow_null=True)
+  class Meta:
+    model = Attempt
+    fields = ('attempt_id', 'homework_id', 'deadline', 'status', 'send_at', 'score')
+
 class SubmitQuestionItemSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=['question'])
     id = serializers.UUIDField()
@@ -134,33 +142,37 @@ class SubmitTaskItemSerializer(serializers.Serializer):
         'task': SubmitTaskItemSerializer,
     },
 ))
-class SubmitItemSerializer(serializers.Serializer):
+class SubmitItemField(serializers.Field):
 
-    type = serializers.ChoiceField(choices=['question', 'task'])
+    _ITEM_SERIALIZERS = {
+        'question': SubmitQuestionItemSerializer,
+        'task': SubmitTaskItemSerializer,
+    }
 
     def to_internal_value(self, data):
         if not isinstance(data, dict):
-            raise serializers.ValidationError({'non_field_errors': 'Элемент должен быть объектом.'})
+            raise serializers.ValidationError('Элемент должен быть объектом.')
 
         item_type = data.get('type')
-        if item_type == 'question':
-            child = SubmitQuestionItemSerializer(data=data, context=self.context)
-        elif item_type == 'task':
-            child = SubmitTaskItemSerializer(data=data, context=self.context)
-        else:
+        child_cls = self._ITEM_SERIALIZERS.get(item_type)
+        if child_cls is None:
             raise serializers.ValidationError(
                 {'type': 'Поле type обязательно и должно быть "question" или "task".'}
             )
 
+        child = child_cls(data=data, context=self.context)
         child.is_valid(raise_exception=True)
         return dict(child.validated_data)
+
+    def to_representation(self, value):
+        return value
 
 
 class AttemptSubmitSerializer(serializers.Serializer):
     homework_id = serializers.UUIDField()
     attempt_id = serializers.UUIDField()
     send_at = serializers.DateTimeField()
-    items = SubmitItemSerializer(many=True, allow_empty=False)
+    items = serializers.ListField(child=SubmitItemField(), allow_empty=False)
 
 
 class UploadFileRequestSerializer(serializers.Serializer):

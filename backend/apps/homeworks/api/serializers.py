@@ -113,11 +113,12 @@ class AttemptSerializer(serializers.ModelSerializer):
 
 class AttemptListSerializer(serializers.ModelSerializer):
   homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
+  homework_slug = serializers.UUIDField(source='homework.slug', read_only=True)
   deadline = serializers.DateTimeField(source='homework.deadline', read_only=True)
   score = serializers.IntegerField(source='grade', read_only=True, allow_null=True)
   class Meta:
     model = Attempt
-    fields = ('attempt_id', 'homework_id', 'deadline', 'status', 'send_at', 'score')
+    fields = ('attempt_id', 'homework_id', 'deadline', 'homework_slug', 'status', 'send_at', 'score')
 
 class SubmitQuestionItemSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=['question'])

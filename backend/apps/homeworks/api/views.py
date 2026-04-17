@@ -1,5 +1,5 @@
 import re
-from utils import create_presigned_json_response
+from .utils import create_presigned_link
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
@@ -162,7 +162,7 @@ class UploadFileAttachmentView(APIView):
         request=UploadFileRequestSerializer,
         responses={
             201: S3UploadResponseSerializer,
-            400: ErrorResponseSerializer, 
+            400: OpenApiTypes.OBJECT, 
             401: OpenApiTypes.OBJECT,
             403: OpenApiTypes.OBJECT,
             413: OpenApiTypes.OBJECT,
@@ -195,7 +195,7 @@ class UploadFileAttachmentView(APIView):
             f"{unique_id}_{payload['file_name']}.{payload['file_format']}"
         )
 
-        data = create_presigned_json_response(filepath)
+        data = create_presigned_link(filepath)
         
         if not data:
             return _error_response(

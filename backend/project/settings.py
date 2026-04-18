@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'apps.users.apps.UsersConfig',
+    'apps.core.apps.CoreConfig',
     'apps.carts.apps.CartConfig',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -195,15 +196,20 @@ NOTIFICORE_API_KEY = os.getenv('NOTIFICORE_API_KEY', '')
 NOTIFICORE_API_URL = os.getenv('NOTIFICORE_API_URL', '')
 
 if USE_S3:
+    AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', 'https://storage.yandexcloud.net')
+    AWS_S3_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
+    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'ru-central1')
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3.S3Storage",
             "OPTIONS": {
-                "access_key": os.getenv('AWS_ACCESS_KEY_ID'),
-                "secret_key": os.getenv('AWS_SECRET_ACCESS_KEY'),
-                "endpoint_url": os.getenv('AWS_S3_ENDPOINT_URL', 'https://storage.yandexcloud.net'),
-                "bucket_name": os.getenv('AWS_S3_BUCKET_NAME'),
-                "region_name": os.getenv('AWS_S3_REGION_NAME', 'ru-central1'),
+                "access_key": AWS_ACCESS_KEY_ID,
+                "secret_key": AWS_SECRET_ACCESS_KEY,
+                "endpoint_url": AWS_S3_ENDPOINT_URL,
+                "bucket_name": AWS_S3_BUCKET_NAME,
+                "region_name": AWS_S3_REGION_NAME,
                 "default_acl": "public-read-write",
                 "querystring_auth": False,
             },

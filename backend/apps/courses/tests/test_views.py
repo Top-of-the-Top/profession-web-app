@@ -588,7 +588,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
-    """PUT с content: document (JSON + local://n) и multipart asset_n."""
+    """PUT на detail с content: document (JSON + local://n) и multipart asset_n."""
 
     def setUp(self):
         super().setUp()
@@ -600,6 +600,22 @@ class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
 
     def test_multipart_resolves_local_placeholder(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.authenticate_user(self.teacher)
+
+        create_response = self.client.post(
+            f'/api/courses/{self.course.slug}/lessons/',
+            {
+                'section': str(self.section.section_id),
+                'title': 'Lesson local placeholder',
+                'type': 'draft',
+            },
+            format='json',
+        )
+        self.assertEqual(
+            create_response.status_code, status.HTTP_201_CREATED, create_response.data
+        )
+        lesson_slug = create_response.data['slug']
 
         doc = json.dumps({
             'id': 'a',
@@ -614,12 +630,10 @@ class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
                 {'asset_id': 1, 'asset_type': 'image', 'asset_file': 'asset_1'},
             ],
         }
-        self.authenticate_user(self.teacher)
         png = SimpleUploadedFile('x.png', b'\x89PNG\r\n\x1a\n', content_type='image/png')
         response = self.client.put(
-            f'/api/courses/{self.course.slug}/lessons/',
+            f'/api/courses/{self.course.slug}/lessons/{lesson_slug}/',
             {
-                'section': str(self.section.section_id),
                 'title': 'Lesson local placeholder',
                 'type': 'draft',
                 'content': json.dumps(content),
@@ -627,7 +641,7 @@ class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
             },
             format='multipart',
         )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
         lesson = Lesson.objects.get(title='Lesson local placeholder')
         self.assertNotIn('local://', lesson.document)
         parsed = json.loads(lesson.document)

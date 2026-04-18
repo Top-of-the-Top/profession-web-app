@@ -1,8 +1,8 @@
 import uuid
-
+from apps.core.models import Attachment
+from django.contrib.contenttypes.fields import GenericRelation
 from django.core.exceptions import ValidationError
 from django.db import models
-
 from apps.users.models import User
 from apps.courses.models import Homework, Task, Question
 
@@ -116,6 +116,7 @@ class TaskAnswer(EstimatedMixin, TimestampedMixin):
     )
 
     user_answer = models.TextField(blank=True, default='', verbose_name='Ответ пользователя')
+    attachments = GenericRelation(Attachment, null=True, blank = True, verbose_name="Приложения")
     points = models.PositiveIntegerField(
         null=True, blank=True, default=None, verbose_name='Баллы за задание'
     )
@@ -137,3 +138,4 @@ class TaskAnswer(EstimatedMixin, TimestampedMixin):
 
     def __str__(self):
         return str(self.answer_id)
+    

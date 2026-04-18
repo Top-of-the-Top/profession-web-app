@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from django.db import transaction
 from django.utils import timezone
 from .models import Attempt, QuestionAnswer, TaskAnswer
+from apps.core.models import Attachment
+from django.contrib.contenttypes.models import ContentType
 
 class HomeworkServiceError(Exception):
     code = 'HOMEWORK_ERROR'
@@ -28,11 +30,35 @@ class AttemptPayloadMismatch(HomeworkServiceError):
     message = 'Переданный attempt_id не совпадает с текущей попыткой.'
 
 
+class AttemptValidationError(HomeworkServiceError):
+    code = 'VALIDATION_ERROR'
+    message = 'Ошибка в данных запроса.'
+
+
+class UploadFileTooLarge(HomeworkServiceError):
+    code = 'FILE_TOO_LARGE'
+    message = 'Файл больше 10 МБ.'
+
+
+class StorageUnavailable(HomeworkServiceError):
+    code = 'STORAGE_ERROR'
+    message = 'Не удалось связаться с облачным хранилищем.'
+
+@dataclass(frozen=True)
+class AttachmentData:
+    attachment_id: str
+    file_name: str
+    file_url: str
+    file_size: int
+    file_extension: str
+
+
 @dataclass(frozen=True)
 class SubmitItem:
     type: str
     target_id: str
     user_answer: str
+    attachments: list[AttachmentData]
 
 
 class AutocheckService:
@@ -112,22 +138,32 @@ class AttemptService:
         ])
 
     def _normalize_item(self, item):
+        attachments = []
+
+        for a in item.get('file_attachments', []):
+            attachments.append(AttachmentData(
+                attachment_id=a['attachment_id'], 
+                file_name=a["file_name"], 
+                file_url=a["file_url"], 
+                file_size=a["file_size"], 
+                file_extension=a["file_extension"], 
+            ))
+
         return SubmitItem(
             type=item['type'],
             target_id=str(item['id']),
             user_answer=item.get('user_answer') or '',
+            attachments=attachments,
         )
 
     def _apply_items(self, attempt, items):
-        homework = attempt.homework
-
         question_by_id = {}
-        for qu in homework.question_answers.all():
-            question_by_id[qu.question_id] = qu 
+        for qu in attempt.question_answers.all():
+            question_by_id[str(qu.question_id)] = qu
 
         task_by_id = {}
-        for ta in homework.task_answers.all():
-            task_by_id[ta.task_id] = ta 
+        for ta in attempt.task_answers.all():
+            task_by_id[str(ta.task_id)] = ta
 
 
         for item in items:
@@ -144,7 +180,27 @@ class AttemptService:
                     raise AttemptItemNotFound(
                         details={'type': 'task', 'id': item.target_id},
                     )
+                
                 TaskAnswer.objects.filter(pk=ta.pk).update(user_answer=item.user_answer)
+
+                if item.attachments:
+                    
+                    task_ct = ContentType.objects.get_for_model(ta)
+                    
+                    attachment_objs = []
+                    for a in item.attachments:
+                        attachment_objs.append(Attachment(
+                            attachment_id=a.attachment_id,
+                            content_type=task_ct,
+                            object_id=ta.pk,
+                            url=a.file_url,
+                            name=a.file_name,
+                            size=a.file_size,
+                            file_extension=a.file_extension,
+                            uploader=attempt.user
+                        ))
+                    
+                    Attachment.objects.bulk_create(attachment_objs)
 
     def _calculate_grade(self, attempt):
         correct_questions = attempt.question_answers.filter(is_correct=True).count()

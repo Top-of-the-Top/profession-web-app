@@ -1,5 +1,5 @@
 import re
-from .utils import create_presigned_link
+from apps.core.services.presigned_url import PresignedUrlService
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
@@ -16,7 +16,10 @@ from ..services import (
     AttemptItemNotFound,
     AttemptPayloadMismatch,
     AttemptService,
+    AttemptValidationError,
     HomeworkServiceError,
+    StorageUnavailable,
+    UploadFileTooLarge,
 )
 from .serializers import (
     AttemptSerializer,
@@ -40,6 +43,9 @@ SERVICE_ERROR_STATUS_MAP = {
     AttemptAlreadySubmitted: status.HTTP_409_CONFLICT,
     AttemptItemNotFound: status.HTTP_400_BAD_REQUEST,
     AttemptPayloadMismatch: status.HTTP_400_BAD_REQUEST,
+    AttemptValidationError: status.HTTP_400_BAD_REQUEST,
+    UploadFileTooLarge: status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+    StorageUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
 }
 
 
@@ -173,36 +179,27 @@ class UploadFileAttachmentView(APIView):
         serializer = UploadFileRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return _error_response(
-                code='VALIDATION_ERROR',
-                message='Ошибка в данных запроса',
-                details=serializer.errors
+                AttemptValidationError(details=serializer.errors)
             )
-        
+
         payload = serializer.validated_data
 
         if payload['file_size'] > 10 * 1024 * 1024:
-            return _error_response(
-                code='FILE_TOO_LARGE',
-                message='Файл больше 10 МБ',
-                http_status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
-            )
+            return _error_response(UploadFileTooLarge())
 
         unique_id = uuid4().hex[:8]
         filepath = (
             f"homeworks/{homework_slug}/"
             f"task_{payload['task_id']}/"
             f"attempt_{payload['attempt_id']}/"
-            f"{unique_id}_{payload['file_name']}.{payload['file_format']}"
+            f"{unique_id}_{payload['file_name']}.{payload['file_extension']}"
         )
 
-        data = create_presigned_link(filepath)
-        
+        presigned_url_service = PresignedUrlService()
+        data = presigned_url_service.get_presigned_url_response(filepath)
+
         if not data:
-            return _error_response(
-                code='STORAGE_ERROR',
-                message='Не удалось связаться с облачным хранилищем',
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
+            return _error_response(StorageUnavailable())
 
         data['method'] = 'POST'
 

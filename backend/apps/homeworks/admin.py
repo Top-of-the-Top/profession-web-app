@@ -12,4 +12,3 @@ class QuestionAnswerAdmin(admin.ModelAdmin):
 @admin.register(Attempt)
 class AttemptAdmin(admin.ModelAdmin):
     pass 
-

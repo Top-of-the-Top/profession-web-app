@@ -12,7 +12,7 @@ class FileAttachmentSerializer(serializers.Serializer):
     file_name = serializers.CharField(max_length=255)
     file_url = serializers.URLField()
     file_size = serializers.IntegerField(min_value=0)
-    file_format = serializers.CharField(max_length=16)
+    file_extension = serializers.CharField(max_length=16)
 
 
 class QuestionAttemptItemSerializer(serializers.Serializer):
@@ -181,7 +181,7 @@ class UploadFileRequestSerializer(serializers.Serializer):
     task_id = serializers.UUIDField()
     file_name = serializers.CharField(max_length=255)
     file_size = serializers.IntegerField(min_value=1)
-    file_format = serializers.CharField(max_length=16)
+    file_extension = serializers.CharField(max_length=16)
 
 
 class S3UploadFieldsSerializer(serializers.Serializer):

@@ -1,24 +1,25 @@
 from enum import Enum 
 import uuid
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from apps.users.models import User
 
 
-class AtachmentType(Enum):
+class AttachmentType(Enum):
     DOCUMENT = "pdf"
     ARCHIVE = "zip"
     IMAGE = "png"
     TEXT = "txt"
 
-class Atachment(models.Model):
+class Attachment(models.Model):
     
     EXTENSION_CHOICES= [
-        (AtachmentType.DOCUMENT, "Документ"), 
-        (AtachmentType.ARCHIVE, "Архив"), 
-        (AtachmentType.IMAGE, "Изображение"), 
-        (AtachmentType.TEXT, "Текст"), 
+        (AttachmentType.DOCUMENT, "Документ"), 
+        (AttachmentType.ARCHIVE, "Архив"), 
+        (AttachmentType.IMAGE, "Изображение"), 
+        (AttachmentType.TEXT, "Текст"), 
     ]
 
     attachment_id = models.UUIDField(
@@ -45,15 +46,22 @@ class Atachment(models.Model):
         verbose_name="Название файла"
     )
     size = models.PositiveIntegerField(
-        max=1024*1024*10,
         verbose_name="Размер файла"
     )
-    extension = models.CharField(
+    file_extension = models.CharField(
         max_length=40,
         choices=EXTENSION_CHOICES,
         verbose_name="Расширение"
     )
     
+    def clean(self):
+        limit = 1024*1024*10 
+
+        if self.size > limit:
+            raise ValidationError({
+                'size': f'Файл слишком большой ({self.size} байт). Максимум: {limit} байт'
+            })
+        
     uploader = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

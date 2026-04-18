@@ -461,8 +461,7 @@ class LessonCreateView(APIView):
         description=(
             'Тело: `section`, `title`, `type` (по умолчанию draft). '
             'Поле `content` в POST не допускается — контент и вложения задаются PUT '
-            '(создание урока с контентом: `PUT /api/courses/{slug}/lessons/` или обновление: '
-            '`PUT /api/courses/{slug}/lessons/{lesson_slug}/`).'
+            'на `/api/courses/{slug}/lessons/{lesson_slug}/`.'
         ),
         tags=['Course'],
         request=LessonSimpleCreateSerializer,
@@ -488,7 +487,8 @@ class LessonCreateView(APIView):
             LessonSerializer(lesson).data,
             status=status.HTTP_201_CREATED,
         )
-    
+
+
 class LessonDetailView(APIView):
     permission_classes = (IsAuthenticated,)
     parser_classes = (JSONParser, MultiPartParser, FormParser)

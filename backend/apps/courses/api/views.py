@@ -449,54 +449,32 @@ class SectionDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(
-    methods=['POST'],
-    summary='Создать урок',
-    description=(
-        'Тело: `section`, `title`, `type` (по умолчанию draft). '
-        'Поле `content` в POST не допускается — контент и вложения задаются PUT '
-        '(создание урока с контентом: `PUT /api/courses/{slug}/lessons/` или обновление: '
-        '`PUT /api/courses/{slug}/lessons/{lesson_slug}/`).'
-    ),
-    tags=['Course'],
-    request=LessonSimpleCreateSerializer,
-    responses={
-        201: LessonSerializer,
-        400: {'schema': SCHEMA_VALIDATION},
-        401: {'schema': SCHEMA_DETAIL},
-        403: {'schema': SCHEMA_DETAIL},
-        404: {'schema': SCHEMA_DETAIL},
-        500: {'schema': SCHEMA_DETAIL},
-    },
-)
-@extend_schema(
-    methods=['PUT'],
-    summary='Создать урок с контентом и вложениями',
-    description=(
-        'Тело: `section`, `title`, `type` (по умолчанию draft), опционально `content` '
-        '— объект `{ document, assets }`. `document` — JSON-строка или объект: внутри полей '
-        'плейсхолдеры `local://<n>` соответствуют `asset_id` в `assets`. '
-        '`assets[]`: `asset_id` (1,2,…), `asset_type` (image / video / mime), '
-        '`asset_file` — имя поля в FormData (по умолчанию `asset_<id>`). '
-        'Без файлов — JSON; с файлами — multipart: поле `content` JSON-строкой '
-        'и бинарники `asset_1`, `asset_2`, … В `document` в БД подставлены URL на S3 '
-        '(путь `courses/course_<id>/lessons/<lesson_id>/asset_<n>.<ext>`).'
-    ),
-    tags=['Course'],
-    request=LessonCreateSerializer,
-    responses={
-        201: LessonCreateSerializer,
-        400: {'schema': SCHEMA_VALIDATION},
-        401: {'schema': SCHEMA_DETAIL},
-        403: {'schema': SCHEMA_DETAIL},
-        404: {'schema': SCHEMA_DETAIL},
-        500: {'schema': SCHEMA_DETAIL},
-    },
-)
+
 class LessonCreateView(APIView):
     permission_classes = (IsAuthenticated,)
     parser_classes = (JSONParser, MultiPartParser, FormParser)
 
+
+    @extend_schema(
+        methods=['POST'],
+        summary='Создать урок',
+        description=(
+            'Тело: `section`, `title`, `type` (по умолчанию draft). '
+            'Поле `content` в POST не допускается — контент и вложения задаются PUT '
+            '(создание урока с контентом: `PUT /api/courses/{slug}/lessons/` или обновление: '
+            '`PUT /api/courses/{slug}/lessons/{lesson_slug}/`).'
+        ),
+        tags=['Course'],
+        request=LessonSimpleCreateSerializer,
+        responses={
+            201: LessonSerializer,
+            400: {'schema': SCHEMA_VALIDATION},
+            401: {'schema': SCHEMA_DETAIL},
+            403: {'schema': SCHEMA_DETAIL},
+            404: {'schema': SCHEMA_DETAIL},
+            500: {'schema': SCHEMA_DETAIL},
+        },
+    )
     @require_course_author
     def post(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug)
@@ -510,19 +488,7 @@ class LessonCreateView(APIView):
             LessonSerializer(lesson).data,
             status=status.HTTP_201_CREATED,
         )
-
-    @require_course_author
-    def put(self, request, course_slug):
-        course = get_object_or_404(Course, slug=course_slug)
-        serializer = LessonCreateSerializer(
-            data=request.data,
-            context={'request': request, 'course': course},
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
+    
 class LessonDetailView(APIView):
     permission_classes = (IsAuthenticated,)
     parser_classes = (JSONParser, MultiPartParser, FormParser)

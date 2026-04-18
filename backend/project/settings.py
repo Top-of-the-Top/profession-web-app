@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django_celery_results',
     'apps.notifications.apps.NotificationsConfig',
     'sms',
+    'apps.homeworks.apps.HomeworksConfig',
 ]
 
 USE_S3 = os.environ.get('USE_S3', 'False') == 'True'

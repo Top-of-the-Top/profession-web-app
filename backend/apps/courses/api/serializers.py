@@ -146,8 +146,12 @@ class HomeworkBriefSerializer(serializers.Serializer):
 
 class LessonContentReadSerializer(serializers.Serializer):
     document = serializers.CharField()
-    recording_url = serializers.URLField()
-    started_at = serializers.DateTimeField()
+    recording_url = serializers.URLField(required=False, allow_blank=True)
+    started_at = serializers.DateTimeField(required=False, allow_null=True)
+    webinar_status = serializers.CharField(allow_null=True)
+    whiteboard_pdf_url = serializers.URLField(allow_blank=True)
+    kinescope_embed_url = serializers.URLField(required=False, allow_blank=True)
+    kinescope_upload_status = serializers.CharField(required=False)
     homeworks = HomeworkBriefSerializer(many=True)
 
 
@@ -165,10 +169,39 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
         hws = filter_homework_queryset_for_visibility(
             obj.homework_set.all(), include_drafts
         )
+
+        webinar = getattr(obj, 'webinar', None)
+        recording_url = ''
+        started_at = None
+        webinar_status = None
+        whiteboard_pdf_url = ''
+
+        if webinar:
+            recording_url = webinar.recording_url or ''
+            started_at = webinar.started_at
+            webinar_status = webinar.status
+            whiteboard_pdf_url = webinar.whiteboard_pdf_url or ''
+
+        kinescope_embed_url = ''
+        kinescope_upload_status = 'none'
+
+        if webinar:
+            kinescope_upload_status = webinar.kinescope_upload_status or 'none'
+            if webinar.kinescope_video_id and webinar.kinescope_upload_status == 'ready':
+                request = self.context.get('request')
+                if request and request.user.is_authenticated:
+                    from .utils.kinescope_utils import generate_drm_token
+                    drm_token = generate_drm_token(user_id=request.user.pk, video_id=webinar.kinescope_video_id)
+                    kinescope_embed_url = f'https://kinescope.io/embed/{webinar.kinescope_video_id}?drmauthtoken={drm_token}'
+
         return {
             'document': obj.document or '',
-            'recording_url': 'https://example.com/recordings/mock-lesson',
-            'started_at': '2026-01-15T10:00:00+00:00',
+            'recording_url': recording_url,
+            'started_at': started_at,
+            'webinar_status': webinar_status,
+            'whiteboard_pdf_url': whiteboard_pdf_url,
+            'kinescope_embed_url': kinescope_embed_url,
+            'kinescope_upload_status': kinescope_upload_status,
             'homeworks': [
                 {
                     'homework_id': h.homework_id,
@@ -183,10 +216,6 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
 
 
 class LessonSimpleCreateSerializer(serializers.ModelSerializer):
-    """
-    POST /api/courses/{slug}/lessons/ — только каркас урока (как раньше), без content/document.
-    """
-
     section = serializers.PrimaryKeyRelatedField(
         queryset=Section.objects.all(),
         required=False,
@@ -226,11 +255,6 @@ class LessonSimpleCreateSerializer(serializers.ModelSerializer):
 
 
 class LessonDocumentStrField(serializers.Field):
-    """
-    Фронт шлёт либо JSON-объект (в теле application/json), либо строку (после multipart).
-    Внутри пайплайна — одна JSON-строка с плейсхолдерами local://n.
-    """
-
     def to_internal_value(self, data):
         if isinstance(data, str):
             return data
@@ -256,12 +280,6 @@ class LessonContentPayloadSerializer(serializers.Serializer):
 
 
 class LessonCreateSerializer(serializers.Serializer):
-    """
-    PUT /api/courses/{slug}/lessons/: section, title, type, опционально content.
-    content: { document (JSON-строка или объект), assets: [{ asset_id, asset_type, asset_file? }] }.
-    Файлы в multipart: поля asset_1, asset_2 или имена из asset_file.
-    """
-
     section = serializers.PrimaryKeyRelatedField(
         queryset=Section.objects.all(),
         required=False,
@@ -534,10 +552,12 @@ class WebinarSerializer(serializers.ModelSerializer):
             'webinar_id', 'lesson', 'status',
             'started_by', 'started_at', 'ended_at',
             'recording_url',
+            'kinescope_video_id', 'kinescope_upload_status',
         ]
         read_only_fields = [
             'webinar_id', 'started_by', 'started_at',
             'ended_at', 'recording_url',
+            'kinescope_video_id', 'kinescope_upload_status',
         ]
 
 

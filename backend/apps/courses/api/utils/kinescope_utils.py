@@ -65,7 +65,7 @@ def generate_drm_token(user_id, video_id, lifetime_seconds=3600):
 
 def setup_drm_auth(callback_url, username, password, strict=True):
     response = requests.put(
-        f'{KINESCOPE_API_BASE}',
+        f'{KINESCOPE_API_BASE}/drm/auth',
         headers={
             'Authorization': _get_auth_header(),
             'Content-Type': 'application/json',
@@ -74,7 +74,7 @@ def setup_drm_auth(callback_url, username, password, strict=True):
             'url': callback_url,
             'username': username,
             'password': password,
-            'sctrict': strict,
+            'strict': strict,
         }
     )
     response.raise_for_status()

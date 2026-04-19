@@ -31,18 +31,19 @@ from .serializers import (
     UserWebinarListItemSerializer,
 )
 from .utils.agora_utils import (
-    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room, generate_whiteboard_room_token,
-    recording_acquire, recording_start, recording_stop, ROLE_PUBLISHER, ROLE_SUBSCRIBER,
+    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room, generate_whiteboard_room_token, 
+    recording_acquire, recording_start, recording_start_web, recording_stop, recording_stop_web,
+    verify_recorder_token, make_recorder_token,ban_whiteboard_room, ROLE_PUBLISHER, ROLE_SUBSCRIBER,
 )
 from rest_framework import generics
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
+from rest_framework.parsers import MultiPartParser
 from django.core.cache import caches
 from django.db.models import F, Q
 from django.utils import timezone
 import os
-
 from .schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
 from .utils.cache_utils import (
     cached_detail_response,
@@ -56,6 +57,10 @@ from .utils.cache_utils import (
 )
 from .utils.queryset_utils import get_homework_or_404, get_lesson_or_404
 from .utils.rbac_utils import course_content_visibility, published_lesson_hierarchy_q
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @extend_schema_view(
     list=extend_schema(
@@ -890,9 +895,11 @@ class WebinarStartView(APIView):
             section__course__slug=course_slug,
         )
         course = lesson.section.course
-        if not course.authors.filter(pk=request.user.pk).exists():
+        is_author = course.authors.filter(pk=request.user.pk).exists()
+        is_moderator = request.user.is_moderator()
+        if not is_author and not is_moderator:
             return Response(
-                {'detail': 'Только автор курса может запускать вебинар'},
+                {'detail': 'Только автор курса/админ может запускать вебинар'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -922,6 +929,8 @@ class WebinarStartView(APIView):
         webinar.recording_resource_id = ''
         webinar.recording_sid = ''
         webinar.ended_at = None
+        webinar.kinescope_video_id = ''
+        webinar.kinescope_upload_status = 'none'
         webinar.save()
 
         return Response({'detail': 'Вебинар запущен', 'webinar_id': str(webinar.webinar_id)})
@@ -937,9 +946,11 @@ class WebinarStopView(APIView):
             section__course__slug=course_slug,
         )
         course = lesson.section.course
-        if not course.authors.filter(pk=request.user.pk).exists():
+        is_author = course.authors.filter(pk=request.user.pk).exists()
+        is_moderator = request.user.is_moderator()
+        if not is_author and not is_moderator:
             return Response(
-                {'detail': 'Только автор курса может останавливать вебинар'},
+                {'detail': 'Только автор курса/админ может останавливать вебинар'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -947,22 +958,37 @@ class WebinarStopView(APIView):
 
         if webinar.recording_resource_id and webinar.recording_sid:
             try:
-                result = recording_stop(
+                result = recording_stop_web(
                     channel_name=webinar.agora_channel_name,
                     uid='1',
                     resource_id=webinar.recording_resource_id,
                     sid=webinar.recording_sid,
                 )
                 server_response = result.get('serverResponse', {})
-                file_list = server_response.get('fileList', [])
-                if file_list:
-                    webinar.recording_url = file_list[0].get('fileName', '')
+                ext_state = server_response.get('extensionServiceState', [])
+                if ext_state:
+                    payload = ext_state[0].get('payload', {})
+                    file_list = payload.get('fileList', [])
+                    if file_list:
+                        webinar.recording_url = file_list[0].get('fileName', '')
             except Exception:
-                pass
+                logger.exception("Ошибка при остановке записи вебинара %s", webinar.id)
 
         webinar.status = 'ended'
         webinar.ended_at = timezone.now()
         webinar.save()
+
+        if webinar.recording_url:
+            from ..tasks import upload_recording_to_kinescope
+            webinar.kinescope_upload_status = 'pending'
+            webinar.save(update_fields=['kinescope_upload_status'])
+            upload_recording_to_kinescope.delay(str(webinar.webinar_id))
+
+        if webinar.whiteboard_room_uuid:
+            try:
+                ban_whiteboard_room(webinar.whiteboard_room_uuid)
+            except Exception:
+                logger.exception("Ошибка при закрытии комнаты доски %s", webinar.whiteboard_room_uuid)
 
         return Response({'detail': 'Вебинар завершен'})
 
@@ -978,7 +1004,9 @@ class WebinarJoinView(APIView):
         )
         course = lesson.section.course
 
-        is_teacher = course.authors.filter(pk=request.user.pk).exists()
+        is_author = course.authors.filter(pk=request.user.pk).exists()
+        is_moderator = request.user.is_moderator()
+        is_teacher = is_author or is_moderator
         is_student = request.user.is_enrolled(course)
 
         if not is_teacher and not is_student:
@@ -1024,6 +1052,43 @@ class WebinarJoinView(APIView):
         })
 
 
+class WebinarRecorderJoinView(APIView):
+    permission_classes = (AllowAny,)
+
+    def get(self, request, course_slug, lesson_slug):
+        token = request.query_params.get('token', '')
+        if not token:
+            return Response({'detail': 'Token required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        webinar_id = verify_recorder_token(token)
+        if not webinar_id:
+            return Response({'detail': 'Invalid or expired token'}, status=status.HTTP_403_FORBIDDEN)
+
+        webinar = get_object_or_404(
+            Webinar,
+            webinar_id=webinar_id,
+            lesson__slug=lesson_slug,
+            lesson__section__course__slug=course_slug,
+            status='live',
+        )
+
+        recorder_uid = 999999
+        rtc_token = generate_rtc_token(webinar.agora_channel_name, recorder_uid, ROLE_SUBSCRIBER)
+        wb_token = generate_whiteboard_room_token(webinar.whiteboard_room_uuid, 'reader')
+
+        return Response({
+            'rtc_token': rtc_token,
+            'agora_app_id': os.getenv('AGORA_APP_ID'),
+            'channel_name': webinar.agora_channel_name,
+            'uid': recorder_uid,
+            'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),
+            'whiteboard_room_uuid': webinar.whiteboard_room_uuid,
+            'whiteboard_room_token': wb_token,
+            'whiteboard_region': os.getenv('AGORA_WHITEBOARD_REGION', 'eu'),
+            'role': 'recorder',
+        })
+
+
 class WebinarRecordingStartView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -1034,28 +1099,28 @@ class WebinarRecordingStartView(APIView):
             section__course__slug=course_slug,
         )
         course = lesson.section.course
-        if not course.authors.filter(pk=request.user.pk).exists():
+        is_author = course.authors.filter(pk=request.user.pk).exists()
+        is_moderator = request.user.is_moderator()
+        if not is_author and not is_moderator:
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         webinar = get_object_or_404(Webinar, lesson=lesson, status='live')
         recording_uid = '1'
+        token = make_recorder_token(str(webinar.webinar_id))
+        frontend_base = os.getenv('FRONTEND_BASE_URL', 'https://professionkid.ru')
+        recorder_url = f"{frontend_base}/webinar-record/{course_slug}/{lesson_slug}?token={token}"
 
         resource_id = recording_acquire(
             channel_name=webinar.agora_channel_name,
             uid=recording_uid,
+            scene=1,
         )
 
-        recording_token = generate_rtc_token(
-            channel_name=webinar.agora_channel_name,
-            uid=int(recording_uid),
-            role=ROLE_SUBSCRIBER,
-        )
-
-        sid = recording_start(
+        sid = recording_start_web(
             channel_name=webinar.agora_channel_name,
             uid=recording_uid,
             resource_id=resource_id,
-            token=recording_token,
+            recorder_url=recorder_url,
         )
 
         webinar.recording_resource_id = resource_id
@@ -1064,3 +1129,111 @@ class WebinarRecordingStartView(APIView):
 
         return Response({'detail': 'Запись началась'})
 
+
+class WebinarWhiteboardPdfView(APIView):
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (MultiPartParser,)
+
+    def post(self, request, course_slug, lesson_slug):
+        lesson = get_object_or_404(
+             Lesson.objects.select_related('section__course'),
+            slug=lesson_slug,
+            section__course__slug=course_slug,
+        )
+        course = lesson.section.course
+        is_author = course.authors.filter(pk=request.user.pk).exists()
+        is_moderator = request.user.is_moderator()
+        if not is_author and not is_moderator:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        webinar = get_object_or_404(Webinar, lesson=lesson)
+
+        screenshots = request.FILES.getlist('screenshots')
+        if not screenshots:
+            return Response(
+                {'detail': "Нет скриншотов"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        import img2pdf
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        images = [f.read() for f in screenshots]
+        pdf_bytes = img2pdf.convert(images)
+
+        pdf_path = f'whiteboards/webinar_{webinar.webinar_id}.pdf'
+        saved_path = default_storage.save(pdf_path, ContentFile(pdf_bytes))
+
+        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        webinar.whiteboard_pdf_url = (f'https://storage.yandexcloud.net/{bucket}/{saved_path}')
+        webinar.save(update_fields=['whiteboard_pdf_url'])
+
+        return Response({'detail': 'pdf доски сохранен'})
+    
+
+class KinescopeDRMAuthView(APIView):
+    permission_classes = (AllowAny,)
+    authentication_classes = []
+
+    def post(self, request):
+        import base64 as b64
+        import jwt
+        from django.conf import settings as django_settings
+        from apps.users.models import User
+
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        expected_user = os.getenv('KINESCOPE_DRM_AUTH_USERNAME', '')
+        expected_pass = os.getenv('KINESCOPE_DRM_AUTH_PASSWORD', '')
+
+        if not self._verify_basic_auth(auth_header, expected_user, expected_pass):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        
+        video_id = request.data.get('id', '')
+        drm_token = request.data.get('token', '')
+
+        if not video_id or not drm_token:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            payload = jwt.decode(
+                drm_token,
+                django_settings.SECRET_KEY,
+                algorithms=['HS256'],
+            )
+            user_id = payload.get('user_id')
+            token_video_id = payload.get('video_id')
+        except Exception:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        if token_video_id != video_id:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            webinar = Webinar.objects.select_related('lesson__section__course').get(kinescope_video_id=video_id)
+        except Webinar.DoesNotExist:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            user = User.objects.get(pk=user_id)
+            course = webinar.lesson.section.course
+            if user.is_enrolled(course) or course.authors.filter(pk=user.pk).exists():
+                return Response(status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            pass
+
+        return Response(status=status.HTTP_403_FORBIDDEN)
+    
+    @staticmethod
+    def _verify_basic_auth(auth_header, expected_user, expected_pass):
+        import base64 as b64
+
+        if not auth_header.startswith('Basic '):
+            return False
+        try:
+            decoded = b64.b64decode(auth_header[6:]).decode()
+            username, password = decoded.split(':', 1)
+            return username == expected_user and password == expected_pass
+        except Exception:
+            return False
+        

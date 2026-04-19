@@ -376,6 +376,10 @@ class Webinar(TimestampedMixin):
         blank=True,
         verbose_name='Ссылка на запись',
     )
+    whiteboard_pdf_url = models.URLField(
+        blank=True,
+        verbose_name='Ссылка на pdf доски',
+    )
 
     KINESCOPE_UPLOAD_STATUS_CHOICES = [
         ('none', 'Нет загрузки'),
@@ -397,7 +401,6 @@ class Webinar(TimestampedMixin):
         default='none',
         verbose_name='Статут загрузки в кинескоп',
     )    
-
 
     started_at = models.DateTimeField(
         null=True,

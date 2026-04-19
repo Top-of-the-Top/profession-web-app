@@ -101,8 +101,23 @@ urlpatterns = [
         name='webinar-join',
     ),
     path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/recorder-join/',
+        views.WebinarRecorderJoinView.as_view(),
+        name='webinar-recorder-join',
+    ),
+    path(
         'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/recording/start/',
         views.WebinarRecordingStartView.as_view(),
         name='webinar-recording-start',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/whiteboard-pdf/',
+        views.WebinarWhiteboardPdfView.as_view(),
+        name='webinar-whiteboard-pdf',
+    ),
+    path(
+        'kinescope/drm-auth/',
+        views.KinescopeDRMAuthView.as_view(),
+        name='kinescope-drm-auth',
     ),
 ]

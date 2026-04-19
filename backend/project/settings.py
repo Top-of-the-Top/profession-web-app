@@ -233,6 +233,12 @@ else:
     MEDIA_URL = '/media/'
     STATIC_URL = '/static/'
 
+CELERY_BEAT_SCHEDULE = {
+    'check-idle-webinars': {
+        'task': 'apps.courses.tasks.check_idle_webinars',
+        'schedule': 60.0,
+    },
+}
 
 if os.getenv('CI') or 'test' in sys.argv:
     MEDIA_ROOT=tempfile.mkdtemp()

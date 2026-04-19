@@ -43,8 +43,6 @@ services:
     networks:
       - app_network
 
-  # Блок с асинхронной распределенной очередью celery
-
   rabbitmq:
     image: rabbitmq:3-management-alpine
     hostname: rabbitmq
@@ -79,6 +77,14 @@ services:
     networks:
       - app_network
 
+  celery-beat:
+    build: ./backend
+    command: celery -A project beat -l info
+    depends_on:
+      - redis
+    env_file:
+      - ./backend/.env
+    
   flower:
     build: ./backend
     container_name: flower

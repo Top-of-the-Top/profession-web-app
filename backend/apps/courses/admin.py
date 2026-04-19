@@ -13,7 +13,7 @@ class CourseAdmin(admin.ModelAdmin):
     list_display = ['title_link', 'price', 'image_preview']
     list_per_page = 25
 
-    readonly_fields = ['image_preview']
+    readonly_fields = ['image_preview', 'kinescope_folder_id']
 
     def title_link(self, obj):
         """Кликабельное название → сразу на страницу курса"""
@@ -69,6 +69,6 @@ class PurchasedCourseAdmin(admin.ModelAdmin):
 
 @admin.register(Webinar)
 class WebinarAdmin(admin.ModelAdmin):
-    list_display = ('lesson', 'status', 'started_by', 'started_at', 'ended_at')
-    list_filter = ('status',)
-    readonly_fields = ('webinar_id', 'agora_channel_name', 'whiteboard_room_uuid', 'recording_resource_id', 'recording_sid')
+    list_display = ('lesson', 'status', 'started_by', 'started_at', 'ended_at', 'kinescope_upload_status')
+    list_filter = ('status', 'kinescope_upload_status')
+    readonly_fields = ('webinar_id', 'agora_channel_name', 'whiteboard_room_uuid', 'recording_resource_id', 'recording_sid', 'kinescope_video_id', 'kinescope_upload_status', 'whiteboard_pdf_url',)

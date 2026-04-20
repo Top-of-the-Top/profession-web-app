@@ -18,15 +18,17 @@ export default defineConfig({
     },
   },
 	server: {
-		allowedHosts: ['professionkid.ru', 'www.professionkid.ru'],
-		host: '0.0.0.0',
-		// port: 3000,
-		// watch: {
-		// 	usePolling: true,
-		// },
-		// hmr: {
-		// 	clientPort: 3000,
-		// },
+		allowedHosts: [
+        'professionkid.ru',
+        'www.professionkid.ru',
+        'unequal-wildfowl-dreamy.ngrok-free.dev',
+        ],
+        host: '0.0.0.0',
+        proxy: {
+            '/api': {
+                target: 'http://backend:9000',
+                changeOrigin: true,
+            },
+        },
 	},
-	
 });

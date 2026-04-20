@@ -76,15 +76,22 @@ services:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
     networks:
       - app_network
-
+  
   celery-beat:
     build: ./backend
     command: celery -A project beat -l info
+    restart: unless-stopped
+    working_dir: /app
     depends_on:
       - redis
+      - rabbitmq
     env_file:
       - ./backend/.env
-    
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+    networks:
+      - app_network
+
   flower:
     build: ./backend
     container_name: flower

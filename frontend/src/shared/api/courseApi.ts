@@ -135,12 +135,26 @@ export interface TaskPatchPayload {
   max_points?: number;
 }
 
+export type WebinarStatus = 'pending' | 'live' | 'ended';
+
+export type KinescopeUploadStatus =
+  | 'none'
+  | 'pending'
+  | 'uploading'
+  | 'processing'
+  | 'ready'
+  | 'failed';
+
 export interface CourseLessonDetail {
   lesson_id: number;
   title: string;
   document: string;
-  recording_url: string | null;
+  recording_url: string;
   started_at: string | null;
+  webinar_status: WebinarStatus | null;
+  whiteboard_pdf_url: string;
+  kinescope_embed_url: string;
+  kinescope_upload_status: KinescopeUploadStatus;
   homeworks: LessonHomework[];
   meta: Record<string, unknown>;
 }
@@ -211,8 +225,12 @@ type RawLessonDetailResponse = {
   title: string;
   content: {
     document?: string;
-    recording_url?: string;
+    recording_url?: string | null;
     started_at?: string | null;
+    webinar_status?: WebinarStatus | null;
+    whiteboard_pdf_url?: string | null;
+    kinescope_embed_url?: string | null;
+    kinescope_upload_status?: KinescopeUploadStatus | null;
     homeworks?: LessonHomework[];
   };
   meta?: Record<string, unknown>;
@@ -284,8 +302,12 @@ function normalizeLessonDetailRead(raw: RawLessonDetailResponse): CourseLessonDe
     lesson_id: raw.lesson_id,
     title: raw.title,
     document: c.document ?? '',
-    recording_url: c.recording_url ?? null,
+    recording_url: c.recording_url ?? '',
     started_at: c.started_at ?? null,
+    webinar_status: c.webinar_status ?? null,
+    whiteboard_pdf_url: c.whiteboard_pdf_url ?? '',
+    kinescope_embed_url: c.kinescope_embed_url ?? '',
+    kinescope_upload_status: c.kinescope_upload_status ?? 'none',
     homeworks: Array.isArray(c.homeworks) ? c.homeworks : [],
     meta: raw.meta ?? {},
   };

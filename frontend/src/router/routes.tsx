@@ -15,6 +15,7 @@ import {
   LessonViewPage,
   NotAuthorizedPage,
   WebinarPage,
+  WebinarRecordPage,
   AppLayout,
 } from './lazyPages';
 
@@ -40,6 +41,10 @@ export const routes: AppRoute[] = [
   {
     path: '/recover',
     element: <RecoverPage />,
+  },
+  {
+    path: '/webinar-record/:slug/:lessonSlug',
+    element: <WebinarRecordPage />,
   },
   {
     path: '/app',

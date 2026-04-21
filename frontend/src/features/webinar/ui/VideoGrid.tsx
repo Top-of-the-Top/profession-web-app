@@ -12,20 +12,41 @@ import AgoraRTC, {
 import { VideoOff } from 'lucide-react';
 import styles from './VideoGrid.module.css';
 
-interface VideoGridInnerProps {
+interface VideoGridBaseProps {
   appId: string;
   token: string;
   channel: string;
   uid: number;
+}
+
+interface VideoGridPublisherProps extends VideoGridBaseProps {
+  micOn: boolean;
+  cameraOn: boolean;
+  subscribeOnly?: false;
+}
+
+interface VideoGridSubscribeOnlyProps extends VideoGridBaseProps {
+  subscribeOnly: true;
+  micOn?: never;
+  cameraOn?: never;
+}
+
+type VideoGridProps = VideoGridPublisherProps | VideoGridSubscribeOnlyProps;
+
+interface PublisherInnerProps extends VideoGridBaseProps {
   micOn: boolean;
   cameraOn: boolean;
 }
 
-function VideoGridInner({ appId, token, channel, uid, micOn, cameraOn }: VideoGridInnerProps) {
-  useJoin(
-    { appid: appId, channel, token, uid },
-    true,
-  );
+function PublisherInner({
+  appId,
+  token,
+  channel,
+  uid,
+  micOn,
+  cameraOn,
+}: PublisherInnerProps) {
+  useJoin({ appid: appId, channel, token, uid }, true);
 
   const { localMicrophoneTrack } = useLocalMicrophoneTrack(micOn);
   const { localCameraTrack } = useLocalCameraTrack(cameraOn);
@@ -64,16 +85,24 @@ function VideoGridInner({ appId, token, channel, uid, micOn, cameraOn }: VideoGr
   );
 }
 
-interface VideoGridProps {
-  appId: string;
-  token: string;
-  channel: string;
-  uid: number;
-  micOn: boolean;
-  cameraOn: boolean;
+function SubscribeOnlyInner({ appId, token, channel, uid }: VideoGridBaseProps) {
+  useJoin({ appid: appId, channel, token, uid }, true);
+
+  const remoteUsers = useRemoteUsers();
+
+  return (
+    <div className={styles.grid}>
+      {remoteUsers.map((user) => (
+        <div key={user.uid} className={styles.tile}>
+          <RemoteUser user={user} style={{ width: '100%', height: '100%' }} />
+          <span className={styles.label}>{user.uid}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
-export function VideoGrid({ appId, token, channel, uid, micOn, cameraOn }: VideoGridProps) {
+export function VideoGrid(props: VideoGridProps) {
   const client = useMemo(
     () => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }),
     [],
@@ -81,14 +110,23 @@ export function VideoGrid({ appId, token, channel, uid, micOn, cameraOn }: Video
 
   return (
     <AgoraRTCProvider client={client}>
-      <VideoGridInner
-        appId={appId}
-        token={token}
-        channel={channel}
-        uid={uid}
-        micOn={micOn}
-        cameraOn={cameraOn}
-      />
+      {props.subscribeOnly ? (
+        <SubscribeOnlyInner
+          appId={props.appId}
+          token={props.token}
+          channel={props.channel}
+          uid={props.uid}
+        />
+      ) : (
+        <PublisherInner
+          appId={props.appId}
+          token={props.token}
+          channel={props.channel}
+          uid={props.uid}
+          micOn={props.micOn}
+          cameraOn={props.cameraOn}
+        />
+      )}
     </AgoraRTCProvider>
   );
 }

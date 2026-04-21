@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Home, Clock3, Video, CircleCheck } from 'lucide-react';
+import { Home, Clock3, Video, CircleCheck, FileDown } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,7 +18,11 @@ import {
   DEFAULT_FONT_SIZE_INDEX,
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
-import type { LessonHomework } from '@shared/api/courseApi';
+import type {
+  KinescopeUploadStatus,
+  LessonHomework,
+  WebinarStatus,
+} from '@shared/api/courseApi';
 import {
   useCourseHomeBySlug,
   useLessonBySlug,
@@ -340,7 +344,8 @@ const WebinarWidget: React.FC<{
   courseSlug: string;
   lessonSlug: string;
   isTeacher: boolean;
-}> = ({ courseSlug, lessonSlug, isTeacher }) => {
+  webinarStatus: WebinarStatus | null;
+}> = ({ courseSlug, lessonSlug, isTeacher, webinarStatus }) => {
   const navigate = useNavigate();
   const startWebinar = useStartWebinar(courseSlug, lessonSlug);
 
@@ -352,32 +357,40 @@ const WebinarWidget: React.FC<{
     });
   };
 
-  const handleJoinWebinar = () => {
+  const handleJoinLive = () => {
     navigate(webinarUrl);
   };
 
+  if (webinarStatus === 'ended') return null;
+
+  if (webinarStatus === 'live') {
+    return (
+      <div className={styles.linksRow}>
+        <button
+          type="button"
+          className={styles.quickLinkButton}
+          onClick={handleJoinLive}
+        >
+          <Video size={20} />
+          <span>Вернуться в звонок</span>
+        </button>
+      </div>
+    );
+  }
+
+  if (!isTeacher) return null;
+
   return (
     <div className={styles.linksRow}>
-      {isTeacher ? (
-        <button
-          type="button"
-          className={styles.quickLinkButton}
-          onClick={handleStartWebinar}
-          disabled={startWebinar.isPending}
-        >
-          <Video size={20} />
-          <span>{startWebinar.isPending ? 'Запуск...' : 'Начать вебинар'}</span>
-        </button>
-      ) : (
-        <button
-          type="button"
-          className={styles.quickLinkButton}
-          onClick={handleJoinWebinar}
-        >
-          <Video size={20} />
-          <span>Подключиться к вебинару</span>
-        </button>
-      )}
+      <button
+        type="button"
+        className={styles.quickLinkButton}
+        onClick={handleStartWebinar}
+        disabled={startWebinar.isPending}
+      >
+        <Video size={20} />
+        <span>{startWebinar.isPending ? 'Запуск...' : 'Начать вебинар'}</span>
+      </button>
     </div>
   );
 };
@@ -398,34 +411,54 @@ const LessonEditWidget: React.FC<{
   );
 };
 
-const LessonRecording: React.FC<{ recording: string | null }> = ({
-  recording,
-}) => {
-  const value = recording?.trim();
+const LessonRecording: React.FC<{
+  kinescopeEmbedUrl: string;
+  kinescopeUploadStatus: KinescopeUploadStatus;
+  whiteboardPdfUrl: string;
+}> = ({ kinescopeEmbedUrl, kinescopeUploadStatus, whiteboardPdfUrl }) => {
+  if (kinescopeUploadStatus === 'none') return null;
 
-  if (!value) return null;
-
-  const isHttpLink = /^https?:\/\//i.test(value);
+  const pdfLink = whiteboardPdfUrl?.trim();
+  const hasPdf = !!pdfLink && /^https?:\/\//i.test(pdfLink);
 
   return (
     <section className={styles.recordingSection}>
       <h2 className={styles.recordingTitle}>Запись вебинара</h2>
-      {isHttpLink ? (
+
+      {kinescopeUploadStatus === 'ready' && kinescopeEmbedUrl ? (
         <div className={styles.recordingIframeWrap}>
           <iframe
-            src={
-              value === 'https://example.com/recordings/mock-lesson'
-                ? 'https://kinescope.io/t1go93i9aP3NG6VNPxiCC6'
-                : value
-            }
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
+            src={kinescopeEmbedUrl}
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
             allowFullScreen
             className={styles.recordingIframe}
             title="Запись урока"
           />
         </div>
+      ) : kinescopeUploadStatus === 'failed' ? (
+        <div className={styles.recordingFailed}>
+          Не удалось обработать запись
+        </div>
       ) : (
-        <div className={styles.mediaPlaceholder}>Запись урока недоступна</div>
+        <div className={styles.recordingStatus}>
+          <Spinner />
+          <span>Запись обрабатывается…</span>
+        </div>
+      )}
+
+      {hasPdf && (
+        <div className={styles.whiteboardPdfRow}>
+          <a
+            className={styles.whiteboardPdfLink}
+            href={pdfLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+          >
+            <FileDown size={18} />
+            Скачать PDF доски
+          </a>
+        </div>
       )}
     </section>
   );
@@ -543,16 +576,25 @@ export default function LessonViewPage() {
 
           <main className={styles.main}>
             {lessonLayout && <LessonContent layout={lessonLayout} />}
-            <LessonRecording recording={lessonDetail.recording_url} />
+            <LessonRecording
+              kinescopeEmbedUrl={lessonDetail.kinescope_embed_url}
+              kinescopeUploadStatus={lessonDetail.kinescope_upload_status}
+              whiteboardPdfUrl={lessonDetail.whiteboard_pdf_url}
+            />
           </main>
         </div>
 
         <aside className={styles.sidebar}>
-          <TimerWidget targetIso={lessonDetail.started_at} />
+          {(lessonDetail.webinar_status === null ||
+            lessonDetail.webinar_status === 'pending') &&
+            lessonDetail.started_at && (
+              <TimerWidget targetIso={lessonDetail.started_at} />
+            )}
           <WebinarWidget
             courseSlug={courseSlug ?? ''}
             lessonSlug={lessonSlug ?? ''}
             isTeacher={isTeacher}
+            webinarStatus={lessonDetail.webinar_status}
           />
           {isTeacher && (
             <LessonEditWidget

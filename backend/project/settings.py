@@ -245,6 +245,18 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.courses.tasks.check_idle_webinars',
         'schedule': 60.0,
     },
+    'assets-poll-s3-events': {
+        'task': 'apps.core.tasks.poll_s3_upload_events',
+        'schedule': 30.0,
+    },
+    'assets-sweep-pending': {
+        'task': 'apps.core.tasks.sweep_pending_assets',
+        'schedule': 600.0,
+    },
+    'assets-sweep-orphaned': {
+        'task': 'apps.core.tasks.sweep_orphaned_assets',
+        'schedule': 3600.0,
+    },
 }
 
 if os.getenv('CI') or 'test' in sys.argv:

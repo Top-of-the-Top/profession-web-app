@@ -1,3 +1,4 @@
+import re
 from apps.core.services.presigned_url import PresignedUrlService
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
@@ -24,9 +25,7 @@ from .serializers import (
     AttemptSerializer,
     AttemptSubmitSerializer,
     ErrorResponseSerializer,
-    AttemptListSerializer, 
-    UploadFileRequestSerializer,
-    S3UploadResponseSerializer,
+    AttemptListSerializer,
 )
 
 

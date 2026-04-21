@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from .models import Attempt, QuestionAnswer, TaskAnswer
 from apps.core.models import Attachment
@@ -203,5 +204,10 @@ class AttemptService:
                     Attachment.objects.bulk_create(attachment_objs)
 
     def _calculate_grade(self, attempt):
-        correct_questions = attempt.question_answers.filter(is_correct=True).count()
-        return correct_questions
+        correct_points = (
+            attempt.question_answers
+            .filter(is_correct=True)
+            .aggregate(total=Sum('question__max_points'))['total']
+            or 0
+        )
+        return correct_points

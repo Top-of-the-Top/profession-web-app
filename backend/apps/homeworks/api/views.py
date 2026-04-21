@@ -104,8 +104,14 @@ class HomeworkAttemptListView(APIView):
         },
     )
     def get(self, request):
-        user = request.user 
-        attempts = Attempt.objects.filter(user=user).order_by('-created_at')
+        user = request.user
+        attempts = (
+            Attempt.objects
+            .filter(user=user)
+            .select_related('homework')
+            .prefetch_related('homework__question_set', 'homework__task_set')
+            .order_by('-created_at')
+        )
         try:
             data = AttemptListSerializer(attempts, many=True).data
         except Exception as exc:

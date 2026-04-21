@@ -5,7 +5,7 @@ from ..models import Attempt, QuestionAnswer, TaskAnswer
 
 
 NOT_REVIEWED_LABEL = 'не проверено'
-QUESTION_MAX_POINTS = 1
+
 
 class FileAttachmentSerializer(serializers.Serializer):
     attachment_id = serializers.UUIDField()
@@ -24,16 +24,13 @@ class QuestionAttemptItemSerializer(serializers.Serializer):
     text = serializers.CharField(source='question.text', read_only=True)
     answer_options = serializers.JSONField(source='question.answer_options', read_only=True)
     user_answer = serializers.CharField(read_only=True, allow_null=True)
-    max_points = serializers.SerializerMethodField()
+    max_points = serializers.IntegerField(source='question.max_points', read_only=True)
 
     def get_type(self, obj):
         return 'question'
 
     def get_status(self, obj):
         return obj.status or NOT_REVIEWED_LABEL
-
-    def get_max_points(self, obj):
-        return QUESTION_MAX_POINTS
 
 
 class TaskAttemptItemSerializer(serializers.Serializer):
@@ -71,6 +68,7 @@ class AttemptSerializer(serializers.ModelSerializer):
     homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
     deadline = serializers.DateTimeField(source='homework.deadline', read_only=True)
     score = serializers.IntegerField(source='grade', read_only=True, allow_null=True)
+    max_points = serializers.SerializerMethodField()
     items = serializers.SerializerMethodField()
 
     class Meta:
@@ -81,9 +79,20 @@ class AttemptSerializer(serializers.ModelSerializer):
             'status',
             'deadline',
             'score',
+            'max_points',
             'items',
         )
         read_only_fields = fields
+
+    def get_max_points(self, obj):
+        homework = obj.homework
+        questions_total = sum(
+            q.max_points for q in homework.question_set.all()
+        )
+        tasks_total = sum(
+            t.max_points for t in homework.task_set.all()
+        )
+        return questions_total + tasks_total
 
     @extend_schema_field(PolymorphicProxySerializer(
         component_name='AttemptItem',
@@ -113,12 +122,33 @@ class AttemptSerializer(serializers.ModelSerializer):
 
 class AttemptListSerializer(serializers.ModelSerializer):
   homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
-  homework_slug = serializers.UUIDField(source='homework.slug', read_only=True)
+  homework_slug = serializers.SlugField(source='homework.slug', read_only=True)
   deadline = serializers.DateTimeField(source='homework.deadline', read_only=True)
   score = serializers.IntegerField(source='grade', read_only=True, allow_null=True)
+  max_points = serializers.SerializerMethodField()
+
   class Meta:
     model = Attempt
-    fields = ('attempt_id', 'homework_id', 'deadline', 'homework_slug', 'status', 'send_at', 'score')
+    fields = (
+      'attempt_id',
+      'homework_id',
+      'deadline',
+      'homework_slug',
+      'status',
+      'send_at',
+      'score',
+      'max_points',
+    )
+
+  def get_max_points(self, obj):
+    homework = obj.homework
+    questions_total = sum(
+      q.max_points for q in homework.question_set.all()
+    )
+    tasks_total = sum(
+      t.max_points for t in homework.task_set.all()
+    )
+    return questions_total + tasks_total
 
 class SubmitQuestionItemSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=['question'])

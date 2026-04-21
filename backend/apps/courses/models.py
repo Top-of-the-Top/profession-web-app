@@ -239,6 +239,9 @@ class Question(AbstractComponentModel, AutoIncrementMixin):
     text = models.CharField(max_length=200, verbose_name='Текст вопроса')
     correct_ans = models.CharField(verbose_name='Правильный ответ на вопрос')
     answer_options = models.JSONField(verbose_name='Варианты ответов')
+    max_points = models.PositiveIntegerField(
+        default=1, verbose_name='Максимальное количество баллов за вопрос'
+    )
 
 
     class Meta:

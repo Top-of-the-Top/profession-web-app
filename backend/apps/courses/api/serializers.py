@@ -479,7 +479,7 @@ class HomeworkDetailSerializer(serializers.ModelSerializer):
                 'text': q.text,
                 'answer_options': q.answer_options,
                 'correct_ans': q.correct_ans,
-                'max_points': None,
+                'max_points': q.max_points,
                 'created_at': q.created_at,
             })
         for t in tasks:

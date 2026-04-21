@@ -78,14 +78,14 @@ class CourseViewSetUnitTest(SimpleTestCase):
         self.factory = APIRequestFactory()
 
     def test_list_requires_authentication(self):
-        request = self.factory.get('/api/app/courses/')
+        request = self.factory.get('/api/courses/')
         view = CourseListView.as_view()
 
         response = view(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_requires_moderator_role(self):
-        request = self.factory.post('/api/app/courses/', {})
+        request = self.factory.post('/api/courses/', {})
         mock_user = MagicMock()
         mock_user.is_authenticated = True
         mock_user.is_moderator.return_value = False
@@ -119,7 +119,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         create_test_course(title='Course 2', sub_title='Sub 2', price=2000)
 
         self.authenticate_user(self.student)
-        response = self.client.get('/api/app/courses/')
+        response = self.client.get('/api/courses/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
@@ -128,7 +128,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         course = create_test_course(title='Test Course', sub_title='Sub', price=5000)
 
         self.authenticate_user(self.student)
-        response = self.client.get(f'/api/app/courses/{course.slug}/')
+        response = self.client.get(f'/api/courses/{course.slug}/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Test Course')
@@ -143,7 +143,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
             'price': 10000,
         }
 
-        response = self.client.post('/api/app/courses/', data, format='json')
+        response = self.client.post('/api/courses/', data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Course')
@@ -158,7 +158,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
             'price': 10000,
         }
 
-        response = self.client.post('/api/app/courses/', data, format='json')
+        response = self.client.post('/api/courses/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_update_course_as_author(self):
@@ -168,7 +168,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         self.authenticate_user(self.teacher)
 
         data = {'title': 'Updated Title'}
-        response = self.client.patch(f'/api/app/courses/{course.slug}/', data, format='json')
+        response = self.client.patch(f'/api/courses/{course.slug}/', data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Updated Title')
@@ -177,7 +177,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         course = create_test_course()
 
         self.authenticate_user(self.moderator)
-        response = self.client.delete(f'/api/app/courses/{course.slug}/')
+        response = self.client.delete(f'/api/courses/{course.slug}/')
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Course.objects.filter(slug=course.slug).exists())
@@ -210,7 +210,7 @@ class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
         )
 
         self.authenticate_user(self.user)
-        response = self.client.get('/api/app/my-courses/')
+        response = self.client.get('/api/my-courses/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
@@ -233,7 +233,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
         self.student = self.create_enrolled_student(self.course)
 
     def test_requires_auth(self):
-        response = self.client.get('/api/app/my-schedule/')
+        response = self.client.get('/api/my-schedule/')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_student_sees_webinar_for_enrolled_course(self):
@@ -246,7 +246,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
             ended_at=ended,
         )
         self.authenticate_user(self.student)
-        response = self.client.get('/api/app/my-schedule/')
+        response = self.client.get('/api/my-schedule/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         row = response.data[0]
@@ -263,7 +263,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
         les = create_test_lesson(sec)
         Webinar.objects.create(lesson=les, status=Webinar.PENDING_STATUS)
         self.authenticate_user(self.student)
-        response = self.client.get('/api/app/my-schedule/')
+        response = self.client.get('/api/my-schedule/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
 
@@ -272,7 +272,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
         solo_teacher = create_test_user(email='solo_teacher@test.com', role='teacher')
         self.course.authors.add(solo_teacher)
         self.authenticate_user(solo_teacher)
-        response = self.client.get('/api/app/my-schedule/')
+        response = self.client.get('/api/my-schedule/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['lesson_slug'], self.lesson.slug)
@@ -672,7 +672,7 @@ class RBACIntegrationTest(BaseTestCase, ViewTestMixin):
     def test_student_cannot_create_course(self):
         self.authenticate_user(self.student)
         data = {'title': 'New', 'sub_title': 'Sub', 'description': 'Desc', 'price': 1000}
-        response = self.client.post('/api/app/courses/', data, format='json')
+        response = self.client.post('/api/courses/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_teacher_cannot_modify_others_course(self):
@@ -680,21 +680,21 @@ class RBACIntegrationTest(BaseTestCase, ViewTestMixin):
         self.authenticate_user(other_teacher)
 
         data = {'title': 'Hacked'}
-        response = self.client.patch(f'/api/app/courses/{self.course.slug}/', data, format='json')
+        response = self.client.patch(f'/api/courses/{self.course.slug}/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_moderator_can_modify_any_course(self):
         self.authenticate_user(self.moderator)
 
         data = {'title': 'Moderated'}
-        response = self.client.patch(f'/api/app/courses/{self.course.slug}/', data, format='json')
+        response = self.client.patch(f'/api/courses/{self.course.slug}/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_unauthenticated_cannot_access_protected_endpoints(self):
-        response = self.client.get('/api/app/courses/')
+        response = self.client.get('/api/courses/')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        response = self.client.get('/api/app/my-courses/')
+        response = self.client.get('/api/my-courses/')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 

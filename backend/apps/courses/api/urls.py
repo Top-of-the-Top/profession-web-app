@@ -10,27 +10,27 @@ urlpatterns = [
         name='course-list-preview',
     ),
     path(
-        'app/my-courses/',
+        'my-courses/',
         views.PurchasedCoursesView.as_view(),
         name='my-courses',
     ),
     path(
-        'app/my-schedule/',
+        'my-schedule/',
         views.MyScheduleView.as_view(),
         name='my-schedule',
     ),
     path(
-        'app/courses/<slug:course_slug>/home/',
+        'courses/<slug:course_slug>/home/',
         views.CourseHomePageView.as_view(),
         name='course-homepage',
     ),
     path(
-        'app/courses/', 
+        'courses/', 
         views.CourseListView.as_view(),
         name='courses-list'
     ),
     path(
-        'app/courses/<slug:slug>/',
+        'courses/<slug:slug>/',
         views.CourseDetailView.as_view(),
         name='courses-detail',
     ),

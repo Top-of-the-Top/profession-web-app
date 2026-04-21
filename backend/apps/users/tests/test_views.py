@@ -380,14 +380,14 @@ class ProfileViewUnitTest(SimpleTestCase):
         self.factory = APIRequestFactory()
 
     def test_profile_requires_auth(self):
-        request = self.factory.get("/api/app/profile/")
+        request = self.factory.get("/api/profile/")
         response = ProfileView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_profile_get_success_mocked(self):
         """Test successful profile retrieval"""
-        request = self.factory.get("/api/app/profile/")
+        request = self.factory.get("/api/profile/")
         auth_user = SimpleNamespace(is_authenticated=True)
         force_authenticate(request, user=auth_user)
 
@@ -408,7 +408,7 @@ class ProfileViewUnitTest(SimpleTestCase):
 
     def test_profile_patch_validation_error(self):
         request = self.factory.patch(
-            "/api/app/profile/", {"gender": "X"}, format="json")
+            "/api/profile/", {"gender": "X"}, format="json")
         auth_user = MagicMock(is_authenticated=True)
         force_authenticate(request, user=auth_user)
 
@@ -424,7 +424,7 @@ class ProfileViewUnitTest(SimpleTestCase):
 
     def test_profile_patch_success_mocked(self):
         request = self.factory.patch(
-            "/api/app/profile/",
+            "/api/profile/",
             {"first_name": "Иван", "last_name": "Петров"},
             format="json",
         )
@@ -726,7 +726,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_requires_auth(self):
         request = self.factory.post(
-            "/api/app/profile/verify_email/",
+            "/api/profile/verify_email/",
             {"code": "123456"},
             format="json",
         )
@@ -736,7 +736,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_invalid_code_format(self):
         request = self.factory.post(
-            "/api/app/profile/verify_email/",
+            "/api/profile/verify_email/",
             {"code": "short"},
             format="json",
         )
@@ -749,7 +749,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_verification_error(self):
         request = self.factory.post(
-            "/api/app/profile/verify_email/",
+            "/api/profile/verify_email/",
             {"code": "000000"},
             format="json",
         )
@@ -767,7 +767,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_success_mocked(self):
         request = self.factory.post(
-            "/api/app/profile/verify_email/",
+            "/api/profile/verify_email/",
             {"code": "123456"},
             format="json",
         )
@@ -787,7 +787,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_duplicate_blocked(self):
         request = self.factory.post(
-            "/api/app/profile/verify_email/",
+            "/api/profile/verify_email/",
             {"code": "123456"},
             format="json",
         )
@@ -811,7 +811,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_requires_auth(self):
         request = self.factory.post(
-            "/api/app/profile/verify_phone/",
+            "/api/profile/verify_phone/",
             {"code": "123456"},
             format="json",
         )
@@ -821,7 +821,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_verification_error(self):
         request = self.factory.post(
-            "/api/app/profile/verify_phone/",
+            "/api/profile/verify_phone/",
             {"code": "000000"},
             format="json",
         )
@@ -839,7 +839,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_success_mocked(self):
         request = self.factory.post(
-            "/api/app/profile/verify_phone/",
+            "/api/profile/verify_phone/",
             {"code": "123456"},
             format="json",
         )
@@ -859,7 +859,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_duplicate_blocked(self):
         request = self.factory.post(
-            "/api/app/profile/verify_phone/",
+            "/api/profile/verify_phone/",
             {"code": "123456"},
             format="json",
         )
@@ -1015,7 +1015,7 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
 
     def test_profile_patch_email_triggers_verification(self):
         request = self.factory.patch(
-            "/api/app/profile/",
+            "/api/profile/",
             {"email": "new@example.com"},
             format="json",
         )
@@ -1043,7 +1043,7 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
 
     def test_profile_patch_phone_triggers_verification(self):
         request = self.factory.patch(
-            "/api/app/profile/",
+            "/api/profile/",
             {"phone_number": "+79990001122"},
             format="json",
         )
@@ -1072,7 +1072,7 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
 
     def test_profile_patch_phone_rate_limited(self):
         request = self.factory.patch(
-            "/api/app/profile/",
+            "/api/profile/",
             {"phone_number": "+79990001122"},
             format="json",
         )

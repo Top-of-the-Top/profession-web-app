@@ -356,7 +356,7 @@ function buildLessonFormData(
 export const courseApi = {
   getCourses(): Promise<CourseApiAnswer> {
     return apiClient
-      .request<RawCoursesResponse>('/api/app/courses/', {
+      .request<RawCoursesResponse>('/api/courses/', {
         method: 'GET',
       })
       .then(normalizeCoursesResponse);
@@ -364,7 +364,7 @@ export const courseApi = {
 
   getCourseBySlug(slug: string): Promise<Course> {
     return apiClient
-      .request<RawCourseBySlugResponse>(`/api/app/courses/${slug}/`, {
+      .request<RawCourseBySlugResponse>(`/api/courses/${slug}/`, {
         method: 'GET',
       })
       .then(normalizeCourseBySlugResponse);
@@ -372,7 +372,7 @@ export const courseApi = {
 
   getCourseHomeBySlug(slug: string): Promise<CourseHomeResponse> {
     return apiClient
-      .request<RawCourseHomeResponse>(`/api/app/courses/${slug}/home/`, {
+      .request<RawCourseHomeResponse>(`/api/courses/${slug}/home/`, {
         method: 'GET',
       })
       .then(normalizeCourseHomeResponse);
@@ -380,7 +380,7 @@ export const courseApi = {
 
   patchCourse(slug: string, payload: CoursePatchPayload): Promise<Course> {
     return apiClient
-      .request<RawCourseBySlugResponse>(`/api/app/courses/${slug}/`, {
+      .request<RawCourseBySlugResponse>(`/api/courses/${slug}/`, {
         method: 'PATCH',
         body: JSON.stringify(payload),
       })
@@ -499,7 +499,7 @@ export const courseApi = {
   },
 
   getMyCourses(): Promise<PurchasedCourseItem[]> {
-    return apiClient.request<PurchasedCourseItem[]>('/api/app/my-courses/', {
+    return apiClient.request<PurchasedCourseItem[]>('/api/my-courses/', {
       method: 'GET',
     });
   },

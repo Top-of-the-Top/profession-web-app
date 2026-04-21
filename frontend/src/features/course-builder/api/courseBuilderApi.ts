@@ -79,13 +79,13 @@ export interface SaveCourseStructureWithMediaParams {
 export const courseBuilderApi = {
   async load(courseId: number): Promise<LessonLayoutDTO> {
     return apiClient.request<LessonLayoutDTO>(
-      `/api/app/courses/${courseId}/structure/`,
+      `/api/courses/${courseId}/structure/`,
       { method: 'GET' },
     );
   },
 
   async save({ courseId, layout }: SaveLessonLayoutParams): Promise<void> {
-    await apiClient.request(`/api/app/courses/${courseId}/structure/`, {
+    await apiClient.request(`/api/courses/${courseId}/structure/`, {
       method: 'PUT',
       body: JSON.stringify(layout),
     });
@@ -97,7 +97,7 @@ export const courseBuilderApi = {
     filesByAssetId,
   }: SaveCourseStructureWithMediaParams): Promise<void> {
     const body = buildStructureSaveFormData(document, filesByAssetId);
-    await apiClient.request(`/api/app/courses/${courseId}/structure/`, {
+    await apiClient.request(`/api/courses/${courseId}/structure/`, {
       method: 'PUT',
       body,
     });

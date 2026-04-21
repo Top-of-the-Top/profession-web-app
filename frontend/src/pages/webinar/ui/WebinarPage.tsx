@@ -14,7 +14,7 @@ import {
   useMediaControls,
   type WhiteboardPanelHandle,
 } from '../../../features/webinar';
-import { notifyError } from '@shared/lib/sileo/notify';
+import { notifyError, notifyWarning } from '@shared/lib/sileo/notify';
 import styles from './WebinarPage.module.css';
 
 export default function WebinarPage() {
@@ -62,20 +62,17 @@ export default function WebinarPage() {
     setIsFinishing(true);
     try {
       const screenshots = await whiteboardRef.current.captureSceneScreenshots();
-
-      if (screenshots.length === 0) {
-        notifyError({
-          title: 'нет содержимого',
-          description: 'Добавьте хотя бы одну сцену доски перед завершением.',
+      if (screenshots.length > 0) {
+        await whiteboardPdf.mutateAsync(screenshots);
+      } else {
+        notifyWarning({
+          title: 'доска не сохранена',
+          description: 'Не удалось снять скриншоты. Вебинар будет завершён без PDF доски.',
         });
-        return;
       }
-
-      await whiteboardPdf.mutateAsync(screenshots);
       await stopWebinar.mutateAsync();
       navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
     } catch {
-      // Ошибки уже показаны тостами из mutation-хуков.
     } finally {
       setIsFinishing(false);
     }

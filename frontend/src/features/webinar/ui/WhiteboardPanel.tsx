@@ -39,6 +39,64 @@ async function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
+type RoomLike = {
+  state: {
+    sceneState: {
+      scenes: Array<{ name: string }>;
+      contextPath: string;
+      scenePath: string;
+    };
+    cameraState: {
+      centerX: number;
+      centerY: number;
+      scale: number;
+      width?: number;
+      height?: number;
+    };
+  };
+  screenshotToCanvasAsync: (
+    context: CanvasRenderingContext2D,
+    scenePath: string,
+    width: number,
+    height: number,
+    camera: { centerX: number; centerY: number; scale: number },
+    ratio?: number,
+    timeout?: number,
+  ) => Promise<void>;
+};
+
+async function captureScene(room: RoomLike, scenePath: string): Promise<Blob | null> {
+  const cameraState = room.state.cameraState;
+  const width = cameraState.width && cameraState.width > 0 ? cameraState.width : CAPTURE_WIDTH;
+  const height = cameraState.height && cameraState.height > 0 ? cameraState.height : CAPTURE_HEIGHT;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  await room.screenshotToCanvasAsync(
+    ctx,
+    scenePath,
+    width,
+    height,
+    {
+      centerX: cameraState.centerX,
+      centerY: cameraState.centerY,
+      scale: cameraState.scale,
+    },
+    1,
+    5_000,
+  );
+
+  return canvasToPng(canvas);
+}
+
 export const WhiteboardPanel = forwardRef<
   WhiteboardPanelHandle,
   WhiteboardPanelProps
@@ -67,40 +125,28 @@ export const WhiteboardPanel = forwardRef<
     () => ({
       async captureSceneScreenshots(): Promise<Blob[]> {
         if (!fastboard) return [];
-        const room = fastboard.room;
+        const room = fastboard.room as unknown as RoomLike;
         const sceneState = room.state.sceneState;
         const scenes = sceneState.scenes;
         const contextPath = sceneState.contextPath;
 
         if (!scenes || scenes.length === 0) return [];
 
-        const camera = { centerX: 0, centerY: 0, scale: 1 };
         const blobs: Blob[] = [];
 
         for (const scene of scenes) {
           const scenePath = buildScenePath(contextPath, scene.name);
+          try {
+            const blob = await captureScene(room, scenePath);
+            if (blob) blobs.push(blob);
+          } catch {}
+        }
 
-          const canvas = document.createElement('canvas');
-          canvas.width = CAPTURE_WIDTH;
-          canvas.height = CAPTURE_HEIGHT;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) continue;
-
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT);
-
-          await room.screenshotToCanvasAsync(
-            ctx,
-            scenePath,
-            CAPTURE_WIDTH,
-            CAPTURE_HEIGHT,
-            camera,
-            1,
-            5_000,
-          );
-
-          const blob = await canvasToPng(canvas);
-          blobs.push(blob);
+        if (blobs.length === 0 && sceneState.scenePath) {
+          try {
+            const fallbackBlob = await captureScene(room, sceneState.scenePath);
+            if (fallbackBlob) blobs.push(fallbackBlob);
+          } catch {}
         }
 
         return blobs;

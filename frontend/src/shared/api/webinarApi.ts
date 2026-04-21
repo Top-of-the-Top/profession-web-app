@@ -24,7 +24,7 @@ export interface WebinarDetailResponse {
 }
 
 function webinarBase(courseSlug: string, lessonSlug: string) {
-  return `/api/app/courses/${courseSlug}/lessons/${lessonSlug}/webinar`;
+  return `/api/courses/${courseSlug}/lessons/${lessonSlug}/webinar`;
 }
 
 export const webinarApi = {

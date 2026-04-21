@@ -18,7 +18,7 @@ export interface UpdateProfilePayload {
 
 export const profileApi = {
   getProfile(): Promise<ProfileData> {
-    return apiClient.request<ProfileData>('/api/app/profile/', { method: 'GET' });
+    return apiClient.request<ProfileData>('/api/profile/', { method: 'GET' });
   },
 
   updateProfile(payload: UpdateProfilePayload): Promise<{ status: 'success' }> {
@@ -36,21 +36,21 @@ export const profileApi = {
       }
     });
 
-    return apiClient.request<{ status: 'success' }>('/api/app/profile/', {
+    return apiClient.request<{ status: 'success' }>('/api/profile/', {
       method: 'PATCH',
       body: formData,
     });
   },
 
   verifyEmailChange(code: string): Promise<{ status: 'success' }> {
-    return apiClient.request<{ status: 'success' }>('/api/app/profile/verify-email/', {
+    return apiClient.request<{ status: 'success' }>('/api/profile/verify-email/', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });
   },
 
   verifyPhoneChange(code: string): Promise<{ status: 'success' }> {
-    return apiClient.request<{ status: 'success' }>('/api/app/profile/verify-phone/', {
+    return apiClient.request<{ status: 'success' }>('/api/profile/verify-phone/', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });
@@ -62,7 +62,7 @@ export const profileApi = {
     const formData = new FormData();
     formData.append('avatar', file);
     
-    return apiClient.request<{ status: 'success' }>('/api/app/profile/', {
+    return apiClient.request<{ status: 'success' }>('/api/profile/', {
       method: 'PATCH',
       body: formData,
     });

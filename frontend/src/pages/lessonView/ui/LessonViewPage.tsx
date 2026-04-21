@@ -361,7 +361,7 @@ const WebinarWidget: React.FC<{
     navigate(webinarUrl);
   };
 
-  if (webinarStatus === 'ended') return null;
+  
 
   if (webinarStatus === 'live') {
     return (

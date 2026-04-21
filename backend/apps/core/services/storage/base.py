@@ -1,0 +1,30 @@
+from abc import ABC, abstractmethod
+
+
+class StorageBackend(ABC):
+
+    name = ''
+
+    @abstractmethod
+    def build_storage_key(self, hint):
+        raise NotImplementedError
+
+    @abstractmethod
+    def issue_presigned_upload(self, storage_key, policy):
+        raise NotImplementedError
+
+    @abstractmethod
+    def head(self, storage_key):
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete(self, storage_key):
+        raise NotImplementedError
+
+    @abstractmethod
+    def resolve_url(self, asset, viewer=None, ttl_seconds=300):
+        raise NotImplementedError
+
+    @abstractmethod
+    def stream_read(self, storage_key, chunk_size=1024 * 1024):
+        raise NotImplementedError

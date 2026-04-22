@@ -4,7 +4,13 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from apps.webinars.models import Webinar
-from ..models import Course, Section, Task, Question
+from ..models import (
+    Course,
+    PurchasedCourse,
+    Section,
+    Task,
+    Question,
+)
 from .serializers import (
     CourseDTOSerializer,
     CourseSerializer,
@@ -20,6 +26,14 @@ from .serializers import (
     TaskSerializer,
     QuestionSerializer,
     UserWebinarListItemSerializer,
+)
+from apps.core.api.responses import asset_error_response
+from apps.core.services.errors import AssetError
+from apps.core.services.factory import build_access_api, build_binding_api
+from .utils.agora_utils import (
+    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room, generate_whiteboard_room_token,
+    recording_acquire, recording_start, recording_start_web, recording_stop, recording_stop_web,
+    verify_recorder_token, make_recorder_token,ban_whiteboard_room, ROLE_PUBLISHER, ROLE_SUBSCRIBER,
 )
 from rest_framework import generics
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
@@ -150,7 +164,6 @@ class CourseDetailView(APIView):
             500: {"schema": SCHEMA_DETAIL},
         }
     )
-    @require_course_enrollment
     def get(self, request, slug):
         cache = caches["default"]
         key = course_detail_cache_key(slug)

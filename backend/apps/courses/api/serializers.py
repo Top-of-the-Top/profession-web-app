@@ -14,13 +14,23 @@ from ..models import (
 from ..lesson_content import resolve_lesson_document_string, parse_content_value
 from django.db.models import Prefetch
 from apps.users.models import User
+from apps.core.services.factory import build_access_api
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 
 
+def _resolve_course_cover_url(course, access=None):
+    access = access or build_access_api()
+    try:
+        url = access.resolve_bound_url(course, role='course_cover')
+    except Exception:
+        url = None
+    return url or course.image_url
+
+
 class CourseSerializer(serializers.ModelSerializer):
-    image_url = serializers.ReadOnlyField()
+    image_url = serializers.SerializerMethodField()
     authors = serializers.PrimaryKeyRelatedField(
         many=True, read_only=False, required=False, queryset=User.objects.all()
     )
@@ -30,9 +40,13 @@ class CourseSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('course_id', 'created_at', 'updated_at', 'last_modified_by')
 
+    @extend_schema_field(OpenApiTypes.URI)
+    def get_image_url(self, obj):
+        return _resolve_course_cover_url(obj)
+
 
 class CourseDTOSerializer(serializers.ModelSerializer):
-    image_url = serializers.ReadOnlyField()
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -44,6 +58,18 @@ class CourseDTOSerializer(serializers.ModelSerializer):
             'price',
             'slug',
         ]
+
+    @extend_schema_field(OpenApiTypes.URI)
+    def get_image_url(self, obj):
+        return _resolve_course_cover_url(obj)
+
+
+class CourseCoverBindRequestSerializer(serializers.Serializer):
+    asset_id = serializers.UUIDField(required=True)
+
+
+class CourseCoverResponseSerializer(serializers.Serializer):
+    cover = serializers.URLField(allow_null=True)
 
 
 class CourseListResponseSerializer(serializers.Serializer):

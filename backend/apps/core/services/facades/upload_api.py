@@ -1,3 +1,4 @@
+from ...models import AssetStatus
 from ..dto import InitiateResult
 from ..errors import AssetPermissionDenied
 
@@ -34,6 +35,15 @@ class UploadApi:
         )
 
     def get_upload_status(self, user, asset_id):
+        return self._authorize(user, asset_id)
+
+    def commit_for_user(self, user, asset_id):
+        asset = self._authorize(user, asset_id)
+        if asset.status == AssetStatus.READY:
+            return asset
+        return self._service.commit_asset(asset.asset_id)
+
+    def _authorize(self, user, asset_id):
         asset = self._service.get_asset(asset_id)
 
         if user is None:

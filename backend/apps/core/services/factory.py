@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from django.conf import settings
 
 from .asset_service import AssetService
@@ -10,7 +12,8 @@ from .storage.kinescope import KinescopeBackend
 from .storage.s3 import S3Backend
 
 
-def _build_backends():
+@lru_cache(maxsize=1)
+def _get_backends():
     backends = {}
 
     if getattr(settings, 'USE_S3', False):
@@ -31,8 +34,12 @@ def _build_backends():
     return backends
 
 
+def reset_backends_cache():
+    _get_backends.cache_clear()
+
+
 def build_asset_service():
-    return AssetService(backends=_build_backends())
+    return AssetService(backends=_get_backends())
 
 
 def build_upload_api():

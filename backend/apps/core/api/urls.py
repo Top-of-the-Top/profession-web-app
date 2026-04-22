@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import AssetUploadInitiateView, AssetUploadStatusView
+from .views import AssetUploadCommitView, AssetUploadInitiateView, AssetUploadStatusView
 
 app_name = 'core'
 

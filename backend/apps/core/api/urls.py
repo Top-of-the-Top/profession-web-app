@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import AssetUploadInitiateView, AssetUploadStatusView
+from .views import AssetUploadCommitView, AssetUploadInitiateView, AssetUploadStatusView
 
 
 app_name = 'core'
@@ -16,5 +16,10 @@ urlpatterns = [
         'uploads/<uuid:asset_id>/status',
         AssetUploadStatusView.as_view(),
         name='upload-status',
+    ),
+    path(
+        'uploads/<uuid:asset_id>/commit',
+        AssetUploadCommitView.as_view(),
+        name='upload-commit',
     ),
 ]

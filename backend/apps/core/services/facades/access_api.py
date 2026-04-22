@@ -1,3 +1,8 @@
+from django.contrib.contenttypes.models import ContentType
+
+from ...models import AssetStatus, AssetUsage
+
+
 class AccessApi:
 
     def __init__(self, asset_service):
@@ -23,6 +28,35 @@ class AccessApi:
             except Exception:
                 result[str(asset_id)] = None
         return result
+
+    def get_bound_asset(self, content_object, role):
+        if content_object is None or content_object.pk is None:
+            return None
+
+        content_type = ContentType.objects.get_for_model(content_object)
+        usage = (
+            AssetUsage.objects
+            .filter(
+                content_type=content_type,
+                object_id=str(content_object.pk),
+                role=role,
+            )
+            .select_related('asset')
+            .first()
+        )
+
+        if usage is None:
+            return None
+        if usage.asset.status != AssetStatus.READY:
+            return None
+
+        return usage.asset
+
+    def resolve_bound_url(self, content_object, role, viewer=None, ttl_seconds=300):
+        asset = self.get_bound_asset(content_object, role)
+        if asset is None:
+            return None
+        return self._service.resolve_asset_url(asset, viewer=viewer, ttl_seconds=ttl_seconds)
 
     def register_external(self, owner, url, intent):
         return self._service.register_external_asset(owner=owner, url=url, intent=intent)

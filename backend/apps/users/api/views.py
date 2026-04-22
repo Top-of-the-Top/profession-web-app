@@ -33,23 +33,25 @@ from .serializers import (
     EmailRegisterSerializer,
     VerifyRegisterSerializer,
     RecoverPasswordPhoneSerializer,
+    AvatarBindRequestSerializer,
+    AvatarResponseSerializer,
 )
-from .utils.crypto_utils import encrypt_data
-from .utils.notification_utils import (
-    send_reset_password_email,
-    send_reset_password_sms,
-    send_verification_email,
+from apps.core.api.responses import asset_error_response
+from apps.core.services.errors import AssetError
+from apps.core.services.factory import build_access_api, build_binding_api
+from .utils import (
+    get_tokens_for_user,
     send_verification_sms,
-)
-from .utils.registration_utils import (
-    check_contact_rate_limit,
-    generate_registration_code,
-    verify_registration_code,
-)
-from .utils.token_utils import get_tokens_for_user, set_reset_token
-from .utils.verification_utils import (
+    send_verification_email,
+    send_reset_password_email,
     generate_verification_code_for_user,
     verify_code,
+    encrypt_data,
+    send_reset_password_sms,
+    set_reset_token,
+    generate_registration_code,
+    verify_registration_code,
+    check_contact_rate_limit,
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema

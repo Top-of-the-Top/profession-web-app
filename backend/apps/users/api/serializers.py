@@ -9,6 +9,7 @@ from .constants import (
     MSG_INVALID_CREDENTIALS,
     MSG_WRONG_PHONE_FORMAT,
 )
+from apps.core.services.factory import build_access_api
 import re
 
 PHONE_REGEX = re.compile(r'^\+?[1-9]\d{6,14}$')
@@ -116,9 +117,20 @@ class UserProfileSerializer(serializers.Serializer):
     avatar = serializers.SerializerMethodField()
 
     def get_avatar(self, obj):
-        if hasattr(obj, 'profile') and obj.profile:
-            return obj.profile.avatar_url
-        return None
+        profile = getattr(obj, 'profile', None)
+        if not profile:
+            return None
+
+        access = build_access_api()
+        try:
+            url = access.resolve_bound_url(profile, role='user_avatar')
+        except Exception:
+            url = None
+
+        if url:
+            return url
+
+        return profile.avatar_url
 
     def get_email(self, obj):
         if hasattr(obj, 'user') and obj.user and obj.user.email_cipher:
@@ -254,3 +266,11 @@ class RecoverPasswordPhoneSerializer(serializers.Serializer):
         if not value.isdigit():
             raise serializers.ValidationError(MSG_CODE_DIGITS_ONLY)
         return value
+
+
+class AvatarBindRequestSerializer(serializers.Serializer):
+    asset_id = serializers.UUIDField(required=True)
+
+
+class AvatarResponseSerializer(serializers.Serializer):
+    avatar = serializers.URLField(allow_null=True)

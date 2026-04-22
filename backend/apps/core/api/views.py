@@ -4,50 +4,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..services.errors import (
-    AssetAlreadyCommitted,
-    AssetBindConflict,
-    AssetCommitMismatch,
-    AssetError,
-    AssetIntentNotAllowed,
-    AssetNotFound,
-    AssetPermissionDenied,
-    AssetPolicyViolation,
-    AssetStatusInvalid,
-    AssetStorageUnavailable,
-)
+from ..services.errors import AssetError
 from ..services.factory import build_upload_api
+from .responses import asset_error_response
 from .serializers import (
     AssetErrorResponseSerializer,
     InitiateUploadRequestSerializer,
     InitiateUploadResponseSerializer,
     UploadStatusResponseSerializer,
 )
-
-
-ASSET_ERROR_STATUS_MAP = {
-    AssetNotFound: status.HTTP_404_NOT_FOUND,
-    AssetIntentNotAllowed: status.HTTP_400_BAD_REQUEST,
-    AssetPolicyViolation: status.HTTP_400_BAD_REQUEST,
-    AssetCommitMismatch: status.HTTP_400_BAD_REQUEST,
-    AssetAlreadyCommitted: status.HTTP_409_CONFLICT,
-    AssetStatusInvalid: status.HTTP_409_CONFLICT,
-    AssetBindConflict: status.HTTP_409_CONFLICT,
-    AssetPermissionDenied: status.HTTP_403_FORBIDDEN,
-    AssetStorageUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
-}
-
-
-def _error_response(exc, http_status=None):
-    payload = {
-        'status': 'error',
-        'code': exc.code,
-        'message': exc.message,
-        'details': exc.details or {},
-    }
-    if http_status is None:
-        http_status = ASSET_ERROR_STATUS_MAP.get(type(exc), status.HTTP_400_BAD_REQUEST)
-    return Response(payload, status=http_status)
 
 
 class AssetUploadInitiateView(APIView):
@@ -85,7 +50,7 @@ class AssetUploadInitiateView(APIView):
                 sha256=payload.get('sha256', ''),
             )
         except AssetError as exc:
-            return _error_response(exc)
+            return asset_error_response(exc)
 
         data = InitiateUploadResponseSerializer(result).data
         http_status = status.HTTP_200_OK if result.dedup else status.HTTP_201_CREATED
@@ -116,7 +81,42 @@ class AssetUploadStatusView(APIView):
                 asset_id=asset_id,
             )
         except AssetError as exc:
-            return _error_response(exc)
+            return asset_error_response(exc)
+
+        data = UploadStatusResponseSerializer(asset).data
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class AssetUploadCommitView(APIView):
+    permission_classes = (IsAuthenticated,)
+    upload_api = None
+
+    def _get_upload_api(self):
+        return self.upload_api or build_upload_api()
+
+    @extend_schema(
+        summary='Синхронно подтвердить загрузку',
+        description='Вызывается фронтом после успешной загрузки файла в S3.',
+        tags=['Assets'],
+        request=None,
+        responses={
+            200: UploadStatusResponseSerializer,
+            400: AssetErrorResponseSerializer,
+            401: AssetErrorResponseSerializer,
+            403: AssetErrorResponseSerializer,
+            404: AssetErrorResponseSerializer,
+            409: AssetErrorResponseSerializer,
+            503: AssetErrorResponseSerializer,
+        },
+    )
+    def post(self, request, asset_id):
+        try:
+            asset = self._get_upload_api().commit_for_user(
+                user=request.user,
+                asset_id=asset_id,
+            )
+        except AssetError as exc:
+            return asset_error_response(exc)
 
         data = UploadStatusResponseSerializer(asset).data
         return Response(data, status=status.HTTP_200_OK)

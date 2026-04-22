@@ -10,6 +10,7 @@ from ..models import (
     Question,
     Task,
     Webinar,
+    Recording,
     PublishableMixin,
 )
 from ..lesson_content import resolve_lesson_document_string, parse_content_value
@@ -146,12 +147,9 @@ class HomeworkBriefSerializer(serializers.Serializer):
 
 class LessonContentReadSerializer(serializers.Serializer):
     document = serializers.CharField()
-    recording_url = serializers.URLField(required=False, allow_blank=True)
     started_at = serializers.DateTimeField(required=False, allow_null=True)
     webinar_status = serializers.CharField(allow_null=True)
-    whiteboard_pdf_url = serializers.URLField(allow_blank=True)
-    kinescope_embed_url = serializers.URLField(required=False, allow_blank=True)
-    kinescope_upload_status = serializers.CharField(required=False)
+    recordings = serializers.ListField(child=serializers.DictField())
     homeworks = HomeworkBriefSerializer(many=True)
 
 
@@ -159,7 +157,7 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
     lesson_id = serializers.UUIDField(read_only=True)
     content = serializers.SerializerMethodField()
 
-    class Meta: 	
+    class Meta:
         model = Lesson
         fields = ('lesson_id', 'title', 'content')
 
@@ -171,37 +169,22 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
         )
 
         webinar = getattr(obj, 'webinar', None)
-        recording_url = ''
-        started_at = None
-        webinar_status = None
-        whiteboard_pdf_url = ''
+        started_at = webinar.started_at if webinar else None
+        webinar_status = webinar.status if webinar else None
 
         if webinar:
-            recording_url = webinar.recording_url or ''
-            started_at = webinar.started_at
-            webinar_status = webinar.status
-            whiteboard_pdf_url = webinar.whiteboard_pdf_url or ''
-
-        kinescope_embed_url = ''
-        kinescope_upload_status = 'none'
-
-        if webinar:
-            kinescope_upload_status = webinar.kinescope_upload_status or 'none'
-            if webinar.kinescope_video_id and webinar.kinescope_upload_status == 'ready':
-                request = self.context.get('request')
-                if request and request.user.is_authenticated:
-                    from .utils.kinescope_utils import generate_drm_token
-                    drm_token = generate_drm_token(user_id=request.user.pk, video_id=webinar.kinescope_video_id)
-                    kinescope_embed_url = f'https://kinescope.io/embed/{webinar.kinescope_video_id}?drmauthtoken={drm_token}'
+            recordings_qs = webinar.recordings.filter(is_deleted=False).order_by('-started_at')
+            recordings_data = RecordingListItemSerializer(
+                recordings_qs, many=True, context=self.context,
+            ).data
+        else:
+            recordings_data = []
 
         return {
             'document': obj.document or '',
-            'recording_url': recording_url,
             'started_at': started_at,
             'webinar_status': webinar_status,
-            'whiteboard_pdf_url': whiteboard_pdf_url,
-            'kinescope_embed_url': kinescope_embed_url,
-            'kinescope_upload_status': kinescope_upload_status,
+            'recordings': recordings_data,
             'homeworks': [
                 {
                     'homework_id': h.homework_id,
@@ -551,18 +534,13 @@ class WebinarSerializer(serializers.ModelSerializer):
         fields = [
             'webinar_id', 'lesson', 'status',
             'started_by', 'started_at', 'ended_at',
-            'recording_url',
-            'kinescope_video_id', 'kinescope_upload_status',
         ]
         read_only_fields = [
-            'webinar_id', 'started_by', 'started_at',
-            'ended_at', 'recording_url',
-            'kinescope_video_id', 'kinescope_upload_status',
+            'webinar_id', 'started_by', 'started_at', 'ended_at',
         ]
 
 
 class UserWebinarListItemSerializer(serializers.Serializer):
-
     course_title = serializers.CharField()
     course_slug = serializers.CharField()
     lesson_title = serializers.CharField()
@@ -581,3 +559,29 @@ class WebinarTokenSerializer(serializers.Serializer):
     whiteboard_room_token = serializers.CharField()
     whiteboard_region = serializers.CharField()
     role = serializers.CharField()
+
+
+class RecordingListItemSerializer(serializers.ModelSerializer):
+    kinescope_embed_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Recording
+        fields = (
+            'recording_id',
+            'started_at',
+            'ended_at',
+            'status',
+            'kinescope_upload_status',
+            'kinescope_embed_url',
+            'whiteboard_pdf_url',
+        )
+
+    def get_kinescope_embed_url(self, obj):
+        if obj.kinescope_upload_status != 'ready' or not obj.kinescope_video_id:
+            return ''
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return ''
+        from .utils.kinescope_utils import generate_drm_token
+        drm_token = generate_drm_token(user_id=request.user.pk, video_id=obj.kinescope_video_id)
+        return f'https://kinescope.io/embed/{obj.kinescope_video_id}?drmauthtoken={drm_token}'

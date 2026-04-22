@@ -111,9 +111,19 @@ urlpatterns = [
         name='webinar-recording-start',
     ),
     path(
-        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/whiteboard-pdf/',
-        views.WebinarWhiteboardPdfView.as_view(),
-        name='webinar-whiteboard-pdf',
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/recording/stop/',
+        views.WebinarRecordingStopView.as_view(),
+        name='webinar-recording-stop'
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/recordings/<uuid:recording_id>/pdf/',
+        views.RecordingPdfView.as_view(),
+        name='recording-pdf',
+    ),
+    path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/recordings/<uuid:recording_id>/',
+        views.RecordingDeleteView.as_view(),
+        name='recording-delete'
     ),
     path(
         'kinescope/drm-auth/',

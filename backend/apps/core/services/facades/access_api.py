@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 
-from ...models import AssetStatus, AssetUsage
+from ...models import AssetStatus, AssetUsage, MediaAsset
 
 
 class AccessApi:
@@ -17,16 +17,30 @@ class AccessApi:
         )
 
     def resolve_many_for_viewer(self, asset_ids, viewer=None, ttl_seconds=300):
+        ids = [str(x).lower() for x in (asset_ids or []) if x]
+        if not ids:
+            return {}
+
+        assets = MediaAsset.objects.filter(
+            asset_id__in=ids,
+            status=AssetStatus.READY,
+        )
+        by_id = {str(a.asset_id).lower(): a for a in assets}
+
         result = {}
-        for asset_id in asset_ids:
+        for asset_id in ids:
+            asset = by_id.get(asset_id)
+            if asset is None:
+                result[asset_id] = None
+                continue
             try:
-                result[str(asset_id)] = self.resolve_for_viewer(
-                    asset_id,
+                result[asset_id] = self._service.resolve_asset_url(
+                    asset,
                     viewer=viewer,
                     ttl_seconds=ttl_seconds,
                 )
             except Exception:
-                result[str(asset_id)] = None
+                result[asset_id] = None
         return result
 
     def get_bound_asset(self, content_object, role):

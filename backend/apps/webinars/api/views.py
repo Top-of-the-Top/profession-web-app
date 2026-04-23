@@ -460,13 +460,15 @@ class KinescopeDRMAuthView(APIView):
             return Response(status=status.HTTP_403_FORBIDDEN)
         
         try:
-            webinar = Webinar.objects.select_related('lesson__section__course').get(kinescope_video_id=video_id)
-        except Webinar.DoesNotExist:
+            recording = Recording.objects.select_related(
+                'webinar__lesson__section__course'
+            ).get(kinescope_video_id=video_id, is_deleted=False)
+        except Recording.DoesNotExist:
             return Response(status=status.HTTP_403_FORBIDDEN)
-        
+
         try:
             user = User.objects.get(pk=user_id)
-            course = webinar.lesson.section.course
+            course = recording.webinar.lesson.section.course
             if user.is_enrolled(course) or course.authors.filter(pk=user.pk).exists():
                 return Response(status=status.HTTP_200_OK)
         except User.DoesNotExist:

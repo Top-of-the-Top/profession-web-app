@@ -433,7 +433,7 @@ class RecoverPasswordView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         user.set_password(password)
-        user.reset_token = None
+        user.reset_token = ''
         user.reset_token_expires = None
         user.save(update_fields=['password', 'reset_token', 'reset_token_expires'])
 

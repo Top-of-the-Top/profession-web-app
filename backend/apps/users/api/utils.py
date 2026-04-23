@@ -16,6 +16,8 @@ from .errors import VerificationError
 from .constants import MSG_CODE_NOT_FOUND, MSG_CODE_EXPIRED, MSG_CODE_INVALID, MSG_TOO_MANY_ATTEMPTS
 import secrets
 import hmac
+import logging
+logger = logging.getLogger(__name__)
 
 MAX_VERIFY_ATTEMPTS = 5
 
@@ -89,7 +91,8 @@ def decrypt_data(cipher_text: str) -> str:
         decrypted = unpad(cipher.decrypt(encrypted), AES.block_size)
 
         return decrypted.decode('utf-8')
-    except Exception:
+    except (ValueError, TypeError, KeyError) as exc:
+        logger.warning("decrypt_data failed: %s", exc)
         return ''
 
 def generate_verification_code_for_user(user_id, contact_type, new_contact):
@@ -162,6 +165,7 @@ def send_verification_email(email, code):
         return True, "Письмо отправлено"
     
     except Exception as e:
+        logger.exception("send_verification_email failed for %s", email)
         return False, f"Ошибка отправки: {str(e)}"
 
 
@@ -176,6 +180,7 @@ def send_verification_sms(phone_number, code):
         return True, "СМС отправлено"
 
     except Exception as e:
+        logger.exception("send_verification_sms failed for %s", phone_number)
         return False, f"Ошибка отправки СМС: {str(e)}"
 
 
@@ -191,6 +196,7 @@ def send_reset_password_email(email, recover_url):
         return True, "Письмо отправлено"
     
     except Exception as e:
+        logger.exception("send_reset_password_email failed for %s", email)
         return False, f"Ошибка отправки: {str(e)}"
 
 
@@ -206,6 +212,7 @@ def send_reset_password_sms(phone_number, reset_code):
         return True, "СМС отправлено"
     
     except Exception as e:
+        logger.exception("send_reset_password_sms failed for %s", phone_number)
         return False, f"Ошибка отправки СМС: {str(e)}"
     
 

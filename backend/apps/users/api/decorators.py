@@ -2,32 +2,35 @@ from functools import wraps
 from rest_framework.response import Response
 from rest_framework import status
 from apps.courses.models import Course
-
+from .constants import (
+    MSG_REQUEST_UNRESOLVED,
+    MSG_AUTH_REQUIRED,
+    MSG_COURSE_NOT_FOUND,
+)
 
 def _extract_request(args):
     if not args:
         return None
     if (hasattr(args[0], 'user')):
         request = args[0]
-    else :
+    else:
         request = args[1]
 
     return request
 
 
 def require_moderator(view_func):
-
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         request = _extract_request(args)
         if request is None:
             return Response(
-                {'detail': 'Не удалось определить запрос'},
+                {'detail': MSG_REQUEST_UNRESOLVED},
                 status=status.HTTP_400_BAD_REQUEST
             )
         if not request.user or not request.user.is_authenticated:
             return Response(
-                {'detail': 'Требуется аутентификация'},
+                {'detail': MSG_AUTH_REQUIRED},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -41,19 +44,43 @@ def require_moderator(view_func):
     return wrapper
 
 
-def require_course_author(view_func):
+def _get_course_or_error(kwargs):
+    course_slug = kwargs.get('course_slug') or kwargs.get('slug') or kwargs.get('pk')
+    if course_slug:
+        try:
+            return Course.objects.get(slug=course_slug), None
+        except Course.DoesNotExist:
+            return None, Response(
+                {'detail': MSG_COURSE_NOT_FOUND},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+    course_id = kwargs.get('course_id')
+    if course_id:
+        try:
+            return Course.objects.get(course_id=course_id), None
+        except Course.DoesNotExist:
+            return None, Response(
+                {'detail': MSG_COURSE_NOT_FOUND},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+    return None, Response(
+        {'detail': 'Не указан ID или slug курса'},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
 
+
+def require_course_author(view_func):
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         request = _extract_request(args)
         if request is None:
             return Response(
-                {'detail': 'Не удалось определить запрос'},
+                {'detail': MSG_REQUEST_UNRESOLVED},
                 status=status.HTTP_400_BAD_REQUEST
             )
         if not request.user or not request.user.is_authenticated:
             return Response(
-                {'detail': 'Требуется аутентификация'},
+                {'detail': MSG_AUTH_REQUIRED},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -66,40 +93,19 @@ def require_course_author(view_func):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        course_slug = kwargs.get('course_slug') or kwargs.get('slug') or kwargs.get('pk')
-
-        if not course_slug:
-            course_id = kwargs.get('course_id')
-            if course_id:
-                try:
-                    course = Course.objects.get(course_id=course_id)
-                except Course.DoesNotExist:
-                    return Response(
-                        {'detail': 'Курс не найден'},
-                        status=status.HTTP_404_NOT_FOUND
-                    )
-            else:
-                return Response(
-                    {'detail': 'Не указан ID или slug курса'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        else:
-            try:
-                course = Course.objects.get(slug=course_slug)
-            except Course.DoesNotExist:
-                return Response(
-                    {'detail': 'Курс не найден'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+        course, error = _get_course_or_error(kwargs)
+        if error is not None:
+            return error
 
         if not request.user.is_course_author(course):
             return Response(
                 {'detail': 'Доступ запрещен. Требуется роль автора курса'},
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         return view_func(*args, **kwargs)
     return wrapper
+
 
 def require_course_enrollment(view_func):
     @wraps(view_func)
@@ -107,12 +113,12 @@ def require_course_enrollment(view_func):
         request = _extract_request(args)
         if request is None:
             return Response(
-                {'detail': 'Не удалось определить запрос'},
+                {'detail': MSG_REQUEST_UNRESOLVED},
                 status=status.HTTP_400_BAD_REQUEST
             )
         if not request.user or not request.user.is_authenticated:
             return Response(
-                {'detail': 'Требуется аутентификация'},
+                {'detail': MSG_AUTH_REQUIRED},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -141,7 +147,7 @@ def require_course_enrollment(view_func):
 
         except Course.DoesNotExist:
             return Response(
-                {'detail': 'Курс не найден'},
+                {'detail': MSG_COURSE_NOT_FOUND},
                 status=status.HTTP_404_NOT_FOUND
             )
 

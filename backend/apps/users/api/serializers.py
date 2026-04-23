@@ -150,13 +150,11 @@ class UpdateProfileSerializer(serializers.Serializer):
     phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     gender = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     birthday = serializers.DateField(required=False, allow_null=True)
-    avatar = serializers.ImageField(required=False, allow_null=True)
 
     def validate(self, attrs):
         email = (attrs.get('email') or '').strip()
         phone = (attrs.get('phone_number') or '').strip()
         gender = (attrs.get('gender') or '').strip()
-        avatar = attrs.get('avatar')
         user = self.context.get('user')
 
         if email:
@@ -182,11 +180,6 @@ class UpdateProfileSerializer(serializers.Serializer):
         if gender and gender not in ('Мужской', 'Женский'):
             raise serializers.ValidationError(
                 {'gender': 'Допустимые значения: Мужской, Женский'}
-            )
-
-        if avatar and avatar.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError(
-                {'avatar': 'Размер файла не должен превышать 5 МБ'}
             )
 
         return attrs

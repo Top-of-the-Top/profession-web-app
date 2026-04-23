@@ -604,8 +604,6 @@ class ProfileView(APIView):
             profile.gender = data['gender']
         if 'birthday' in data:
             profile.birthday = data['birthday']
-        if 'avatar' in data:
-            profile.avatar = data['avatar']
         profile.save()
 
         return Response(

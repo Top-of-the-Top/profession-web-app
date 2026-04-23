@@ -81,6 +81,15 @@ INTENT_POLICIES = {
         'default_visibility': 'public',
         'default_role': 'user_avatar',
     },
+    'webinar_whiteboard': {
+        'backend': 's3',
+        'max_size': 50 * MB,
+        'mime_allowlist': (
+            'application/pdf',
+        ),
+        'default_visibility': 'course_paid',
+        'default_role': 'whiteboard_pdf',
+    },
 }
 
 
@@ -106,6 +115,10 @@ BIND_POLICIES = {
         'allowed_backends': ('kinescope',),
     },
     'user_avatar': {
+        'max_usages_per_target': 1,
+        'allowed_backends': ('s3',),
+    },
+    'whiteboard_pdf': {
         'max_usages_per_target': 1,
         'allowed_backends': ('s3',),
     },

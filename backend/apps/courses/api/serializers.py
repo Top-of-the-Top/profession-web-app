@@ -54,7 +54,7 @@ class CourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Course
-        fields = '__all__'
+        exclude = ('image',)
         read_only_fields = ('course_id', 'created_at', 'updated_at', 'last_modified_by')
 
     @extend_schema_field(OpenApiTypes.URI)

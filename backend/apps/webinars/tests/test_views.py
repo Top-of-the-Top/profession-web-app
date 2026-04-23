@@ -539,8 +539,8 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     @patch('apps.webinars.api.views.os.getenv', return_value='test-bucket')
-    @patch('django.core.files.storage.default_storage.save', return_value='whiteboards/recording_x.pdf')
-    @patch('img2pdf.convert', return_value=b'%PDF-1.4 fake')
+    @patch('apps.webinars.api.views.default_storage.save', return_value='whiteboards/recording_x.pdf')
+    @patch('apps.webinars.api.views.img2pdf.convert', return_value=b'%PDF-1.4 fake')
     def test_post_with_screenshots_saves_pdf(self, mock_convert, mock_save, mock_env):
         from django.core.files.uploadedfile import SimpleUploadedFile
 

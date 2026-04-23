@@ -13,6 +13,7 @@ from ..models import (
     Homework,
 )
 from .serializers import (
+    COURSE_COVER_CONTEXT_KEY,
     CourseDTOSerializer,
     CourseSerializer,
     CourseCoverBindRequestSerializer,
@@ -613,7 +614,7 @@ class LessonDetailView(APIView):
                 get_lesson_or_404(
                     course_slug, lesson_slug, include_drafts=vis.include_drafts
                 ),
-                context={'request': request, 'include_drafts': vis.include_drafts},
+                context={'include_drafts': vis.include_drafts},
             ).data,
         )
 

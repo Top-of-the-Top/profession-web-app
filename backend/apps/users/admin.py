@@ -17,7 +17,7 @@ class UserAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('profile_id', 'user', 'avatar', 'birthday', 'gender')
+    list_display = ('profile_id', 'user', 'avatar_url', 'birthday', 'gender')
     search_fields = (
         'user__email_cipher',
         'user__phone_cipher',

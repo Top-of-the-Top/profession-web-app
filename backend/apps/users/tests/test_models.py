@@ -232,7 +232,7 @@ class ProfileModelTest(TestCase):
 
         self.assertIsNone(profile.birthday)
         self.assertEqual(profile.gender, '')
-        self.assertIsNotNone(profile.avatar)
+        self.assertEqual(profile.avatar_url, '')
 
     def test_profile_gender_choices(self):
         profile = Profile.objects.create(

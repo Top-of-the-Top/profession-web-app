@@ -29,6 +29,7 @@ django-sms
 requests
 agora-token-builder==1.0.0
 img2pdf>=0.5
+django-orbit>=0.8
 openai
 django-celery-beat
 channels==4.0.0

@@ -14,6 +14,9 @@ from ..models import (
 from .serializers import (
     CourseDTOSerializer,
     CourseSerializer,
+    CourseCoverBindRequestSerializer,
+    CourseCoverResponseSerializer,
+    PurchasedCourseSerializer,
     CourseListResponseSerializer,
     LessonSerializer,
     LessonSimpleCreateSerializer,
@@ -31,7 +34,7 @@ from apps.core.api.responses import asset_error_response
 from apps.core.services.errors import AssetError
 from apps.core.services.factory import build_access_api, build_binding_api
 from .utils.agora_utils import (
-    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room, generate_whiteboard_room_token,
+    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room, generate_whiteboard_room_token, 
     recording_acquire, recording_start, recording_start_web, recording_stop, recording_stop_web,
     verify_recorder_token, make_recorder_token,ban_whiteboard_room, ROLE_PUBLISHER, ROLE_SUBSCRIBER,
 )
@@ -47,6 +50,7 @@ from .utils.cache_utils import (
     course_detail_cache_key,
     course_list_cache_key,
     homework_detail_cache_key,
+    invalidate_on_course_model_change,
     landing_courses_cache_key,
     lesson_detail_cache_key,
     my_schedule_cache_key,

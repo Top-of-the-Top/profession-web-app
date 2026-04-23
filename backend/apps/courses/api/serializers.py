@@ -20,13 +20,30 @@ from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 
 
-def _resolve_course_cover_url(course, access=None):
+COURSE_COVER_CONTEXT_KEY = 'cover_url_by_course_id'
+
+
+def _resolve_course_cover_url(course, context=None, access=None):
+    context = context or {}
+    cover_map = context.get(COURSE_COVER_CONTEXT_KEY)
+    if cover_map is not None:
+        url = cover_map.get(str(course.course_id))
+        return url or course.image_url
+
     access = access or build_access_api()
     try:
         url = access.resolve_bound_url(course, role='course_cover')
     except Exception:
         url = None
     return url or course.image_url
+
+
+def build_course_cover_map(courses, access=None):
+    access = access or build_access_api()
+    try:
+        return access.resolve_bound_urls_map(courses, role='course_cover')
+    except Exception:
+        return {}
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -42,7 +59,7 @@ class CourseSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.URI)
     def get_image_url(self, obj):
-        return _resolve_course_cover_url(obj)
+        return _resolve_course_cover_url(obj, self.context)
 
 
 class CourseDTOSerializer(serializers.ModelSerializer):
@@ -61,7 +78,7 @@ class CourseDTOSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.URI)
     def get_image_url(self, obj):
-        return _resolve_course_cover_url(obj)
+        return _resolve_course_cover_url(obj, self.context)
 
 
 class CourseCoverBindRequestSerializer(serializers.Serializer):

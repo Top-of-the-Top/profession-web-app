@@ -1,6 +1,6 @@
 import os
 from django.core.management.base import BaseCommand
-from apps.courses.api.utils.kinescope_utils import setup_drm_auth
+from apps.webinars.api.utils.kinescope_utils import setup_drm_auth
 
 
 class Command(BaseCommand):

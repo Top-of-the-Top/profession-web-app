@@ -3,8 +3,9 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 from .models import Attempt, QuestionAnswer, TaskAnswer
-from apps.core.models import Attachment
-from django.contrib.contenttypes.models import ContentType
+
+from apps.core.services.errors import AssetError
+from apps.core.services.factory import build_binding_api
 
 class HomeworkServiceError(Exception):
     code = 'HOMEWORK_ERROR'
@@ -46,20 +47,11 @@ class StorageUnavailable(HomeworkServiceError):
     message = 'Не удалось связаться с облачным хранилищем.'
 
 @dataclass(frozen=True)
-class AttachmentData:
-    attachment_id: str
-    file_name: str
-    file_url: str
-    file_size: int
-    file_extension: str
-
-
-@dataclass(frozen=True)
 class SubmitItem:
     type: str
     target_id: str
     user_answer: str
-    attachments: list[AttachmentData]
+    asset_ids: list
 
 
 class AutocheckService:
@@ -139,22 +131,12 @@ class AttemptService:
         ])
 
     def _normalize_item(self, item):
-        attachments = []
-
-        for a in item.get('file_attachments', []):
-            attachments.append(AttachmentData(
-                attachment_id=a['attachment_id'], 
-                file_name=a["file_name"], 
-                file_url=a["file_url"], 
-                file_size=a["file_size"], 
-                file_extension=a["file_extension"], 
-            ))
-
+        asset_ids = [str(x) for x in (item.get('asset_ids') or []) if x]
         return SubmitItem(
             type=item['type'],
             target_id=str(item['id']),
             user_answer=item.get('user_answer') or '',
-            attachments=attachments,
+            asset_ids=asset_ids,
         )
 
     def _apply_items(self, attempt, items):
@@ -166,6 +148,7 @@ class AttemptService:
         for ta in attempt.task_answers.all():
             task_by_id[str(ta.task_id)] = ta
 
+        binding = build_binding_api()
 
         for item in items:
             if item.type == "question":
@@ -181,27 +164,21 @@ class AttemptService:
                     raise AttemptItemNotFound(
                         details={'type': 'task', 'id': item.target_id},
                     )
-                
+
                 TaskAnswer.objects.filter(pk=ta.pk).update(user_answer=item.user_answer)
 
-                if item.attachments:
-                    
-                    task_ct = ContentType.objects.get_for_model(ta)
-                    
-                    attachment_objs = []
-                    for a in item.attachments:
-                        attachment_objs.append(Attachment(
-                            attachment_id=a.attachment_id,
-                            content_type=task_ct,
-                            object_id=ta.pk,
-                            url=a.file_url,
-                            name=a.file_name,
-                            size=a.file_size,
-                            file_extension=a.file_extension,
-                            uploader=attempt.user
-                        ))
-                    
-                    Attachment.objects.bulk_create(attachment_objs)
+                try:
+                    binding.sync_many(
+                        content_object=ta,
+                        role='task_attachment',
+                        asset_ids=item.asset_ids,
+                        owner=attempt.user,
+                    )
+                except AssetError as e:
+                    raise AttemptValidationError(
+                        message=e.message,
+                        details={'type': 'task', 'id': item.target_id, **e.details},
+                    ) from e
 
     def _calculate_grade(self, attempt):
         correct_points = (

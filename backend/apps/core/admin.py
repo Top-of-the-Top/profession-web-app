@@ -1,14 +1,6 @@
 from django.contrib import admin
 
-from .models import Attachment, AssetUsage, MediaAsset
-
-
-@admin.register(Attachment)
-class AttachmentAdmin(admin.ModelAdmin):
-    list_display = ('attachment_id', 'name', 'size', 'file_extension', 'uploader', 'created_at')
-    search_fields = ('name', 'url')
-    list_filter = ('file_extension', 'created_at')
-    readonly_fields = ('attachment_id', 'created_at')
+from .models import AssetUsage, MediaAsset
 
 
 @admin.register(MediaAsset)

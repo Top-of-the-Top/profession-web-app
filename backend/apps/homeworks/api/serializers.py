@@ -1,18 +1,56 @@
 from rest_framework import serializers
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema_field
 
-from ..models import Attempt
+from apps.core.services.factory import build_access_api
+
+from ..models import Attempt, QuestionAnswer, TaskAnswer
 
 
 NOT_REVIEWED_LABEL = 'не проверено'
+TASK_ATTACHMENT_CONTEXT_KEY = 'task_attachments_by_answer_id'
 
 
 class FileAttachmentSerializer(serializers.Serializer):
     attachment_id = serializers.UUIDField()
     file_name = serializers.CharField(max_length=255)
-    file_url = serializers.URLField()
+    file_url = serializers.URLField(allow_null=True)
     file_size = serializers.IntegerField(min_value=0)
     file_extension = serializers.CharField(max_length=16)
+
+
+def _derive_extension(filename, mime_type):
+    if filename and '.' in filename:
+        return filename.rsplit('.', 1)[-1].lower()[:16]
+    if mime_type and '/' in mime_type:
+        return mime_type.split('/')[-1].lower()[:16]
+    return ''
+
+
+def build_task_attachments_map(task_answers, viewer=None, access=None):
+    access = access or build_access_api()
+    try:
+        raw_map = access.resolve_bound_assets_map(
+            task_answers, role='task_attachment', viewer=viewer,
+        )
+    except Exception:
+        raw_map = {}
+
+    result = {}
+    for answer_id, items in raw_map.items():
+        serialized = []
+        for item in items:
+            asset = item['asset']
+            serialized.append({
+                'attachment_id': str(asset.asset_id),
+                'file_name': asset.original_filename or '',
+                'file_url': item['url'],
+                'file_size': asset.size_bytes or 0,
+                'file_extension': _derive_extension(
+                    asset.original_filename, asset.mime_type,
+                ),
+            })
+        result[str(answer_id)] = serialized
+    return result
 
 
 class QuestionAttemptItemSerializer(serializers.Serializer):
@@ -60,7 +98,14 @@ class TaskAttemptItemSerializer(serializers.Serializer):
 
     @extend_schema_field(FileAttachmentSerializer(many=True))
     def get_file_attachments(self, obj):
-        return []
+        mapping = self.context.get(TASK_ATTACHMENT_CONTEXT_KEY)
+        if mapping is not None:
+            return mapping.get(str(obj.answer_id), [])
+
+        request = self.context.get('request')
+        viewer = getattr(request, 'user', None) if request is not None else None
+        fallback = build_task_attachments_map([obj], viewer=viewer)
+        return fallback.get(str(obj.answer_id), [])
 
 
 class AttemptSerializer(serializers.ModelSerializer):
@@ -104,15 +149,24 @@ class AttemptSerializer(serializers.ModelSerializer):
         many=True,
     ))
     def get_items(self, obj):
+        task_answers = list(obj.task_answers.select_related('task').all())
+
+        request = self.context.get('request')
+        viewer = getattr(request, 'user', None) if request is not None else None
+        ctx = dict(self.context)
+        ctx[TASK_ATTACHMENT_CONTEXT_KEY] = build_task_attachments_map(
+            task_answers, viewer=viewer,
+        )
+
         question_items = QuestionAttemptItemSerializer(
             obj.question_answers.select_related('question').all(),
             many=True,
-            context=self.context,
+            context=ctx,
         ).data
         task_items = TaskAttemptItemSerializer(
-            obj.task_answers.select_related('task').all(),
+            task_answers,
             many=True,
-            context=self.context,
+            context=ctx,
         ).data
 
         items = list(question_items) + list(task_items)
@@ -162,7 +216,11 @@ class SubmitTaskItemSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     number = serializers.IntegerField(min_value=1)
     user_answer = serializers.CharField(allow_null=True, allow_blank=True, required=False)
-    file_attachments = FileAttachmentSerializer(many=True, required=False, default=list)
+    asset_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+    )
 
 
 @extend_schema_field(PolymorphicProxySerializer(

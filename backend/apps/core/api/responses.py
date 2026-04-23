@@ -25,15 +25,3 @@ ASSET_ERROR_STATUS_MAP = {
     AssetPermissionDenied: status.HTTP_403_FORBIDDEN,
     AssetStorageUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
 }
-
-
-def asset_error_response(exc, http_status=None):
-    payload = {
-        'status': 'error',
-        'code': exc.code,
-        'message': exc.message,
-        'details': exc.details or {},
-    }
-    if http_status is None:
-        http_status = ASSET_ERROR_STATUS_MAP.get(type(exc), status.HTTP_400_BAD_REQUEST)
-    return Response(payload, status=http_status)

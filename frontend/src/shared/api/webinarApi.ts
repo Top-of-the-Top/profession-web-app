@@ -1,5 +1,7 @@
 import { apiClient } from './interceptor';
 
+export type WebinarRole = 'teacher' | 'student' | 'recorder';
+
 export interface WebinarJoinResponse {
   rtc_token: string;
   agora_app_id: string;
@@ -9,7 +11,7 @@ export interface WebinarJoinResponse {
   whiteboard_room_uuid: string;
   whiteboard_room_token: string;
   whiteboard_region: string;
-  role: 'teacher' | 'student';
+  role: WebinarRole;
 }
 
 export interface WebinarStartResponse {
@@ -40,10 +42,30 @@ export const webinarApi = {
     );
   },
 
-  startRecording(courseSlug: string, lessonSlug: string): Promise<WebinarDetailResponse> {
+  startRecording(
+    courseSlug: string,
+    lessonSlug: string,
+  ): Promise<WebinarDetailResponse> {
     return apiClient.request<WebinarDetailResponse>(
       `${webinarBase(courseSlug, lessonSlug)}/recording/start/`,
       { method: 'POST' },
+    );
+  },
+
+  whiteboardPdf(
+    courseSlug: string,
+    lessonSlug: string,
+    screenshots: Blob[],
+  ): Promise<WebinarDetailResponse> {
+    const fd = new FormData();
+    screenshots.forEach((blob, index) => {
+      const name = `scene-${index + 1}.png`;
+      fd.append('screenshots', blob, name);
+    });
+
+    return apiClient.request<WebinarDetailResponse>(
+      `${webinarBase(courseSlug, lessonSlug)}/whiteboard-pdf/`,
+      { method: 'POST', body: fd },
     );
   },
 
@@ -51,6 +73,18 @@ export const webinarApi = {
     return apiClient.request<WebinarDetailResponse>(
       `${webinarBase(courseSlug, lessonSlug)}/stop/`,
       { method: 'POST' },
+    );
+  },
+
+  recorderJoin(
+    courseSlug: string,
+    lessonSlug: string,
+    token: string,
+  ): Promise<WebinarJoinResponse> {
+    const qs = `?token=${encodeURIComponent(token)}`;
+    return apiClient.request<WebinarJoinResponse>(
+      `${webinarBase(courseSlug, lessonSlug)}/recorder-join/${qs}`,
+      { method: 'GET', skipAuth: true },
     );
   },
 };

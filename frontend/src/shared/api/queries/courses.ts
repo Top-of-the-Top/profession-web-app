@@ -51,6 +51,12 @@ export function useLessonBySlug(
     queryKey: courseKeys.lesson(courseSlug!, lessonSlug!),
     queryFn: () => courseApi.getLessonBySlug(courseSlug!, lessonSlug!),
     enabled: !!courseSlug && !!lessonSlug,
+    refetchInterval: (query) => {
+      const s = query.state.data?.kinescope_upload_status;
+      return s === 'pending' || s === 'uploading' || s === 'processing'
+        ? 10_000
+        : false;
+    },
   });
 }
 

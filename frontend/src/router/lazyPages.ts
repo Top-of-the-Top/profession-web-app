@@ -20,6 +20,7 @@ const importMap = {
   cart: () => import('@pages/cart/Cart'),
   lessonPreview: () => import('@pages/lessonPreview/ui/LessonPreviewPage'),
   webinar: () => import('@pages/webinar/ui/WebinarPage'),
+  webinarRecord: () => import('@pages/webinarRecord/ui/WebinarRecordPage'),
 };
 
 export const LandingPage = lazy(importMap.landing);
@@ -41,6 +42,7 @@ export const LessonEditPage = lazy(importMap.lessonEdit);
 export const CartPage = lazy(importMap.cart);
 export const LessonPreviewPage = lazy(importMap.lessonPreview);
 export const WebinarPage = lazy(importMap.webinar);
+export const WebinarRecordPage = lazy(importMap.webinarRecord);
 
 export function preloadAppCore() {
   void importMap.appLayout();

@@ -26,7 +26,9 @@ export type ApiFailureScene =
   | 'webinarStart'
   | 'webinarJoin'
   | 'webinarRecording'
-  | 'webinarStop';
+  | 'webinarWhiteboardPdf'
+  | 'webinarStop'
+  | 'webinarRecorderJoin';
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -294,9 +296,17 @@ const SCENE_FALLBACK: Record<ApiFailureScene, UserFacingMessage> = {
     title: 'не удалось начать запись',
     description: 'Повторите попытку.',
   },
+  webinarWhiteboardPdf: {
+    title: 'не удалось сохранить доску',
+    description: 'Повторите попытку.',
+  },
   webinarStop: {
     title: 'не удалось завершить вебинар',
     description: 'Повторите попытку.',
+  },
+  webinarRecorderJoin: {
+    title: 'нет доступа к записи',
+    description: 'Проверьте ссылку записи.',
   },
 };
 
@@ -489,6 +499,20 @@ const SCENE_STATUS_FALLBACK: Partial<
       description: 'Вебинар не найден или уже завершён.',
     },
   },
+  webinarWhiteboardPdf: {
+    400: {
+      title: 'нет скриншотов',
+      description: 'Доска пуста или не удалось снять скриншоты.',
+    },
+    403: {
+      title: 'нет доступа',
+      description: 'Только автор курса или модератор может сохранить доску.',
+    },
+    404: {
+      title: 'вебинар не найден',
+      description: 'Вебинар уже завершён или не был запущен.',
+    },
+  },
   webinarStop: {
     403: {
       title: 'нет доступа',
@@ -497,6 +521,20 @@ const SCENE_STATUS_FALLBACK: Partial<
     404: {
       title: 'вебинар не найден',
       description: 'Вебинар уже завершён или не был запущен.',
+    },
+  },
+  webinarRecorderJoin: {
+    400: {
+      title: 'нет токена',
+      description: 'Ссылка на запись некорректна.',
+    },
+    403: {
+      title: 'ссылка недействительна',
+      description: 'Токен записи невалидный или истёк.',
+    },
+    404: {
+      title: 'вебинар не найден',
+      description: 'Проверьте ссылку.',
     },
   },
 };
@@ -658,7 +696,9 @@ export function resolveApiFailureMessage(
     case 'webinarStart':
     case 'webinarJoin':
     case 'webinarRecording':
-    case 'webinarStop': {
+    case 'webinarWhiteboardPdf':
+    case 'webinarStop':
+    case 'webinarRecorderJoin': {
       if (status === 401) mapped = messageFromAuthDetail(body);
       break;
     }

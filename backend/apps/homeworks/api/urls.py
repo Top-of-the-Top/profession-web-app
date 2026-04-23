@@ -31,7 +31,7 @@ urlpatterns = [
 
 urlpatterns += [
   path(
-    'app/homeworks/attempts/',
+    'homeworks/attempts/',
     HomeworkAttemptListView.as_view(),
     name='attempts-list',
   ),

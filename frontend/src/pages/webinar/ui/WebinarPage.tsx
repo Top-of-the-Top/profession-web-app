@@ -1,14 +1,20 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, PageFrame, Spinner } from '@shared/ui';
 import { useWebinarJoin } from '@shared/api/queries/webinar';
-import { useStartRecording, useStopWebinar } from '@shared/api/mutations/webinar';
+import {
+  useStartRecording,
+  useStopWebinar,
+  useWhiteboardPdf,
+} from '@shared/api/mutations/webinar';
 import {
   VideoGrid,
   WhiteboardPanel,
   WebinarControls,
   useMediaControls,
+  type WhiteboardPanelHandle,
 } from '../../../features/webinar';
+import { notifyError, notifyWarning } from '@shared/lib/sileo/notify';
 import styles from './WebinarPage.module.css';
 
 export default function WebinarPage() {
@@ -24,8 +30,12 @@ export default function WebinarPage() {
   const { micOn, cameraOn, toggleMic, toggleCamera } = useMediaControls();
 
   const [isRecording, setIsRecording] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
+
+  const whiteboardRef = useRef<WhiteboardPanelHandle>(null);
 
   const startRecording = useStartRecording(courseSlug ?? '', lessonSlug ?? '');
+  const whiteboardPdf = useWhiteboardPdf(courseSlug ?? '', lessonSlug ?? '');
   const stopWebinar = useStopWebinar(courseSlug ?? '', lessonSlug ?? '');
 
   const isTeacher = session?.role === 'teacher';
@@ -40,13 +50,33 @@ export default function WebinarPage() {
     navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
   }, [navigate, courseSlug, lessonSlug]);
 
-  const handleStop = useCallback(() => {
-    stopWebinar.mutate(undefined, {
-      onSuccess: () => {
-        navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
-      },
-    });
-  }, [stopWebinar, navigate, courseSlug, lessonSlug]);
+  const handleStop = useCallback(async () => {
+    if (!whiteboardRef.current) {
+      notifyError({
+        title: 'доска не готова',
+        description: 'Подождите, пока доска загрузится, и попробуйте снова.',
+      });
+      return;
+    }
+
+    setIsFinishing(true);
+    try {
+      const screenshots = await whiteboardRef.current.captureSceneScreenshots();
+      if (screenshots.length > 0) {
+        await whiteboardPdf.mutateAsync(screenshots);
+      } else {
+        notifyWarning({
+          title: 'доска не сохранена',
+          description: 'Не удалось снять скриншоты. Вебинар будет завершён без PDF доски.',
+        });
+      }
+      await stopWebinar.mutateAsync();
+      navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
+    } catch {
+    } finally {
+      setIsFinishing(false);
+    }
+  }, [whiteboardPdf, stopWebinar, navigate, courseSlug, lessonSlug]);
 
   if (isLoading) {
     return (
@@ -81,6 +111,7 @@ export default function WebinarPage() {
       <div className={styles.body}>
         <div className={styles.whiteboardArea}>
           <WhiteboardPanel
+            ref={whiteboardRef}
             appIdentifier={session.whiteboard_app_id}
             roomUUID={session.whiteboard_room_uuid}
             roomToken={session.whiteboard_room_token}
@@ -108,12 +139,14 @@ export default function WebinarPage() {
         isTeacher={isTeacher}
         isRecording={isRecording}
         recordingPending={startRecording.isPending}
-        stopPending={stopWebinar.isPending}
+        stopPending={
+          isFinishing || whiteboardPdf.isPending || stopWebinar.isPending
+        }
         onToggleMic={toggleMic}
         onToggleCamera={toggleCamera}
         onStartRecording={handleStartRecording}
         onLeave={handleLeave}
-        onStop={handleStop}
+        onStop={() => void handleStop()}
       />
     </PageFrame>
   );

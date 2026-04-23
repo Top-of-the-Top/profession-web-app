@@ -19,7 +19,10 @@ def lesson_queryset_for_course(course_slug, include_drafts=False):
             section__type=Section.PUBLISHED_STATUS,
             section__course__type=Course.PUBLISHED_STATUS,
         )
-    return qs.prefetch_related(Prefetch('homework_set', queryset=hw_qs)).order_by('lesson_number')
+    return qs.prefetch_related(
+        Prefetch('homework_set', queryset=hw_qs),
+        'webinar__recordings',
+    ).order_by('lesson_number')
 
 
 def homework_queryset_for_lesson(course_slug, lesson_slug, include_drafts=False):

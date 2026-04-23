@@ -15,7 +15,7 @@ urlpatterns = [
     path('auth/reset/', ResetPasswordView.as_view(), name='reset'),
     path('auth/recover/set/', RecoverPasswordView.as_view(), name='recover_set'),
     path('auth/recover/phone/', RecoverPasswordPhoneView.as_view(), name='recover-phone'),
-    path('app/profile/', ProfileView.as_view(), name='profile'),
-    path('app/profile/verify-email/', VerifyEmailChangeView.as_view(), name='verify-email'),
-    path('app/profile/verify-phone/', VerifyPhoneChangeView.as_view(), name='verify-phone'),
+    path('profile/', ProfileView.as_view(), name='profile'),
+    path('profile/verify-email/', VerifyEmailChangeView.as_view(), name='verify-email'),
+    path('profile/verify-phone/', VerifyPhoneChangeView.as_view(), name='verify-phone'),
 ]

@@ -10,27 +10,27 @@ urlpatterns = [
         name='course-list-preview',
     ),
     path(
-        'app/my-courses/',
+        'my-courses/',
         views.PurchasedCoursesView.as_view(),
         name='my-courses',
     ),
     path(
-        'app/my-schedule/',
+        'my-schedule/',
         views.MyScheduleView.as_view(),
         name='my-schedule',
     ),
     path(
-        'app/courses/<slug:course_slug>/home/',
+        'courses/<slug:course_slug>/home/',
         views.CourseHomePageView.as_view(),
         name='course-homepage',
     ),
     path(
-        'app/courses/', 
+        'courses/', 
         views.CourseListView.as_view(),
         name='courses-list'
     ),
     path(
-        'app/courses/<slug:slug>/',
+        'courses/<slug:slug>/',
         views.CourseDetailView.as_view(),
         name='courses-detail',
     ),
@@ -83,41 +83,5 @@ urlpatterns = [
         'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/<slug:homework_slug>/',
         views.HomeworkDetailView.as_view(),
         name='lesson-homeworks-detail',
-    ),
-
-    path(
-        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/start/',
-        views.WebinarStartView.as_view(),
-        name='webinar-start',
-    ),
-    path(
-        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/stop/',
-        views.WebinarStopView.as_view(),
-        name='webinar-stop',
-    ),
-    path(
-        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/join/',
-        views.WebinarJoinView.as_view(),
-        name='webinar-join',
-    ),
-    path(
-        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/recorder-join/',
-        views.WebinarRecorderJoinView.as_view(),
-        name='webinar-recorder-join',
-    ),
-    path(
-        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/recording/start/',
-        views.WebinarRecordingStartView.as_view(),
-        name='webinar-recording-start',
-    ),
-    path(
-        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/whiteboard-pdf/',
-        views.WebinarWhiteboardPdfView.as_view(),
-        name='webinar-whiteboard-pdf',
-    ),
-    path(
-        'kinescope/drm-auth/',
-        views.KinescopeDRMAuthView.as_view(),
-        name='kinescope-drm-auth',
     ),
 ]

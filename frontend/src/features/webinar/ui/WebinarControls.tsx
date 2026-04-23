@@ -62,10 +62,10 @@ export function WebinarControls({
       )}
 
       {isTeacher && isRecording && (
-        <button type="button" className={styles.btn} disabled>
+        <span className={styles.recordingBadge}>
           <span className={styles.recordingDot} />
           Запись идёт
-        </button>
+        </span>
       )}
 
       <div className={styles.spacer} />
@@ -78,7 +78,11 @@ export function WebinarControls({
           disabled={stopPending}
         >
           <PhoneOff size={18} />
-          {stopPending ? 'Завершение...' : 'Завершить вебинар'}
+          {stopPending
+            ? 'Завершение...'
+            : isRecording
+              ? 'Завершить запись'
+              : 'Завершить вебинар'}
         </button>
       ) : (
         <button

@@ -15,7 +15,8 @@ from ..api.views import (
     CourseListView,
     PurchasedCoursesView,
 )
-from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse, Webinar
+from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
+from apps.webinars.models import Webinar
 from apps.users.models import User
 from apps.users.api.utils import encrypt_data, get_tokens_for_user
 from apps.payments.models import Payment
@@ -308,7 +309,8 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Lesson 1')
         self.assertEqual(str(response.data['lesson_id']), str(self.lesson.lesson_id))
-        self.assertIn('recording_url', response.data['content'])
+        self.assertIn('recordings', response.data['content'])
+        self.assertIn('webinar_status', response.data['content'])
         self.assertIn('started_at', response.data['content'])
         self.assertIn('homeworks', response.data['content'])
         self.assertIn('document', response.data['content'])

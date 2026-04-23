@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'apps.notifications.apps.NotificationsConfig',
     'sms',
     'apps.homeworks.apps.HomeworksConfig',
+    'apps.webinars.apps.WebinarsConfig',
 ]
 
 USE_S3 = os.environ.get('USE_S3', 'False') == 'True'
@@ -235,7 +236,7 @@ else:
 
 CELERY_BEAT_SCHEDULE = {
     'check-idle-webinars': {
-        'task': 'apps.courses.tasks.check_idle_webinars',
+        'task': 'apps.webinars.tasks.check_idle_webinars',
         'schedule': 60.0,
     },
 }

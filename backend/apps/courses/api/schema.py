@@ -1,5 +1,3 @@
-"""Общие схемы ответов об ошибках для OpenAPI (drf-spectacular)."""
-
 SCHEMA_DETAIL = {
     "type": "object",
     "properties": {"detail": {"type": "string"}},

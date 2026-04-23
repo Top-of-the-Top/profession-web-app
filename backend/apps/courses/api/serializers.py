@@ -11,7 +11,7 @@ from ..models import (
     Task,
     PublishableMixin,
 )
-from ..lesson_content import resolve_lesson_document_string, parse_content_value
+from ..lesson_content import extract_asset_ids, parse_content_value, substitute_asset_uris
 from django.db.models import Prefetch
 from apps.users.models import User
 from apps.core.services.factory import build_access_api

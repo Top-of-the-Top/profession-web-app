@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from ..services.policies import INTENT_POLICIES
+from ..meta_management.policies import INTENT_POLICIES
 
 
 INTENT_CHOICES = tuple(INTENT_POLICIES.keys())

@@ -27,9 +27,9 @@ import os
 import img2pdf
 import logging
 
-from apps.core.services.factory import build_upload_api, build_binding_api, build_access_api
-from apps.core.api.responses import asset_error_response
-from apps.core.services.errors import AssetError
+from apps.core.meta_management.factory import build_upload_api, build_binding_api, build_access_api
+from apps.core.processors.error_processor import process_error_response
+from apps.core.meta_management.errors import AssetError
 
 logger = logging.getLogger(__name__)
 
@@ -661,7 +661,7 @@ class RecordingPdfView(APIView):
                 owner=None,
             )
         except AssetError as exc:
-            return asset_error_response(exc)
+            return process_error_response(exc)
 
         if recording.whiteboard_pdf_url:
             recording.whiteboard_pdf_url = ''
@@ -693,7 +693,7 @@ class RecordingPdfView(APIView):
                 owner=None,
             )
         except AssetError as exc:
-            return asset_error_response(exc)
+            return process_error_response(exc)
 
         if recording.whiteboard_pdf_url:
             recording.whiteboard_pdf_url = ''

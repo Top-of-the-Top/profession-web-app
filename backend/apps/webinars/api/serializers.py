@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.core.services.factory import build_access_api
+from apps.core.meta_management.factory import build_access_api
 
 from ..models import Webinar, Recording
 

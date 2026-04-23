@@ -5,11 +5,11 @@ class HomeworkServiceError(Exception):
     message = 'Ошибка обработки домашнего задания.'
     status = status.HTTP_400_BAD_REQUEST
 
-    def __init__(self, status, message, details=None):
-        super().__init__(message)
+    def __init__(self, status=None, message=None, details=None):
+        super().__init__(message or self.message)
         self.message = message or self.message
         self.details = details or {}
-        self.status = status
+        self.status = status or self.status
 
 
 class AttemptAlreadySubmitted(HomeworkServiceError):

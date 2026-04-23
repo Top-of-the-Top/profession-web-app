@@ -4,9 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..services.errors import AssetError
-from ..services.factory import build_upload_api
-from .responses import asset_error_response
+from ..meta_management.errors import AssetError
+from ..meta_management.factory import build_upload_api
+from ..processors.error_processor import process_error_response
 from .serializers import (
     AssetErrorResponseSerializer,
     InitiateUploadRequestSerializer,
@@ -50,7 +50,7 @@ class AssetUploadInitiateView(APIView):
                 sha256=payload.get('sha256', ''),
             )
         except AssetError as exc:
-            return asset_error_response(exc)
+            return process_error_response(exc)
 
         data = InitiateUploadResponseSerializer(result).data
         http_status = status.HTTP_200_OK if result.dedup else status.HTTP_201_CREATED
@@ -81,7 +81,7 @@ class AssetUploadStatusView(APIView):
                 asset_id=asset_id,
             )
         except AssetError as exc:
-            return asset_error_response(exc)
+            return process_error_response(exc)
 
         data = UploadStatusResponseSerializer(asset).data
         return Response(data, status=status.HTTP_200_OK)
@@ -116,7 +116,7 @@ class AssetUploadCommitView(APIView):
                 asset_id=asset_id,
             )
         except AssetError as exc:
-            return asset_error_response(exc)
+            return process_error_response(exc)
 
         data = UploadStatusResponseSerializer(asset).data
         return Response(data, status=status.HTTP_200_OK)

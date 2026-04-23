@@ -15,7 +15,7 @@ POLL_MAX_MESSAGES = 10
 
 
 def _get_worker_api():
-    from .services.factory import build_worker_api
+    from .factory import build_worker_api
     return build_worker_api()
 
 

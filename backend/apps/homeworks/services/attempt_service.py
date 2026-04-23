@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from apps.core.services.factory import build_binding_api
+from apps.core.meta_management.factory import build_binding_api
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 from ..models import Attempt, QuestionAnswer, TaskAnswer
 from apps.homeworks.services.autocheck_service import AutocheckService
-from apps.core.services.errors import AssetError
+from apps.core.meta_management.errors import AssetError
 
 from apps.homeworks.services.errors import (
     AttemptAlreadySubmitted, 

@@ -14,8 +14,8 @@ from ..models import (
 from ..lesson_content import extract_asset_ids, parse_content_value, substitute_asset_uris
 from django.db.models import Prefetch
 from apps.users.models import User
-from apps.core.services.factory import build_access_api
-from apps.core.services.errors import AssetError
+from apps.core.meta_management.factory import build_access_api
+from apps.core.meta_management.errors import AssetError
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
@@ -374,7 +374,7 @@ class LessonCreateSerializer(serializers.Serializer):
         return section
 
     def _sync_lesson_assets(self, lesson, document_str):
-        from apps.core.services.factory import build_binding_api
+        from apps.core.meta_management.factory import build_binding_api
 
         asset_ids = extract_asset_ids(document_str)
         binding = build_binding_api()

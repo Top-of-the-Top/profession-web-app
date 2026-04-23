@@ -17,7 +17,7 @@ from .errors import VerificationError
 from ..models import User, Profile
 from .constants import (
     MSG_CONTACT_REQUIRED,
-    MSG_RATE_LIMITED,
+    MSG_RATE_LIMITED, 
     MSG_USER_NOT_FOUND,
     MSG_EMAIL_ALREADY_EXISTS,
     MSG_PHONE_ALREADY_EXISTS,
@@ -155,13 +155,13 @@ class RegisterView(APIView):
 
             return Response(
                 {'status': 'code_sent', 'detail': 'Код подтверждения отправлен на телефон.'},
-                status=status.HTTP_200_OK,
+                status = status.HTTP_200_OK,
             )
         if email:
             serializer = EmailRegisterSerializer(data=request.data)
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
-
+            
             email_value = serializer.validated_data['email']
             password = serializer.validated_data['password']
 
@@ -180,9 +180,9 @@ class RegisterView(APIView):
 
             return Response(
                 {'status': 'code_sent', 'detail': 'Код подтверждения отправлен на почту.'},
-                status=status.HTTP_200_OK,
+                status = status.HTTP_200_OK,
             )
-
+        
 
 class VerifyRegisterView(APIView):
     permission_classes = []
@@ -204,11 +204,12 @@ class VerifyRegisterView(APIView):
             },
         },
     )
+
     def post(self, request):
         serializer = VerifyRegisterSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+       
         phone = (serializer.validated_data.get('phone_number') or '').strip()
         email = (serializer.validated_data.get('email') or '').strip()
         user_code = serializer.validated_data['code']
@@ -227,7 +228,7 @@ class VerifyRegisterView(APIView):
                 {'error': e.code, 'detail': e.message},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+        
         if reg_data['contact_type'] == 'phone':
             phone_cipher = encrypt_data(reg_data['contact'])
             user = User.objects.create_user(phone_cipher=phone_cipher)
@@ -276,7 +277,7 @@ class LoginView(APIView):
                     },
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
-
+        
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
             if contact:
@@ -289,7 +290,7 @@ class LoginView(APIView):
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        
         if contact:
             cache.delete(attempts_key)
 
@@ -426,6 +427,7 @@ class RecoverPasswordView(APIView):
             403: {"description": "Токен отсутствует, невалиден или истёк.", "schema": SCHEMA_403},
         },
     )
+
     def patch(self, request):
         token = request.data.get('token')
         password = request.data.get('password_hash')
@@ -482,14 +484,15 @@ class RecoverPasswordPhoneView(APIView):
             },
         },
     )
+
     def post(self, request):
         serializer = RecoverPasswordPhoneSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        
         phone_number = serializer.validated_data['phone_number'].strip()
         user_code = serializer.validated_data['code']
-
+        
         phone_cipher = encrypt_data(phone_number)
         user = User.objects.filter(phone_cipher=phone_cipher).first()
         if not user:
@@ -509,7 +512,7 @@ class RecoverPasswordPhoneView(APIView):
                 {'error': e.code, 'detail': e.message},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+        
         token = set_reset_token(user)
         return Response({'token': token}, status=status.HTTP_200_OK)
 
@@ -547,8 +550,7 @@ class ProfileView(APIView):
         tags=["Users"],
         request=UpdateProfileSerializer,
         responses={
-            200: {"description": "Профиль обновлён.",
-                  "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
+            200: {"description": "Профиль обновлён.", "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
             400: {"description": "Ошибка валидации.", "schema": SCHEMA_VALIDATION_ERROR},
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
         },
@@ -586,7 +588,7 @@ class ProfileView(APIView):
                     },
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
-
+            
             code = generate_verification_code_for_user(
                 user_id=user.id,
                 contact_type='phone',
@@ -662,7 +664,7 @@ class VerifyEmailChangeView(APIView):
                 {'detail': MSG_EMAIL_ALREADY_EXISTS},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        
         request.user.email_cipher = new_cipher
         try:
             request.user.save(update_fields=['email_cipher'])
@@ -673,7 +675,6 @@ class VerifyEmailChangeView(APIView):
             )
 
         return Response({'status': 'success'}, status=status.HTTP_200_OK)
-
 
 class VerifyPhoneChangeView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -725,7 +726,7 @@ class VerifyPhoneChangeView(APIView):
                 {'detail': MSG_PHONE_ALREADY_EXISTS},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        
         request.user.phone_cipher = new_cipher
         try:
             request.user.save(update_fields=['phone_cipher'])

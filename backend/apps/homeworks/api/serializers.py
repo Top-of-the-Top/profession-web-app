@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema_field
 
-from apps.core.services.factory import build_access_api
+from apps.core.meta_management.factory import build_access_api
 
 from ..models import Attempt
 

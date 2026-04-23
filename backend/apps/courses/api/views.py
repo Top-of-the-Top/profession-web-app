@@ -12,6 +12,7 @@ from ..models import (
     Question,
 )
 from .serializers import (
+    COURSE_COVER_CONTEXT_KEY,
     CourseDTOSerializer,
     CourseSerializer,
     CourseCoverBindRequestSerializer,
@@ -29,6 +30,7 @@ from .serializers import (
     TaskSerializer,
     QuestionSerializer,
     UserWebinarListItemSerializer,
+    build_course_cover_map,
 )
 from apps.core.api.responses import asset_error_response
 from apps.core.services.errors import AssetError
@@ -532,7 +534,7 @@ class LessonDetailView(APIView):
                 get_lesson_or_404(
                     course_slug, lesson_slug, include_drafts=vis.include_drafts
                 ),
-                context={'request': request, 'include_drafts': vis.include_drafts},
+                context={'include_drafts': vis.include_drafts},
             ).data,
         )
 

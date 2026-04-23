@@ -64,6 +64,19 @@ MIDDLEWARE = [
     'crum.CurrentRequestUserMiddleware',
 ]
 
+if DEBUG:
+    INSTALLED_APPS += ['orbit']
+    MIDDLEWARE = ['orbit.middleware.OrbitMiddleware'] + MIDDLEWARE
+
+    ORBIT_CONFIG = {
+        'ENABLED': True,
+        'SLOW_QUERY_THRESHOLD_MS': 200,
+        'STORAGE_LIMIT': 2000,
+        'AUTH_CHECK': lambda request: True,
+        'IGNORE_PATHS': ['/orbit/', '/static/', '/media/', '/api/schema/'],
+        'WATCHER_FAIL_SILENTLY': True,
+    }
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',

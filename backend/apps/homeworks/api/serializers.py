@@ -3,7 +3,7 @@ from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema_fiel
 
 from apps.core.services.factory import build_access_api
 
-from ..models import Attempt, QuestionAnswer, TaskAnswer
+from ..models import Attempt
 
 
 NOT_REVIEWED_LABEL = 'не проверено'

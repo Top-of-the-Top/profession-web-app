@@ -12,15 +12,10 @@ from apps.courses.models import Homework
 from apps.homeworks.models import Attempt
 
 from ..services import (
-    AttemptAlreadySubmitted,
-    AttemptItemNotFound,
-    AttemptPayloadMismatch,
     AttemptService,
-    AttemptValidationError,
     HomeworkServiceError,
-    StorageUnavailable,
-    UploadFileTooLarge,
 )
+
 from .serializers import (
     AttemptSerializer,
     AttemptSubmitSerializer,
@@ -36,27 +31,15 @@ HOMEWORK_SLUG_PARAM = OpenApiParameter(
     required=True,
 )
 
-
-SERVICE_ERROR_STATUS_MAP = {
-    AttemptAlreadySubmitted: status.HTTP_409_CONFLICT,
-    AttemptItemNotFound: status.HTTP_400_BAD_REQUEST,
-    AttemptPayloadMismatch: status.HTTP_400_BAD_REQUEST,
-    AttemptValidationError: status.HTTP_400_BAD_REQUEST,
-    UploadFileTooLarge: status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-    StorageUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
-}
-
-
-def _error_response(exc, http_status=None):
+def _error_response(exc):
     payload = {
         'status': 'error',
         'code': exc.code,
         'message': exc.message,
         'details': exc.details or {},
     }
-    if http_status is None:
-        http_status = SERVICE_ERROR_STATUS_MAP.get(type(exc), status.HTTP_400_BAD_REQUEST)
-    return Response(payload, status=http_status)
+
+    return Response(payload, status=exc.status)
 
 
 class HomeworkAttemptView(APIView):

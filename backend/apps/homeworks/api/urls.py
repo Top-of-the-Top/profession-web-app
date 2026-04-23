@@ -7,9 +7,7 @@ from .views import (
     UploadFileAttachmentView
 )
 
-
 app_name = 'homeworks'
-
 
 urlpatterns = [
     path(

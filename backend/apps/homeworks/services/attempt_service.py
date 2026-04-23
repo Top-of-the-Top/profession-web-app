@@ -1,50 +1,18 @@
 from dataclasses import dataclass
+from apps.core.services.factory import build_binding_api
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
-from .models import Attempt, QuestionAnswer, TaskAnswer
-
+from ..models import Attempt, QuestionAnswer, TaskAnswer
+from apps.homeworks.services.autocheck_service import AutocheckService
 from apps.core.services.errors import AssetError
-from apps.core.services.factory import build_binding_api
 
-class HomeworkServiceError(Exception):
-    code = 'HOMEWORK_ERROR'
-    message = 'Ошибка обработки домашнего задания.'
-
-    def __init__(self, message=None, *, details=None):
-        super().__init__(message or self.message)
-        self.message = message or self.message
-        self.details = details or {}
-
-
-class AttemptAlreadySubmitted(HomeworkServiceError):
-    code = 'ATTEMPT_ALREADY_SUBMITTED'
-    message = 'Попытка уже отправлена на проверку.'
-
-
-class AttemptItemNotFound(HomeworkServiceError):
-    code = 'ATTEMPT_ITEM_NOT_FOUND'
-    message = 'Элемент не принадлежит текущей попытке.'
-
-
-class AttemptPayloadMismatch(HomeworkServiceError):
-    code = 'ATTEMPT_PAYLOAD_MISMATCH'
-    message = 'Переданный attempt_id не совпадает с текущей попыткой.'
-
-
-class AttemptValidationError(HomeworkServiceError):
-    code = 'VALIDATION_ERROR'
-    message = 'Ошибка в данных запроса.'
-
-
-class UploadFileTooLarge(HomeworkServiceError):
-    code = 'FILE_TOO_LARGE'
-    message = 'Файл больше 10 МБ.'
-
-
-class StorageUnavailable(HomeworkServiceError):
-    code = 'STORAGE_ERROR'
-    message = 'Не удалось связаться с облачным хранилищем.'
+from apps.homeworks.services.errors import (
+    AttemptAlreadySubmitted, 
+    AttemptPayloadMismatch, 
+    AttemptValidationError, 
+    AttemptItemNotFound
+)
 
 @dataclass(frozen=True)
 class SubmitItem:
@@ -52,25 +20,6 @@ class SubmitItem:
     target_id: str
     user_answer: str
     asset_ids: list
-
-
-class AutocheckService:
-
-    def run(self, attempt):
-        question_answers = attempt.question_answers.select_related('question')
-
-        for qa in question_answers:
-            is_correct = bool(qa.user_answer) and qa.user_answer == qa.question.correct_ans
-            new_status = (
-                QuestionAnswer.CORRECT_STATUS
-                if is_correct
-                else QuestionAnswer.INCORRECT_STATUS
-            )
-            QuestionAnswer.objects.filter(pk=qa.pk).update(
-                status=new_status,
-                is_correct=is_correct,
-            )
-
 
 class AttemptService:
     def __init__(self, autocheck_service=None):

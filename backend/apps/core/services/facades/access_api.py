@@ -114,5 +114,43 @@ class AccessApi:
 
         return result
 
+    def resolve_bound_assets_map(self, content_objects, role, viewer=None, ttl_seconds=300):
+        objects = [o for o in (content_objects or []) if o is not None and o.pk is not None]
+        if not objects:
+            return {}
+
+        content_type = ContentType.objects.get_for_model(type(objects[0]))
+        object_ids = [str(o.pk) for o in objects]
+
+        usages = (
+            AssetUsage.objects
+            .filter(
+                content_type=content_type,
+                object_id__in=object_ids,
+                role=role,
+            )
+            .select_related('asset')
+            .order_by('created_at')
+        )
+
+        result = {key: [] for key in object_ids}
+        for usage in usages:
+            asset = usage.asset
+            if asset.status != AssetStatus.READY:
+                continue
+            try:
+                url = self._service.resolve_asset_url(
+                    asset,
+                    viewer=viewer,
+                    ttl_seconds=ttl_seconds,
+                )
+            except Exception:
+                url = None
+            result.setdefault(str(usage.object_id), []).append({
+                'asset': asset,
+                'url': url,
+            })
+        return result
+
     def register_external(self, owner, url, intent):
         return self._service.register_external_asset(owner=owner, url=url, intent=intent)

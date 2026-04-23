@@ -5,6 +5,8 @@ from django.utils import timezone
 from datetime import timedelta
 from project.celery import app as celery_app
 import hashlib
+import logging
+logger = logging.getLogger(__name__)
 
 from apps.notifications.tasks import (
     send_course_notification,
@@ -24,6 +26,12 @@ from .models import (
     Question,
     PurchasedCourse
 )
+REMINDER_CONFIGS = [
+    ('24h', timedelta(days=1), 'До дедлайна осталось 24 часа'),
+    ('1h', timedelta(hours=1), 'До дедлайна остался 1 час'),
+]
+
+
 @receiver(pre_save, sender=Course)
 def handle_course_image_update(sender, instance, **kwargs):
     if not instance.pk: return
@@ -69,9 +77,11 @@ def course_notification_signal(sender, instance, created, **kwargs):
         send_course_notification.delay(*notification)
         send_mass_course_email.delay(*notification)
 
+
 def get_reminder_task_id_for_homework(homework_id, reminder_type, task_type):
     unique_key = f"homework_{homework_id}_reminder_{reminder_type}_{task_type}"
     return str(int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15))
+
 
 @receiver(pre_save, sender=Homework)
 def track_homework_changes(sender, instance, **kwargs):
@@ -84,6 +94,7 @@ def track_homework_changes(sender, instance, **kwargs):
         instance._old_deadline = old.deadline
     except Homework.DoesNotExist:
         pass
+
 
 @receiver(post_save, sender=Homework)
 def homework_notification(sender, instance, created, **kwargs):
@@ -124,15 +135,11 @@ def handle_deadline_reminders(sender, instance, created, **kwargs):
     course = instance.lesson.section.course
     now = timezone.now()
 
-    reminder_configs = [
-        ('24h', timedelta(days=1), 'До дедлайна осталось 24 часа'),
-        ('1h', timedelta(hours=1), 'До дедлайна остался 1 час'),
-    ]
     deadline_changed = getattr(instance, '_deadline_changed', False)
     old_deadline = getattr(instance, '_old_deadline', None)
 
     if created or (deadline_changed and old_deadline):
-        for r_type, delta, base_message in reminder_configs:
+        for r_type, delta, base_message in REMINDER_CONFIGS:
             eta = instance.deadline - delta
 
             if eta > now:
@@ -159,53 +166,39 @@ def handle_deadline_reminders(sender, instance, created, **kwargs):
                 )
 
 
-        return
-
 @receiver(pre_save, sender=Homework)
 def handle_pre_deadline_update(sender, instance, **kwargs):
-    reminder_configs = [
-        ('24h', timedelta(days=1), 'До дедлайна осталось 24 часа'),
-        ('1h', timedelta(hours=1), 'До дедлайна остался 1 час'),
-    ]
-
     deadline_changed = getattr(instance, '_deadline_changed', False)
     old_deadline = getattr(instance, '_old_deadline', None)
 
     if deadline_changed and old_deadline :
-        for r_type, _, _ in reminder_configs:
+        for r_type, _, _ in REMINDER_CONFIGS:
             notif_task_id = get_reminder_task_id_for_homework(instance.pk, r_type, 'notification')
             email_task_id = get_reminder_task_id_for_homework(instance.pk, r_type, 'email')
 
             try:
                 celery_app.control.revoke(notif_task_id, terminate=True)
                 celery_app.control.revoke(email_task_id, terminate=True)
-            except Exception:
-                pass
-        return
+            except Exception as exc:
+                logger.warning("celery revoke failed for homework=%s: %s", instance.pk, exc)
+
+
 @receiver(pre_delete, sender=Homework)
 def handle_pre_deadline_delete(sender, instance, **kwargs):
-
-    reminder_configs = [
-        ('24h', timedelta(days=1), 'До дедлайна осталось 24 часа'),
-        ('1h', timedelta(hours=1), 'До дедлайна остался 1 час'),
-    ]
-
-    for r_type, _, _ in reminder_configs:
+    for r_type, _, _ in REMINDER_CONFIGS:
         notif_task_id = get_reminder_task_id_for_homework(instance.pk, r_type, 'notification')
         email_task_id = get_reminder_task_id_for_homework(instance.pk, r_type, 'email')
 
         try:
             celery_app.control.revoke(notif_task_id, terminate=True)
             celery_app.control.revoke(email_task_id, terminate=True)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("celery revoke failed for homework=%s: %s", instance.pk, exc)
 
-    return
 
 def get_reminder_task_id_for_lesson(lesson_id, reminder_type, task_type):
     unique_key = f"lesson_{lesson_id}_reminder_{reminder_type}_{task_type}"
     return str(int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15))
-
 
 
 from .api.utils.cache_utils import (

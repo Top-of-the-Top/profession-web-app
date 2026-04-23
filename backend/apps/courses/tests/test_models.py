@@ -1,5 +1,5 @@
 from django.test import TestCase
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
@@ -117,45 +117,39 @@ class BaseTestCase(TestCase):
 class GenerateUniqueSlugTest(BaseTestCase):
 
     def test_slug_generation_from_title(self):
-        mock_instance = Mock()
-        slug = generate_unique_slug(mock_instance, 'Python для начинающих')
+        slug = generate_unique_slug('Python для начинающих')
 
         self.assertIn('python', slug)
         self.assertIn('-', slug)
 
     def test_slug_generation_with_empty_title(self):
-        mock_instance = Mock()
-        slug = generate_unique_slug(mock_instance, '')
+        slug = generate_unique_slug('')
 
         self.assertIn('title', slug)
         self.assertIn('-', slug)
 
     def test_slug_generation_with_non_ascii_title(self):
-        mock_instance = Mock()
-        slug = generate_unique_slug(mock_instance, '中文标题')
+        slug = generate_unique_slug('中文标题')
 
         self.assertIsNotNone(slug)
         self.assertIn('-', slug)
 
     def test_slug_has_uuid_part(self):
-        mock_instance = Mock()
-        slug = generate_unique_slug(mock_instance, 'Test Title')
+        slug = generate_unique_slug('Test Title')
 
         parts = slug.split('-')
         self.assertGreater(len(parts), 1)
         self.assertEqual(len(parts[-1]), 8)
 
     def test_slug_uniqueness_for_same_title(self):
-        mock_instance = Mock()
-        slug1 = generate_unique_slug(mock_instance, 'Same Title')
-        slug2 = generate_unique_slug(mock_instance, 'Same Title')
+        slug1 = generate_unique_slug('Same Title')
+        slug2 = generate_unique_slug('Same Title')
 
         self.assertNotEqual(slug1, slug2)
 
     def test_slug_truncates_long_title(self):
-        mock_instance = Mock()
         long_title = 'A' * 100
-        slug = generate_unique_slug(mock_instance, long_title)
+        slug = generate_unique_slug(long_title)
 
         self.assertLessEqual(len(slug), 89)
 

@@ -45,3 +45,9 @@ class KinescopeBackend(StorageBackend):
             message='Kinescope backend ещё не реализован.',
             details={'stage': 'stream_read'},
         )
+
+    def put_object(self, storage_key, body, mime_type=''):
+        raise AssetStorageUnavailable(
+            message='Kinescope backend ещё не реализован.',
+            details={'stage': 'put_object'},
+        )

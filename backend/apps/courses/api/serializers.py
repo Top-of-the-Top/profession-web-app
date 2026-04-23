@@ -205,7 +205,11 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(LessonContentReadSerializer)
     def get_content(self, obj):
-        from apps.webinars.api.serializers import RecordingListItemSerializer
+        from apps.webinars.api.serializers import (
+            RECORDING_WHITEBOARD_CONTEXT_KEY,
+            RecordingListItemSerializer,
+            build_recording_whiteboard_map,
+        )
 
         include_drafts = self.context.get('include_drafts', False)
         hws = filter_homework_queryset_for_visibility(
@@ -217,9 +221,15 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
         webinar_status = webinar.status if webinar else None
 
         if webinar:
-            recordings_qs = webinar.recordings.filter(is_deleted=False).order_by('-started_at')
+            recordings_list = list(
+                webinar.recordings.filter(is_deleted=False).order_by('-started_at')
+            )
+            rec_context = dict(self.context)
+            rec_context[RECORDING_WHITEBOARD_CONTEXT_KEY] = build_recording_whiteboard_map(
+                recordings_list,
+            )
             recordings_data = RecordingListItemSerializer(
-                recordings_qs, many=True, context=self.context,
+                recordings_list, many=True, context=rec_context,
             ).data
         else:
             recordings_data = []

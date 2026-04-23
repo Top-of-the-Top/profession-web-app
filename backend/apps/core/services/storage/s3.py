@@ -144,3 +144,17 @@ class S3Backend(StorageBackend):
                 yield chunk
         finally:
             body.close()
+
+    def put_object(self, storage_key, body, mime_type=''):
+        params = {
+            'Bucket': self._bucket,
+            'Key': storage_key,
+            'Body': body,
+        }
+        if mime_type:
+            params['ContentType'] = mime_type
+        try:
+            self._client.put_object(**params)
+        except ClientError as e:
+            logger.error('S3 put_object failed: %s', e)
+            raise AssetStorageUnavailable()

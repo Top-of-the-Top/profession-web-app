@@ -75,7 +75,7 @@ def course_image_path(instance, filename):
     photo_uuid = uuid.uuid4()
     return f'courses/course_{photo_uuid}.{ext}'
 
-def generate_unique_slug(instance, title, slug_field='slug'):
+def generate_unique_slug(title):
     base_slug = slugify(title[:80])
     if not base_slug:
         base_slug = 'title'
@@ -120,7 +120,7 @@ class Course(AbstractComponentModel):
         is_new = self.pk is None
 
         if not self.slug:
-            self.slug = generate_unique_slug(self, self.title)
+            self.slug = generate_unique_slug(self.title)
 
         if is_new and self.image and hasattr(self.image, 'file') and self.image.name != DEFAULT_COURSE_IMAGE:
             image_file = self.image.file
@@ -156,7 +156,7 @@ class Section(AbstractComponentModel, AutoIncrementMixin):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = generate_unique_slug(self, self.title)
+            self.slug = generate_unique_slug(self.title)
 
         self._generate_next_number(parent_field='course', number_field='section_number')
 
@@ -190,7 +190,7 @@ class Lesson(AbstractComponentModel, AutoIncrementMixin):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = generate_unique_slug(self, self.title)
+            self.slug = generate_unique_slug(self.title)
         self._generate_next_number(parent_field='section', number_field='lesson_number')
 
         super().save(*args, **kwargs)
@@ -215,7 +215,7 @@ class Homework(AbstractComponentModel, AutoIncrementMixin):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = generate_unique_slug(self, self.title)
+            self.slug = generate_unique_slug(self.title)
         self._generate_next_number(parent_field='lesson', number_field='homework_number')
 
         super().save(*args, **kwargs)

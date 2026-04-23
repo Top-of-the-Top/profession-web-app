@@ -3,4 +3,4 @@ from django.contrib import admin
 
 @admin.register(Attachment)
 class AttachmentAdmin(admin.ModelAdmin):
-  pass
+    pass

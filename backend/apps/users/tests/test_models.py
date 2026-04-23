@@ -95,10 +95,10 @@ class UserModelTest(TestCase):
         )
 
         self.assertEqual(user.role, User.ROLE_STUDENT)
-        self.assertIsNone(user.reset_token)
+        self.assertEqual(user.reset_token, '')
         self.assertIsNone(user.reset_token_expires)
-        self.assertIsNone(user.first_name)
-        self.assertIsNone(user.last_name)
+        self.assertEqual(user.first_name, '')
+        self.assertEqual(user.last_name, '')
         self.assertIsNone(user.phone_cipher)
         self.assertIsNotNone(user.date_joined)
         self.assertFalse(user.is_staff)
@@ -135,7 +135,7 @@ class UserModelTest(TestCase):
             password=self.password
         )
 
-        self.assertIsNone(user.reset_token)
+        self.assertEqual(user.reset_token, '')
         self.assertIsNone(user.reset_token_expires)
 
         token = 'test_reset_token_123'
@@ -233,7 +233,7 @@ class ProfileModelTest(TestCase):
         profile = Profile.objects.create(user=self.user)
 
         self.assertIsNone(profile.birthday)
-        self.assertIsNone(profile.gender)
+        self.assertEqual(profile.gender, '')
         self.assertIsNotNone(profile.avatar)
 
     def test_profile_gender_choices(self):

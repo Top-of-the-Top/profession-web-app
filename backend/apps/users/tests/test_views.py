@@ -369,7 +369,7 @@ class RecoverPasswordViewUnitTest(SimpleTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_user.set_password.assert_called_once_with("NewStrongPass123!")
-        self.assertIsNone(mock_user.reset_token)
+        self.assertEqual(mock_user.reset_token, '')
         self.assertIsNone(mock_user.reset_token_expires)
 
 
@@ -625,7 +625,7 @@ class RecoverPasswordViewIntegrationTest(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(new_password))
 
-        self.assertIsNone(self.user.reset_token)
+        self.assertEqual(self.user.reset_token, '')
         self.assertIsNone(self.user.reset_token_expires)
 
     def test_recover_password_with_expired_token(self):

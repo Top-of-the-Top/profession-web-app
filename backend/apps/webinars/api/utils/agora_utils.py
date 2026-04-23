@@ -10,6 +10,8 @@ ROLE_SUBSCRIBER = 2 # может только получать
 NETLESS_API_BASE = "https://api.netless.link/v5"
 AGORA_RECORDING_API_BASE = "https://api.agora.io/v1/apps"
 
+JSON_CONTENT_TYPE = 'application/json'
+
 # Функции для генерации rtc токена
 def generate_rtc_token(channel_name, uid, role=ROLE_PUBLISHER):
   app_id = os.getenv('AGORA_APP_ID')
@@ -33,7 +35,7 @@ def _get_whiteboard_sdk_token():
   response = requests.post(
     f"{NETLESS_API_BASE}/tokens/teams",
     headers={
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       'region': region,
     },
     json={
@@ -54,7 +56,7 @@ def create_whiteboard_room():
     f"{NETLESS_API_BASE}/rooms",
     headers={
       'token': sdk_token,
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       'region': region,
     },
     json={
@@ -74,7 +76,7 @@ def generate_whiteboard_room_token(room_uuid, role='writer'):
     f"{NETLESS_API_BASE}/tokens/rooms/{room_uuid}",
     headers={
       'token': sdk_token,
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       'region': region,
     },
     json={
@@ -101,7 +103,7 @@ def recording_acquire(channel_name, uid, scene=0):
   response = requests.post(
     f"{AGORA_RECORDING_API_BASE}/{app_id}/cloud_recording/acquire",
     headers={
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       'Authorization': _get_recording_auth_header(),
     },
     json={
@@ -131,7 +133,7 @@ def recording_start(channel_name, uid, resource_id, token):
   response = requests.post(
     f"{AGORA_RECORDING_API_BASE}/{app_id}/cloud_recording/resourceid/{resource_id}/mode/composite/start",
     headers={
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       'Authorization': _get_recording_auth_header(),
     },
     json={
@@ -194,7 +196,7 @@ def recording_start_web(channel_name, uid, resource_id, recorder_url):
   response = requests.post(
     f"{AGORA_RECORDING_API_BASE}/{app_id}/cloud_recording/resourceid/{resource_id}/mode/web/start",
     headers={
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       'Authorization': _get_recording_auth_header(),
     },
     json={
@@ -231,7 +233,7 @@ def recording_stop(channel_name, uid, resource_id, sid):
   response = requests.post(
     f"{AGORA_RECORDING_API_BASE}/{app_id}/cloud_recording/resourceid/{resource_id}/sid/{sid}/mode/composite/stop",
     headers={
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       'Authorization': _get_recording_auth_header(),
     },
     json={
@@ -249,7 +251,7 @@ def recording_stop_web(channel_name, uid, resource_id, sid):
   response = requests.post(
     f"{AGORA_RECORDING_API_BASE}/{app_id}/cloud_recording/resourceid/{resource_id}/sid/{sid}/mode/web/stop",
     headers={
-      'Content-Type': 'application/json',
+      'Content-Type': JSON_CONTENT_TYPE,
       'Authorization': _get_recording_auth_header(),
     },
     json={
@@ -268,7 +270,7 @@ def ban_whiteboard_room(room_uuid):
         f"{NETLESS_API_BASE}/rooms/{room_uuid}",
         headers={
             'token': sdk_token,
-            'Content-Type': 'application/json',
+            'Content-Type': JSON_CONTENT_TYPE,
             'region': region,
         },
         json={'isBan': True},
@@ -282,7 +284,7 @@ def get_channel_user_count(channel_name):
     f"https://api.agora.io/dev/v1/channel/user/{app_id}/{channel_name}",
     headers={
       'Authorization': _get_recording_auth_header(),
-      'Accept': 'application/json',
+      'Accept': JSON_CONTENT_TYPE,
     },        
   )
   response.raise_for_status()

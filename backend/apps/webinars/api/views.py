@@ -16,6 +16,9 @@ from rest_framework.parsers import MultiPartParser
 from django.core.cache import caches
 from django.utils import timezone
 import os
+import img2pdf
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 import logging
 
 logger = logging.getLogger(__name__)
@@ -343,10 +346,6 @@ class RecordingPdfView(APIView):
                 {'detail': "Нет скриншотов"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        import img2pdf
-        from django.core.files.base import ContentFile
-        from django.core.files.storage import default_storage
 
         images = [f.read() for f in screenshots]
         pdf_bytes = img2pdf.convert(images)

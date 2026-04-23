@@ -10,53 +10,59 @@ S3_BASE_URL = 'https://storage.yandexcloud.net'
 
 @shared_task
 def check_idle_webinars():
-    from .models import Webinar, Recording
-    from .api.utils.agora_utils import get_channel_user_count, ban_whiteboard_room
-    from .api.views import _stop_recording
+    from .models import Webinar
     from django.core.cache import caches
-    from django.utils import timezone
 
     cache = caches['default']
-    idle_threshold = 300
-
     for webinar in Webinar.objects.filter(status=Webinar.LIVE_STATUS):
-        cache_key = f'webinar_empty_since:{webinar.webinar_id}'
+        _process_idle_webinar(webinar, cache)
 
-        try:
-            user_count = get_channel_user_count(webinar.agora_channel_name)
-        except Exception:
-            logger.exception('Не удалось запросить агору для канала %s', webinar.agora_channel_name)
-            continue
-            
-        if user_count > 0:
-            cache.delete(cache_key)
-            continue
 
-        empty_since = cache.get(cache_key)
-        if empty_since is None:
-            cache.set(cache_key, time_module.time(), timeout=300)
-            logger.info('Вебинар %s: канал пустой, начинаем отсчет', webinar.webinar_id)
-            continue
+def _process_idle_webinar(webinar, cache):
+    from .api.utils.agora_utils import get_channel_user_count, ban_whiteboard_room
+    from .api.views import _stop_recording
+    from .models import Recording
+    from django.utils import timezone
 
-        elapsed = time_module.time() - empty_since
-        if elapsed < idle_threshold:
-            continue
-        logger.info('Автоостановка вебинара %s, тк канал пуст %d секунд', webinar.webinar_id, int(elapsed))
+    IDLE_THRESHOLD = 300
+    cache_key = f'webinar_empty_since:{webinar.webinar_id}'
 
-        active = webinar.recordings.filter(status=Recording.RECORDING_STATUS).first()
-        if active:
-            _stop_recording(active)
+    try:
+        user_count = get_channel_user_count(webinar.agora_channel_name)
+    except Exception:
+        logger.exception('Не удалось запросить агору для канала %s', webinar.agora_channel_name)
+        return
 
-        if webinar.whiteboard_room_uuid:
-            try:
-                ban_whiteboard_room(webinar.whiteboard_room_uuid)
-            except Exception:
-                logger.warning('Не удалось забанить доску %s при idle-стопе', webinar.whiteboard_room_uuid)
-
-        webinar.status = 'ended'
-        webinar.ended_at = timezone.now()
-        webinar.save(update_fields=['status', 'ended_at', 'updated_at'])
+    if user_count > 0:
         cache.delete(cache_key)
+        return
+
+    empty_since = cache.get(cache_key)
+    if empty_since is None:
+        cache.set(cache_key, time_module.time(), timeout=300)
+        logger.info('Вебинар %s: канал пустой, начинаем отсчет', webinar.webinar_id)
+        return
+
+    elapsed = time_module.time() - empty_since
+    if elapsed < IDLE_THRESHOLD:
+        return
+
+    logger.info('Автоостановка вебинара %s, тк канал пуст %d секунд', webinar.webinar_id, int(elapsed))
+
+    active = webinar.recordings.filter(status=Recording.RECORDING_STATUS).first()
+    if active:
+        _stop_recording(active)
+
+    if webinar.whiteboard_room_uuid:
+        try:
+            ban_whiteboard_room(webinar.whiteboard_room_uuid)
+        except Exception:
+            logger.warning('Не удалось забанить доску %s при idle-стопе', webinar.whiteboard_room_uuid)
+
+    webinar.status = 'ended'
+    webinar.ended_at = timezone.now()
+    webinar.save(update_fields=['status', 'ended_at', 'updated_at'])
+    cache.delete(cache_key)
 
 
 @shared_task(

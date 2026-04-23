@@ -41,3 +41,9 @@ class ExternalBackend(StorageBackend):
             message='Стриминг внешних ссылок не поддерживается.',
             details={'stage': 'stream_read'},
         )
+
+    def put_object(self, storage_key, body, mime_type=''):
+        raise AssetStorageUnavailable(
+            message='External backend не поддерживает put_object.',
+            details={'stage': 'put_object'},
+        )

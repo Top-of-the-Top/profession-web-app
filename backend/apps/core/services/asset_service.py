@@ -196,6 +196,57 @@ class AssetService:
 
         return asset
 
+    def register_server_asset(self, owner, intent, filename, mime_type, body):
+        intent_policy = get_intent_policy(intent)
+        if intent_policy is None:
+            raise AssetIntentNotAllowed(details={'intent': intent})
+
+        size = len(body)
+        if size <= 0 or size > intent_policy['max_size']:
+            raise AssetPolicyViolation(
+                message='Размер файла выходит за допустимые пределы.',
+                details={'size': size, 'max_size': intent_policy['max_size']},
+            )
+
+        if intent_policy['mime_allowlist'] and mime_type not in intent_policy['mime_allowlist']:
+            raise AssetPolicyViolation(
+                message='MIME-тип не разрешён для данного назначения.',
+                details={
+                    'mime_type': mime_type,
+                    'allowed': list(intent_policy['mime_allowlist']),
+                },
+            )
+
+        backend_name = intent_policy['backend']
+        backend = self.get_backend(backend_name)
+
+        sha = hashlib.sha256(body).hexdigest()
+
+        hint = StorageKeyHint(
+            backend=backend_name,
+            intent=intent,
+            owner_id=str(owner.pk) if owner is not None else '',
+            sha256=sha,
+            filename=filename,
+        )
+        storage_key = backend.build_storage_key(hint)
+
+        backend.put_object(storage_key, body, mime_type=mime_type)
+
+        asset = MediaAsset.objects.create(
+            storage_backend=backend_name,
+            storage_key=storage_key,
+            original_filename=filename or '',
+            mime_type=mime_type or '',
+            size_bytes=size,
+            checksum_sha256=sha,
+            status=AssetStatus.READY,
+            visibility=intent_policy['default_visibility'],
+            owner=owner,
+            committed_at=timezone.now(),
+        )
+        return asset
+
     def register_external_asset(self, owner, url, intent):
         intent_policy = get_intent_policy(intent)
         if intent_policy is None:

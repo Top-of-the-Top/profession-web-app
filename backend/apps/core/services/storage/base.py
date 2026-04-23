@@ -28,3 +28,7 @@ class StorageBackend(ABC):
     @abstractmethod
     def stream_read(self, storage_key, chunk_size=1024 * 1024):
         raise NotImplementedError
+
+    @abstractmethod
+    def put_object(self, storage_key, body, mime_type=''):
+        raise NotImplementedError

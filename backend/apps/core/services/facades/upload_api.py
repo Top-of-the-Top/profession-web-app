@@ -43,6 +43,15 @@ class UploadApi:
             return asset
         return self._service.commit_asset(asset.asset_id)
 
+    def upload_server_side(self, owner, intent, filename, mime_type, body):
+        return self._service.register_server_asset(
+            owner=owner,
+            intent=intent,
+            filename=filename,
+            mime_type=mime_type,
+            body=body,
+        )
+
     def _authorize(self, user, asset_id):
         asset = self._service.get_asset(asset_id)
 

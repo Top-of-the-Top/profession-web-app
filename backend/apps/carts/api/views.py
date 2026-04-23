@@ -6,6 +6,7 @@ from drf_spectacular.utils import extend_schema
 from ...courses.models import Course
 from ..models import Cart, CartItem
 from .serializers import CartItemSerializer, CartSerializer
+from apps.courses.api.serializers import COURSE_COVER_CONTEXT_KEY, build_course_cover_map
 from django.core.cache import caches
 
 def cart_hot_cache_key(user_id):

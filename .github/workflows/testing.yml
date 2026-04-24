@@ -1,11 +1,11 @@
-name: Testing
+name: CD Testing
 
 on:
   push:
     branches: [ testing ]
 
 jobs:
-  deploy:
+  push-to-testing:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,7 +17,7 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.SSH_TESTING_PRIVATE_KEY }}
 
-    - name: Deploy to server
+    - name: Deploy to testing enviroment
       run: |
         ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "
           cd /home/shared/profession &&

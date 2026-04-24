@@ -2,8 +2,8 @@ from apps.courses.models import Course, Lesson
 from ..models import Webinar, Recording
 from .utils.agora_utils import (
     generate_rtc_token, user_uid_from_uuid, create_whiteboard_room,
-    generate_whiteboard_room_token, recording_acquire, recording_start,
-    recording_start_web, recording_stop, recording_stop_web,
+    generate_whiteboard_room_token, recording_acquire,
+    recording_start_web, recording_stop_web,
     verify_recorder_token, make_recorder_token, ban_whiteboard_room,
     ROLE_PUBLISHER, ROLE_SUBSCRIBER,
 )
@@ -13,10 +13,9 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser
-from django.core.cache import caches
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
-from .schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
+from .schema import SCHEMA_DETAIL
 from .serializers import (
     WebinarTokenSerializer,
     WebinarStartResponseSerializer,

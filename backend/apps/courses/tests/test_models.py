@@ -1,17 +1,15 @@
 from django.test import TestCase
 from unittest.mock import patch
-from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from datetime import timedelta
-import tempfile
 from django.db.utils import IntegrityError
 from apps.users.models import User
 from apps.users.api.utils.crypto_utils import encrypt_data
 from apps.payments.models import Payment
 from ..models import (
-    Course, Section, Lesson, Homework, Question, Task,
-    PurchasedCourse, DEFAULT_COURSE_IMAGE, generate_unique_slug, course_image_path
+    Course, Section, Lesson, Homework,
+    PurchasedCourse, generate_unique_slug, course_image_path
 )
 
 
@@ -83,8 +81,6 @@ class BaseTestCase(TestCase):
         'apps.courses.signals.send_personal_notification.delay',
         'apps.courses.signals.send_mass_course_email.delay',
         'apps.courses.signals.send_mass_course_email.apply_async',
-        'apps.courses.signals.send_mass_system_email.delay',
-        'apps.courses.signals.send_single_email.delay',
     ]
 
     def setUp(self):

@@ -7,8 +7,6 @@ from apps.webinars.models import Webinar
 from ..models import (
     Course,
     PurchasedCourse,
-    Lesson,
-    Homework,
     Section,
     Task,
     Question,

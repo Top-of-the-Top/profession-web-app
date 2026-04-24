@@ -1,5 +1,5 @@
-from django.db.models.signals import pre_delete, pre_save, post_save, post_delete, m2m_changed
-from django.core.cache import cache, caches
+from django.db.models.signals import pre_delete, pre_save, post_save
+from django.core.cache import caches
 from django.dispatch import receiver
 from django.utils import timezone
 from datetime import timedelta
@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 from apps.notifications.tasks import (
     send_course_notification,
     send_personal_notification,
-    send_single_email,
     send_mass_course_email,
-    send_mass_system_email
+    send_system_notification,
+    send_single_email,
+    send_mass_system_email,
 )
 
 from .models import (

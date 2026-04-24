@@ -1,4 +1,4 @@
-from django.test import TestCase, SimpleTestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 from unittest.mock import patch, MagicMock
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework import status
@@ -13,8 +13,6 @@ from apps.users.api.decorators import (
     require_course_enrollment,
 )
 from ..models import Course, PurchasedCourse
-from apps.users.models import User
-from apps.users.api.utils.crypto_utils import encrypt_data
 from apps.payments.models import Payment
 from .test_models import (
     BaseTestCase,

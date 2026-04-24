@@ -1,7 +1,6 @@
 from django.test import TestCase, SimpleTestCase
 from django.utils import timezone
 from datetime import timedelta
-from rest_framework_simplejwt.tokens import AccessToken
 import jwt
 from datetime import datetime
 from unittest.mock import MagicMock

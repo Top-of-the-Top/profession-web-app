@@ -1,5 +1,4 @@
 from django.test import TestCase, SimpleTestCase
-from rest_framework.exceptions import ValidationError
 from unittest.mock import MagicMock, patch
 from ..models import User
 from ..api.serializers import (

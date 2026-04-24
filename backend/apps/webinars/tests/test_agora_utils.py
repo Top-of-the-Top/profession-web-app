@@ -2,7 +2,6 @@ import time
 from django.test import SimpleTestCase, override_settings
 from unittest.mock import patch, MagicMock
 
-from ..api.utils import agora_utils
 from ..api.utils.agora_utils import (
     user_uid_from_uuid,
     make_recorder_token,

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema_field
 
-from ..models import Attempt, QuestionAnswer, TaskAnswer
+from ..models import Attempt
 
 
 NOT_REVIEWED_LABEL = 'не проверено'

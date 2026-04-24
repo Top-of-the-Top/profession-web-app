@@ -2,7 +2,6 @@ import time
 from django.test import SimpleTestCase, override_settings
 from unittest.mock import patch, MagicMock
 
-from ..api.utils import kinescope_utils
 from ..api.utils.kinescope_utils import (
     generate_drm_token,
     create_folder,

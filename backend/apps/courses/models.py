@@ -1,6 +1,5 @@
 from django.db import models
 import os
-from django.core.exceptions import ValidationError
 from ..users.models import User
 import uuid
 from slugify import slugify

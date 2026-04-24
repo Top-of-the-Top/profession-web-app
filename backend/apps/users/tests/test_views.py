@@ -12,7 +12,7 @@ from ..api.utils.token_utils import get_tokens_for_user, set_reset_token
 import jwt
 
 from ..models import User, Profile
-from ..api.utils.crypto_utils import encrypt_data, decrypt_data
+from ..api.utils.crypto_utils import encrypt_data
 from ..api.views import (
     LoginView,
     ProfileView,

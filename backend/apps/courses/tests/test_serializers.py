@@ -1,6 +1,5 @@
 from django.test import TestCase, SimpleTestCase, override_settings
-from unittest.mock import patch, MagicMock
-from rest_framework.exceptions import ValidationError
+from unittest.mock import patch
 import tempfile
 from django.utils import timezone
 from datetime import timedelta
@@ -14,9 +13,7 @@ from ..api.serializers import (
     HomeworkDetailSerializer,
     HomeworkItemsListSerializer,
 )
-from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
-from apps.users.models import User
-from apps.users.api.utils.crypto_utils import encrypt_data
+from ..models import Question, Task, PurchasedCourse
 from apps.payments.models import Payment
 from .test_models import (
     BaseTestCase,

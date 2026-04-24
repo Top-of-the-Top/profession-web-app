@@ -26,6 +26,20 @@ class WebinarTokenSerializer(serializers.Serializer):
     role = serializers.CharField()
 
 
+class WebinarStartResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    webinar_id = serializers.UUIDField()
+
+
+class WebinarRecordingStartResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    recording_id = serializers.UUIDField()
+
+
+class DetailResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+
+
 class RecordingListItemSerializer(serializers.ModelSerializer):
     kinescope_embed_url = serializers.SerializerMethodField()
 

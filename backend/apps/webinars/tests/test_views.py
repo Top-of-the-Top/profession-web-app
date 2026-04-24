@@ -1,14 +1,11 @@
 import base64
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from django.test import override_settings
-from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.users.api.utils import get_tokens_for_user, encrypt_data
-from apps.users.models import User
+from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.courses.models import PurchasedCourse
 from apps.payments.models import Payment
 
@@ -41,8 +38,6 @@ class ViewTestMixin:
 
 
 class WebinarEndpointsBase(BaseWebinarTestCase, ViewTestMixin):
-    """Общий setUp: курс, секция, урок, участники трёх ролей."""
-
     def setUp(self):
         super().setUp()
         self.client = APIClient()
@@ -84,8 +79,6 @@ class WebinarEndpointsBase(BaseWebinarTestCase, ViewTestMixin):
     def url_rec_delete(self, rec_id):
         return f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/recordings/{rec_id}/'
 
-
-# ---------- WebinarStartView ---------- #
 
 @patch('apps.webinars.api.views.create_whiteboard_room', return_value='room-new')
 @patch('apps.webinars.api.views.ban_whiteboard_room')
@@ -185,8 +178,6 @@ class WebinarStartViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
-# ---------- WebinarStopView ---------- #
-
 @patch('apps.webinars.api.views.ban_whiteboard_room')
 class WebinarStopViewTest(WebinarEndpointsBase):
 
@@ -244,8 +235,6 @@ class WebinarStopViewTest(WebinarEndpointsBase):
         response = self.client.post(self.url_stop())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-
-# ---------- WebinarJoinView ---------- #
 
 @patch('apps.webinars.api.views.generate_whiteboard_room_token', return_value='wb-tok')
 @patch('apps.webinars.api.views.generate_rtc_token', return_value='rtc-tok')
@@ -324,8 +313,6 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(kwargs.get('role'), 'writer')
 
 
-# ---------- WebinarRecorderJoinView ---------- #
-
 @patch('apps.webinars.api.views.generate_whiteboard_room_token', return_value='wb-tok')
 @patch('apps.webinars.api.views.generate_rtc_token', return_value='rtc-tok')
 class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
@@ -359,8 +346,6 @@ class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(response.data['rtc_token'], 'rtc-tok')
         self.assertEqual(response.data['whiteboard_room_token'], 'wb-tok')
 
-
-# ---------- WebinarRecordingStartView ---------- #
 
 @patch('apps.webinars.api.views.recording_start_web', return_value='sid-1')
 @patch('apps.webinars.api.views.recording_acquire', return_value='res-1')
@@ -410,8 +395,6 @@ class WebinarRecordingStartViewTest(WebinarEndpointsBase):
         mock_start.assert_called_once()
 
 
-# ---------- WebinarRecordingStopView ---------- #
-
 class WebinarRecordingStopViewTest(WebinarEndpointsBase):
 
     def test_student_cannot_stop_recording(self):
@@ -443,8 +426,6 @@ class WebinarRecordingStopViewTest(WebinarEndpointsBase):
         self.assertEqual(str(response.data['recording_id']), str(rec.recording_id))
         mock_stop.assert_called_once()
 
-
-# ---------- _stop_recording helper ---------- #
 
 class StopRecordingHelperTest(WebinarEndpointsBase):
 
@@ -515,8 +496,6 @@ class StopRecordingHelperTest(WebinarEndpointsBase):
         self.assertEqual(rec.status, Recording.PROCESSING_STATUS)
         mock_upload.assert_not_called()
 
-
-# ---------- RecordingPdfView ---------- #
 
 class RecordingPdfViewTest(WebinarEndpointsBase):
 
@@ -604,8 +583,6 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
-# ---------- RecordingDeleteView ---------- #
-
 class RecordingDeleteViewTest(WebinarEndpointsBase):
 
     def setUp(self):
@@ -651,8 +628,6 @@ class RecordingDeleteViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
-# ---------- KinescopeDRMAuthView ---------- #
-
 class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
 
     URL = '/api/kinescope/drm-auth/'
@@ -685,7 +660,7 @@ class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
         super().tearDown()
 
     VALID_USER = 'drm-user-test'
-    VALID_SECRET = 'drm-secret-test'  # noqa: S105
+    VALID_SECRET = 'drm-secret-test'
 
     def _basic_auth(self, user=None, pwd=None):
         user = user or self.VALID_USER
@@ -833,8 +808,6 @@ class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-
-# ---------- idempotency/concurrency ---------- #
 
 class WebinarStartIdempotencyTest(WebinarEndpointsBase):
 

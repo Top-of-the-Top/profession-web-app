@@ -1,6 +1,5 @@
 import json
-from django.test import TestCase, SimpleTestCase, override_settings
-from django.urls import reverse
+from django.test import SimpleTestCase, override_settings
 from unittest.mock import patch, MagicMock
 from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 from rest_framework import status
@@ -13,12 +12,10 @@ from ..api.utils.cache_utils import course_list_cache_key, landing_courses_cache
 from ..api.views import (
     CourseDTOList,
     CourseListView,
-    PurchasedCoursesView,
 )
-from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
+from ..models import Course, Lesson, Homework, Question, Task, PurchasedCourse
 from apps.webinars.models import Webinar
-from apps.users.models import User
-from apps.users.api.utils import encrypt_data, get_tokens_for_user
+from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.payments.models import Payment
 from .test_models import (
     BaseTestCase,

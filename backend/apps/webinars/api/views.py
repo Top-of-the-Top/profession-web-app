@@ -2,8 +2,8 @@ from apps.courses.models import Course, Lesson
 from ..models import Webinar, Recording
 from .utils.agora_utils import (
     generate_rtc_token, user_uid_from_uuid, create_whiteboard_room,
-    generate_whiteboard_room_token, recording_acquire, recording_start,
-    recording_start_web, recording_stop, recording_stop_web,
+    generate_whiteboard_room_token, recording_acquire,
+    recording_start_web, recording_stop_web,
     verify_recorder_token, make_recorder_token, ban_whiteboard_room,
     ROLE_PUBLISHER, ROLE_SUBSCRIBER,
 )
@@ -13,8 +13,15 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser
-from django.core.cache import caches
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
+from .schema import SCHEMA_DETAIL
+from .serializers import (
+    WebinarTokenSerializer,
+    WebinarStartResponseSerializer,
+    WebinarRecordingStartResponseSerializer,
+    DetailResponseSerializer,
+)
 import os
 import img2pdf
 from django.core.files.base import ContentFile
@@ -53,6 +60,33 @@ def _stop_recording(recording):
         upload_recording_to_kinescope.delay(str(recording.recording_id))
 
 
+@extend_schema_view(
+    post=extend_schema(
+        summary="Запустить вебинар",
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(
+                name='course_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='lesson_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+        ],
+        responses={
+            200: WebinarStartResponseSerializer,
+            400: {"schema": SCHEMA_DETAIL},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            502: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
 class WebinarStartView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -106,6 +140,31 @@ class WebinarStartView(APIView):
         return Response({'detail': 'Вебинар запущен', 'webinar_id': str(webinar.webinar_id)})
     
 
+@extend_schema_view(
+    post=extend_schema(
+        summary="Остановить вебинар",
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(
+                name='course_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='lesson_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+        ],
+        responses={
+            200: DetailResponseSerializer,
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
 class WebinarStopView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -143,6 +202,31 @@ class WebinarStopView(APIView):
         return Response({'detail': 'Вебинар завершен'})
 
 
+@extend_schema_view(
+    get=extend_schema(
+        summary="Подключиться к вебинару",
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(
+                name='course_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='lesson_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+        ],
+        responses={
+            200: WebinarTokenSerializer,
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
 class WebinarJoinView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -202,6 +286,37 @@ class WebinarJoinView(APIView):
         })
 
 
+@extend_schema_view(
+    get=extend_schema(
+        summary="Подключение рекордера к вебинару",
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(
+                name='course_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='lesson_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='token',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=True,
+            ),
+        ],
+        responses={
+            200: WebinarTokenSerializer,
+            400: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
 class WebinarRecorderJoinView(APIView):
     permission_classes = (AllowAny,)
 
@@ -239,6 +354,32 @@ class WebinarRecorderJoinView(APIView):
         })
 
 
+@extend_schema_view(
+    post=extend_schema(
+        summary="Начать запись вебинара",
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(
+                name='course_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='lesson_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+        ],
+        responses={
+            200: WebinarRecordingStartResponseSerializer,
+            400: {"schema": SCHEMA_DETAIL},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
 class WebinarRecordingStartView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -289,6 +430,32 @@ class WebinarRecordingStartView(APIView):
         return Response({'detail': 'Запись началась', 'recording_id': str(recording.recording_id)})
 
 
+@extend_schema_view(
+    post=extend_schema(
+        summary="Остановить запись вебинара",
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(
+                name='course_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='lesson_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+        ],
+        responses={
+            200: WebinarRecordingStartResponseSerializer,
+            400: {"schema": SCHEMA_DETAIL},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
 class WebinarRecordingStopView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -317,6 +484,65 @@ class WebinarRecordingStopView(APIView):
         return Response({'detail': 'Запись остановлена', 'recording_id': str(recording.recording_id)})
 
 
+@extend_schema_view(
+    post=extend_schema(
+        summary="Сохранить PDF доски записи",
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(
+                name='course_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='lesson_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='recording_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+            ),
+        ],
+        responses={
+            200: DetailResponseSerializer,
+            400: {"schema": SCHEMA_DETAIL},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+    delete=extend_schema(
+        summary="Удалить PDF доски записи",
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(
+                name='course_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='lesson_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='recording_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+            ),
+        ],
+        responses={
+            204: DetailResponseSerializer,
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
 class RecordingPdfView(APIView):
     permission_classes = (IsAuthenticated,)
     parser_classes = (MultiPartParser,)
@@ -389,6 +615,36 @@ class RecordingPdfView(APIView):
         return Response({'detail': 'pdf доски удален'}, status=status.HTTP_204_NO_CONTENT)
     
 
+@extend_schema_view(
+    delete=extend_schema(
+        summary="Удалить запись вебинара",
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(
+                name='course_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='lesson_slug',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name='recording_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+            ),
+        ],
+        responses={
+            204: DetailResponseSerializer,
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
 class RecordingDeleteView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -421,6 +677,17 @@ class RecordingDeleteView(APIView):
         return Response({'detail': 'запись удалена'}, status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema_view(
+    post=extend_schema(
+        summary="DRM-авторизация Kinescope",
+        tags=["Webinar"],
+        responses={
+            200: None,
+            403: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
 class KinescopeDRMAuthView(APIView):
     permission_classes = (AllowAny,)
     authentication_classes = []

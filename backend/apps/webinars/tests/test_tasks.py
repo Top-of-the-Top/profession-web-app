@@ -1,7 +1,6 @@
 import time
 from unittest.mock import patch, MagicMock
 
-from django.test import override_settings
 from django.utils import timezone
 
 from ..models import Webinar, Recording
@@ -12,14 +11,11 @@ from ..tasks import (
 )
 from .test_models import (
     BaseWebinarTestCase,
-    create_test_user,
     create_test_course,
     create_test_section,
     create_test_lesson,
 )
 
-
-# ---------- check_idle_webinars ---------- #
 
 class CheckIdleWebinarsTest(BaseWebinarTestCase):
 
@@ -145,8 +141,6 @@ class CheckIdleWebinarsTest(BaseWebinarTestCase):
         check_idle_webinars()
         mock_count.assert_not_called()
 
-
-# ---------- upload_recording_to_kinescope ---------- #
 
 class UploadRecordingTaskTest(BaseWebinarTestCase):
 
@@ -275,8 +269,6 @@ class UploadRecordingTaskTest(BaseWebinarTestCase):
         rec.refresh_from_db()
         self.assertEqual(rec.kinescope_upload_status, 'failed')
 
-
-# ---------- check_kinescope_processing ---------- #
 
 class CheckKinescopeProcessingTest(BaseWebinarTestCase):
 

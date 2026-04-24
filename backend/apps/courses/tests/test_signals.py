@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from apps.users.models import User
 from apps.courses.models import Course, Section, Lesson, Homework
-from apps.users.api.utils import encrypt_data
+from apps.users.api.utils.crypto_utils import encrypt_data
 
 
 def create_test_user(email='test@test.com', role='teacher'):

@@ -131,7 +131,7 @@ def upload_recording_to_kinescope(self, recording_id):
         recording.kinescope_upload_status = 'failed'
         recording.save(update_fields=['kinescope_upload_status', 'updated_at'])
         logger.error(
-            'Kinescope upload failed для recording %s: %s', recording_id, exc,
+            'Не удалось загрузить в Kinescope для recording %s: %s', recording_id, exc,
         )
         raise self.retry(exc=exc)
 
@@ -166,7 +166,7 @@ def check_kinescope_processing(self, recording_id):
         if video_status in ('error', 'failed'):
             recording.kinescope_upload_status = Recording.FAILED_STATUS
             recording.save(update_fields=['kinescope_upload_status', 'updated_at'])
-            logger.error('Kinescope processing failed для recording %s: %s', recording_id, video_status)
+            logger.error('Ошибка обработки Kinescope для recording %s: %s', recording_id, video_status)
             return {'status': Recording.FAILED_STATUS}
 
         raise self.retry()
@@ -177,5 +177,5 @@ def check_kinescope_processing(self, recording_id):
         
         recording.kinescope_upload_status = Recording.FAILED_STATUS
         recording.save(update_fields=['kinescope_upload_status', 'updated_at'])
-        logger.error('Kinescope status check timed out для recording %s: %s', recording_id, exc)
+        logger.error('Таймаут проверки статуса Kinescope для recording %s: %s', recording_id, exc)
         return {'status': 'timeout'}

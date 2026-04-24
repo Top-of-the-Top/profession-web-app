@@ -1,5 +1,5 @@
-from django.db.models.signals import pre_delete, pre_save, post_save, post_delete, m2m_changed
-from django.core.cache import cache, caches
+from django.db.models.signals import pre_delete, pre_save, post_save
+from django.core.cache import caches
 from django.dispatch import receiver
 from django.utils import timezone
 from datetime import timedelta
@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 from apps.notifications.tasks import (
     send_course_notification,
     send_personal_notification,
-    send_single_email,
     send_mass_course_email,
-    send_mass_system_email
+    send_system_notification,
+    send_single_email,
+    send_mass_system_email,
 )
 
 from .models import (
@@ -180,7 +181,7 @@ def handle_pre_deadline_update(sender, instance, **kwargs):
                 celery_app.control.revoke(notif_task_id, terminate=True)
                 celery_app.control.revoke(email_task_id, terminate=True)
             except Exception as exc:
-                logger.warning("celery revoke failed for homework=%s: %s", instance.pk, exc)
+                logger.warning("Не удалось отменить celery-задачу для homework=%s: %s", instance.pk, exc)
 
 
 @receiver(pre_delete, sender=Homework)
@@ -193,7 +194,7 @@ def handle_pre_deadline_delete(sender, instance, **kwargs):
             celery_app.control.revoke(notif_task_id, terminate=True)
             celery_app.control.revoke(email_task_id, terminate=True)
         except Exception as exc:
-            logger.warning("celery revoke failed for homework=%s: %s", instance.pk, exc)
+            logger.warning("Не удалось отменить celery-задачу для homework=%s: %s", instance.pk, exc)
 
 
 def get_reminder_task_id_for_lesson(lesson_id, reminder_type, task_type):

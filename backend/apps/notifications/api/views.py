@@ -1,5 +1,4 @@
 import json
-import asyncio
 import aio_pika
 import logging
 
@@ -17,7 +16,6 @@ from drf_spectacular.types import OpenApiTypes
 from .serializers import NotificationSerializer
 from ..models import Notification
 from apps.users.models import User
-from apps.courses.models import PurchasedCourse
 
 logger = logging.getLogger(__name__)
 

@@ -52,7 +52,7 @@ def publish_event(*, routing_key: str, payload: Dict[str, Any]) -> None:
             ),
         )
     except Exception as e:
-        logger.error(f"Failed to publish event to RabbitMQ: {e}")
+        logger.error(f"Не удалось опубликовать событие в RabbitMQ: {e}")
         raise e
     finally:
         if connection and not connection.is_closed:

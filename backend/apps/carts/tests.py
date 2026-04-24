@@ -1,12 +1,8 @@
-
-from django.test import SimpleTestCase, TestCase
-from django.db import models
+from django.test import SimpleTestCase
 from unittest.mock import MagicMock, patch
 
 from apps.carts.models import Cart, CartItem
 
-from django.test import SimpleTestCase
-from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
 
 from rest_framework import status
@@ -18,7 +14,6 @@ from apps.carts.api.views import (
 
 
 class CartModelUnitTests(SimpleTestCase):
-    """Mock-only тесты для модели Cart"""
 
     def setUp(self):
         self.mock_user = MagicMock()
@@ -51,12 +46,11 @@ class CartModelUnitTests(SimpleTestCase):
         mock_cart.user = self.mock_user
         mock_cart.__str__.return_value = f'Cart #{mock_cart.cart_id} for {mock_cart.user.username}'
 
-        expected = f'Cart #1 for testuser'
+        expected = 'Cart #1 for testuser'
         self.assertEqual(str(mock_cart), expected)
 
 
 class CartItemModelUnitTests(SimpleTestCase):
-    """Mock-only тесты для модели CartItem"""
 
     def setUp(self):
         self.mock_cart = MagicMock(spec=Cart)
@@ -100,7 +94,6 @@ class CartItemModelUnitTests(SimpleTestCase):
 
 
 class CartIntegrationUnitTests(SimpleTestCase):
-    """Mock-only интеграционные тесты для корзины"""
 
     def setUp(self):
         self.mock_user = MagicMock()
@@ -194,7 +187,6 @@ class CartIntegrationUnitTests(SimpleTestCase):
 
 
 class CartAuthUnitTests(SimpleTestCase):
-    """Тесты авторизации для Cart views"""
 
     databases = "__all__"
 
@@ -398,8 +390,7 @@ class CartPermissionsUnitTests(SimpleTestCase):
 
 
 class CartViewUnitTests(SimpleTestCase):
-    """Дополнительные тесты для CartView"""
-
+   
     def setUp(self):
         self.factory = APIRequestFactory()
         self.auth_user = SimpleNamespace(

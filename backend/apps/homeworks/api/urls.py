@@ -27,12 +27,9 @@ urlpatterns = [
         UploadFileAttachmentView.as_view(), 
         name='attempt-upload'
     ),
-]
-
-urlpatterns += [
-  path(
-    'homeworks/attempts/',
-    HomeworkAttemptListView.as_view(),
-    name='attempts-list',
-  ),
+    path(
+        'homeworks/attempts/',
+        HomeworkAttemptListView.as_view(),
+        name='attempts-list',
+    ),
 ]

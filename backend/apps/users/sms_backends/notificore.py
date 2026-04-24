@@ -32,7 +32,7 @@ class NotificoreSmsBackend(BaseSmsBackend):
             )
             response.raise_for_status()
             logger.info(
-                'SMS sent to %s, ref=%s, response=%s',
+                'СМС отправлено на %s, ref=%s, ответ=%s',
                 recipient, payload['reference'], response.text[:200],
             )
             return True
@@ -42,7 +42,7 @@ class NotificoreSmsBackend(BaseSmsBackend):
                 raise
             return False
         except Exception as exc:
-            logger.error('SMS error for %s: %s', recipient, exc)
+            logger.error('Ошибка отправки СМС на %s: %s', recipient, exc)
             if not self.fail_silently:
                 raise
             return False
@@ -62,5 +62,5 @@ class NotificoreSmsBackend(BaseSmsBackend):
     def _log_http_error(recipient, exc):
         status_code = exc.response.status_code if exc.response is not None else 'N/A'
         body = exc.response.text[:500] if exc.response is not None else str(exc)
-        logger.error('SMS failed for %s: HTTP %s — %s', recipient, status_code, body)
+        logger.error('Не удалось отправить СМС на %s: HTTP %s — %s', recipient, status_code, body)
     

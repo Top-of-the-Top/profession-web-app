@@ -7,4 +7,4 @@ class HomeworksConfig(AppConfig):
     verbose_name = 'Домашние задания'
 
     def ready(self):
-        from . import signals  # noqa
+        from . import signals

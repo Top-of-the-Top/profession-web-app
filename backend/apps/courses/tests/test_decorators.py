@@ -1,4 +1,4 @@
-from django.test import TestCase, SimpleTestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 from unittest.mock import patch, MagicMock
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework import status
@@ -13,8 +13,6 @@ from apps.users.api.decorators import (
     require_course_enrollment,
 )
 from ..models import Course, PurchasedCourse
-from apps.users.models import User
-from apps.users.api.utils import encrypt_data
 from apps.payments.models import Payment
 from .test_models import (
     BaseTestCase,
@@ -67,6 +65,7 @@ class DecoratorIntegrationTestMixin:
         self.storage_patcher.stop()
 
     def _setup_users(self):
+        """Хук для подклассов: по умолчанию ничего не делает, переопределяется в наследниках для создания тестовых пользователей"""
         pass
 
     def assert_decorator_allows_access(self, decorator, user, **kwargs):

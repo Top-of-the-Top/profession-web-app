@@ -1,36 +1,27 @@
-name: Backend tests & checks
+name: CD Testing
 
 on:
-  pull_request:
-    branches: [develop]
-
-defaults:
-  run:
-    working-directory: backend
+  push:
+    branches: [ testing ]
 
 jobs:
-  test:
-    name: Backend tests & checks
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run all app tests
-        env:
-          CI: '1'
-          SECRET_KEY: 'ci-secret-key-for-tests'
-        run: |
-          python manage.py test apps.users apps.payments apps.courses apps.carts --no-input -v 2
-
+    - name: Deploy to server
+      run: |
+        ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "
+          cd /home/shared/profession &&
+          git pull origin testing --rebase &&
+          docker compose down &&
+          docker compose up --build -d
+        "

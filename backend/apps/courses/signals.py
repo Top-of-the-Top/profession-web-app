@@ -180,7 +180,7 @@ def handle_pre_deadline_update(sender, instance, **kwargs):
                 celery_app.control.revoke(notif_task_id, terminate=True)
                 celery_app.control.revoke(email_task_id, terminate=True)
             except Exception as exc:
-                logger.warning("celery revoke failed for homework=%s: %s", instance.pk, exc)
+                logger.warning("Не удалось отменить celery-задачу для homework=%s: %s", instance.pk, exc)
 
 
 @receiver(pre_delete, sender=Homework)
@@ -193,7 +193,7 @@ def handle_pre_deadline_delete(sender, instance, **kwargs):
             celery_app.control.revoke(notif_task_id, terminate=True)
             celery_app.control.revoke(email_task_id, terminate=True)
         except Exception as exc:
-            logger.warning("celery revoke failed for homework=%s: %s", instance.pk, exc)
+            logger.warning("Не удалось отменить celery-задачу для homework=%s: %s", instance.pk, exc)
 
 
 def get_reminder_task_id_for_lesson(lesson_id, reminder_type, task_type):

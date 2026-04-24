@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from .rabbit import publish_event
 from .models import Notification
-from apps.users.api.utils import decrypt_data
+from apps.users.api.utils.crypto_utils import decrypt_data
 from apps.users.models import User
 from django.conf import settings
 
@@ -89,9 +89,9 @@ def send_single_email(user_id, subject, message):
                 recipient_list=[user_email],
             )
     except User.DoesNotExist:
-        logger.error(f"User {user_id} not found")
+        logger.error(f"Пользователь {user_id} не найден")
     except Exception as e:
-        logger.error(f"Error sending email to user {user_id}: {e}")
+        logger.error(f"Ошибка отправки письма пользователю {user_id}: {e}")
 
 
 @shared_task

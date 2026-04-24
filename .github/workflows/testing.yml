@@ -1,4 +1,4 @@
-name: CD Testing
+name: Testing
 
 on:
   push:
@@ -15,11 +15,11 @@ jobs:
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.9.0
       with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        ssh-private-key: ${{ secrets.SSH_TESTING_PRIVATE_KEY }}
 
     - name: Deploy to server
       run: |
-        ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "
+        ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "
           cd /home/shared/profession &&
           git pull origin testing --rebase &&
           docker compose down &&

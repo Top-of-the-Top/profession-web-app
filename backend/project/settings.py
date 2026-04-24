@@ -266,7 +266,7 @@ else:
 
     CELERY_BEAT_SCHEDULE = {
         "Обновление контекста курсов" : {
-            "task": "apps.ai", 
+            "task": "synchronize_course_context",
             "schedule": crontab(hour = 4, minute = 0),
         }
     }
@@ -386,3 +386,4 @@ else:
 YANDEX_API_KEY = os.getenv('YANDEX_API_KEY', '')
 YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID', '')
 YANDEX_MODEL = os.getenv('YANDEX_MODEL', '')
+YANDEX_ASSISTANT_ID = os.getenv('YANDEX_ASSISTANT_ID', '')

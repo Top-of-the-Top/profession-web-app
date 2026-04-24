@@ -20,7 +20,7 @@ class ChatSession(models.Model):
     )
 
   user = models.ForeignKey(
-    User,
+    User, 
     on_delete=models.CASCADE,
     verbose_name="Пользователь",
   )

@@ -4,7 +4,7 @@ import os
 import asyncio
 from celery import shared_task
 from apps.courses.models import Course
-from apps.ai_chat_bot.services import YandexKnowledgeAIService # Твой сервис
+from apps.ai_chat_bot.services.knowledge_ai_service import YandexKnowledgeAIService
 
 logger = logging.getLogger(__name__)
 

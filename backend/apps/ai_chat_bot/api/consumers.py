@@ -56,5 +56,6 @@ class ChatConsumer(AsyncConsumer):
                     "type": "websocket.send",
                     "text": json.dumps({"type": "error", "content": str(e)})
                 })
+              
   async def websocket_disconnect(self, event):
       logger.info(f"Socket closed. Event: {event}")

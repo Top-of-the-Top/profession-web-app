@@ -1,8 +1,5 @@
 
 import logging
-import os
-import openai
-import asyncio
 from django.conf import settings
 from apps.courses.models import Course
 from apps.ai_chat_bot.models import ChatMessage, ChatSession
@@ -10,8 +7,6 @@ from asgiref.sync import sync_to_async
 from apps.ai_chat_bot.services.base_service import YandexAIBase
 
 logger = logging.getLogger(__name__)
-
-
 class YandexChatAIService(YandexAIBase):
     
     async def get_or_create_session(self, user, course):

@@ -15,15 +15,16 @@ class ChatConsumer(AsyncConsumer):
     self.chat_service = YandexChatAIService()
 
     if self.user.is_anonymous:
-            await self.send({"type": "websocket.close", "code": 4003})
-            return
-    try:
-            course = await sync_to_async(Course.objects.get)(slug=self.course_slug)
-            self.session = await self.chat_service.get_or_create_session(self.user, course)
+        await self.send({"type": "websocket.close", "code": 4003})
+        return
 
-            await self.send({
-                "type": "websocket.accept"
-            })
+    try:
+        course = await sync_to_async(Course.objects.get)(slug=self.course_slug)
+        self.session = await self.chat_service.get_or_create_session(self.user, course)
+
+        await self.send({
+            "type": "websocket.accept"
+        })
             
     except Exception as e:
         logger.error(f"Connect error: {e}")

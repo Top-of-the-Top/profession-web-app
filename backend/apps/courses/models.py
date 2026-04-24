@@ -107,7 +107,7 @@ class Course(AbstractComponentModel):
         blank=True,
         verbose_name='Kinescope folder id'
     )
-    yandex_vs_id = models.CharField(
+    yandex_vs_id = models.CharField( # Это хранилище с данными для курса, там хранится контекст курса
         max_length=255,
         blank=True,
         null=True,

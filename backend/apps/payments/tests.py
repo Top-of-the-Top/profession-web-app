@@ -18,7 +18,6 @@ from apps.payments.api.views import (
 
 
 class PaymentModelUnitTests(SimpleTestCase):
-    """Mock-only тесты для модели Payment"""
 
     def setUp(self):
         self.mock_user = MagicMock()
@@ -78,7 +77,6 @@ class PaymentModelUnitTests(SimpleTestCase):
 
 
 class PaymentItemModelUnitTests(SimpleTestCase):
-    """Mock-only тесты для модели PaymentItem"""
 
     def setUp(self):
         self.mock_payment = MagicMock(spec=Payment)
@@ -123,7 +121,6 @@ class PaymentItemModelUnitTests(SimpleTestCase):
 
 
 class PaymentTaskUnitTests(SimpleTestCase):
-    """Mock-only тесты для задач платежей"""
 
     def setUp(self):
         self.mock_payment = MagicMock(spec=Payment)
@@ -267,7 +264,6 @@ class PaymentTaskUnitTests(SimpleTestCase):
 
 
 class CartPayViewUnitTests(SimpleTestCase):
-    """Mock-only тесты для CartPayView"""
 
     def setUp(self):
         self.factory = APIRequestFactory()
@@ -387,7 +383,6 @@ class CartPayViewUnitTests(SimpleTestCase):
 
 
 class PaymentListViewUnitTests(SimpleTestCase):
-    """Mock-only тесты для PaymentListView"""
 
     def setUp(self):
         self.factory = APIRequestFactory()
@@ -440,7 +435,6 @@ class PaymentListViewUnitTests(SimpleTestCase):
 
 
 class PaymentDetailViewUnitTests(SimpleTestCase):
-    """Mock-only тесты для PaymentDetailView"""
 
     def setUp(self):
         self.factory = APIRequestFactory()
@@ -493,7 +487,6 @@ class PaymentDetailViewUnitTests(SimpleTestCase):
 
 
 class PaymentSerializerUnitTests(SimpleTestCase):
-    """Mock-only тесты для сериализаторов платежей"""
 
     def test_payment_serializer_with_mock(self):
         """Тест PaymentSerializer"""

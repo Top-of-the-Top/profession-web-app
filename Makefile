@@ -1,25 +1,13 @@
-# ──────────────────────────────────────────────
-#  Profession Web App — Makefile
-# ──────────────────────────────────────────────
-#
-#  Использование:  make <цель>
-#  Справка:        make help
-#
-
-# Переменные (можно переопределить при вызове: make up COMPOSE=podman-compose)
 COMPOSE    = docker-compose
 BACKEND    = $(COMPOSE) exec backend
 MANAGE     = $(BACKEND) python3 manage.py
 CELERY_SVC = celery_worker
-
-# ─── Основные команды ────────────────────────
 
 .PHONY: help
 help: ## Показать список доступных команд
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-# ─── Docker ──────────────────────────────────
 
 .PHONY: build
 build: ## Собрать все образы
@@ -60,7 +48,6 @@ logs-backend: ## Логи только backend
 logs-celery: ## Логи только Celery worker
 	$(COMPOSE) logs -f $(CELERY_SVC)
 
-# ─── Django ──────────────────────────────────
 
 .PHONY: migrate
 migrate: ## Применить миграции
@@ -90,7 +77,6 @@ bash: ## Bash внутри контейнера backend
 dbshell: ## Подключиться к БД через Django
 	$(MANAGE) dbshell
 
-# ─── Celery ──────────────────────────────────
 
 .PHONY: celery-restart
 celery-restart: ## Перезапустить Celery worker
@@ -100,7 +86,6 @@ celery-restart: ## Перезапустить Celery worker
 celery-stop: ## Остановить Celery worker
 	$(COMPOSE) stop $(CELERY_SVC)
 
-# ─── Очистка ─────────────────────────────────
 
 .PHONY: clean
 clean: ## Остановить контейнеры и удалить volumes

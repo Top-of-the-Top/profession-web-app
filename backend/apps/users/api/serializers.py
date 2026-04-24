@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from ..models import User, Profile
-from .utils import encrypt_data, decrypt_data
+from .utils.crypto_utils import encrypt_data, decrypt_data
 from django.contrib.auth.hashers import make_password, check_password
 from .constants import (
     MSG_EMAIL_ALREADY_EXISTS,

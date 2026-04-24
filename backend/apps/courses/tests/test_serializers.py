@@ -16,7 +16,7 @@ from ..api.serializers import (
 )
 from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
 from apps.users.models import User
-from apps.users.api.utils import encrypt_data
+from apps.users.api.utils.crypto_utils import encrypt_data
 from apps.payments.models import Payment
 from .test_models import (
     BaseTestCase,

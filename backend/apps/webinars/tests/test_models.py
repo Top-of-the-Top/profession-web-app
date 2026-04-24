@@ -4,7 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from apps.users.models import User
-from apps.users.api.utils import encrypt_data
+from apps.users.api.utils.crypto_utils import encrypt_data
 from apps.courses.models import Course, Section, Lesson
 from ..models import Webinar, Recording
 

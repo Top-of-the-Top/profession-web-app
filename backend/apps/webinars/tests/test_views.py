@@ -7,7 +7,8 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.users.api.utils import get_tokens_for_user, encrypt_data
+from apps.users.api.utils.crypto_utils import encrypt_data
+from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.users.models import User
 from apps.courses.models import PurchasedCourse
 from apps.payments.models import Payment

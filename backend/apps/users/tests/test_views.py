@@ -8,11 +8,11 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 from rest_framework import status
-from ..api.utils import get_tokens_for_user
+from ..api.utils.token_utils import get_tokens_for_user, set_reset_token
 import jwt
 
 from ..models import User, Profile
-from ..api.utils import encrypt_data, decrypt_data, set_reset_token
+from ..api.utils.crypto_utils import encrypt_data, decrypt_data
 from ..api.views import (
     LoginView,
     ProfileView,
@@ -316,7 +316,7 @@ class ResetPasswordViewUnitTest(SimpleTestCase):
 
         with patch("apps.users.api.views.User.objects.filter") as filter_mock, patch(
             "apps.users.api.views.set_reset_token", return_value="reset-token"
-        ), patch('apps.users.api.utils.send_mail', return_value=1) as send_mail_mock:
+        ), patch('apps.users.api.utils.notification_utils.send_mail', return_value=1) as send_mail_mock:
             filter_mock.return_value.first.return_value = mock_user
             response = ResetPasswordView.as_view()(request)
 
@@ -468,7 +468,7 @@ class RegisterViewIntegrationTest(TestCase):
         self.assertEqual(reg_response.data['status'], 'code_sent')
 
         from django.core.cache import cache
-        from ..api.utils import encrypt_data as enc
+        from ..api.utils.crypto_utils import encrypt_data as enc
         cache_key = f'pending_registration_email_{enc(email)}'
         cached = cache.get(cache_key)
         self.assertIsNotNone(cached, 'Registration code not found in cache')

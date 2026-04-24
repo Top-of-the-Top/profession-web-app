@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.exceptions import ValidationError
 from ..models import User, Profile
-from ..api.utils import encrypt_data
+from ..api.utils.crypto_utils import encrypt_data
 import tempfile
 
 

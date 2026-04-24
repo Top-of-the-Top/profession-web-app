@@ -7,7 +7,7 @@ from ..api.serializers import (
     LoginSerializer,
     UpdateProfileSerializer,
 )
-from ..api.utils import encrypt_data
+from ..api.utils.crypto_utils import encrypt_data
 
 class RegisterSerializerUnitTest(SimpleTestCase):
 

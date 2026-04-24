@@ -18,7 +18,8 @@ from ..api.views import (
 from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
 from apps.webinars.models import Webinar
 from apps.users.models import User
-from apps.users.api.utils import encrypt_data, get_tokens_for_user
+from apps.users.api.utils.crypto_utils import encrypt_data
+from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.payments.models import Payment
 from .test_models import (
     BaseTestCase,

@@ -46,7 +46,7 @@ class CartModelUnitTests(SimpleTestCase):
         mock_cart.user = self.mock_user
         mock_cart.__str__.return_value = f'Cart #{mock_cart.cart_id} for {mock_cart.user.username}'
 
-        expected = f'Cart #1 for testuser'
+        expected = 'Cart #1 for testuser'
         self.assertEqual(str(mock_cart), expected)
 
 

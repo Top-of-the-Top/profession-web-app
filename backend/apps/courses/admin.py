@@ -16,14 +16,12 @@ class CourseAdmin(admin.ModelAdmin):
     readonly_fields = ['image_preview', 'kinescope_folder_id']
 
     def title_link(self, obj):
-        """Кликабельное название → сразу на страницу курса"""
         url = reverse('admin:courses_course_change', args=[obj.pk])
         return format_html('<a href="{}">{}</a>', url, obj.title)
 
     title_link.short_description = 'Название курса'
 
     def image_preview(self, obj):
-        """Миниатюра картинки"""
         if obj.image_url:
             return format_html(
                 '<img src="{}" style="max-height: 50px;" />', obj.image_url)

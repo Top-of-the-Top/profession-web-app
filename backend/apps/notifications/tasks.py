@@ -9,7 +9,6 @@ from django.conf import settings
 
 import logging
 
-# Создаем экземпляр логгера для текущего модуля
 logger = logging.getLogger(__name__)
 
 @shared_task

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from django.conf import settings
 from django.core.files.storage import default_storage
 from botocore.exceptions import ClientError
@@ -40,9 +40,9 @@ class PresignedUrlService:
     if response is None:
       return None
 
-    expiry_date = datetime.utcnow() + timedelta(seconds=self.lifespan)
+    expiry_date = datetime.now(timezone.utc) + timedelta(seconds=self.lifespan)
 
-    response['expires_at'] = expiry_date.isoformat() + 'Z'
+    response['expires_at'] = expiry_date.isoformat()
     response['method'] = self.method
 
     return response 
@@ -63,4 +63,3 @@ class PresignedUrlService:
 
       
       return response
-

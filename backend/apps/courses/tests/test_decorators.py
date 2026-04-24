@@ -65,6 +65,7 @@ class DecoratorIntegrationTestMixin:
         self.storage_patcher.stop()
 
     def _setup_users(self):
+        """Хук для подклассов: по умолчанию ничего не делает, переопределяется в наследниках для создания тестовых пользователей"""
         pass
 
     def assert_decorator_allows_access(self, decorator, user, **kwargs):

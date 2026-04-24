@@ -1,7 +1,3 @@
-"""
-Разрешение плейсхолдеров local://<n> в JSON-строке document и загрузка файлов в хранилище
-(S3 при USE_S3), путь: courses/course_<course_id>/lessons/<lesson_id>/asset_<n>.<ext>
-"""
 import json
 import re
 import uuid
@@ -9,7 +5,6 @@ from typing import Any
 
 from django.core.files.storage import default_storage
 
-# Плейсхолдеры фронта course-builder: "url": "local://1"
 LOCAL_PLACEHOLDER_RE = re.compile(r'local://(\d+)')
 
 
@@ -33,7 +28,7 @@ def upload_lesson_asset_file(
     asset_id: int,
     asset_type: str,
     file_obj,
-) -> str:
+):
     name = getattr(file_obj, 'name', '') or ''
     ext = _guess_extension(name, asset_type)
     path = f'courses/course_{course_id}/lessons/{lesson_id}/asset_{asset_id}{ext}'
@@ -41,7 +36,7 @@ def upload_lesson_asset_file(
     return default_storage.url(saved_path)
 
 
-def _get_uploaded_file_for_asset(files, asset_id: int, asset_file_field: str) -> Any:
+def _get_uploaded_file_for_asset(files, asset_id: int, asset_file_field: str):
     if not files:
         return None
     if asset_file_field and asset_file_field in files:
@@ -57,8 +52,7 @@ def upload_numeric_assets(
     lesson_id: uuid.UUID,
     assets_meta: list,
     files,
-) -> dict[int, str]:
-    """Загружает файлы и возвращает карту asset_id (int) -> публичный URL."""
+):
     id_to_url: dict[int, str] = {}
     for item in assets_meta:
         aid = int(item['asset_id'])
@@ -76,8 +70,6 @@ def upload_numeric_assets(
 
 
 def substitute_local_placeholders(document_str: str, id_to_url: dict[int, str]) -> str:
-    """Подставляет URL вместо local://n в готовой JSON-строке."""
-
     def repl(match: re.Match) -> str:
         n = int(match.group(1))
         if n not in id_to_url:
@@ -97,18 +89,14 @@ def resolve_lesson_document_string(
     document_str: str,
     assets_meta: list,
     files,
-) -> str:
-    """
-    Принимает JSON-строку document как от фронта (с local://), загружает assets,
-    возвращает JSON-строку с реальными URL (готова для сохранения в Lesson.document).
-    """
+):
     if not assets_meta:
         return document_str
     id_to_url = upload_numeric_assets(course_id, lesson_id, assets_meta, files)
     return substitute_local_placeholders(document_str, id_to_url)
 
 
-def parse_content_value(raw: Any) -> dict | None:
+def parse_content_value(raw: Any):
     if raw is None or raw == '':
         return None
     if isinstance(raw, dict):

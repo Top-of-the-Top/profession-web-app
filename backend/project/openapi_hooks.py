@@ -1,13 +1,6 @@
-"""Постобработка схемы OpenAPI (drf-spectacular)."""
 
 from django.conf import settings
-
-
 def canonicalize_tags(result, generator, request, public):
-    """
-    Приводит теги операций к именам из SPECTACULAR_SETTINGS['TAGS'],
-    чтобы не дублировались варианты вроде «landing» и «Landing».
-    """
     spec = getattr(settings, 'SPECTACULAR_SETTINGS', {})
     mapping = {t['name'].lower(): t['name'] for t in spec.get('TAGS', [])}
 

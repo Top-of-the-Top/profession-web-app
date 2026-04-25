@@ -1,8 +1,5 @@
-name: CD Testing
-
 on:
-  push:
-    branches: [testing]
+  workflow_dispatch:
 
 jobs:
   push-to-testing:

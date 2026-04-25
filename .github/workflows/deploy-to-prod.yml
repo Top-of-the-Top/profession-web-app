@@ -42,7 +42,7 @@ jobs:
 
       - name: Pull latest
         run: |
-          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} BRANCH=${BRANCH} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "APP_DIR=${APP_DIR} BRANCH=${BRANCH} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
           set -Eeuo pipefail
           cd "${APP_DIR}"
           export COMPOSE_PROJECT_NAME
@@ -57,7 +57,7 @@ jobs:
       - name: Build backend
         if: steps.changes.outputs.backend_image == 'true'
         run: |
-          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
           set -Eeuo pipefail
           cd "${APP_DIR}"
           export COMPOSE_PROJECT_NAME
@@ -67,7 +67,7 @@ jobs:
       - name: Build frontend
         if: steps.changes.outputs.frontend == 'true'
         run: |
-          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
           set -Eeuo pipefail
           cd "${APP_DIR}"
           export COMPOSE_PROJECT_NAME
@@ -77,7 +77,7 @@ jobs:
       - name: Migrate
         if: steps.changes.outputs.migrations == 'true'
         run: |
-          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
           set -Eeuo pipefail
           cd "${APP_DIR}"
           export COMPOSE_PROJECT_NAME
@@ -86,7 +86,7 @@ jobs:
 
       - name: Start stack
         run: |
-          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
           set -Eeuo pipefail
           cd "${APP_DIR}"
           export COMPOSE_PROJECT_NAME

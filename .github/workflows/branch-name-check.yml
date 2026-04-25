@@ -8,9 +8,6 @@ jobs:
   check-branch-name:
     runs-on: ubuntu-latest
 
-    # Пропускаем develop
-    if: github.head_ref != 'develop'
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

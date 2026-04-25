@@ -1,0 +1,31 @@
+name: Auto resolve PR conflicts for testing
+
+on:
+  pull_request:
+    branches: [testing]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-conflicts:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Merge testing into PR branch (prefer PR changes)
+        run: |
+          git fetch origin testing
+          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
+            merge origin/testing -X ours --no-edit || true
+
+      - name: Push branch
+        run: |
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

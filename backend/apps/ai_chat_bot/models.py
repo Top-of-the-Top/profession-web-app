@@ -11,14 +11,6 @@ class ChatSession(models.Model):
     default=uuid4
   )
 
-  yandex_thread_id = models.CharField( # Это PK threadа который хранится в ресурсе яндекса
-        max_length=255, 
-        unique=True, 
-        verbose_name="Yandex Thread ID",
-        null=True, 
-        blank=True
-    )
-
   user = models.ForeignKey(
     User, 
     on_delete=models.CASCADE,

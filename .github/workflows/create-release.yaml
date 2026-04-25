@@ -71,4 +71,4 @@ jobs:
 
     - name: Notify
       run: |
-        echo "✅ Release ${{ github.event.inputs.version }} created!"
+        echo "Release ${{ github.event.inputs.version }} created!"

@@ -1,8 +1,7 @@
-name: CD Testing
+name: Deploy to testing
 
 on:
-  push:
-    branches: [testing]
+  workflow_dispatch:
 
 jobs:
   push-to-testing:

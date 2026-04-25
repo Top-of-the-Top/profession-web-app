@@ -28,16 +28,16 @@ class YandexKnowledgeAIService(YandexAIBase): # Это кстати адапте
 
             await self._wait_for_vector_store(new_vs_id)
 
-            await sync_to_async(Course.objects.filter(id=course.id).update)(yandex_vs_id=new_vs_id)
+            await sync_to_async(Course.objects.filter(pk=course.pk).update)(yandex_vs_id=new_vs_id)
             course.yandex_vs_id = new_vs_id
 
             if old_vs_id:
-                asyncio.create_task(self._delete_vector_store_by_id(old_vs_id, course.id))
+                asyncio.create_task(self._delete_vector_store_by_id(old_vs_id, course.pk))
 
         except Exception as e:
-            logger.error(f"Error during context update for {course.id}: {e}")
+            logger.error(f"Error during context update for {course.pk}: {e}")
             if new_vs_id:
-                await self._delete_vector_store_by_id(new_vs_id, course.id)
+                await self._delete_vector_store_by_id(new_vs_id, course.pk)
             raise
 
     async def _upload_file(self, file_path):

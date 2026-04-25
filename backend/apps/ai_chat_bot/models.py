@@ -30,6 +30,7 @@ class ChatSession(models.Model):
     on_delete=models.CASCADE,
     verbose_name="Курс",
   )
+  created_at = models.DateTimeField(auto_now_add=True)
 
   class Meta:
     verbose_name = "Сессия чата"
@@ -75,3 +76,12 @@ class ChatMessage(models.Model):
     null=False,
     blank=False,
   )
+  created_at = models.DateTimeField(auto_now_add=True)
+
+  class Meta:
+    verbose_name = "Сообщение чата"
+    verbose_name_plural = "Сообщения чата"
+    ordering = ['created_at']
+
+  def __str__(self):
+    return f"{self.role}: {self.content[:40]}"

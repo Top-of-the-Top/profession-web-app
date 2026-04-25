@@ -1,37 +1,41 @@
 import json
 import logging
-from channels.consumer import AsyncConsumer
+from channels.generic.websocket import AsyncWebsocketConsumer
 from apps.ai_chat_bot.services import YandexChatAIService
 from apps.courses.models import Course
 from asgiref.sync import sync_to_async
 
 logger = logging.getLogger(__name__)
 
-class ChatConsumer(AsyncConsumer):
+class ChatConsumer(AsyncWebsocketConsumer):
 
-  async def websocket_connect(self, event):
+  async def connect(self):
     self.course_slug = self.scope['url_route']['kwargs']['course_slug']
     self.user = self.scope['user']
     self.chat_service = YandexChatAIService()
+    logger.info("WS connect attempt: course_slug=%s", self.course_slug)
 
     if self.user.is_anonymous:
-        await self.send({"type": "websocket.close", "code": 4003})
+        logger.warning("WS connect rejected (4003): anonymous user, course_slug=%s", self.course_slug)
+        await self.close(code=4003)
         return
 
     try:
         course = await sync_to_async(Course.objects.get)(slug=self.course_slug)
         self.session = await self.chat_service.get_or_create_session(self.user, course)
-
-        await self.send({
-            "type": "websocket.accept"
-        })
+        logger.info(
+            "WS connect accepted: user_id=%s course_slug=%s session_id=%s",
+            getattr(self.user, "pk", None),
+            self.course_slug,
+            self.session.chat_session_id,
+        )
+        await self.accept()
             
     except Exception as e:
-        logger.error(f"Connect error: {e}")
-        await self.send({"type": "websocket.close", "code": 4500})
-  
-  async def websocket_receive(self, event):
-      text_data = event.get("text", None)
+        logger.exception("WS connect rejected (4500): course_slug=%s error=%s", self.course_slug, e)
+        await self.close(code=4500)
+
+  async def receive(self, text_data=None, bytes_data=None):
       if text_data:
           data = json.loads(text_data)
           user_message = data.get("message", "")
@@ -39,24 +43,15 @@ class ChatConsumer(AsyncConsumer):
 
           full_ai_response = ""
           try:
-              stream = await self.chat_service.ask_question_stream(self.session, user_message)
+              stream = self.chat_service.ask_question_stream(self.session, user_message)
 
-              async for chunk_event in stream:
-                  if chunk_event.event == 'thread.message.delta':
-                      chunk = chunk_event.data.delta.content[0].text.value
-                      full_ai_response += chunk
-                      
-                      await self.send({
-                          "type": "websocket.send",
-                          "text": json.dumps({"type": "chunk", "content": chunk})
-                      })
+              async for chunk in stream:
+                  full_ai_response += chunk
+                  await self.send(text_data=json.dumps({"type": "chunk", "content": chunk}))
 
               await self.chat_service.save_message(self.session, 'assistant', full_ai_response)
           except Exception as e:
-              await self.send({
-                    "type": "websocket.send",
-                    "text": json.dumps({"type": "error", "content": str(e)})
-                })
+              await self.send(text_data=json.dumps({"type": "error", "content": str(e)}))
               
-  async def websocket_disconnect(self, event):
-      logger.info(f"Socket closed. Event: {event}")
+  async def disconnect(self, close_code):
+      logger.info(f"Socket closed. Event: {close_code}")

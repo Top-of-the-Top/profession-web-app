@@ -1,7 +1,13 @@
-name: Deploy to testing
+name: Deploy to testing server
 
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Select branch to deploy to testing'
+        required: true
+        default: 'develop'
+        type: string
 
 jobs:
   push-to-testing:

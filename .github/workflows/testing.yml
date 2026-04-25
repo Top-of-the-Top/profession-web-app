@@ -28,66 +28,66 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            backend:
-              - 'backend/**'
+            backend_image:
+              - 'backend/requirements.txt'
+              - 'backend/project/settings.py'
+              - 'backend/project/settings/**'
               - 'docker-compose.yml'
             frontend:
               - 'frontend/**'
               - 'docker-compose.yml'
+            migrations:
+              - 'backend/**/migrations/**'
 
       - name: Pull latest
         run: |
-          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} BRANCH=${BRANCH} bash -se" << 'EOF'
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} BRANCH=${BRANCH} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
           set -Eeuo pipefail
           cd "${APP_DIR}"
+          export COMPOSE_PROJECT_NAME
+          git fetch origin "${BRANCH}"
           git checkout "${BRANCH}"
-          git pull origin "${BRANCH}" --ff-only
+          git reset --hard "origin/${BRANCH}"
+          git clean -fd
+          docker compose down --remove-orphans || true
+          docker rm -f profession_web_app_backend flower || true
           EOF
 
       - name: Build backend
-        if: steps.changes.outputs.backend == 'true'
+        if: steps.changes.outputs.backend_image == 'true'
         run: |
-          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} bash -se" << 'EOF'
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
           set -Eeuo pipefail
           cd "${APP_DIR}"
+          export COMPOSE_PROJECT_NAME
           docker compose build backend celery_worker celery-beat flower
           EOF
 
-      - name: Migrate
-        if: steps.changes.outputs.backend == 'true'
+      - name: Build frontend
+        if: steps.changes.outputs.frontend == 'true'
         run: |
-          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} bash -se" << 'EOF'
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
           set -Eeuo pipefail
           cd "${APP_DIR}"
+          export COMPOSE_PROJECT_NAME
+          docker compose build frontend
+          EOF
+
+      - name: Migrate
+        if: steps.changes.outputs.migrations == 'true'
+        run: |
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          export COMPOSE_PROJECT_NAME
           docker compose run --rm --no-deps backend python manage.py migrate --noinput
           EOF
 
-      - name: Restart backend
-        if: steps.changes.outputs.backend == 'true'
+      - name: Start stack
         run: |
-          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} bash -se" << 'EOF'
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
           set -Eeuo pipefail
           cd "${APP_DIR}"
-          docker compose up -d backend celery_worker celery-beat flower
+          export COMPOSE_PROJECT_NAME
+          docker compose up -d --force-recreate --remove-orphans
           EOF
-
-      - name: Restart frontend
-        if: steps.changes.outputs.frontend == 'true'
-        run: |
-          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} bash -se" << 'EOF'
-          set -Eeuo pipefail
-          cd "${APP_DIR}"
-          docker compose up -d --build frontend
-          EOF
-
-      - name: Ensure redis/rabbitmq
-        run: |
-          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} bash -se" << 'EOF'
-          set -Eeuo pipefail
-          cd "${APP_DIR}"
-          docker compose up -d redis rabbitmq
-          EOF
-
-      - name: Healthcheck
-        run: |
-          ssh github-actions@professionkid-testing.ru "curl -fsS http://localhost:9000/ > /dev/null"

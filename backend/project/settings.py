@@ -40,10 +40,12 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'storages',
     'django_celery_results',
+    'django_celery_beat',
     'apps.notifications.apps.NotificationsConfig',
     'sms',
     'apps.homeworks.apps.HomeworksConfig',
     'apps.webinars.apps.WebinarsConfig',
+    'apps.ai_chat_bot.apps.AiChatBotConfig',
 ]
 
 USE_S3 = os.environ.get('USE_S3', 'False') == 'True'
@@ -160,6 +162,10 @@ SPECTACULAR_SETTINGS = {
             'name': 'Notifications',
             'description': 'Уведомления пользователя: список и поток SSE.',
         },
+        {
+            'name': 'AI Chat',
+            'description': 'ИИ-чат по курсу (документация WebSocket; см. эндпоинт docs).',
+        },
     ],
     'POSTPROCESSING_HOOKS': [
         'project.openapi_hooks.canonicalize_tags',
@@ -236,7 +242,7 @@ else:
 
 CELERY_BEAT_SCHEDULE = {
     'check-idle-webinars': {
-        'task': 'apps.webinars.tasks.check_idle_webinars',
+        'task': 'apps.courses.tasks.check_idle_webinars',
         'schedule': 60.0,
     },
 }
@@ -255,6 +261,17 @@ else:
     CELERY_RESULT_SERIALIZER = 'json'
     CELERY_TIMEZONE = TIME_ZONE
     CELERY_TASK_TRACK_STARTED = True
+
+    from celery.schedules import crontab
+
+    CELERY_BEAT_SCHEDULE = {
+        "Обновление контекста курсов" : {
+            "task": "synchronize_course_context",
+            "schedule": crontab(hour = 4, minute = 0),
+        }
+    }
+
+
 
 RABBITMQ_URL = os.getenv('RABBITMQ_URL', 'amqp://guest:guest@rabbitmq:5672//')
 
@@ -364,3 +381,9 @@ else:
             'TIMEOUT': 3600,  # Время жизни кэша
         },
     }
+
+
+YANDEX_API_KEY = os.getenv('YANDEX_API_KEY', '')
+YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID', '')
+YANDEX_MODEL = os.getenv('YANDEX_MODEL', '')
+YANDEX_ASSISTANT_ID = os.getenv('YANDEX_ASSISTANT_ID', '')

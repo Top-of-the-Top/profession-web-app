@@ -107,6 +107,12 @@ class Course(AbstractComponentModel):
         blank=True,
         verbose_name='Kinescope folder id'
     )
+    yandex_vs_id = models.CharField( # Это хранилище с данными для курса, там хранится контекст курса
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name='Yandex Vector Store ID',
+    )
 
     @property
     def image_url(self):
@@ -136,6 +142,36 @@ class Course(AbstractComponentModel):
             super().save(update_fields=['image'])
         else:
             super().save(*args, **kwargs)
+
+    def prepare_full_content_file(self):
+        sections = (
+            self.section_set
+            .prefetch_related('lesson_set__homework_set__question_set', 'lesson_set__homework_set__task_set')
+            .order_by('section_number', 'created_at')
+        )
+
+        chunks = [
+            f"Курс: {self.title}",
+            f"Краткое описание: {self.sub_title}",
+            f"Описание: {self.description}",
+        ]
+
+        for section in sections:
+            chunks.append(f"\nСекция {section.section_number}: {section.title}")
+            lessons = section.lesson_set.order_by('lesson_number', 'created_at')
+            for lesson in lessons:
+                chunks.append(f"  Урок {lesson.lesson_number}: {lesson.title}")
+                if lesson.document:
+                    chunks.append(f"  Контент урока: {lesson.document}")
+                homeworks = lesson.homework_set.order_by('homework_number', 'created_at')
+                for homework in homeworks:
+                    chunks.append(f"    Домашнее задание {homework.homework_number}: {homework.title}")
+                    for question in homework.question_set.order_by('question_number', 'created_at'):
+                        chunks.append(f"      Вопрос {question.question_number}: {question.text}")
+                    for task in homework.task_set.order_by('task_number', 'created_at'):
+                        chunks.append(f"      Задание {task.task_number}: {task.text}")
+
+        return "\n".join(chunks)
 
 
     class Meta:

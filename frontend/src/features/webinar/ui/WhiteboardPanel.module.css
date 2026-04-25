@@ -1,8 +1,37 @@
 .container {
   width: 100%;
   height: 100%;
+  min-height: 0;
   border-radius: var(--radius);
   overflow: hidden;
   background: #f1f2f3;
   border: 1px solid var(--border);
+}
+
+.container :global(.fastboard-react-div),
+.container :global(.fastboard-root),
+.container :global(.fastboard-view),
+.container :global(.netless-window-manager-playground),
+.container :global(.netless-window-manager-sizer),
+.container :global(.netless-window-manager-sizer-horizontal),
+.container :global(.netless-window-manager-wrapper),
+.container :global(.netless-window-manager-main-view),
+.container :global(.netless-whiteboard) {
+  width: 100%;
+  height: 100% !important;
+  min-height: 0;
+}
+
+.container :global(.netless-window-manager-main-view) {
+  aspect-ratio: auto !important;
+}
+
+.container :global(.netless-window-manager-sizer) {
+	width: 100%;
+	height: 100%;
+}
+
+.container :global(.netless-window-manager-sizer)::before,
+.container :global(.netless-window-manager-sizer)::after {
+  display: none;
 }

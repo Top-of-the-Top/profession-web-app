@@ -1,3 +1,4 @@
+import { tr } from 'zod/v4/locales';
 import {
   LandingPage,
   LoginPage,
@@ -47,6 +48,11 @@ export const routes: AppRoute[] = [
     element: <WebinarRecordPage />,
   },
   {
+    path: '/app/courses/:slug/:lessonSlug/webinar',
+    element: <WebinarPage />,
+		protected: true
+  },
+  {
     path: '/app',
     element: <AppLayout />,
     protected: true,
@@ -59,10 +65,7 @@ export const routes: AppRoute[] = [
         path: 'store/:slug',
         element: <CoursePreviewPage />,
       },
-      {
-        path: 'courses/:slug/:lessonSlug/webinar',
-        element: <WebinarPage />,
-      },
+
       {
         path: 'courses/:slug/:lessonSlug/edit',
         element: <LessonEditPage />,

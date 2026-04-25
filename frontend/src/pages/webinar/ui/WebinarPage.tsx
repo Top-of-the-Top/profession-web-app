@@ -169,7 +169,7 @@ export default function WebinarPage() {
             roomToken={session.whiteboard_room_token}
             region={session.whiteboard_region}
             uid={String(session.uid)}
-            isWritable={isTeacher}
+            isWritable={true}
           />
         </div>
 

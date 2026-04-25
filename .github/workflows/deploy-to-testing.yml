@@ -7,7 +7,6 @@ on:
         description: 'Select branch to deploy to testing'
         required: true
         default: 'develop'
-        type: string
 
 jobs:
   push-to-testing:
@@ -15,7 +14,7 @@ jobs:
     timeout-minutes: 25
     env:
       APP_DIR: /home/shared/profession
-      BRANCH: testing
+      BRANCH: ${{ github.event.inputs.branch }}
 
     steps:
       - name: Checkout

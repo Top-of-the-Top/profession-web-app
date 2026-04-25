@@ -2,26 +2,92 @@ name: CD Testing
 
 on:
   push:
-    branches: [ testing ]
+    branches: [testing]
 
 jobs:
   push-to-testing:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_DIR: /home/shared/profession
+      BRANCH: testing
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
-    - name: Setup SSH
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_TESTING_PRIVATE_KEY }}
+      - name: SSH setup
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_TESTING_PRIVATE_KEY }}
 
-    - name: Deploy to testing enviroment
-      run: |
-        ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "
-          cd /home/shared/profession &&
-          git pull origin testing --rebase &&
-          docker compose down &&
-          docker compose up --build -d
-        "
+      - name: Detect changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'docker-compose.yml'
+            frontend:
+              - 'frontend/**'
+              - 'docker-compose.yml'
+
+      - name: Pull latest
+        run: |
+          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} BRANCH=${BRANCH} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          git checkout "${BRANCH}"
+          git pull origin "${BRANCH}" --ff-only
+          EOF
+
+      - name: Build backend
+        if: steps.changes.outputs.backend == 'true'
+        run: |
+          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          docker compose build backend celery_worker celery-beat flower
+          EOF
+
+      - name: Migrate
+        if: steps.changes.outputs.backend == 'true'
+        run: |
+          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          docker compose run --rm --no-deps backend python manage.py migrate --noinput
+          EOF
+
+      - name: Restart backend
+        if: steps.changes.outputs.backend == 'true'
+        run: |
+          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          docker compose up -d backend celery_worker celery-beat flower
+          EOF
+
+      - name: Restart frontend
+        if: steps.changes.outputs.frontend == 'true'
+        run: |
+          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          docker compose up -d --build frontend
+          EOF
+
+      - name: Ensure redis/rabbitmq
+        run: |
+          ssh github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          docker compose up -d redis rabbitmq
+          EOF
+
+      - name: Healthcheck
+        run: |
+          ssh github-actions@professionkid-testing.ru "curl -fsS http://localhost:9000/ > /dev/null"

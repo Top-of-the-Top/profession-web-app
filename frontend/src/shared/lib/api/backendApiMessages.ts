@@ -26,7 +26,10 @@ export type ApiFailureScene =
   | 'webinarStart'
   | 'webinarJoin'
   | 'webinarRecording'
-  | 'webinarWhiteboardPdf'
+  | 'webinarRecordingStop'
+  | 'recordingPdfUpload'
+  | 'recordingPdfDelete'
+  | 'recordingDelete'
   | 'webinarStop'
   | 'webinarRecorderJoin';
 
@@ -296,8 +299,20 @@ const SCENE_FALLBACK: Record<ApiFailureScene, UserFacingMessage> = {
     title: 'не удалось начать запись',
     description: 'Повторите попытку.',
   },
-  webinarWhiteboardPdf: {
+  webinarRecordingStop: {
+    title: 'не удалось остановить запись',
+    description: 'Повторите попытку.',
+  },
+  recordingPdfUpload: {
     title: 'не удалось сохранить доску',
+    description: 'Повторите попытку.',
+  },
+  recordingPdfDelete: {
+    title: 'не удалось удалить PDF',
+    description: 'Повторите попытку.',
+  },
+  recordingDelete: {
+    title: 'не удалось удалить запись',
     description: 'Повторите попытку.',
   },
   webinarStop: {
@@ -490,16 +505,34 @@ const SCENE_STATUS_FALLBACK: Partial<
     },
   },
   webinarRecording: {
+    400: {
+      title: 'запись уже идет',
+      description: 'Сначала остановите текущую запись.',
+    },
     403: {
       title: 'нет доступа',
-      description: 'Только автор курса может управлять записью.',
+      description: 'Только автор курса или модератор может управлять записью.',
     },
     404: {
       title: 'вебинар не запущен',
       description: 'Вебинар не найден или уже завершён.',
     },
   },
-  webinarWhiteboardPdf: {
+  webinarRecordingStop: {
+    400: {
+      title: 'запись не идет',
+      description: 'Сейчас нет активной записи для остановки.',
+    },
+    403: {
+      title: 'нет доступа',
+      description: 'Только автор курса или модератор может управлять записью.',
+    },
+    404: {
+      title: 'вебинар не запущен',
+      description: 'Вебинар не найден или уже завершён.',
+    },
+  },
+  recordingPdfUpload: {
     400: {
       title: 'нет скриншотов',
       description: 'Доска пуста или не удалось снять скриншоты.',
@@ -509,8 +542,28 @@ const SCENE_STATUS_FALLBACK: Partial<
       description: 'Только автор курса или модератор может сохранить доску.',
     },
     404: {
-      title: 'вебинар не найден',
-      description: 'Вебинар уже завершён или не был запущен.',
+      title: 'запись не найдена',
+      description: 'Проверьте состояние записи и попробуйте снова.',
+    },
+  },
+  recordingPdfDelete: {
+    403: {
+      title: 'нет доступа',
+      description: 'Только автор курса или модератор может удалить PDF.',
+    },
+    404: {
+      title: 'PDF не найден',
+      description: 'PDF уже удален или не был привязан к записи.',
+    },
+  },
+  recordingDelete: {
+    403: {
+      title: 'нет доступа',
+      description: 'Только автор курса или модератор может удалить запись.',
+    },
+    404: {
+      title: 'запись не найдена',
+      description: 'Запись уже удалена или не существует.',
     },
   },
   webinarStop: {
@@ -696,7 +749,10 @@ export function resolveApiFailureMessage(
     case 'webinarStart':
     case 'webinarJoin':
     case 'webinarRecording':
-    case 'webinarWhiteboardPdf':
+    case 'webinarRecordingStop':
+    case 'recordingPdfUpload':
+    case 'recordingPdfDelete':
+    case 'recordingDelete':
     case 'webinarStop':
     case 'webinarRecorderJoin': {
       if (status === 401) mapped = messageFromAuthDetail(body);

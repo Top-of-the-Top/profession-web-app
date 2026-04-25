@@ -52,8 +52,13 @@ export function useLessonBySlug(
     queryFn: () => courseApi.getLessonBySlug(courseSlug!, lessonSlug!),
     enabled: !!courseSlug && !!lessonSlug,
     refetchInterval: (query) => {
-      const s = query.state.data?.kinescope_upload_status;
-      return s === 'pending' || s === 'uploading' || s === 'processing'
+      const recordings = query.state.data?.recordings ?? [];
+      return recordings.some(
+        (recording) =>
+          recording.kinescope_upload_status === 'pending' ||
+          recording.kinescope_upload_status === 'uploading' ||
+          recording.kinescope_upload_status === 'processing',
+      )
         ? 10_000
         : false;
     },

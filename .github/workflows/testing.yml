@@ -7,11 +7,10 @@ on:
 jobs:
   push-to-testing:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       APP_DIR: /home/shared/profession
       BRANCH: testing
-      COMPOSE_PROJECT_NAME: profession
 
     steps:
       - name: Checkout

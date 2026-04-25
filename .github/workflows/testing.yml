@@ -2,26 +2,93 @@ name: CD Testing
 
 on:
   push:
-    branches: [ testing ]
+    branches: [testing]
 
 jobs:
   push-to-testing:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_DIR: /home/shared/profession
+      BRANCH: testing
+      COMPOSE_PROJECT_NAME: profession
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
-    - name: Setup SSH
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_TESTING_PRIVATE_KEY }}
+      - name: SSH setup
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_TESTING_PRIVATE_KEY }}
 
-    - name: Deploy to testing enviroment
-      run: |
-        ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "
-          cd /home/shared/profession &&
-          git pull origin testing --rebase &&
-          docker compose down &&
-          docker compose up --build -d
-        "
+      - name: Detect changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend_image:
+              - 'backend/requirements.txt'
+              - 'backend/project/settings.py'
+              - 'backend/project/settings/**'
+              - 'docker-compose.yml'
+            frontend:
+              - 'frontend/**'
+              - 'docker-compose.yml'
+            migrations:
+              - 'backend/**/migrations/**'
+
+      - name: Pull latest
+        run: |
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} BRANCH=${BRANCH} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          export COMPOSE_PROJECT_NAME
+          git fetch origin "${BRANCH}"
+          git checkout "${BRANCH}"
+          git reset --hard "origin/${BRANCH}"
+          git clean -fd
+          docker compose down --remove-orphans || true
+          docker rm -f profession_web_app_backend flower || true
+          EOF
+
+      - name: Build backend
+        if: steps.changes.outputs.backend_image == 'true'
+        run: |
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          export COMPOSE_PROJECT_NAME
+          docker compose build backend celery_worker celery-beat flower
+          EOF
+
+      - name: Build frontend
+        if: steps.changes.outputs.frontend == 'true'
+        run: |
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          export COMPOSE_PROJECT_NAME
+          docker compose build frontend
+          EOF
+
+      - name: Migrate
+        if: steps.changes.outputs.migrations == 'true'
+        run: |
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          export COMPOSE_PROJECT_NAME
+          docker compose run --rm --no-deps backend python manage.py migrate --noinput
+          EOF
+
+      - name: Start stack
+        run: |
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          export COMPOSE_PROJECT_NAME
+          docker compose up -d --force-recreate --remove-orphans
+          EOF

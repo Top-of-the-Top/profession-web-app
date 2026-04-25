@@ -20,7 +20,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
-      - name: Merge testing into PR branch (prefer PR changes)
+      - name: Merge testing into PR branch
         run: |
           git fetch origin testing
           git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \

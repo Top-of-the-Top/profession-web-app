@@ -70,6 +70,11 @@ class Chat(TimestampedMixin):
       verbose_name = "Чаты"
       verbose_name_plural = "Сообщения чата"
       ordering = ['updated_at']
+     
+    def __str__(self):
+       if (self.title):
+          return f"{self.title}"
+       return f"{self.chat_id}"
     
 
 class Message(TimestampedMixin):

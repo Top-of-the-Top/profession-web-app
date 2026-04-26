@@ -14,6 +14,6 @@ class ChatAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-  list_display = ['chat', 'content', 'role', 'is_deleted', 'deleted_at']
-  list_filter = ['chat', 'role', 'is_deleted']
+  list_display = ['chat', 'content', 'role']
+  list_filter = ['chat', 'role']
   search_fields = ['chat__session__user__first_name', 'chat__session__user__last_name', 'chat__session__course__title', 'content']

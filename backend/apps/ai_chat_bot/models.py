@@ -2,10 +2,22 @@ from django.db import models
 from apps.courses.models import Course
 from apps.users.models import User
 from uuid import uuid4
+from django.dispatch import receiver
+from django.utils import timezone
 
-class ChatSession(models.Model):
+from django.db.models.signals import post_save
 
-  chat_session_id = models.UUIDField(
+class TimestampedMixin(models.Model):
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+class Session(TimestampedMixin):
+
+  session_id = models.UUIDField(
     primary_key=True,
     verbose_name="id",
     default=uuid4
@@ -36,22 +48,49 @@ class ChatSession(models.Model):
     return f"{self.user} - {self.course}"
 
 
-class ChatMessage(models.Model):
+class Chat(TimestampedMixin):
+   
+    chat_id = models.UUIDField(
+        primary_key=True,
+        verbose_name="id",
+        default=uuid4
+    )
+
+    session = models.ForeignKey(
+        Session,
+        on_delete=models.CASCADE,
+        verbose_name="Сессия чата",
+    )
+
+    title = models.CharField( 
+        max_length=100, 
+        null=True, 
+        blank=True, 
+        verbose_name="Заголовок чата"
+    )
+
+    class Meta:
+      verbose_name = "Чаты"
+      verbose_name_plural = "Сообщения чата"
+      ordering = ['updated_at']
+    
+
+class Message(TimestampedMixin):
   ROLE_CHOICES = [
     ('user', 'Пользователь'),
     ('assistant', 'Ассистент'),
   ]
 
-  chat_message_id = models.UUIDField(
+  message_id = models.UUIDField(
     primary_key=True,
     verbose_name="id",
     default=uuid4
   )
 
-  chat_session = models.ForeignKey(
-    ChatSession,
+  chat = models.ForeignKey(
+    Chat,
     on_delete=models.CASCADE,
-    verbose_name="Сессия чата",
+    verbose_name="Чат",
   )
 
   role = models.CharField(
@@ -68,7 +107,6 @@ class ChatMessage(models.Model):
     null=False,
     blank=False,
   )
-  created_at = models.DateTimeField(auto_now_add=True)
 
   class Meta:
     verbose_name = "Сообщение чата"
@@ -77,3 +115,13 @@ class ChatMessage(models.Model):
 
   def __str__(self):
     return f"{self.role}: {self.content[:40]}"
+
+@receiver(post_save, sender=Message)
+def update_chat_on_message(sender, instance, **kwargs):
+    chat = instance.chat
+    chat.updated_at = timezone.now()
+    if not chat.title:
+        chat.title = instance.text[:100]
+
+    chat.save(update_fields=['updated_at', 'title'])
+    

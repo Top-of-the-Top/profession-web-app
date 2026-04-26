@@ -1,0 +1,25 @@
+services:
+  frontend:
+    profiles:
+      - prod
+
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    command: npm run dev -- --host 0.0.0.0 --port 5173 --force
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      - VITE_ADMINKA_GATEWAY_URL=${VITE_ADMINKA_GATEWAY_URL:-http://localhost:9000}
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=300
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_PORT=0
+    depends_on:
+      - backend
+    networks:
+      - app_network

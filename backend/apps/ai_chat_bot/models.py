@@ -2,10 +2,6 @@ from django.db import models
 from apps.courses.models import Course
 from apps.users.models import User
 from uuid import uuid4
-from django.dispatch import receiver
-from django.utils import timezone
-
-from django.db.models.signals import post_save
 
 class TimestampedMixin(models.Model):
 
@@ -115,13 +111,3 @@ class Message(TimestampedMixin):
 
   def __str__(self):
     return f"{self.role}: {self.content[:40]}"
-
-@receiver(post_save, sender=Message)
-def update_chat_on_message(sender, instance, **kwargs):
-    chat = instance.chat
-    chat.updated_at = timezone.now()
-    if not chat.title:
-        chat.title = instance.text[:100]
-
-    chat.save(update_fields=['updated_at', 'title'])
-    

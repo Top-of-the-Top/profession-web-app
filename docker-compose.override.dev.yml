@@ -1,4 +1,8 @@
 services:
+  frontend:
+    profiles:
+      - prod
+
   frontend-dev:
     build:
       context: ./frontend

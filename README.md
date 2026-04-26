@@ -8,4 +8,4 @@
 
 Локальный dev-режим фронта (Vite) без изменения базового compose:
 
-`docker compose -f docker-compose.yml -f docker-compose.override.dev.yml up --build frontend-dev`
+`docker compose -f docker-compose.yml -f docker-compose.override.dev.yml up --build`

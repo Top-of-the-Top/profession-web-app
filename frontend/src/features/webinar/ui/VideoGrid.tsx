@@ -9,7 +9,8 @@ import AgoraRTC, {
   usePublish,
   useRemoteUsers,
 } from 'agora-rtc-react';
-import { VideoOff } from 'lucide-react';
+import { cn } from '@shared/lib/utils';
+import { MicOff, VideoOff } from 'lucide-react';
 import styles from './VideoGrid.module.css';
 
 interface VideoGridBaseProps {
@@ -68,11 +69,28 @@ function PublisherInner({
         >
           {!cameraOn && (
             <div className={styles.cameraOff}>
-              <VideoOff size={32} className={styles.cameraOffIcon} />
+              <VideoOff
+                size={32}
+                className={cn(styles.cameraOffIcon, styles.icon)}
+              />
+              {micOn ? (
+                <span className={styles.label}>Вы</span>
+              ) : (
+                <span className={styles.label}>
+                  <MicOff className={cn(styles.micOffIcon, styles.icon)} />
+                </span>
+              )}
             </div>
           )}
         </LocalUser>
-        <span className={styles.label}>Вы</span>
+
+        {micOn ? (
+          <span className={styles.label}>Вы</span>
+        ) : (
+          <span className={styles.label}>
+            <MicOff className={cn(styles.micOffIcon, styles.icon)} />
+          </span>
+        )}
       </div>
 
       {remoteUsers.map((user) => (
@@ -85,7 +103,12 @@ function PublisherInner({
   );
 }
 
-function SubscribeOnlyInner({ appId, token, channel, uid }: VideoGridBaseProps) {
+function SubscribeOnlyInner({
+  appId,
+  token,
+  channel,
+  uid,
+}: VideoGridBaseProps) {
   useJoin({ appid: appId, channel, token, uid }, true);
 
   const remoteUsers = useRemoteUsers();
@@ -105,7 +128,7 @@ function SubscribeOnlyInner({ appId, token, channel, uid }: VideoGridBaseProps) 
 export function VideoGrid(props: VideoGridProps) {
   const client = useMemo(
     () => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }),
-    [],
+    []
   );
 
   return (

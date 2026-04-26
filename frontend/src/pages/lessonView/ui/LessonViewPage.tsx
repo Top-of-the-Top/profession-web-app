@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Home, Clock3, Video, CircleCheck, FileDown } from 'lucide-react';
+import { Home, Clock3, Video, CircleCheck, FileDown, Trash2 } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,7 +19,7 @@ import {
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
 import type {
-  KinescopeUploadStatus,
+  LessonRecording,
   LessonHomework,
   WebinarStatus,
 } from '@shared/api/courseApi';
@@ -27,7 +27,11 @@ import {
   useCourseHomeBySlug,
   useLessonBySlug,
 } from '@shared/api/queries/courses';
-import { useStartWebinar } from '@shared/api/mutations/webinar';
+import {
+  useDeleteRecording,
+  useDeleteRecordingPdf,
+  useStartWebinar,
+} from '@shared/api/mutations/webinar';
 import { useToggleHomeworkType } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac';
 import styles from './LessonViewPage.module.css';
@@ -411,31 +415,50 @@ const LessonEditWidget: React.FC<{
   );
 };
 
-const LessonRecording: React.FC<{
-  kinescopeEmbedUrl: string;
-  kinescopeUploadStatus: KinescopeUploadStatus;
-  whiteboardPdfUrl: string;
-}> = ({ kinescopeEmbedUrl, kinescopeUploadStatus, whiteboardPdfUrl }) => {
-  if (kinescopeUploadStatus === 'none') return null;
-
-  const pdfLink = whiteboardPdfUrl?.trim();
+const LessonRecordingCard: React.FC<{
+  recording: LessonRecording;
+  isTeacher: boolean;
+  onDeletePdf: (recordingId: string) => void;
+  onDeleteRecording: (recordingId: string) => void;
+  deletePdfPending: boolean;
+  deleteRecordingPending: boolean;
+}> = ({
+  recording,
+  isTeacher,
+  onDeletePdf,
+  onDeleteRecording,
+  deletePdfPending,
+  deleteRecordingPending,
+}) => {
+  const pdfLink = recording.whiteboard_pdf_url?.trim();
   const hasPdf = !!pdfLink && /^https?:\/\//i.test(pdfLink);
+  const dateLabel = recording.started_at
+    ? new Intl.DateTimeFormat('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(recording.started_at))
+    : 'Запись без даты';
 
   return (
-    <section className={styles.recordingSection}>
-      <h2 className={styles.recordingTitle}>Запись вебинара</h2>
+    <article className={styles.recordingCard}>
+      <div className={styles.recordingCardHead}>
+        <h3 className={styles.recordingCardTitle}>{dateLabel}</h3>
+      </div>
 
-      {kinescopeUploadStatus === 'ready' && kinescopeEmbedUrl ? (
+      {recording.kinescope_upload_status === 'ready' &&
+      recording.kinescope_embed_url ? (
         <div className={styles.recordingIframeWrap}>
           <iframe
-            src={kinescopeEmbedUrl}
+            src={recording.kinescope_embed_url}
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
             allowFullScreen
             className={styles.recordingIframe}
             title="Запись урока"
           />
         </div>
-      ) : kinescopeUploadStatus === 'failed' ? (
+      ) : recording.kinescope_upload_status === 'failed' ? (
         <div className={styles.recordingFailed}>
           Не удалось обработать запись
         </div>
@@ -460,7 +483,32 @@ const LessonRecording: React.FC<{
           </a>
         </div>
       )}
-    </section>
+
+      {isTeacher && recording.recording_id && (
+        <div className={styles.recordingActions}>
+          <button
+            type="button"
+            className={styles.recordingActionButton}
+            onClick={() => onDeleteRecording(recording.recording_id)}
+            disabled={deleteRecordingPending}
+          >
+            <Trash2 size={16} />
+            {deleteRecordingPending ? 'Удаление...' : 'Удалить запись'}
+          </button>
+          {hasPdf && (
+            <button
+              type="button"
+              className={styles.recordingActionButton}
+              onClick={() => onDeletePdf(recording.recording_id)}
+              disabled={deletePdfPending}
+            >
+              <FileDown size={16} />
+              {deletePdfPending ? 'Удаление...' : 'Удалить PDF'}
+            </button>
+          )}
+        </div>
+      )}
+    </article>
   );
 };
 
@@ -482,6 +530,8 @@ export default function LessonViewPage() {
     homeQuery.data?.title ?? courseSlug?.replace(/-/g, ' ') ?? 'Курс';
 
   const lessonDetail = lessonQuery.data;
+  const deleteRecordingPdf = useDeleteRecordingPdf(courseSlug ?? '', lessonSlug ?? '');
+  const deleteRecording = useDeleteRecording(courseSlug ?? '', lessonSlug ?? '');
 
   const lessonLayout = useMemo<LessonLayout | null>(() => {
     if (!lessonDetail?.document) return null;
@@ -576,11 +626,28 @@ export default function LessonViewPage() {
 
           <main className={styles.main}>
             {lessonLayout && <LessonContent layout={lessonLayout} />}
-            <LessonRecording
-              kinescopeEmbedUrl={lessonDetail.kinescope_embed_url}
-              kinescopeUploadStatus={lessonDetail.kinescope_upload_status}
-              whiteboardPdfUrl={lessonDetail.whiteboard_pdf_url}
-            />
+            {lessonDetail.recordings.length > 0 && (
+              <section className={styles.recordingSection}>
+                <h2 className={styles.recordingTitle}>Записи вебинара</h2>
+                <div className={styles.recordingList}>
+                  {lessonDetail.recordings.map((recording) => (
+                    <LessonRecordingCard
+                      key={`${recording.recording_id}-${recording.started_at ?? 'recording'}`}
+                      recording={recording}
+                      isTeacher={isTeacher}
+                      onDeletePdf={(recordingId) => {
+                        deleteRecordingPdf.mutate(recordingId);
+                      }}
+                      onDeleteRecording={(recordingId) => {
+                        deleteRecording.mutate(recordingId);
+                      }}
+                      deletePdfPending={deleteRecordingPdf.isPending}
+                      deleteRecordingPending={deleteRecording.isPending}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </main>
         </div>
 

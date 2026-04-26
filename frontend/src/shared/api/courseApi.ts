@@ -145,16 +145,25 @@ export type KinescopeUploadStatus =
   | 'ready'
   | 'failed';
 
+export type RecordingStatus = 'recording' | 'processing' | 'ready' | 'failed';
+
+export interface LessonRecording {
+  recording_id: string;
+  started_at: string | null;
+  ended_at: string | null;
+  status: RecordingStatus;
+  kinescope_upload_status: KinescopeUploadStatus;
+  kinescope_embed_url: string;
+  whiteboard_pdf_url: string;
+}
+
 export interface CourseLessonDetail {
   lesson_id: number;
   title: string;
   document: string;
-  recording_url: string;
   started_at: string | null;
   webinar_status: WebinarStatus | null;
-  whiteboard_pdf_url: string;
-  kinescope_embed_url: string;
-  kinescope_upload_status: KinescopeUploadStatus;
+  recordings: LessonRecording[];
   homeworks: LessonHomework[];
   meta: Record<string, unknown>;
 }
@@ -231,10 +240,64 @@ type RawLessonDetailResponse = {
     whiteboard_pdf_url?: string | null;
     kinescope_embed_url?: string | null;
     kinescope_upload_status?: KinescopeUploadStatus | null;
+    recordings?: Array<{
+      recording_id?: string;
+      started_at?: string | null;
+      ended_at?: string | null;
+      status?: RecordingStatus;
+      kinescope_upload_status?: KinescopeUploadStatus | null;
+      kinescope_embed_url?: string | null;
+      whiteboard_pdf_url?: string | null;
+    }>;
     homeworks?: LessonHomework[];
   };
   meta?: Record<string, unknown>;
 };
+
+function normalizeLessonRecordings(
+  content: RawLessonDetailResponse['content'],
+): LessonRecording[] {
+  const list = Array.isArray(content.recordings) ? content.recordings : [];
+  if (list.length > 0) {
+    return list.map((recording) => ({
+      recording_id: String(recording.recording_id ?? ''),
+      started_at: recording.started_at ?? null,
+      ended_at: recording.ended_at ?? null,
+      status: recording.status ?? 'processing',
+      kinescope_upload_status: recording.kinescope_upload_status ?? 'none',
+      kinescope_embed_url: recording.kinescope_embed_url ?? '',
+      whiteboard_pdf_url: recording.whiteboard_pdf_url ?? '',
+    }));
+  }
+
+  if (
+    !content.recording_url &&
+    !content.kinescope_embed_url &&
+    !content.whiteboard_pdf_url &&
+    (content.kinescope_upload_status == null || content.kinescope_upload_status === 'none')
+  ) {
+    return [];
+  }
+
+  const fallbackStatus: RecordingStatus =
+    content.kinescope_upload_status === 'failed'
+      ? 'failed'
+      : content.kinescope_upload_status === 'ready'
+        ? 'ready'
+        : 'processing';
+
+  return [
+    {
+      recording_id: '',
+      started_at: content.started_at ?? null,
+      ended_at: null,
+      status: fallbackStatus,
+      kinescope_upload_status: content.kinescope_upload_status ?? 'none',
+      kinescope_embed_url: content.kinescope_embed_url ?? '',
+      whiteboard_pdf_url: content.whiteboard_pdf_url ?? '',
+    },
+  ];
+}
 
 function normalizeCoursesResponse(raw: RawCoursesResponse): CourseApiAnswer {
   if (Array.isArray(raw)) {
@@ -302,12 +365,9 @@ function normalizeLessonDetailRead(raw: RawLessonDetailResponse): CourseLessonDe
     lesson_id: raw.lesson_id,
     title: raw.title,
     document: c.document ?? '',
-    recording_url: c.recording_url ?? '',
     started_at: c.started_at ?? null,
     webinar_status: c.webinar_status ?? null,
-    whiteboard_pdf_url: c.whiteboard_pdf_url ?? '',
-    kinescope_embed_url: c.kinescope_embed_url ?? '',
-    kinescope_upload_status: c.kinescope_upload_status ?? 'none',
+    recordings: normalizeLessonRecordings(c),
     homeworks: Array.isArray(c.homeworks) ? c.homeworks : [],
     meta: raw.meta ?? {},
   };
@@ -464,7 +524,9 @@ export const courseApi = {
     if (hasFiles || hasDocument) {
       body = buildLessonFormData(payload);
     } else {
-      const { files: _f, document: _d, ...meta } = payload;
+      const meta: Record<string, unknown> = { ...payload };
+      delete meta.files;
+      delete meta.document;
       body = JSON.stringify(meta);
     }
 

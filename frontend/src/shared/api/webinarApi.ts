@@ -23,8 +23,16 @@ export interface WebinarDetailResponse {
   detail: string;
 }
 
+export interface WebinarRecordingResponse extends WebinarDetailResponse {
+  recording_id: string;
+}
+
 function webinarBase(courseSlug: string, lessonSlug: string) {
   return `/api/courses/${courseSlug}/lessons/${lessonSlug}/webinar`;
+}
+
+function lessonBase(courseSlug: string, lessonSlug: string) {
+  return `/api/courses/${courseSlug}/lessons/${lessonSlug}`;
 }
 
 export const webinarApi = {
@@ -45,16 +53,27 @@ export const webinarApi = {
   startRecording(
     courseSlug: string,
     lessonSlug: string,
-  ): Promise<WebinarDetailResponse> {
-    return apiClient.request<WebinarDetailResponse>(
+  ): Promise<WebinarRecordingResponse> {
+    return apiClient.request<WebinarRecordingResponse>(
       `${webinarBase(courseSlug, lessonSlug)}/recording/start/`,
       { method: 'POST' },
     );
   },
 
-  whiteboardPdf(
+  stopRecording(
     courseSlug: string,
     lessonSlug: string,
+  ): Promise<WebinarRecordingResponse> {
+    return apiClient.request<WebinarRecordingResponse>(
+      `${webinarBase(courseSlug, lessonSlug)}/recording/stop/`,
+      { method: 'POST' },
+    );
+  },
+
+  uploadRecordingPdf(
+    courseSlug: string,
+    lessonSlug: string,
+    recordingId: string,
     screenshots: Blob[],
   ): Promise<WebinarDetailResponse> {
     const fd = new FormData();
@@ -64,8 +83,30 @@ export const webinarApi = {
     });
 
     return apiClient.request<WebinarDetailResponse>(
-      `${webinarBase(courseSlug, lessonSlug)}/whiteboard-pdf/`,
+      `${lessonBase(courseSlug, lessonSlug)}/recordings/${recordingId}/pdf/`,
       { method: 'POST', body: fd },
+    );
+  },
+
+  deleteRecordingPdf(
+    courseSlug: string,
+    lessonSlug: string,
+    recordingId: string,
+  ): Promise<void> {
+    return apiClient.request<void>(
+      `${lessonBase(courseSlug, lessonSlug)}/recordings/${recordingId}/pdf/`,
+      { method: 'DELETE' },
+    );
+  },
+
+  deleteRecording(
+    courseSlug: string,
+    lessonSlug: string,
+    recordingId: string,
+  ): Promise<void> {
+    return apiClient.request<void>(
+      `${lessonBase(courseSlug, lessonSlug)}/recordings/${recordingId}/`,
+      { method: 'DELETE' },
     );
   },
 

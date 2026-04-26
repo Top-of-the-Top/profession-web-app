@@ -8,12 +8,14 @@ interface WebinarControlsProps {
   isTeacher: boolean;
   isRecording: boolean;
   recordingPending: boolean;
-  stopPending: boolean;
+  stopRecordingPending: boolean;
+  stopWebinarPending: boolean;
   onToggleMic: () => void;
   onToggleCamera: () => void;
   onStartRecording: () => void;
+  onStopRecording: () => void;
   onLeave: () => void;
-  onStop: () => void;
+  onStopWebinar: () => void;
 }
 
 export function WebinarControls({
@@ -22,12 +24,14 @@ export function WebinarControls({
   isTeacher,
   isRecording,
   recordingPending,
-  stopPending,
+  stopRecordingPending,
+  stopWebinarPending,
   onToggleMic,
   onToggleCamera,
   onStartRecording,
+  onStopRecording,
   onLeave,
-  onStop,
+  onStopWebinar,
 }: WebinarControlsProps) {
   return (
     <div className={styles.bar}>
@@ -62,10 +66,20 @@ export function WebinarControls({
       )}
 
       {isTeacher && isRecording && (
-        <span className={styles.recordingBadge}>
-          <span className={styles.recordingDot} />
-          Запись идёт
-        </span>
+        <>
+          <span className={styles.recordingBadge}>
+            <span className={styles.recordingDot} />
+            Запись идёт
+          </span>
+          <button
+            type="button"
+            className={styles.btn}
+            onClick={onStopRecording}
+            disabled={stopRecordingPending}
+          >
+            {stopRecordingPending ? 'Остановка...' : 'Остановить запись'}
+          </button>
+        </>
       )}
 
       <div className={styles.spacer} />
@@ -74,15 +88,11 @@ export function WebinarControls({
         <button
           type="button"
           className={cn(styles.btn, styles.btnDanger)}
-          onClick={onStop}
-          disabled={stopPending}
+          onClick={onStopWebinar}
+          disabled={stopWebinarPending}
         >
           <PhoneOff size={18} />
-          {stopPending
-            ? 'Завершение...'
-            : isRecording
-              ? 'Завершить запись'
-              : 'Завершить вебинар'}
+          {stopWebinarPending ? 'Завершение...' : 'Завершить вебинар'}
         </button>
       ) : (
         <button

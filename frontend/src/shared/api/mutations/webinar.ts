@@ -30,20 +30,85 @@ export function useStartWebinar(courseSlug: string, lessonSlug: string) {
 }
 
 export function useStartRecording(courseSlug: string, lessonSlug: string) {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => webinarApi.startRecording(courseSlug, lessonSlug),
     onSuccess: () => {
       notifySuccess({ title: 'Запись началась' });
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
     },
     onError: (err) => handleWebinarError(err, 'webinarRecording'),
   });
 }
 
-export function useWhiteboardPdf(courseSlug: string, lessonSlug: string) {
+export function useStopRecording(courseSlug: string, lessonSlug: string) {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (screenshots: Blob[]) =>
-      webinarApi.whiteboardPdf(courseSlug, lessonSlug, screenshots),
-    onError: (err) => handleWebinarError(err, 'webinarWhiteboardPdf'),
+    mutationFn: () => webinarApi.stopRecording(courseSlug, lessonSlug),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+      notifySuccess({ title: 'Запись остановлена' });
+    },
+    onError: (err) => handleWebinarError(err, 'webinarRecordingStop'),
+  });
+}
+
+export function useUploadRecordingPdf(courseSlug: string, lessonSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      recordingId,
+      screenshots,
+    }: {
+      recordingId: string;
+      screenshots: Blob[];
+    }) =>
+      webinarApi.uploadRecordingPdf(
+        courseSlug,
+        lessonSlug,
+        recordingId,
+        screenshots,
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+    },
+    onError: (err) => handleWebinarError(err, 'recordingPdfUpload'),
+  });
+}
+
+export function useDeleteRecordingPdf(courseSlug: string, lessonSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (recordingId: string) =>
+      webinarApi.deleteRecordingPdf(courseSlug, lessonSlug, recordingId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+      notifySuccess({ title: 'PDF удален' });
+    },
+    onError: (err) => handleWebinarError(err, 'recordingPdfDelete'),
+  });
+}
+
+export function useDeleteRecording(courseSlug: string, lessonSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (recordingId: string) =>
+      webinarApi.deleteRecording(courseSlug, lessonSlug, recordingId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+      notifySuccess({ title: 'Запись удалена' });
+    },
+    onError: (err) => handleWebinarError(err, 'recordingDelete'),
   });
 }
 

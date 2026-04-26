@@ -1,8 +1,6 @@
 import openai
 import asyncio
 from django.conf import settings
-from apps.courses.models import Course
-from apps.ai_chat_bot.models import ChatMessage, ChatSession
 
 class YandexAIBase:
     _semaphore = asyncio.Semaphore(20) # Семафор нужен, чтобы избежать ошибки, когда у нас оч много запросов с 1ого IPшника.

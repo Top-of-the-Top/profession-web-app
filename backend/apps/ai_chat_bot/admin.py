@@ -1,14 +1,19 @@
 from django.contrib import admin
-from .models import ChatSession, ChatMessage
+from .models import Session, Message, Chat
 
-@admin.register(ChatSession)
-class ChatSessionAdmin(admin.ModelAdmin):
+@admin.register(Session)
+class SessionAdmin(admin.ModelAdmin):
   list_display = ['user', 'course']
   list_filter = ['user', 'course']
   search_fields = ['user__first_name', 'user__last_name', 'course__title']
 
-@admin.register(ChatMessage)
-class ChatMessageAdmin(admin.ModelAdmin):
-  list_display = ['chat_session', 'content', 'role']
-  list_filter = ['chat_session', 'role']
-  search_fields = ['chat_session__user__first_name', 'chat_session__user__last_name', 'chat_session__course__title', 'content']
+@admin.register(Chat)
+class ChatAdmin(admin.ModelAdmin):
+  list_display = []
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+  list_display = ['chat', 'content', 'role']
+  list_filter = ['chat', 'role']
+  search_fields = ['chat__session__user__first_name', 'chat__session__user__last_name', 'chat__session__course__title', 'content']

@@ -3,9 +3,17 @@ from apps.courses.models import Course
 from apps.users.models import User
 from uuid import uuid4
 
-class ChatSession(models.Model):
+class TimestampedMixin(models.Model):
 
-  chat_session_id = models.UUIDField(
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+class Session(TimestampedMixin):
+
+  session_id = models.UUIDField(
     primary_key=True,
     verbose_name="id",
     default=uuid4
@@ -36,22 +44,56 @@ class ChatSession(models.Model):
     return f"{self.user} - {self.course}"
 
 
-class ChatMessage(models.Model):
+class Chat(TimestampedMixin):
+   
+    chat_id = models.UUIDField(
+        primary_key=True,
+        verbose_name="id",
+        default=uuid4
+    )
+
+    session = models.ForeignKey(
+        Session,
+        on_delete=models.CASCADE,
+        verbose_name="Сессия чата",
+        related_name="chats"
+    )
+
+    title = models.CharField( 
+        max_length=100, 
+        null=True, 
+        blank=True, 
+        verbose_name="Заголовок чата"
+    )
+
+    class Meta:
+      verbose_name = "Чаты"
+      verbose_name_plural = "Сообщения чата"
+      ordering = ['updated_at']
+     
+    def __str__(self):
+       if (self.title):
+          return f"{self.title}"
+       return f"{self.chat_id}"
+    
+
+class Message(TimestampedMixin):
   ROLE_CHOICES = [
     ('user', 'Пользователь'),
     ('assistant', 'Ассистент'),
   ]
 
-  chat_message_id = models.UUIDField(
+  message_id = models.UUIDField(
     primary_key=True,
     verbose_name="id",
     default=uuid4
   )
 
-  chat_session = models.ForeignKey(
-    ChatSession,
+  chat = models.ForeignKey(
+    Chat,
     on_delete=models.CASCADE,
-    verbose_name="Сессия чата",
+    verbose_name="Чат",
+    related_name="messages"
   )
 
   role = models.CharField(
@@ -68,7 +110,6 @@ class ChatMessage(models.Model):
     null=False,
     blank=False,
   )
-  created_at = models.DateTimeField(auto_now_add=True)
 
   class Meta:
     verbose_name = "Сообщение чата"

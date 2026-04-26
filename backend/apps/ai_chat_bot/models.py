@@ -56,6 +56,7 @@ class Chat(TimestampedMixin):
         Session,
         on_delete=models.CASCADE,
         verbose_name="Сессия чата",
+        related_name="chats"
     )
 
     title = models.CharField( 
@@ -87,6 +88,7 @@ class Message(TimestampedMixin):
     Chat,
     on_delete=models.CASCADE,
     verbose_name="Чат",
+    related_name="messages"
   )
 
   role = models.CharField(

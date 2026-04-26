@@ -1,7 +1,7 @@
 
 import logging
 from django.conf import settings
-from apps.ai_chat_bot.models import ChatMessage, ChatSession
+from apps.ai_chat_bot.models import Message, Session, Chat
 from asgiref.sync import sync_to_async
 from apps.ai_chat_bot.services.base_service import YandexAIBase
 
@@ -16,7 +16,7 @@ class YandexChatAIService(YandexAIBase):
       )
 
       session, created = await sync_to_async(
-          ChatSession.objects.get_or_create)(
+          Session.objects.get_or_create)(
               course=course,
               user=user
           )
@@ -27,7 +27,7 @@ class YandexChatAIService(YandexAIBase):
       return session
     
     async def save_message(self, session, role, content):
-        return await sync_to_async(ChatMessage.objects.create)(
+        return await sync_to_async(Message.objects.create)(
             chat_session=session,
             role=role,
             content=content
@@ -50,4 +50,16 @@ class YandexChatAIService(YandexAIBase):
         except Exception as e:
             logger.error(f"Error while creating a new response stream: {e}")
             raise 
+
+    async def get_chats(self, session):
+        get_chats_for_session = lambda x: list(x.chats.all().order_by('-updated_at'))
+        
+        return await sync_to_async(get_chats_for_session)(session)
+
+    async def get_chat_history(self, session, chat_id):
+        chat = await sync_to_async(Chat.objects.get(chat_id=chat_id))
+        get_chat_messages = lambda x: list(x.messages.all().order_by('-updated_at'))
+        messages = await sync_to_async(get_chat_messages)(chat)
+
+        return messages
         

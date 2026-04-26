@@ -2,7 +2,6 @@ import logging
 import os
 import asyncio
 from apps.courses.models import Course
-from apps.ai_chat_bot.models import ChatMessage, ChatSession
 from asgiref.sync import sync_to_async
 from apps.ai_chat_bot.services.base_service import YandexAIBase
 

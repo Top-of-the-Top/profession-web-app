@@ -42,6 +42,7 @@ import {
 } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac/useRole';
 import { cn } from '@shared/lib/utils';
+import { AiChatPanel } from '../../../features/ai-chat';
 import styles from './CourseLessonsPage.module.css';
 
 function idKey(id: number | string): string {
@@ -332,6 +333,7 @@ export default function CourseLessonsPage() {
                 />
               </>
             )}
+            <AiChatPanel courseSlug={slug} />
           </aside>
         </div>
       </PageFrame>
@@ -395,6 +397,7 @@ export default function CourseLessonsPage() {
               />
             </>
           )}
+          <AiChatPanel courseSlug={slug} />
         </aside>
       </div>
     </PageFrame>

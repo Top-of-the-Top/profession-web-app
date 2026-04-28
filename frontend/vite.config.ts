@@ -30,6 +30,7 @@ export default defineConfig({
       '/api': {
         target: 'http://backend:9000',
         changeOrigin: true,
+				ws: true
       },
     },
   },

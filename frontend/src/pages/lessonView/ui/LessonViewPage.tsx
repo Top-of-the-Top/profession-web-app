@@ -34,6 +34,7 @@ import {
 } from '@shared/api/mutations/webinar';
 import { useToggleHomeworkType } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac';
+import { AiChatPanel } from '../../../features/ai-chat';
 import styles from './LessonViewPage.module.css';
 
 const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
@@ -676,6 +677,7 @@ export default function LessonViewPage() {
             isTeacher={isTeacher}
           />
           <ProgressWidget />
+          <AiChatPanel courseSlug={courseSlug ?? ''} />
         </aside>
       </div>
       </div>

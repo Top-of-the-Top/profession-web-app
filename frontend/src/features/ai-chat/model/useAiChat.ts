@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { tokenService } from '@shared/lib/auth/tokenService';
 import { useAiChatStore } from './aiChatStore';
 import { aiChatWebSocketService } from './aiChatWebSocketService';
@@ -13,6 +13,19 @@ export function useAiChat(courseSlug: string | null | undefined) {
   const streamBuffer = useAiChatStore((state) => state.streamBuffer);
   const streamChatId = useAiChatStore((state) => state.streamChatId);
   const setActiveChatId = useAiChatStore((state) => state.setActiveChatId);
+  const startNewChat = useCallback(() => aiChatWebSocketService.startNewChat(), []);
+  const deleteChat = useCallback(
+    (chatId: string) => aiChatWebSocketService.deleteChat(chatId),
+    []
+  );
+  const getHistory = useCallback(
+    (chatId: string) => aiChatWebSocketService.getHistory(chatId),
+    []
+  );
+  const sendMessage = useCallback(
+    (chatId: string, text: string) => aiChatWebSocketService.sendMessage(chatId, text),
+    []
+  );
 
   useEffect(() => {
     if (!courseSlug || !tokenService.hasToken()) {
@@ -36,10 +49,9 @@ export function useAiChat(courseSlug: string | null | undefined) {
     streamBuffer,
     streamChatId,
     setActiveChatId,
-    startNewChat: () => aiChatWebSocketService.startNewChat(),
-    deleteChat: (chatId: string) => aiChatWebSocketService.deleteChat(chatId),
-    getHistory: (chatId: string) => aiChatWebSocketService.getHistory(chatId),
-    sendMessage: (chatId: string, text: string) =>
-      aiChatWebSocketService.sendMessage(chatId, text),
+    startNewChat,
+    deleteChat,
+    getHistory,
+    sendMessage,
   };
 }

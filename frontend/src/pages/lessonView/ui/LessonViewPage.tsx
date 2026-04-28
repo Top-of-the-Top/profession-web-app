@@ -593,7 +593,7 @@ export default function LessonViewPage() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link
-                  to="/app/home"
+                  to="/app"
                   className={styles.homeLink}
                   aria-label="Домашняя"
                 >

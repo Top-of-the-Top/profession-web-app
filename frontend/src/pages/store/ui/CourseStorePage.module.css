@@ -152,12 +152,25 @@
   justify-content: center;
   width: 30px;
   height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  flex: 0 0 30px;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
+  line-height: 0;
   background-color: black;
   border-radius: 50%;
 }
 
 .arrowIcon {
   color: white;
+  width: 25px !important;
+  height: 25px !important;
+  min-width: 25px;
+  min-height: 25px;
+  display: block;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
 }
 
 /* .detailsButton:hover .arrowIcon {

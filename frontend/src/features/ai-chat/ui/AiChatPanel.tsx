@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bot, Plus, Trash2 } from 'lucide-react';
-import { Button, Input, Spinner } from '@shared/ui';
+import { BotMessageSquare, Plus, Trash2 } from 'lucide-react';
+import { Button, Input } from '@shared/ui';
 import { useAiChat } from '../model/useAiChat';
 import styles from './AiChatPanel.module.css';
 
@@ -93,32 +93,15 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
       <header className={styles.header}>
         <div className={styles.titleRow}>
           <h3 className={styles.title}>
-            <Bot size={16} /> AI-агент курса
+            <BotMessageSquare size={16} /> <span>ИИ-помощник</span>
+						
           </h3>
-          {status === 'connecting' ? <Spinner /> : null}
         </div>
 
-        <p className={styles.status}>{statusLabel(status)}</p>
-        {error ? <p className={styles.error}>{error}</p> : null}
+        {/* {error ? <p className={styles.error}>{error}</p> : null} */}
 
         <div className={styles.chatRow}>
-          <select
-            className={styles.chatSelect}
-            value={activeChatId ?? ''}
-            onChange={(event) => {
-              const value = event.target.value;
-              setActiveChatId(value || null);
-            }}
-          >
-            <option value="" disabled>
-              Выберите чат
-            </option>
-            {chats.map((chat) => (
-              <option key={chat.chat_id} value={chat.chat_id}>
-                {chat.title}
-              </option>
-            ))}
-          </select>
+          
           <Button type="button" size="icon-sm" onClick={onCreateChat}>
             <Plus size={16} />
           </Button>

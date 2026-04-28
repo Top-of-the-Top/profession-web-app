@@ -253,7 +253,7 @@ export default function CourseLessonsPage() {
           <div className={styles.errorBox}>
             <p className={styles.errorText}>Не указан адрес курса.</p>
             <Button type="button" variant="outline" asChild>
-              <Link to="/app/home">На главную</Link>
+              <Link to="/app">На главную</Link>
             </Button>
           </div>
         </div>
@@ -298,7 +298,7 @@ export default function CourseLessonsPage() {
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
                   <Link
-                    to="/app/home"
+                    to="/app"
                     className={styles.homeLink}
                     aria-label="Домашняя"
                   >
@@ -348,7 +348,7 @@ export default function CourseLessonsPage() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link
-                  to="/app/home"
+                  to="/app"
                   className={styles.homeLink}
                   aria-label="Домашняя"
                 >

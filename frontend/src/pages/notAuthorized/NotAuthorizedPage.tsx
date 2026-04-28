@@ -13,7 +13,7 @@ export default function NotAuthorizedPage() {
           <p>У вас нет прав для просмотра этой страницы.</p>
         </div>
 
-        <Link className={styles.btn} to="/app/home">
+        <Link className={styles.btn} to="/app">
           На главную
         </Link>
       </div>

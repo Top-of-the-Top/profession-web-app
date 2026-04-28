@@ -94,14 +94,30 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
         <div className={styles.titleRow}>
           <h3 className={styles.title}>
             <BotMessageSquare size={16} /> <span>ИИ-помощник</span>
-						
           </h3>
         </div>
 
-        {/* {error ? <p className={styles.error}>{error}</p> : null} */}
+        <p className={styles.status}>{statusLabel(status)}</p>
+        {error ? <p className={styles.error}>{error}</p> : null}
 
         <div className={styles.chatRow}>
-          
+          <select
+            className={styles.chatSelect}
+            value={activeChatId ?? ''}
+            onChange={(event) => {
+              const value = event.target.value;
+              setActiveChatId(value || null);
+            }}
+          >
+            <option value="" disabled>
+              Выберите чат
+            </option>
+            {chats.map((chat) => (
+              <option key={chat.chat_id} value={chat.chat_id}>
+                {chat.title}
+              </option>
+            ))}
+          </select>
           <Button type="button" size="icon-sm" onClick={onCreateChat}>
             <Plus size={16} />
           </Button>

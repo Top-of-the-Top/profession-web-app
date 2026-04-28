@@ -62,7 +62,7 @@ export default function AppLayout() {
   }, [hasToken, user]);
 
   const navItems = [
-    { href: '/app/home', label: 'Домашняя', icon: House, id: 'home' },
+    { href: '/app', label: 'Домашняя', icon: House, id: 'home' },
     {
       href: '/app/store',
       label: 'Магазин',
@@ -114,12 +114,8 @@ export default function AppLayout() {
       <div className={styles.content}>
         <div className={styles.sidebar}>
           <div className={styles.navContainer}>
-            <p>Меню</p>
             <nav className={styles.nav}>
               {navItems.map(({ href, label, icon: Icon, id }) => {
-                const storeActive =
-                  id === 'upload' &&
-                  pathname.startsWith('/app/store');
                 return (
                   <NavLink
                     key={href}
@@ -129,14 +125,14 @@ export default function AppLayout() {
                       cn(
                         styles.navLink,
                         styles[id],
-                        (storeActive || isActive) && styles.navLinkActive,
+                        isActive && styles.navLinkActive,
                       )
                     }
                   >
                     <Button variant="ghost" className={styles.navButton}>
                       <Icon className={styles.navIcon} strokeWidth={2} />
-                      <span>{label}</span>
                     </Button>
+                    <span className={styles.navTooltip}>{label}</span>
                   </NavLink>
                 );
               })}

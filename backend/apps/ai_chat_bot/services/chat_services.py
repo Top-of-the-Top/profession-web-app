@@ -73,7 +73,7 @@ class YandexChatAIService(YandexAIBase):
         chat = await self._get_chat_for_current_session(chat_id)
         logger.info("Getting chat history for chat_id=%s", chat.chat_id)
         get_chat_messages = lambda x: list(
-            x.messages.all().order_by('-updated_at')
+            x.messages.all().order_by('updated_at')
         )
         messages = await sync_to_async(get_chat_messages)(chat)
         return messages

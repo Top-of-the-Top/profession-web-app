@@ -57,7 +57,6 @@ export const routes: AppRoute[] = [
     protected: true,
     children: [
       { index: true, element: <AppHomePage /> },
-      { path: 'home', element: <AppHomePage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'store', element: <CourseStorePage /> },
       {

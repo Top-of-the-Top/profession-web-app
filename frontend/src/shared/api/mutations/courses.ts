@@ -12,6 +12,9 @@ import {
   type Lesson,
   type LessonCreatePayload,
   type LessonPatchPayload,
+  type UploadHomeworkFilePayload,
+  type SubmitHomeworkAttemptPayload,
+  type HomeworkUploadResponse,
   type QuestionCreatePayload,
   type SectionCreatePayload,
   type SectionPatchPayload,
@@ -608,6 +611,34 @@ export function useDeleteHomework(
     onError: (err) => {
       notifyError({
         title: 'Не удалось удалить домашнее задание',
+        description: errMsg(err),
+      });
+    },
+  });
+}
+
+export function useRequestHomeworkUpload(homeworkSlug: string) {
+  return useMutation({
+    mutationFn: (payload: UploadHomeworkFilePayload): Promise<HomeworkUploadResponse> =>
+      courseApi.requestHomeworkUpload(homeworkSlug, payload),
+  });
+}
+
+export function useSubmitHomeworkAttempt(homeworkSlug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SubmitHomeworkAttemptPayload) =>
+      courseApi.submitHomeworkAttempt(homeworkSlug, payload),
+    onSuccess: () => {
+      notifySuccess({ title: 'Домашнее задание отправлено' });
+      void qc.invalidateQueries({
+        queryKey: courseKeys.homeworkAttempt(homeworkSlug),
+      });
+      void qc.invalidateQueries({ queryKey: courseKeys.all });
+    },
+    onError: (err) => {
+      notifyError({
+        title: 'Не удалось отправить домашнее задание',
         description: errMsg(err),
       });
     },

@@ -11,6 +11,8 @@ export const courseKeys = {
     [...courseKeys.all, courseSlug, 'lessons', lessonSlug] as const,
   homework: (courseSlug: string, lessonSlug: string, homeworkSlug: string) =>
     [...courseKeys.all, courseSlug, 'lessons', lessonSlug, 'homework', homeworkSlug] as const,
+  homeworkAttempt: (homeworkSlug: string) =>
+    [...courseKeys.all, 'homework-attempt', homeworkSlug] as const,
 };
 
 export function useCourses() {
@@ -74,5 +76,13 @@ export function useHomeworkDetail(
     queryKey: courseKeys.homework(courseSlug!, lessonSlug!, homeworkSlug!),
     queryFn: () => courseApi.getHomeworkDetail(courseSlug!, lessonSlug!, homeworkSlug!),
     enabled: !!courseSlug && !!lessonSlug && !!homeworkSlug,
+  });
+}
+
+export function useHomeworkAttempt(homeworkSlug: string | undefined) {
+  return useQuery({
+    queryKey: courseKeys.homeworkAttempt(homeworkSlug!),
+    queryFn: () => courseApi.getHomeworkAttempt(homeworkSlug!),
+    enabled: !!homeworkSlug,
   });
 }

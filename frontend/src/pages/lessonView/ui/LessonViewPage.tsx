@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Home, Clock3, Video, CircleCheck, FileDown, Trash2 } from 'lucide-react';
 import {
@@ -19,11 +20,14 @@ import {
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
 import type {
+  HomeworkAttemptStatus,
   LessonRecording,
   LessonHomework,
   WebinarStatus,
 } from '@shared/api/courseApi';
+import { courseApi } from '@shared/api/courseApi';
 import {
+  courseKeys,
   useCourseHomeBySlug,
   useLessonBySlug,
 } from '@shared/api/queries/courses';
@@ -147,6 +151,27 @@ const HomeworkWidget: React.FC<{
   const visible = isTeacher
     ? homeworks
     : homeworks.filter((hw) => hw.type === 'published');
+  const attemptQueries = useQueries({
+    queries: isTeacher
+      ? []
+      : visible.map((homework) => ({
+          queryKey: courseKeys.homeworkAttempt(homework.homework_slug),
+          queryFn: () => courseApi.getHomeworkAttempt(homework.homework_slug),
+          staleTime: 30_000,
+        })),
+  });
+  const attemptStatuses = useMemo(() => {
+    const map = new Map<string, HomeworkAttemptStatus>();
+    if (isTeacher) return map;
+    for (let i = 0; i < visible.length; i += 1) {
+      const slug = visible[i]?.homework_slug;
+      const status = attemptQueries[i]?.data?.status;
+      if (slug && status) {
+        map.set(slug, status);
+      }
+    }
+    return map;
+  }, [attemptQueries, isTeacher, visible]);
 
   if (visible.length === 0) {
     return (
@@ -170,6 +195,25 @@ const HomeworkWidget: React.FC<{
       </div>
       {visible.map((hw) => (
         <div key={hw.homework_id} className={styles.homeworkItem}>
+          {!isTeacher && (
+            <div className={styles.homeworkStatusRow}>
+              <span
+                className={
+                  attemptStatuses.get(hw.homework_slug) === 'reviewed'
+                    ? styles.hwBadgePublished
+                    : attemptStatuses.get(hw.homework_slug) === 'submitted'
+                      ? styles.hwBadgeDraft
+                      : styles.hwBadgePending
+                }
+              >
+                {attemptStatuses.get(hw.homework_slug) === 'reviewed'
+                  ? 'проверено'
+                  : attemptStatuses.get(hw.homework_slug) === 'submitted'
+                    ? 'отправлено'
+                    : 'не сдано'}
+              </span>
+            </div>
+          )}
           {isTeacher && (
             <div className={styles.homeworkStatusRow}>
               <span
@@ -205,7 +249,11 @@ const HomeworkWidget: React.FC<{
             to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`}
             className={styles.homeworkButton}
           >
-            {hw.title || 'Перейти к заданию'}
+            {attemptStatuses.get(hw.homework_slug) === 'reviewed'
+              ? 'Посмотреть результат'
+              : attemptStatuses.get(hw.homework_slug) === 'submitted'
+                ? 'Посмотреть отправку'
+                : hw.title || 'Сдать ДЗ'}
           </Link>
         </div>
       ))}

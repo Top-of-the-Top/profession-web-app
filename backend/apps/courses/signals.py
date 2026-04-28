@@ -16,7 +16,8 @@ from apps.notifications.tasks import (
     send_single_email,
     send_mass_system_email,
 )
-
+from .api.utils.cache_utils import invalidate_lesson_detail_cache
+from apps.webinars.models import Webinar, Recording
 from .models import (
     DEFAULT_COURSE_IMAGE,
     Course,
@@ -266,3 +267,23 @@ def invalidate_cold_question_cache(sender, instance, **kwargs):
 @receiver((pre_save, pre_delete), sender=PurchasedCourse)
 def invalidate_default_purchased_cache(sender, instance, **kwargs):
     caches["default"].delete(purchased_courses_cache_key(instance.user_id))
+
+
+@receiver((pre_save, pre_delete), sender=Webinar)
+def invalidate_lesson_cache_on_webinar_change(sender, instance, **kwargs):
+    lesson = instance.lesson
+    section = lesson.section
+    if section is None:
+        return
+    course_slug = section.course.slug
+    invalidate_lesson_detail_cache(course_slug, lesson.slug)
+
+
+@receiver((pre_save, pre_delete), sender=Recording)
+def invalidate_lesson_cache_on_recording_change(sender, instance, **kwargs):
+    lesson = instance.webinar.lesson
+    section = lesson.section
+    if section is None:
+        return
+    course_slug = section.course.slug
+    invalidate_lesson_detail_cache(course_slug, lesson.slug)

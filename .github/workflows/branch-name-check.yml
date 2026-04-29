@@ -60,11 +60,14 @@ jobs:
           
           regex_general_with_kan='^(docs|guides|chore|general|meetings)/KAN-[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$'
           regex_general_without_kan='^(docs|guides|chore|general|meetings)/[a-z0-9]+(-[a-z0-9]+)*$'
+          regex_main_branches='^(develop|main)$'
+
 
           if [[ "$BRANCH" =~ $regex_dev_with_kan || \
                 "$BRANCH" =~ $regex_dev_without_kan || \
                 "$BRANCH" =~ $regex_general_with_kan || \
-                "$BRANCH" =~ $regex_general_without_kan ]]; then
+                "$BRANCH" =~ $regex_general_without_kan || \
+                "$BRANCH" =~ $regex_main_branches ]]; then
             echo "✅ Branch format is valid"
           else
             echo "❌ Invalid branch format"

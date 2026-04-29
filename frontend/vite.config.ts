@@ -6,6 +6,23 @@ export default defineConfig({
   plugins: [react()],
   build: {
     sourcemap: false,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        const isMathJsPureAnnotationWarning =
+          warning.code === 'SOURCEMAP_ERROR' &&
+          typeof warning.message === 'string' &&
+          warning.message.includes(
+            'contains an annotation that Rollup cannot interpret due to the position of the comment',
+          ) &&
+          warning.message.includes('node_modules/mathjs/');
+
+        if (isMathJsPureAnnotationWarning) {
+          return;
+        }
+
+        warn(warning);
+      },
+    },
   },
   resolve: {
     alias: {

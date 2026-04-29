@@ -1,0 +1,137 @@
+name: Deploy Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Select release tag to deploy'
+        required: true
+        type: string
+        default: 'main'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  get-available-releases:
+    runs-on: ubuntu-latest
+    outputs:
+      releases: ${{ steps.get-releases.outputs.releases }}
+    steps:
+    - name: Get releases from GitHub
+      id: get-releases
+      run: |
+        RELEASES=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases" | \
+          jq -r '.[].tag_name' | head -10 | tr '\n' ',' | sed 's/,$//')
+        echo "releases=${RELEASES}" >> $GITHUB_OUTPUT
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_DIR: /home/shared/profession
+      COMPOSE_PROJECT_NAME: profession
+
+    steps:
+    - name: Show available releases
+      run: |
+        echo "Available releases: ${{ needs.get-available-releases.outputs.releases }}"
+        echo "Deploying: ${{ github.event.inputs.release_tag }}"
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.release_tag }}
+        fetch-depth: 2
+
+    - name: Detect changes
+      id: changes
+      uses: dorny/paths-filter@v3
+      with:
+        ref: ${{ github.event.inputs.release_tag }}
+        filters: |
+          backend_image:
+            - 'backend/requirements.txt'
+            - 'backend/project/settings.py'
+            - 'backend/project/settings/**'
+            - 'docker-compose.yml'
+          frontend:
+            - 'frontend/**'
+            - 'docker-compose.yml'
+          migrations:
+            - 'backend/**/migrations/**'
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Deploy release tag to server
+      run: |
+        ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "APP_DIR=${APP_DIR} TAG=${{ github.event.inputs.release_tag }} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+        set -Eeuo pipefail
+        cd "${APP_DIR}"
+        export COMPOSE_PROJECT_NAME
+        git fetch --tags origin
+        git checkout "${TAG}"
+        git reset --hard "${TAG}"
+        git clean -fd
+        docker compose down --remove-orphans || true
+        docker rm -f profession_web_app_backend flower || true
+        EOF
+
+    - name: Build backend
+      if: steps.changes.outputs.backend_image == 'true'
+      run: |
+        ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+        set -Eeuo pipefail
+        cd "${APP_DIR}"
+        export COMPOSE_PROJECT_NAME
+        docker compose build backend celery_worker celery-beat flower
+        EOF
+
+    - name: Build frontend
+      if: steps.changes.outputs.frontend == 'true'
+      run: |
+        ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+        set -Eeuo pipefail
+        cd "${APP_DIR}"
+        export COMPOSE_PROJECT_NAME
+        docker compose build frontend
+        EOF
+
+    - name: Run migrations
+      if: steps.changes.outputs.migrations == 'true'
+      run: |
+        ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+        set -Eeuo pipefail
+        cd "${APP_DIR}"
+        export COMPOSE_PROJECT_NAME
+        docker compose run --rm --no-deps backend python manage.py migrate --noinput
+        EOF
+
+    - name: Start stack
+      run: |
+        ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "APP_DIR=${APP_DIR} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+        set -Eeuo pipefail
+        cd "${APP_DIR}"
+        export COMPOSE_PROJECT_NAME
+        docker compose up -d --force-recreate --remove-orphans
+        EOF
+
+    - name: Verify deployment
+      run: |
+        echo "Deployed version: ${{ github.event.inputs.release_tag }}"
+        ssh -o StrictHostKeyChecking=no github-actions@professionkid.ru "
+          cd /home/shared/profession &&
+          docker compose ps
+        "
+        
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "Successfully deployed ${{ github.event.inputs.release_tag }} to production!"

@@ -31,7 +31,7 @@ class RegisterViewUnitTest(SimpleTestCase):
 
     def setUp(self):
         self.factory = APIRequestFactory()
-        os.environ["FRONTEND_HOST"] = "http://localhost:5173"
+        os.environ["FRONTEND_HOST"] = "http://localhost:3000"
 
     def test_register_email_success_mocked(self):
         request = self.factory.post(
@@ -283,7 +283,7 @@ class ResetPasswordViewUnitTest(SimpleTestCase):
 
     def setUp(self):
         self.factory = APIRequestFactory()
-        os.environ["FRONTEND_HOST"] = "http://localhost:5173"
+        os.environ["FRONTEND_HOST"] = "http://localhost:3000"
 
     def test_reset_requires_email_or_phone(self):
         request = self.factory.post("/api/auth/reset/", {}, format="json")
@@ -990,7 +990,7 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def test_reset_email_send_failure(self):
-        os.environ["FRONTEND_HOST"] = "http://localhost:5173"
+        os.environ["FRONTEND_HOST"] = "http://localhost:3000"
         request = self.factory.post(
             "/api/auth/reset/",
             {"email": "user@example.com"},

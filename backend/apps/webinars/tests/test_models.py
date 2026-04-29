@@ -68,7 +68,9 @@ class BaseWebinarTestCase(TestCase):
                 patcher.start()
                 self.celery_patchers.append(patcher)
             except (AttributeError, ModuleNotFoundError):
-                pass
+                # Some patch targets may be unavailable in specific test environments.
+                # This is expected here, so skip and continue patching remaining targets.
+                continue
 
     def tearDown(self):
         for p in self.celery_patchers:

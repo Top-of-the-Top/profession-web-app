@@ -1,4 +1,4 @@
-from apps.courses.models import Course, Lesson
+from apps.courses.models import Lesson
 from ..models import Webinar, Recording
 from .utils.agora_utils import (
     generate_rtc_token, user_uid_from_uuid, create_whiteboard_room,

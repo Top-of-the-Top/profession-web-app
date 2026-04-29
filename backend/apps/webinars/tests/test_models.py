@@ -63,14 +63,9 @@ class BaseWebinarTestCase(TestCase):
         super().setUp()
         self.celery_patchers = []
         for path in self.CELERY_TASKS_TO_MOCK:
-            try:
-                patcher = patch(path)
-                patcher.start()
-                self.celery_patchers.append(patcher)
-            except (AttributeError, ModuleNotFoundError):
-                # Some patch targets may be unavailable in specific test environments.
-                # This is expected here, so skip and continue patching remaining targets.
-                continue
+            patcher = patch(path)
+            patcher.start()
+            self.celery_patchers.append(patcher)
 
     def tearDown(self):
         for p in self.celery_patchers:

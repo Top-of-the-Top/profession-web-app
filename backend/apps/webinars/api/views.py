@@ -738,7 +738,7 @@ class KinescopeDRMAuthView(APIView):
             if user.is_enrolled(course) or course.authors.filter(pk=user.pk).exists():
                 return Response(status=status.HTTP_200_OK)
         except User.DoesNotExist:
-            pass
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         return Response(status=status.HTTP_403_FORBIDDEN)
     

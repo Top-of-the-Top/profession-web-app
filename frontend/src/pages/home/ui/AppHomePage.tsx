@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Button, PageTransition, Skeleton } from '@shared/ui';
+import { Button, PageFrame, Skeleton } from '@shared/ui';
 import type { PurchasedCourseItem } from '@shared/api/courseApi';
 import { useCoursesForHome } from '@shared/api/queries/courses';
 import styles from './AppHomePage.module.css';
@@ -49,8 +49,8 @@ function CourseCard({
 
 function HomeSkeleton() {
   return (
-    <PageTransition className={styles.page}>
-      <div className={styles.headerRow}>
+    <>
+		<div className={styles.headerRow}>
         <h1 className={styles.title}>Курсы</h1>
       </div>
       <div className={styles.grid}>
@@ -66,8 +66,7 @@ function HomeSkeleton() {
             </div>
           </div>
         ))}
-      </div>
-    </PageTransition>
+      </div></>
   );
 }
 
@@ -80,12 +79,16 @@ export default function AppHomePage() {
   };
 
   if (isLoading) {
-    return <HomeSkeleton />;
+    return (
+      <PageFrame>
+        <HomeSkeleton />
+      </PageFrame>
+    );
   }
 
   if (error) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.headerRow}>
           <h1 className={styles.title}>Курсы</h1>
         </div>
@@ -95,12 +98,12 @@ export default function AppHomePage() {
           </p>
           <Button onClick={() => void refetch()}>Попробовать снова</Button>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   return (
-    <PageTransition className={styles.page}>
+    <PageFrame>
       <div className={styles.headerRow}>
         <h1 className={styles.title}>Курсы</h1>
       </div>
@@ -120,6 +123,6 @@ export default function AppHomePage() {
           ))}
         </div>
       )}
-    </PageTransition>
+    </PageFrame>
   );
 }

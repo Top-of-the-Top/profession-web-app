@@ -10,10 +10,13 @@ import {
   CoursePreviewPage,
   CourseLessonsPage,
   CartPage,
-  CreateLessonPage,
+  LessonEditPage,
   LessonPreviewPage,
   LessonViewPage,
+  HomeworkSubmissionPage,
   NotAuthorizedPage,
+  WebinarPage,
+  WebinarRecordPage,
   AppLayout,
 } from './lazyPages';
 
@@ -41,17 +44,35 @@ export const routes: AppRoute[] = [
     element: <RecoverPage />,
   },
   {
+    path: '/webinar-record/:slug/:lessonSlug',
+    element: <WebinarRecordPage />,
+  },
+  {
+    path: '/app/courses/:slug/:lessonSlug/webinar',
+    element: <WebinarPage />,
+		protected: true
+  },
+  {
     path: '/app',
     element: <AppLayout />,
     protected: true,
     children: [
       { index: true, element: <AppHomePage /> },
-      { path: 'home', element: <AppHomePage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'store', element: <CourseStorePage /> },
       {
         path: 'store/:slug',
         element: <CoursePreviewPage />,
+      },
+
+      {
+        path: 'courses/:slug/:lessonSlug/edit',
+        element: <LessonEditPage />,
+        roles: ['teacher', 'moderator'],
+      },
+      {
+        path: 'courses/:slug/:lessonSlug/homework/:homeworkSlug',
+        element: <HomeworkSubmissionPage />,
       },
       {
         path: 'courses/:slug/:lessonSlug',
@@ -60,11 +81,6 @@ export const routes: AppRoute[] = [
       {
         path: 'courses/:slug',
         element: <CourseLessonsPage />,
-      },
-      {
-        path: 'create',
-        element: <CreateLessonPage />,
-				roles: ['teacher', 'moderator']
       },
       {
         path: 'lesson/preview',

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Check,
@@ -23,15 +24,17 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   Input,
-  PageTransition,
+  PageFrame,
   Spinner,
 } from '@shared/ui';
 import type {
   AppCourseLesson,
   AppCourseSection,
   CourseHomeMeta,
+  HomeworkAttemptStatus,
 } from '@shared/api/courseApi';
-import { useCourseHomeBySlug } from '@shared/api/queries/courses';
+import { courseApi } from '@shared/api/courseApi';
+import { courseKeys, useCourseHomeBySlug } from '@shared/api/queries/courses';
 import {
   useCreateLesson,
   useCreateSection,
@@ -42,6 +45,7 @@ import {
 } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac/useRole';
 import { cn } from '@shared/lib/utils';
+import { AiChatPanel } from '../../../features/ai-chat';
 import styles from './CourseLessonsPage.module.css';
 
 function idKey(id: number | string): string {
@@ -223,6 +227,66 @@ export default function CourseLessonsPage() {
     () => content.flatMap((s) => s.lessons),
     [content]
   );
+  const lessonDetailQueries = useQueries({
+    queries: allLessons.map((lesson) => ({
+      queryKey: courseKeys.lesson(slug ?? '', lesson.slug),
+      queryFn: () => courseApi.getLessonBySlug(slug ?? '', lesson.slug),
+      enabled: Boolean(slug),
+      staleTime: 30_000,
+    })),
+  });
+  const homeworkSlugs = useMemo(() => {
+    const slugs = new Set<string>();
+    for (const lessonDetailQuery of lessonDetailQueries) {
+      for (const homework of lessonDetailQuery.data?.homeworks ?? []) {
+        if (homework.type === 'published') {
+          slugs.add(homework.homework_slug);
+        }
+      }
+    }
+    return Array.from(slugs);
+  }, [lessonDetailQueries]);
+  const attemptQueries = useQueries({
+    queries: homeworkSlugs.map((homeworkSlug) => ({
+      queryKey: courseKeys.homeworkAttempt(homeworkSlug),
+      queryFn: () => courseApi.getHomeworkAttempt(homeworkSlug),
+      staleTime: 30_000,
+    })),
+  });
+  const attemptStatusByHomeworkSlug = useMemo(() => {
+    const map = new Map<string, HomeworkAttemptStatus>();
+    for (let i = 0; i < homeworkSlugs.length; i += 1) {
+      const slugItem = homeworkSlugs[i];
+      const status = attemptQueries[i]?.data?.status;
+      if (slugItem && status) {
+        map.set(slugItem, status);
+      }
+    }
+    return map;
+  }, [attemptQueries, homeworkSlugs]);
+  const lessonHomeworkStatus = useMemo(() => {
+    const map = new Map<string, HomeworkAttemptStatus | null>();
+    for (let i = 0; i < allLessons.length; i += 1) {
+      const lesson = allLessons[i];
+      const homeworks = lessonDetailQueries[i]?.data?.homeworks ?? [];
+      if (homeworks.length === 0) {
+        map.set(lesson.slug, null);
+        continue;
+      }
+      const statuses = homeworks
+        .filter((homework) => homework.type === 'published')
+        .map((homework) => attemptStatusByHomeworkSlug.get(homework.homework_slug))
+        .filter((status): status is HomeworkAttemptStatus => Boolean(status));
+      if (statuses.includes('reviewed')) {
+        map.set(lesson.slug, 'reviewed');
+      } else if (statuses.includes('submitted')) {
+        map.set(lesson.slug, 'submitted');
+      } else {
+        map.set(lesson.slug, 'draft');
+      }
+    }
+    return map;
+  }, [allLessons, attemptStatusByHomeworkSlug, lessonDetailQueries]);
 
   const lessonStats = useMemo(() => {
     const total = allLessons.length;
@@ -231,6 +295,13 @@ export default function CourseLessonsPage() {
     ).length;
     return { done, total };
   }, [allLessons, meta.completed_lessons_id]);
+  const homeworkStats = useMemo(() => {
+    const total = homeworkSlugs.length;
+    const done = Array.from(attemptStatusByHomeworkSlug.values()).filter(
+      (status) => status === 'submitted' || status === 'reviewed'
+    ).length;
+    return { done, total };
+  }, [attemptStatusByHomeworkSlug, homeworkSlugs.length]);
 
   const [openSections, setOpenSections] = useState<Set<string>>(
     () => new Set()
@@ -247,32 +318,32 @@ export default function CourseLessonsPage() {
 
   if (!slug) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <div className={styles.errorBox}>
             <p className={styles.errorText}>Не указан адрес курса.</p>
             <Button type="button" variant="outline" asChild>
-              <Link to="/app/home">На главную</Link>
+              <Link to="/app">На главную</Link>
             </Button>
           </div>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   if (isLoading) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <Spinner />
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   if (isError || !payload) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <div className={styles.errorBox}>
             <p className={styles.errorText}>
@@ -284,20 +355,20 @@ export default function CourseLessonsPage() {
             </Button>
           </div>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   if (!content.length) {
     return (
-      <PageTransition className={styles.page}>
-        <div className={styles.breadcrumbWrap}>
+      <PageFrame>
+			<div className={styles.breadcrumbWrap}>
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
                   <Link
-                    to="/app/home"
+                    to="/app"
                     className={styles.homeLink}
                     aria-label="Домашняя"
                   >
@@ -332,21 +403,22 @@ export default function CourseLessonsPage() {
                 />
               </>
             )}
+            <AiChatPanel courseSlug={slug} />
           </aside>
         </div>
-      </PageTransition>
+      </PageFrame>
     );
   }
 
   return (
-    <PageTransition className={styles.page}>
-      <div className={styles.breadcrumbWrap}>
+    <PageFrame>
+		<div className={styles.breadcrumbWrap}>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link
-                  to="/app/home"
+                  to="/app"
                   className={styles.homeLink}
                   aria-label="Домашняя"
                 >
@@ -373,6 +445,7 @@ export default function CourseLessonsPage() {
               courseSlug={slug ?? ''}
               isStaff={isStaff}
               meta={meta}
+              homeworkStatusByLessonSlug={lessonHomeworkStatus}
               open={openSections.has(section.section_id)}
               onOpenChange={(o) => toggleSection(section.section_id, o)}
             />
@@ -390,14 +463,15 @@ export default function CourseLessonsPage() {
               <StudentProgressCard
                 lessonsDone={lessonStats.done}
                 lessonsTotal={lessonStats.total}
-                homeworkDone={8}
-                homeworkTotal={11}
+                homeworkDone={homeworkStats.done}
+                homeworkTotal={homeworkStats.total}
               />
             </>
           )}
+          <AiChatPanel courseSlug={slug} />
         </aside>
       </div>
-    </PageTransition>
+    </PageFrame>
   );
 }
 
@@ -459,6 +533,7 @@ function SectionBlock({
   courseSlug,
   isStaff,
   meta,
+  homeworkStatusByLessonSlug,
   open,
   onOpenChange,
 }: {
@@ -466,6 +541,7 @@ function SectionBlock({
   courseSlug: string;
   isStaff: boolean;
   meta: CourseHomeMeta;
+  homeworkStatusByLessonSlug: Map<string, HomeworkAttemptStatus | null>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -537,7 +613,6 @@ function SectionBlock({
         await createLesson.mutateAsync({
           title: trimmed,
           section: section.section_id,
-          date_time: new Date().toISOString(),
         });
         setNewLessonTitle('');
         setAddingLesson(false);
@@ -657,6 +732,7 @@ function SectionBlock({
                     lesson.lesson_id,
                     meta.completed_lessons_id
                   )}
+                  homeworkStatus={homeworkStatusByLessonSlug.get(lesson.slug) ?? null}
                 />
               ))}
 
@@ -731,12 +807,14 @@ function LessonRow({
   courseSlug,
   isStaff,
   lessonDone,
+  homeworkStatus,
 }: {
   lesson: AppCourseLesson;
   sectionNumber: number;
   courseSlug: string;
   isStaff: boolean;
   lessonDone: boolean;
+  homeworkStatus: HomeworkAttemptStatus | null;
 }) {
   const navigate = useNavigate();
   const toggleType = useToggleLessonType(courseSlug);
@@ -744,6 +822,7 @@ function LessonRow({
   const lessonLabel = `${sectionNumber}.${lesson.lesson_number} ${lesson.title}`;
   const published = lesson.type !== 'draft';
   const lessonCreatePending = lesson.lesson_id.startsWith('optimistic:');
+  const lessonViewTo = `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`;
 
   const requestDeleteLesson = () => {
     if (
@@ -764,7 +843,12 @@ function LessonRow({
             <GripVertical size={16} strokeWidth={2} />
           </span>
         </span>
-        <span className={styles.lessonTitle}>{lessonLabel}</span>
+        <Link
+          to={lessonViewTo}
+          className={cn(styles.lessonTitle, styles.lessonTitleLink)}
+        >
+          {lessonLabel}
+        </Link>
         <div className={styles.staffLessonActions}>
           <Button
             type="button"
@@ -802,7 +886,7 @@ function LessonRow({
             disabled={lessonCreatePending}
             onClick={() =>
               navigate(
-                `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`
+                `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}/edit`
               )
             }
           >
@@ -824,12 +908,32 @@ function LessonRow({
     );
   }
 
-  const to = `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}`;
+  const to = lessonViewTo;
 
   return (
     <Link to={to} className={cn(styles.lessonRow, styles.lessonRowStudent)}>
       <span className={styles.lessonTitle}>{lessonLabel}</span>
-      <StudentStatusIcon done={lessonDone} />
+      <div className={styles.lessonStudentState}>
+        {homeworkStatus && (
+          <span
+            className={cn(
+              styles.lessonHomeworkBadge,
+              homeworkStatus === 'reviewed'
+                ? styles.lessonHomeworkBadgeReviewed
+                : homeworkStatus === 'submitted'
+                  ? styles.lessonHomeworkBadgeSubmitted
+                  : styles.lessonHomeworkBadgeDraft
+            )}
+          >
+            {homeworkStatus === 'reviewed'
+              ? 'ДЗ проверено'
+              : homeworkStatus === 'submitted'
+                ? 'ДЗ отправлено'
+                : 'ДЗ не сдано'}
+          </span>
+        )}
+        <StudentStatusIcon done={lessonDone} />
+      </div>
     </Link>
   );
 }
@@ -872,7 +976,7 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
           <Button
             type="button"
             variant="outline"
-            className={styles.addSectionBtn}
+            className={styles.addSectionTriggerBtn}
             onClick={() => setExpanded(true)}
           >
             <Plus size={18} strokeWidth={2} />
@@ -899,8 +1003,8 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
           <div className={cn(styles.addFlowActions, styles.addFlowActionsAnim)}>
             <Button
               type="button"
-              variant="outline"
-              className={styles.addSectionBtn}
+              variant="primary"
+              className={styles.addSectionSubmitBtn}
               disabled={!title.trim() || createMutation.isPending}
               onClick={submit}
             >
@@ -915,7 +1019,7 @@ function AddSectionRow({ courseSlug }: { courseSlug: string }) {
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               disabled={createMutation.isPending}
               onClick={cancel}

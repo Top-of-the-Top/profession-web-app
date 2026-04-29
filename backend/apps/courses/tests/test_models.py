@@ -1,18 +1,15 @@
 from django.test import TestCase
-from unittest.mock import patch, Mock
-from django.core.exceptions import ValidationError
+from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from datetime import timedelta
-import tempfile
 from django.db.utils import IntegrityError
 from apps.users.models import User
-from apps.users.api.utils import encrypt_data
+from apps.users.api.utils.crypto_utils import encrypt_data
 from apps.payments.models import Payment
 from ..models import (
-    Course, Section, Lesson, Homework, Question, Task,
-    Users_Homeworks_Attempts, Users_questions_answers, Users_tasks_answers,
-    PurchasedCourse, DEFAULT_COURSE_IMAGE, generate_unique_slug, course_image_path
+    Course, Section, Lesson, Homework,
+    PurchasedCourse, generate_unique_slug, course_image_path
 )
 
 
@@ -48,7 +45,6 @@ def create_test_lesson(section, **kwargs):
     defaults = {
         'section': section,
         'title': 'Тестовый урок',
-        'date_time': timezone.now() + timedelta(days=1),
     }
     defaults.update(kwargs)
     return Lesson.objects.create(**defaults)
@@ -64,6 +60,20 @@ def create_test_homework(lesson, **kwargs):
     return Homework.objects.create(**defaults)
 
 
+def publish_course_tree(course):
+    course.type = Course.PUBLISHED_STATUS
+    course.save(update_fields=['type'])
+    for section in course.section_set.all():
+        section.type = Section.PUBLISHED_STATUS
+        section.save(update_fields=['type'])
+        for lesson in section.lesson_set.all():
+            lesson.type = Lesson.PUBLISHED_STATUS
+            lesson.save(update_fields=['type'])
+            for hw in lesson.homework_set.all():
+                hw.type = Homework.PUBLISHED_STATUS
+                hw.save(update_fields=['type'])
+
+
 class BaseTestCase(TestCase):
     CELERY_TASKS_TO_MOCK = [
         'apps.courses.signals.send_course_notification.delay',
@@ -71,8 +81,6 @@ class BaseTestCase(TestCase):
         'apps.courses.signals.send_personal_notification.delay',
         'apps.courses.signals.send_mass_course_email.delay',
         'apps.courses.signals.send_mass_course_email.apply_async',
-        'apps.courses.signals.send_mass_system_email.delay',
-        'apps.courses.signals.send_single_email.delay',
     ]
 
     def setUp(self):
@@ -105,45 +113,39 @@ class BaseTestCase(TestCase):
 class GenerateUniqueSlugTest(BaseTestCase):
 
     def test_slug_generation_from_title(self):
-        mock_instance = Mock()
-        slug = generate_unique_slug(mock_instance, 'Python для начинающих')
+        slug = generate_unique_slug('Python для начинающих')
 
         self.assertIn('python', slug)
         self.assertIn('-', slug)
 
     def test_slug_generation_with_empty_title(self):
-        mock_instance = Mock()
-        slug = generate_unique_slug(mock_instance, '')
+        slug = generate_unique_slug('')
 
         self.assertIn('title', slug)
         self.assertIn('-', slug)
 
     def test_slug_generation_with_non_ascii_title(self):
-        mock_instance = Mock()
-        slug = generate_unique_slug(mock_instance, '中文标题')
+        slug = generate_unique_slug('中文标题')
 
         self.assertIsNotNone(slug)
         self.assertIn('-', slug)
 
     def test_slug_has_uuid_part(self):
-        mock_instance = Mock()
-        slug = generate_unique_slug(mock_instance, 'Test Title')
+        slug = generate_unique_slug('Test Title')
 
         parts = slug.split('-')
         self.assertGreater(len(parts), 1)
         self.assertEqual(len(parts[-1]), 8)
 
     def test_slug_uniqueness_for_same_title(self):
-        mock_instance = Mock()
-        slug1 = generate_unique_slug(mock_instance, 'Same Title')
-        slug2 = generate_unique_slug(mock_instance, 'Same Title')
+        slug1 = generate_unique_slug('Same Title')
+        slug2 = generate_unique_slug('Same Title')
 
         self.assertNotEqual(slug1, slug2)
 
     def test_slug_truncates_long_title(self):
-        mock_instance = Mock()
         long_title = 'A' * 100
-        slug = generate_unique_slug(mock_instance, long_title)
+        slug = generate_unique_slug(long_title)
 
         self.assertLessEqual(len(slug), 89)
 
@@ -369,255 +371,6 @@ class HomeworkSaveTest(BaseTestCase):
         homework.refresh_from_db()
 
         self.assertEqual(homework.slug, original_slug)
-
-
-class UsersHomeworksAttemptsGradeTest(BaseTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.user = create_test_user(email='student@test.com', role='student')
-        self.course = create_test_course()
-        self.section = create_test_section(self.course)
-        self.lesson = create_test_lesson(self.section)
-        self.homework = create_test_homework(self.lesson)
-
-    def test_grade_returns_none_when_status_not_reviewed(self):
-        attempt = Users_Homeworks_Attempts.objects.create(
-            homework=self.homework,
-            user=self.user,
-            status='draft'
-        )
-        self.assertIsNone(attempt.grade)
-
-        attempt.status = 'submitted'
-        attempt.save()
-        self.assertIsNone(attempt.grade)
-
-    def test_grade_calculation_with_only_task_answers(self):
-        task1 = Task.objects.create(
-            homework=self.homework,
-            text='Task 1',
-            max_points=10
-        )
-        task2 = Task.objects.create(
-            homework=self.homework,
-            text='Task 2',
-            max_points=10
-        )
-
-        attempt = Users_Homeworks_Attempts.objects.create(
-            homework=self.homework,
-            user=self.user,
-            status='reviewed'
-        )
-
-        Users_tasks_answers.objects.create(
-            task=task1,
-            attempt=attempt,
-            points=8,
-            user_answer='Answer 1',
-            status='reviewed'
-        )
-        Users_tasks_answers.objects.create(
-            task=task2,
-            attempt=attempt,
-            points=10,
-            user_answer='Answer 2',
-            status='reviewed'
-        )
-
-        grade = attempt.grade
-        self.assertEqual(grade, 9)
-
-    def test_grade_calculation_with_only_question_answers(self):
-        question1 = Question.objects.create(
-            homework=self.homework,
-            text='Question 1',
-            correct_ans='A',
-            answer_options=['A', 'B', 'C']
-        )
-        question2 = Question.objects.create(
-            homework=self.homework,
-            text='Question 2',
-            correct_ans='B',
-            answer_options=['A', 'B', 'C']
-        )
-
-        attempt = Users_Homeworks_Attempts.objects.create(
-            homework=self.homework,
-            user=self.user,
-            status='reviewed'
-        )
-
-        Users_questions_answers.objects.create(
-            question=question1,
-            attempt=attempt,
-            user_answer='B',
-        )
-        Users_questions_answers.objects.create(
-            question=question2,
-            attempt=attempt,
-            user_answer='B',
-        )
-
-        grade = attempt.grade
-        self.assertEqual(grade, 5)
-
-    def test_grade_calculation_with_mixed_answers(self):
-        task = Task.objects.create(
-            homework=self.homework,
-            text='Task',
-            max_points=10
-        )
-        question = Question.objects.create(
-            homework=self.homework,
-            text='Question',
-            correct_ans='A',
-            answer_options=['A', 'B']
-        )
-
-        attempt = Users_Homeworks_Attempts.objects.create(
-            homework=self.homework,
-            user=self.user,
-            status='reviewed'
-        )
-
-        Users_tasks_answers.objects.create(
-            task=task,
-            attempt=attempt,
-            points=10,
-            user_answer='Answer',
-            status='reviewed'
-        )
-        Users_questions_answers.objects.create(
-            question=question,
-            attempt=attempt,
-            user_answer='A',
-        )
-
-        grade = attempt.grade
-        self.assertEqual(grade, 10)
-
-    def test_grade_returns_zero_when_no_points(self):
-        task = Task.objects.create(
-            homework=self.homework,
-            text='Task',
-            max_points=10
-        )
-
-        attempt = Users_Homeworks_Attempts.objects.create(
-            homework=self.homework,
-            user=self.user,
-            status='reviewed'
-        )
-
-        Users_tasks_answers.objects.create(
-            task=task,
-            attempt=attempt,
-            points=0,
-            user_answer='Wrong answer',
-            status='reviewed'
-        )
-
-        grade = attempt.grade
-        self.assertEqual(grade, 1)
-
-    def test_grade_edge_case_zero_max_points(self):
-        attempt = Users_Homeworks_Attempts.objects.create(
-            homework=self.homework,
-            user=self.user,
-            status='reviewed'
-        )
-
-        grade = attempt.grade
-        self.assertEqual(grade, 1)
-
-    def test_grade_only_counts_reviewed_task_answers(self):
-        task = Task.objects.create(
-            homework=self.homework,
-            text='Task',
-            max_points=10
-        )
-
-        attempt = Users_Homeworks_Attempts.objects.create(
-            homework=self.homework,
-            user=self.user,
-            status='reviewed'
-        )
-
-        Users_tasks_answers.objects.create(
-            task=task,
-            attempt=attempt,
-            points=10,
-            user_answer='Answer',
-            status='submitted'
-        )
-
-        grade = attempt.grade
-        self.assertEqual(grade, 1)
-
-
-class UsersTasksAnswersValidationTest(BaseTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.user = create_test_user(email='student@test.com', role='student')
-        self.course = create_test_course()
-        self.section = create_test_section(self.course)
-        self.lesson = create_test_lesson(self.section)
-        self.homework = create_test_homework(self.lesson)
-        self.task = Task.objects.create(
-            homework=self.homework,
-            text='Test Task',
-            max_points=10
-        )
-        self.attempt = Users_Homeworks_Attempts.objects.create(
-            homework=self.homework,
-            user=self.user,
-            status='submitted'
-        )
-
-    def test_validation_passes_when_points_within_limit(self):
-        answer = Users_tasks_answers(
-            task=self.task,
-            attempt=self.attempt,
-            points=10,
-            user_answer='Test answer'
-        )
-        answer.save()
-        self.assertEqual(answer.points, 10)
-
-    def test_validation_fails_when_points_exceed_max(self):
-        with self.assertRaises(ValidationError) as context:
-            Users_tasks_answers.objects.create(
-                task=self.task,
-                attempt=self.attempt,
-                points=15,
-                user_answer='Test answer'
-            )
-
-        self.assertIn('points', context.exception.message_dict)
-
-    def test_validation_allows_zero_points(self):
-        answer = Users_tasks_answers(
-            task=self.task,
-            attempt=self.attempt,
-            points=0,
-            user_answer='Wrong answer'
-        )
-        answer.save()
-        self.assertEqual(answer.points, 0)
-
-    def test_validation_allows_exact_max_points(self):
-        answer = Users_tasks_answers(
-            task=self.task,
-            attempt=self.attempt,
-            points=10,
-            user_answer='Perfect answer'
-        )
-        answer.save()
-        self.assertEqual(answer.points, 10)
-
 
 class PurchasedCourseIsActiveTest(BaseTestCase):
 

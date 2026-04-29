@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
-from django.contrib.auth.hashers import make_password, check_password
 from django.dispatch import receiver
 from django.db.models.signals import pre_delete, pre_save
 import os
@@ -73,21 +72,21 @@ class User(AbstractUser):
 
     first_name = models.CharField(
         max_length=30,
-        null=True,
-        blank=True
+        blank=True,
+        default='',
     )
 
     last_name = models.CharField(
         max_length=30,
-        null=True,
-        blank=True
+        blank=True,
+        default='',
     )
 
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
         default=ROLE_STUDENT,
-        verbose_name='Роль'
+        verbose_name='Роль',
     )
 
     email_cipher = models.CharField(
@@ -111,13 +110,13 @@ class User(AbstractUser):
     )
 
     date_joined = models.DateTimeField(
-        auto_now_add=True
+        auto_now_add=True,
     )
 
     reset_token = models.CharField(
         max_length=100,
-        null=True,
         blank=True,
+        default='',
         db_index=True,
     )
 
@@ -185,7 +184,7 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     profile_id = models.AutoField(primary_key=True)
     birthday = models.DateField(null=True, blank=True)
-    gender = models.CharField(choices=GENDER_CHOICES, null=True, blank=True)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, default='')
     avatar = models.ImageField(
         upload_to=profile_image_path,
         blank=True,
@@ -205,9 +204,9 @@ class Profile(models.Model):
 
         is_new = self.pk is None
         if is_new and self.avatar and self.avatar.name != DEFAULT_PROFILE_IMAGE:
-            try :
+            try:
                 image_file = self.avatar.file
-            except (FileNotFoundError, ValueError, OSError):
+            except (ValueError, OSError):
                 super().save(*args, **kwargs)
                 return
 

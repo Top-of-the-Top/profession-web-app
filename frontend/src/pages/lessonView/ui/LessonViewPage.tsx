@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Home, Clock3, PenTool, Video, CircleCheck } from 'lucide-react';
+import { Home, Clock3, Video, CircleCheck, FileDown, Trash2 } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,7 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
-  PageTransition,
+  PageFrame,
   Spinner,
 } from '@shared/ui';
 import type { LessonLayout, Block } from '../../../features/course-builder';
@@ -18,9 +19,27 @@ import {
   DEFAULT_FONT_SIZE_INDEX,
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
-import { useCourseHomeBySlug, useLessonBySlug } from '@shared/api/queries/courses';
+import type {
+  HomeworkAttemptStatus,
+  LessonRecording,
+  LessonHomework,
+  WebinarStatus,
+} from '@shared/api/courseApi';
+import { courseApi } from '@shared/api/courseApi';
+import {
+  courseKeys,
+  useCourseHomeBySlug,
+  useLessonBySlug,
+} from '@shared/api/queries/courses';
+import {
+  useDeleteRecording,
+  useDeleteRecordingPdf,
+  useStartWebinar,
+} from '@shared/api/mutations/webinar';
+import { useToggleHomeworkType } from '@shared/api/mutations/courses';
+import { useRole } from '@shared/lib/rbac';
+import { AiChatPanel } from '../../../features/ai-chat';
 import styles from './LessonViewPage.module.css';
-
 
 const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
   html,
@@ -41,7 +60,9 @@ const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
 
 const PhotoBlockView: React.FC<{ url: string }> = ({ url }) => {
   if (!url)
-    return <div className={styles.mediaPlaceholder}>Изображение не загружено</div>;
+    return (
+      <div className={styles.mediaPlaceholder}>Изображение не загружено</div>
+    );
   return (
     <div className={styles.photoBlock}>
       <img src={url} alt="" loading="lazy" />
@@ -62,7 +83,9 @@ const VideoBlockView: React.FC<{ url: string }> = ({ url }) => {
 function renderBlock(block: Block) {
   switch (block.type) {
     case 'text':
-      return <TextBlockView html={block.html} fontSizeIndex={block.fontSizeIndex} />;
+      return (
+        <TextBlockView html={block.html} fontSizeIndex={block.fontSizeIndex} />
+      );
     case 'photo':
       return <PhotoBlockView url={block.url} />;
     case 'video':
@@ -104,46 +127,136 @@ const LessonContent: React.FC<{ layout: LessonLayout }> = ({ layout }) => {
 
 /* ── Sidebar widgets ── */
 
+function formatDeadline(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
 const HomeworkWidget: React.FC<{
   courseSlug: string;
   lessonSlug: string;
-  homeworkId: number | string | null;
-  deadline: string | null;
-}> = ({ courseSlug, lessonSlug, homeworkId, deadline }) => {
-  const formattedDeadline = deadline
-    ? (() => {
-        try {
-          return new Intl.DateTimeFormat('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            hour: '2-digit',
-            minute: '2-digit',
-          }).format(new Date(deadline));
-        } catch {
-          return deadline;
-        }
-      })()
-    : null;
+  homeworks: LessonHomework[];
+  isTeacher: boolean;
+}> = ({ courseSlug, lessonSlug, homeworks, isTeacher }) => {
+  const toggleType = useToggleHomeworkType(courseSlug, lessonSlug);
+
+  const visible = isTeacher
+    ? homeworks
+    : homeworks.filter((hw) => hw.type === 'published');
+  const attemptQueries = useQueries({
+    queries: isTeacher
+      ? []
+      : visible.map((homework) => ({
+          queryKey: courseKeys.homeworkAttempt(homework.homework_slug),
+          queryFn: () => courseApi.getHomeworkAttempt(homework.homework_slug),
+          staleTime: 30_000,
+        })),
+  });
+  const attemptStatuses = useMemo(() => {
+    const map = new Map<string, HomeworkAttemptStatus>();
+    if (isTeacher) return map;
+    for (let i = 0; i < visible.length; i += 1) {
+      const slug = visible[i]?.homework_slug;
+      const status = attemptQueries[i]?.data?.status;
+      if (slug && status) {
+        map.set(slug, status);
+      }
+    }
+    return map;
+  }, [attemptQueries, isTeacher, visible]);
+
+  if (visible.length === 0) {
+    return (
+      <div className={styles.sidebarCard}>
+        <div className={styles.sidebarCardHeader}>
+          <CircleCheck size={18} />
+          <span className={styles.sidebarCardTitle}>Задание</span>
+        </div>
+        <div className={styles.noHomework}>Задание не назначено</div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.sidebarCard}>
       <div className={styles.sidebarCardHeader}>
         <CircleCheck size={18} />
-        <span className={styles.sidebarCardTitle}>Задание</span>
+        <span className={styles.sidebarCardTitle}>
+          {visible.length === 1 ? 'Задание' : 'Задания'}
+        </span>
       </div>
-      {formattedDeadline && (
-        <p className={styles.deadlineText}>Дедлайн: {formattedDeadline}</p>
-      )}
-      {homeworkId != null && homeworkId !== '' ? (
-        <Link
-          to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(String(homeworkId))}`}
-          className={styles.homeworkButton}
-        >
-          Перейти к заданию
-        </Link>
-      ) : (
-        <div className={styles.noHomework}>Задание не назначено</div>
-      )}
+      {visible.map((hw) => (
+        <div key={hw.homework_id} className={styles.homeworkItem}>
+          {!isTeacher && (
+            <div className={styles.homeworkStatusRow}>
+              <span
+                className={
+                  attemptStatuses.get(hw.homework_slug) === 'reviewed'
+                    ? styles.hwBadgePublished
+                    : attemptStatuses.get(hw.homework_slug) === 'submitted'
+                      ? styles.hwBadgeDraft
+                      : styles.hwBadgePending
+                }
+              >
+                {attemptStatuses.get(hw.homework_slug) === 'reviewed'
+                  ? 'проверено'
+                  : attemptStatuses.get(hw.homework_slug) === 'submitted'
+                    ? 'отправлено'
+                    : 'не сдано'}
+              </span>
+            </div>
+          )}
+          {isTeacher && (
+            <div className={styles.homeworkStatusRow}>
+              <span
+                className={
+                  hw.type === 'published'
+                    ? styles.hwBadgePublished
+                    : styles.hwBadgeDraft
+                }
+              >
+                {hw.type === 'published' ? 'опубликовано' : 'черновик'}
+              </span>
+              <button
+                type="button"
+                className={styles.hwToggleButton}
+                disabled={toggleType.isPending}
+                onClick={() =>
+                  toggleType.mutate({
+                    homeworkSlug: hw.homework_slug,
+                    currentType: hw.type,
+                  })
+                }
+              >
+                {hw.type === 'published' ? 'В черновик' : 'Опубликовать'}
+              </button>
+            </div>
+          )}
+          {hw.deadline && (
+            <p className={styles.deadlineText}>
+              Дедлайн: {formatDeadline(hw.deadline)}
+            </p>
+          )}
+          <Link
+            to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`}
+            className={styles.homeworkButton}
+          >
+            {attemptStatuses.get(hw.homework_slug) === 'reviewed'
+              ? 'Посмотреть результат'
+              : attemptStatuses.get(hw.homework_slug) === 'submitted'
+                ? 'Посмотреть отправку'
+                : hw.title || 'Сдать ДЗ'}
+          </Link>
+        </div>
+      ))}
     </div>
   );
 };
@@ -152,9 +265,11 @@ const ProgressWidget: React.FC = () => {
   const passedLessons = { done: 12, total: 24 };
   const submittedHomeworks = { done: 8, total: 11 };
 
-  const passedPct = Math.round((passedLessons.done / passedLessons.total) * 100);
+  const passedPct = Math.round(
+    (passedLessons.done / passedLessons.total) * 100
+  );
   const submittedPct = Math.round(
-    (submittedHomeworks.done / submittedHomeworks.total) * 100,
+    (submittedHomeworks.done / submittedHomeworks.total) * 100
   );
 
   return (
@@ -230,7 +345,9 @@ function getTimerState(targetIso: string | null): TimerState {
 }
 
 const TimerWidget: React.FC<{ targetIso: string | null }> = ({ targetIso }) => {
-  const [timer, setTimer] = useState<TimerState>(() => getTimerState(targetIso));
+  const [timer, setTimer] = useState<TimerState>(() =>
+    getTimerState(targetIso)
+  );
 
   useEffect(() => {
     setTimer(getTimerState(targetIso));
@@ -276,64 +393,171 @@ const TimerWidget: React.FC<{ targetIso: string | null }> = ({ targetIso }) => {
   );
 };
 
-const WebinarLinksWidget: React.FC<{
-  boardUrl: string | null;
-  webinarUrl: string | null;
-}> = ({ boardUrl, webinarUrl }) => (
-  <div className={styles.linksRow}>
-    <a
-      href={boardUrl ?? '#'}
-      target="_blank"
-      rel="noreferrer"
-      className={`${styles.quickLinkButton} ${!boardUrl ? styles.quickLinkDisabled : ''}`}
-      aria-disabled={!boardUrl}
-      onClick={(e) => {
-        if (!boardUrl) e.preventDefault();
-      }}
-    >
-      <PenTool size={20} />
-      <span>Доска</span>
-    </a>
-    <a
-      href={webinarUrl ?? '#'}
-      target="_blank"
-      rel="noreferrer"
-      className={`${styles.quickLinkButton} ${!webinarUrl ? styles.quickLinkDisabled : ''}`}
-      aria-disabled={!webinarUrl}
-      onClick={(e) => {
-        if (!webinarUrl) e.preventDefault();
-      }}
-    >
-      <Video size={20} />
-      <span>Вебинар</span>
-    </a>
-  </div>
-);
+const WebinarWidget: React.FC<{
+  courseSlug: string;
+  lessonSlug: string;
+  isTeacher: boolean;
+  webinarStatus: WebinarStatus | null;
+}> = ({ courseSlug, lessonSlug, isTeacher, webinarStatus }) => {
+  const navigate = useNavigate();
+  const startWebinar = useStartWebinar(courseSlug, lessonSlug);
 
-const LessonRecording: React.FC<{ recording: string | null }> = ({ recording }) => {
-  const value = recording?.trim();
+  const webinarUrl = `/app/courses/${courseSlug}/${lessonSlug}/webinar`;
 
-  if (!value) return null;
+  const handleStartWebinar = () => {
+    startWebinar.mutate(undefined, {
+      onSuccess: () => navigate(webinarUrl),
+    });
+  };
 
-  const isHttpLink = /^https?:\/\//i.test(value);
+  const handleJoinLive = () => {
+    navigate(webinarUrl);
+  };
+
+  
+
+  if (webinarStatus === 'live') {
+    return (
+      <div className={styles.linksRow}>
+        <button
+          type="button"
+          className={styles.quickLinkButton}
+          onClick={handleJoinLive}
+        >
+          <Video size={20} />
+          <span>Вернуться в звонок</span>
+        </button>
+      </div>
+    );
+  }
+
+  if (!isTeacher) return null;
 
   return (
-    <section className={styles.recordingSection}>
-      <h2 className={styles.recordingTitle}>Запись урока</h2>
-      {isHttpLink ? (
+    <div className={styles.linksRow}>
+      <button
+        type="button"
+        className={styles.quickLinkButton}
+        onClick={handleStartWebinar}
+        disabled={startWebinar.isPending}
+      >
+        <Video size={20} />
+        <span>{startWebinar.isPending ? 'Запуск...' : 'Начать вебинар'}</span>
+      </button>
+    </div>
+  );
+};
+
+const LessonEditWidget: React.FC<{
+  courseSlug: string;
+  lessonSlug: string;
+}> = ({ courseSlug, lessonSlug }) => {
+  return (
+    <div className={styles.linksRow}>
+      <Link
+        to={`/app/courses/${courseSlug}/${lessonSlug}/edit`}
+        className={styles.quickLinkButton}
+      >
+        Редактировать урок
+      </Link>
+    </div>
+  );
+};
+
+const LessonRecordingCard: React.FC<{
+  recording: LessonRecording;
+  isTeacher: boolean;
+  onDeletePdf: (recordingId: string) => void;
+  onDeleteRecording: (recordingId: string) => void;
+  deletePdfPending: boolean;
+  deleteRecordingPending: boolean;
+}> = ({
+  recording,
+  isTeacher,
+  onDeletePdf,
+  onDeleteRecording,
+  deletePdfPending,
+  deleteRecordingPending,
+}) => {
+  const pdfLink = recording.whiteboard_pdf_url?.trim();
+  const hasPdf = !!pdfLink && /^https?:\/\//i.test(pdfLink);
+  const dateLabel = recording.started_at
+    ? new Intl.DateTimeFormat('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(recording.started_at))
+    : 'Запись без даты';
+
+  return (
+    <article className={styles.recordingCard}>
+      <div className={styles.recordingCardHead}>
+        <h3 className={styles.recordingCardTitle}>{dateLabel}</h3>
+      </div>
+
+      {recording.kinescope_upload_status === 'ready' &&
+      recording.kinescope_embed_url ? (
         <div className={styles.recordingIframeWrap}>
           <iframe
-            src={value === "https://example.com/recordings/mock-lesson" ? "https://kinescope.io/t1go93i9aP3NG6VNPxiCC6" : value}
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
+            src={recording.kinescope_embed_url}
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
             allowFullScreen
             className={styles.recordingIframe}
             title="Запись урока"
           />
         </div>
+      ) : recording.kinescope_upload_status === 'failed' ? (
+        <div className={styles.recordingFailed}>
+          Не удалось обработать запись
+        </div>
       ) : (
-        <div className={styles.mediaPlaceholder}>Запись урока недоступна</div>
+        <div className={styles.recordingStatus}>
+          <Spinner />
+          <span>Запись обрабатывается…</span>
+        </div>
       )}
-    </section>
+
+      {hasPdf && (
+        <div className={styles.whiteboardPdfRow}>
+          <a
+            className={styles.whiteboardPdfLink}
+            href={pdfLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+          >
+            <FileDown size={18} />
+            Скачать PDF доски
+          </a>
+        </div>
+      )}
+
+      {isTeacher && recording.recording_id && (
+        <div className={styles.recordingActions}>
+          <button
+            type="button"
+            className={styles.recordingActionButton}
+            onClick={() => onDeleteRecording(recording.recording_id)}
+            disabled={deleteRecordingPending}
+          >
+            <Trash2 size={16} />
+            {deleteRecordingPending ? 'Удаление...' : 'Удалить запись'}
+          </button>
+          {hasPdf && (
+            <button
+              type="button"
+              className={styles.recordingActionButton}
+              onClick={() => onDeletePdf(recording.recording_id)}
+              disabled={deletePdfPending}
+            >
+              <FileDown size={16} />
+              {deletePdfPending ? 'Удаление...' : 'Удалить PDF'}
+            </button>
+          )}
+        </div>
+      )}
+    </article>
   );
 };
 
@@ -345,25 +569,27 @@ export default function LessonViewPage() {
     lessonSlug: string;
   }>();
   const navigate = useNavigate();
+  const { hasAny } = useRole();
+  const isTeacher = hasAny('teacher', 'moderator');
 
   const homeQuery = useCourseHomeBySlug(courseSlug);
   const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
 
   const courseTitle =
-    homeQuery.data?.title ??
-    courseSlug?.replace(/-/g, ' ') ??
-    'Курс';
+    homeQuery.data?.title ?? courseSlug?.replace(/-/g, ' ') ?? 'Курс';
 
   const lessonDetail = lessonQuery.data;
+  const deleteRecordingPdf = useDeleteRecordingPdf(courseSlug ?? '', lessonSlug ?? '');
+  const deleteRecording = useDeleteRecording(courseSlug ?? '', lessonSlug ?? '');
 
   const lessonLayout = useMemo<LessonLayout | null>(() => {
-    if (!lessonDetail) return null;
+    if (!lessonDetail?.document) return null;
     try {
-      return parseLessonLayoutFromContentString(lessonDetail.content);
+      return parseLessonLayoutFromContentString(lessonDetail.document);
     } catch {
       return {
         id: String(lessonDetail.lesson_id),
-        title: lessonDetail.lesson_title,
+        title: lessonDetail.title,
         blocks: [],
       };
     }
@@ -372,24 +598,28 @@ export default function LessonViewPage() {
   const loading = lessonQuery.isLoading;
   if (loading) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <Spinner />
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   if (lessonQuery.isError || !lessonDetail) {
     return (
-      <div className={styles.page}>
+      <PageFrame>
         <div className={styles.centered}>
           <div className={styles.errorBox}>
             <p className={styles.errorText}>
               Не удалось загрузить урок. Проверьте доступ и попробуйте снова.
             </p>
             <div className={styles.errorActions}>
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(-1)}
+              >
                 Назад
               </Button>
               <Button type="button" onClick={() => void lessonQuery.refetch()}>
@@ -398,18 +628,23 @@ export default function LessonViewPage() {
             </div>
           </div>
         </div>
-      </div>
+      </PageFrame>
     );
   }
 
   return (
-    <PageTransition className={styles.page}>
-      <div className={styles.breadcrumbWrap}>
+    <PageFrame>
+      <div className={styles.body}>
+		<div className={styles.breadcrumbWrap}>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link to="/app/home" className={styles.homeLink} aria-label="Домашняя">
+                <Link
+                  to="/app"
+                  className={styles.homeLink}
+                  aria-label="Домашняя"
+                >
                   <Home size={18} strokeWidth={2} />
                 </Link>
               </BreadcrumbLink>
@@ -417,14 +652,12 @@ export default function LessonViewPage() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link to={`/app/courses/${courseSlug}`}>
-                  {courseTitle}
-                </Link>
+                <Link to={`/app/courses/${courseSlug}`}>{courseTitle}</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{lessonDetail.lesson_title}</BreadcrumbPage>
+              <BreadcrumbPage>{lessonDetail.title}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -434,31 +667,68 @@ export default function LessonViewPage() {
         <div className={styles.mainColumn}>
           <div className={styles.lessonHeader}>
             <div className={styles.lessonHeaderTrapezoid}>
-              <h1 className={styles.lessonTitleTrapezoid}>{lessonDetail.lesson_title}</h1>
+              <h1 className={styles.lessonTitleTrapezoid}>
+                {lessonDetail.title}
+              </h1>
             </div>
           </div>
 
           <main className={styles.main}>
-            <LessonRecording recording={lessonDetail.recording_url} />
             {lessonLayout && <LessonContent layout={lessonLayout} />}
+            {lessonDetail.recordings.length > 0 && (
+              <section className={styles.recordingSection}>
+                <h2 className={styles.recordingTitle}>Записи вебинара</h2>
+                <div className={styles.recordingList}>
+                  {lessonDetail.recordings.map((recording) => (
+                    <LessonRecordingCard
+                      key={`${recording.recording_id}-${recording.started_at ?? 'recording'}`}
+                      recording={recording}
+                      isTeacher={isTeacher}
+                      onDeletePdf={(recordingId) => {
+                        deleteRecordingPdf.mutate(recordingId);
+                      }}
+                      onDeleteRecording={(recordingId) => {
+                        deleteRecording.mutate(recordingId);
+                      }}
+                      deletePdfPending={deleteRecordingPdf.isPending}
+                      deleteRecordingPending={deleteRecording.isPending}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </main>
         </div>
 
         <aside className={styles.sidebar}>
-          <TimerWidget targetIso={lessonDetail.started_at} />
-          <WebinarLinksWidget
-            boardUrl={null}
-            webinarUrl={lessonDetail.recording_url}
+          {(lessonDetail.webinar_status === null ||
+            lessonDetail.webinar_status === 'pending') &&
+            lessonDetail.started_at && (
+              <TimerWidget targetIso={lessonDetail.started_at} />
+            )}
+          <WebinarWidget
+            courseSlug={courseSlug ?? ''}
+            lessonSlug={lessonSlug ?? ''}
+            isTeacher={isTeacher}
+            webinarStatus={lessonDetail.webinar_status}
           />
+          {isTeacher && (
+            <LessonEditWidget
+              courseSlug={courseSlug ?? ''}
+              lessonSlug={lessonSlug ?? ''}
+            />
+          )}
           <HomeworkWidget
             courseSlug={courseSlug ?? ''}
             lessonSlug={lessonSlug ?? ''}
-            homeworkId={lessonDetail.homework_id}
-            deadline={lessonDetail.homework_deadline}
+            homeworks={lessonDetail.homeworks}
+            isTeacher={isTeacher}
           />
           <ProgressWidget />
+          <AiChatPanel courseSlug={courseSlug ?? ''} />
         </aside>
       </div>
-    </PageTransition>
+      </div>
+    </PageFrame>
   );
 }

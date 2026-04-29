@@ -1,5 +1,4 @@
 from django.test import TestCase, SimpleTestCase
-from rest_framework.exceptions import ValidationError
 from unittest.mock import MagicMock, patch
 from ..models import User
 from ..api.serializers import (
@@ -7,7 +6,7 @@ from ..api.serializers import (
     LoginSerializer,
     UpdateProfileSerializer,
 )
-from ..api.utils import encrypt_data
+from ..api.utils.crypto_utils import encrypt_data
 
 class RegisterSerializerUnitTest(SimpleTestCase):
 

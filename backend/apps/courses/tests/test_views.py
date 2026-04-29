@@ -1,22 +1,21 @@
-from django.test import TestCase, SimpleTestCase, override_settings
-from django.urls import reverse
+import json
+from django.test import SimpleTestCase, override_settings
 from unittest.mock import patch, MagicMock
 from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 from rest_framework import status
 import tempfile
 from django.utils import timezone
+from django.core.cache import caches
 from datetime import timedelta
 
+from ..api.utils.cache_utils import course_list_cache_key, landing_courses_cache_key
 from ..api.views import (
     CourseDTOList,
     CourseListView,
-    PurchasedCoursesView,
-    course_list_cache_key,
-    landing_courses_cache_key,
 )
-from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
-from apps.users.models import User
-from apps.users.api.utils import encrypt_data, get_tokens_for_user
+from ..models import Course, Lesson, Homework, Question, Task, PurchasedCourse
+from apps.webinars.models import Webinar
+from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.payments.models import Payment
 from .test_models import (
     BaseTestCase,
@@ -25,6 +24,7 @@ from .test_models import (
     create_test_section,
     create_test_lesson,
     create_test_homework,
+    publish_course_tree,
 )
 
 
@@ -76,14 +76,14 @@ class CourseViewSetUnitTest(SimpleTestCase):
         self.factory = APIRequestFactory()
 
     def test_list_requires_authentication(self):
-        request = self.factory.get('/api/app/courses/')
+        request = self.factory.get('/api/courses/')
         view = CourseListView.as_view()
 
         response = view(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_requires_moderator_role(self):
-        request = self.factory.post('/api/app/courses/', {})
+        request = self.factory.post('/api/courses/', {})
         mock_user = MagicMock()
         mock_user.is_authenticated = True
         mock_user.is_moderator.return_value = False
@@ -117,7 +117,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         create_test_course(title='Course 2', sub_title='Sub 2', price=2000)
 
         self.authenticate_user(self.student)
-        response = self.client.get('/api/app/courses/')
+        response = self.client.get('/api/courses/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
@@ -126,7 +126,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         course = create_test_course(title='Test Course', sub_title='Sub', price=5000)
 
         self.authenticate_user(self.student)
-        response = self.client.get(f'/api/app/courses/{course.slug}/')
+        response = self.client.get(f'/api/courses/{course.slug}/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Test Course')
@@ -141,7 +141,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
             'price': 10000,
         }
 
-        response = self.client.post('/api/app/courses/', data, format='json')
+        response = self.client.post('/api/courses/', data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Course')
@@ -156,7 +156,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
             'price': 10000,
         }
 
-        response = self.client.post('/api/app/courses/', data, format='json')
+        response = self.client.post('/api/courses/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_update_course_as_author(self):
@@ -166,7 +166,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         self.authenticate_user(self.teacher)
 
         data = {'title': 'Updated Title'}
-        response = self.client.patch(f'/api/app/courses/{course.slug}/', data, format='json')
+        response = self.client.patch(f'/api/courses/{course.slug}/', data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Updated Title')
@@ -175,7 +175,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         course = create_test_course()
 
         self.authenticate_user(self.moderator)
-        response = self.client.delete(f'/api/app/courses/{course.slug}/')
+        response = self.client.delete(f'/api/courses/{course.slug}/')
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Course.objects.filter(slug=course.slug).exists())
@@ -192,6 +192,7 @@ class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.user = create_test_user(email='student@test.com', role='student')
         self.course = create_test_course()
+        publish_course_tree(self.course)
 
     def tearDown(self):
         super().tearDown()
@@ -207,12 +208,72 @@ class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
         )
 
         self.authenticate_user(self.user)
-        response = self.client.get('/api/app/my-courses/')
+        response = self.client.get('/api/my-courses/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
         self.assertEqual(len(response.data), 1)
         self.assertTrue(response.data[0]['is_active'])
+
+
+class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
+
+    def setUp(self):
+        super().setUp()
+        caches['cold'].clear()
+        self.client = APIClient()
+        self.teacher = create_test_user(email='teacher_web@test.com', role='teacher')
+        self.course = create_test_course(title='Webinar Course')
+        self.course.authors.add(self.teacher)
+        self.section = create_test_section(self.course)
+        self.lesson = create_test_lesson(self.section, title='Webinar Lesson')
+        publish_course_tree(self.course)
+        self.student = self.create_enrolled_student(self.course)
+
+    def test_requires_auth(self):
+        response = self.client.get('/api/my-schedule/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_student_sees_webinar_for_enrolled_course(self):
+        started = timezone.now() - timedelta(hours=2)
+        ended = timezone.now() - timedelta(hours=1)
+        Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.ENDED_STATUS,
+            started_at=started,
+            ended_at=ended,
+        )
+        self.authenticate_user(self.student)
+        response = self.client.get('/api/my-schedule/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        row = response.data[0]
+        self.assertEqual(row['course_title'], self.course.title)
+        self.assertEqual(row['course_slug'], self.course.slug)
+        self.assertEqual(row['lesson_title'], self.lesson.title)
+        self.assertEqual(row['lesson_slug'], self.lesson.slug)
+        self.assertIsNotNone(row['started_at'])
+        self.assertIsNotNone(row['ended_at'])
+
+    def test_student_does_not_see_other_course_webinar(self):
+        other = create_test_course(title='Other webinar course')
+        sec = create_test_section(other)
+        les = create_test_lesson(sec)
+        Webinar.objects.create(lesson=les, status=Webinar.PENDING_STATUS)
+        self.authenticate_user(self.student)
+        response = self.client.get('/api/my-schedule/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_teacher_sees_webinar_as_author_without_purchase(self):
+        Webinar.objects.create(lesson=self.lesson, status=Webinar.PENDING_STATUS)
+        solo_teacher = create_test_user(email='solo_teacher@test.com', role='teacher')
+        self.course.authors.add(solo_teacher)
+        self.authenticate_user(solo_teacher)
+        response = self.client.get('/api/my-schedule/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['lesson_slug'], self.lesson.slug)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
@@ -233,6 +294,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.section = create_test_section(self.course, title='Section 1')
         self.lesson = create_test_lesson(self.section, title='Lesson 1')
         self.homework = create_test_homework(self.lesson, title='HW 1')
+        publish_course_tree(self.course)
 
     def tearDown(self):
         super().tearDown()
@@ -244,15 +306,19 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Lesson 1')
         self.assertEqual(str(response.data['lesson_id']), str(self.lesson.lesson_id))
-        self.assertIn('recording_url', response.data['content'])
+        self.assertIn('recordings', response.data['content'])
+        self.assertIn('webinar_status', response.data['content'])
         self.assertIn('started_at', response.data['content'])
         self.assertIn('homeworks', response.data['content'])
+        self.assertIn('document', response.data['content'])
 
     def test_lesson_create_as_author(self):
-        from datetime import datetime
-
         self.authenticate_user(self.teacher)
-        data = {'section': self.section.section_id, 'title': 'New Lesson', 'date_time': datetime.now()}
+        data = {
+            'section': self.section.section_id,
+            'title': 'New Lesson',
+            'type': 'draft',
+        }
         response = self.client.post(
             f'/api/courses/{self.course.slug}/lessons/',
             data,
@@ -260,13 +326,29 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Lesson')
+        self.assertNotIn('content', response.data)
+        self.assertIn('lesson_id', response.data)
+        self.assertEqual(response.data.get('document', ''), '')
 
         new_lesson = Lesson.objects.get(title='New Lesson')
         self.assertEqual(new_lesson.section, self.section)
 
-    def test_lesson_create_rejects_section_from_other_course(self):
-        from datetime import datetime
+    def test_lesson_create_post_rejects_content_use_put(self):
+        self.authenticate_user(self.teacher)
+        response = self.client.post(
+            f'/api/courses/{self.course.slug}/lessons/',
+            {
+                'section': str(self.section.section_id),
+                'title': 'With content',
+                'type': 'draft',
+                'content': {'document': '{}', 'assets': []},
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Lesson.objects.filter(title='With content').exists())
 
+    def test_lesson_create_rejects_section_from_other_course(self):
         other_course = create_test_course(title='Other course')
         foreign_section = create_test_section(other_course, title='Foreign')
 
@@ -274,7 +356,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         data = {
             'section': str(foreign_section.section_id),
             'title': 'Lesson in wrong section',
-            'date_time': datetime.now().isoformat(),
+            'type': 'draft',
         }
         response = self.client.post(
             f'/api/courses/{self.course.slug}/lessons/',
@@ -287,7 +369,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
     def test_lesson_update_as_author(self):
         self.authenticate_user(self.teacher)
         update_data = {'title': 'Updated Lesson'}
-        response = self.client.patch(
+        response = self.client.put(
             f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/',
             update_data,
             format='json'
@@ -491,7 +573,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertIn(self.teacher, self.course.authors.all())
 
         data = {'title': 'Updated Lesson Title'}
-        response = self.client.patch(
+        response = self.client.put(
             f'/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/',
             data,
             format='json'
@@ -501,6 +583,69 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.lesson.refresh_from_db()
         self.assertEqual(self.lesson.title, 'Updated Lesson Title')
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
+    """PUT на detail с content: document (JSON + local://n) и multipart asset_n."""
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+        self.teacher = create_test_user(email='teacher_lesson_doc@test.com', role='teacher')
+        self.course = create_test_course()
+        self.course.authors.add(self.teacher)
+        self.section = create_test_section(self.course, title='Sec Lesson Doc')
+
+    def test_multipart_resolves_local_placeholder(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.authenticate_user(self.teacher)
+
+        create_response = self.client.post(
+            f'/api/courses/{self.course.slug}/lessons/',
+            {
+                'section': str(self.section.section_id),
+                'title': 'Lesson local placeholder',
+                'type': 'draft',
+            },
+            format='json',
+        )
+        self.assertEqual(
+            create_response.status_code, status.HTTP_201_CREATED, create_response.data
+        )
+        lesson_slug = create_response.data['slug']
+
+        doc = json.dumps({
+            'id': 'a',
+            'title': 'Новый урок',
+            'blocks': [
+                {'id': 'b', 'type': 'photo', 'url': 'local://1'},
+            ],
+        })
+        content = {
+            'document': doc,
+            'assets': [
+                {'asset_id': 1, 'asset_type': 'image', 'asset_file': 'asset_1'},
+            ],
+        }
+        png = SimpleUploadedFile('x.png', b'\x89PNG\r\n\x1a\n', content_type='image/png')
+        response = self.client.put(
+            f'/api/courses/{self.course.slug}/lessons/{lesson_slug}/',
+            {
+                'title': 'Lesson local placeholder',
+                'type': 'draft',
+                'content': json.dumps(content),
+                'asset_1': png,
+            },
+            format='multipart',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        lesson = Lesson.objects.get(title='Lesson local placeholder')
+        self.assertNotIn('local://', lesson.document)
+        parsed = json.loads(lesson.document)
+        url = parsed['blocks'][0]['url']
+        self.assertTrue(url.startswith('http') or url.startswith('/media'), msg=url)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
@@ -526,7 +671,7 @@ class RBACIntegrationTest(BaseTestCase, ViewTestMixin):
     def test_student_cannot_create_course(self):
         self.authenticate_user(self.student)
         data = {'title': 'New', 'sub_title': 'Sub', 'description': 'Desc', 'price': 1000}
-        response = self.client.post('/api/app/courses/', data, format='json')
+        response = self.client.post('/api/courses/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_teacher_cannot_modify_others_course(self):
@@ -534,21 +679,21 @@ class RBACIntegrationTest(BaseTestCase, ViewTestMixin):
         self.authenticate_user(other_teacher)
 
         data = {'title': 'Hacked'}
-        response = self.client.patch(f'/api/app/courses/{self.course.slug}/', data, format='json')
+        response = self.client.patch(f'/api/courses/{self.course.slug}/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_moderator_can_modify_any_course(self):
         self.authenticate_user(self.moderator)
 
         data = {'title': 'Moderated'}
-        response = self.client.patch(f'/api/app/courses/{self.course.slug}/', data, format='json')
+        response = self.client.patch(f'/api/courses/{self.course.slug}/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_unauthenticated_cannot_access_protected_endpoints(self):
-        response = self.client.get('/api/app/courses/')
+        response = self.client.get('/api/courses/')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        response = self.client.get('/api/app/my-courses/')
+        response = self.client.get('/api/my-courses/')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 

@@ -1,17 +1,31 @@
-.catalog {
-  width: 100%;
-	height: fit-content;
-	min-height: 100%;
-  padding: 54px;
-  background-color: #E2E8F0;
-}
-
 .catalogTitle {
   font-size: 28px;
   font-weight: 700;
   color: #1a1a1a;
   margin: 0 0 32px 40px;
   text-align: left;
+}
+
+.errorState {
+  margin: 0 40px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #fecaca;
+  max-width: 480px;
+}
+
+.errorMessage {
+  margin: 0 0 16px;
+  color: #991b1b;
+}
+
+.emptyState {
+  margin: 0 40px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 14px;
+  color: #64748b;
 }
 
 .coursesGrid {
@@ -138,12 +152,25 @@
   justify-content: center;
   width: 30px;
   height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  flex: 0 0 30px;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
+  line-height: 0;
   background-color: black;
   border-radius: 50%;
 }
 
 .arrowIcon {
   color: white;
+  width: 25px !important;
+  height: 25px !important;
+  min-width: 25px;
+  min-height: 25px;
+  display: block;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
 }
 
 /* .detailsButton:hover .arrowIcon {
@@ -177,10 +204,6 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .catalog {
-    padding: 16px;
-  }
-
   .catalogTitle {
     font-size: 24px;
     margin-bottom: 24px;

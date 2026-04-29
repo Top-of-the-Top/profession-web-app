@@ -2,7 +2,7 @@ import uuid
 import random
 import logging
 from decimal import Decimal
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 logger = logging.getLogger(__name__)

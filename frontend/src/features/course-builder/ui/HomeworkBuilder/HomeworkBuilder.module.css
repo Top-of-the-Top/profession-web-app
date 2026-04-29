@@ -3,8 +3,148 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-	justify-content: space-between;
+  justify-content: flex-start;
   flex: 1;
+}
+
+.homeworkMain {
+  display: flex;
+  gap: 14px;
+  min-height: 0;
+  width: 100%;
+  flex: 1;
+}
+
+.homeworkCanvasColumn {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.homeworkSidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 0 8px rgba(15, 23, 42, 0.12);
+  padding: 12px;
+  box-sizing: border-box;
+  max-height: 75vh;
+  overflow: auto;
+}
+
+.homeworkSidebarTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 10px;
+}
+
+.homeworkSwitchList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.homeworkSwitchButton {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1f2937;
+  border-radius: 10px;
+  font-size: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+
+.homeworkSwitchButtonActive {
+  border-color: #4d78cf;
+  background: #edf3ff;
+}
+
+.homeworkSwitchTitle {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.homeworkSwitchType {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 3px 7px;
+  flex-shrink: 0;
+}
+
+.homeworkSwitchTypeDraft {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.homeworkSwitchTypePublished {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.homeworkHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  width: 100%;
+  margin: 0 0 10px;
+  box-sizing: border-box;
+}
+
+.homeworkTitleInput {
+  flex: 1;
+  border: none;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 8px 4px;
+  font-size: 15px;
+  font-weight: 500;
+  background: transparent;
+  transition: border-color 0.2s;
+}
+
+.homeworkTitleInput:focus {
+  outline: none;
+  border-bottom-color: #191970;
+}
+
+.homeworkTitleInput::placeholder {
+  color: #9ca3af;
+}
+
+.homeworkDeadlineInput {
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 8px 4px;
+  font-size: 13px;
+  background: transparent;
+  color: #374151;
+  transition: border-color 0.2s;
+}
+
+.homeworkDeadlineInput:focus {
+  outline: none;
+  border-bottom-color: #191970;
+}
+
+.homeworkLoadingHint {
+  width: min(920px, 100%);
+  margin: 0 auto 10px;
+  padding: 0 8px;
+  color: #64748b;
+  font-size: 12px;
+  box-sizing: border-box;
 }
 
 .homeworkWrapper {
@@ -355,10 +495,25 @@
 }
 
 .buttonSecondary:hover {
-	background-color: #979494;
+  background-color: #979494;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
+  .homeworkMain {
+    flex-direction: column;
+  }
+
+  .homeworkSidebar {
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+
   .homeworkWrapper {
     min-height: 65vh;
     max-height: 65vh;

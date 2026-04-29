@@ -27,3 +27,8 @@ flower==2.0.1
 python-slugify>=8.0
 django-sms
 requests
+agora-token-builder==1.0.0
+img2pdf>=0.5
+openai
+django-celery-beat
+channels==4.0.0

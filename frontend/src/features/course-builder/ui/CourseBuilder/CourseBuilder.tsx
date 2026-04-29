@@ -1,15 +1,17 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DefaultEditor } from 'react-simple-wysiwyg';
 import { ImageUp, PictureInPicture, Trash2 } from 'lucide-react';
 import GridLayout from 'react-grid-layout';
 import type { Layout, LayoutItem } from 'react-grid-layout';
 import { useLessonBuilderStore } from '../../model/store';
+import type { SubmitPayload } from '../../model/store';
 import type { Block, BlockType } from '../../model/types';
 import { serializeCoursePage } from '../../model/types';
 import { GRID_CELL_SIZE, GRID_COLS } from '../../lib/constants';
 import { HomeworkBuilder } from '../HomeworkBuilder';
 import { useHomeworkStore } from '../../model/homeworkStore';
+import type { LessonHomework } from '@shared/api/courseApi';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -25,7 +27,11 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 interface CourseBuilderProps {
-  courseId: number;
+  courseSlug: string;
+  lessonSlug: string;
+  lessonHomeworks: LessonHomework[];
+  onSave: (payload: SubmitPayload) => void;
+  saving?: boolean;
 }
 
 const BLOCK_LABELS: Record<BlockType, string> = {
@@ -39,6 +45,8 @@ const ROW_HEIGHT = GRID_CELL_SIZE;
 const GRID_ROWS_BASE = 50;
 const GRID_FIXED_WIDTH = GRID_COLS * GRID_CELL_SIZE + (GRID_COLS - 1) * GRID_GAP;
 const GRID_MIN_HEIGHT = GRID_ROWS_BASE * ROW_HEIGHT + (GRID_ROWS_BASE - 1) * GRID_GAP;
+const TITLE_CENTER_MIN_WIDTH = 130;
+const TITLE_CENTER_MAX_WIDTH = 560;
 
 
 function blocksToLayout(blocks: Block[]): Layout {
@@ -70,10 +78,70 @@ function sanitizeWysiwygHtml(html: string): string {
     .replace(/<!--\s*\(figma\)[\s\S]*?\(\/figma\)\s*-->/g, '');
 }
 
-export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
+const SideTabChrome: React.FC = () => (
+  <span className={styles.sideTabShape} aria-hidden>
+    <svg
+      className={styles.sideTabTop}
+      width="50"
+      height="36"
+      viewBox="0 0 50 36"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M49.5 0.526002C49.5 0.0639109 35.1201 5.86287 7.34502 10.4607C3.42623 11.1094 0.5 14.4713 0.5 18.4434V35.526C0.5 35.2499 0.73128 35.026 1.00742 35.026H49.0062C49.2823 35.026 49.5 35.2499 49.5 35.526V0.526002Z"
+        fill="#FAFAFA"
+        stroke="#FAFAFA"
+      />
+    </svg>
+    <span className={styles.sideTabMiddleWrap}>
+      <svg
+        className={styles.sideTabMiddle}
+        width="49"
+        height="33"
+        viewBox="0 0 49 33"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="none"
+      >
+        <rect width="49" height="33" fill="#FAFAFA" />
+      </svg>
+    </span>
+    <svg
+      className={styles.sideTabBottom}
+      width="50"
+      height="36"
+      viewBox="0 0 50 36"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M49.5 35.0052C49.5 35.4673 35.1201 29.6684 7.34502 25.0705C3.42623 24.4218 0.5 21.0599 0.5 17.0878V0.00523758C0.5 0.28138 0.73128 0.505238 1.00742 0.505238H49.0062C49.2823 0.505238 49.5 0.28138 49.5 0.00523758V35.0052Z"
+        fill="#FAFAFA"
+        stroke="#FAFAFA"
+      />
+    </svg>
+  </span>
+);
+
+export const CourseBuilder: React.FC<CourseBuilderProps> = ({
+  courseSlug,
+  lessonSlug,
+  lessonHomeworks,
+  onSave,
+  saving,
+}) => {
   const navigate = useNavigate();
-  const { layout, setTitle, addBlockAt, updateBlock, removeBlock, toJSON } =
-    useLessonBuilderStore();
+  const {
+    layout,
+    setTitle,
+    addBlockAt,
+    updateBlock,
+    setBlockFile,
+    removeBlock,
+    toJSON,
+    toSubmitPayload,
+  } = useLessonBuilderStore();
   const { initialize: initHomework, toJSON: homeworkToJSON } = useHomeworkStore();
 
   const [mounted, setMounted] = useState(false);
@@ -83,14 +151,27 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
   const [activeTab, setActiveTab] = useState<'layout' | 'homework'>('layout');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deletingBlocks, setDeletingBlocks] = useState<Record<string, boolean>>({});
+  const [titleCenterWidth, setTitleCenterWidth] = useState(TITLE_CENTER_MIN_WIDTH);
+  const titleMeasureRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    initHomework(String(courseId ?? ''));
-  }, [courseId, initHomework]);
+    initHomework(`${courseSlug}/${lessonSlug}`);
+  }, [courseSlug, lessonSlug, initHomework]);
+
+  useLayoutEffect(() => {
+    const measureNode = titleMeasureRef.current;
+    if (!measureNode) return;
+    const measured = Math.ceil(measureNode.getBoundingClientRect().width) + 44;
+    const nextWidth = Math.min(
+      TITLE_CENTER_MAX_WIDTH,
+      Math.max(TITLE_CENTER_MIN_WIDTH, measured),
+    );
+    setTitleCenterWidth(nextWidth);
+  }, [layout.title]);
 
   const gridLayout = blocksToLayout(layout.blocks);
   const draggableHandleProps = {
@@ -226,12 +307,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () =>
-                  updateBlock(block.id, {
-                    url: reader.result as string,
-                  } as Block);
-                reader.readAsDataURL(file);
+                setBlockFile(block.id, file);
                 e.target.value = '';
               }}
             />
@@ -281,12 +357,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () =>
-                  updateBlock(block.id, {
-                    url: reader.result as string,
-                  } as Block);
-                reader.readAsDataURL(file);
+                setBlockFile(block.id, file);
                 e.target.value = '';
               }}
             />
@@ -322,12 +393,62 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
     <div className={styles.courseBuilder} dir="ltr">
       <div className={styles.lessonHeader}>
         <div className={styles.lessonHeaderTrapezoid}>
-          <input
-            className={styles.titleInput}
-            value={layout.title}
-            onChange={(e) => handleCourseTitleChange(e.target.value)}
-            placeholder="Название урока"
-          />
+          <svg
+            className={styles.lessonHeaderCapLeft}
+            width="36"
+            height="50"
+            viewBox="0 0 36 50"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden
+          >
+            <path
+              d="M0.526002 49.5C0.0639109 49.5 5.86287 35.1201 10.4607 7.34502C11.1094 3.42623 14.4713 0.5 18.4434 0.5H35.526C35.2499 0.5 35.026 0.73128 35.026 1.00742V49.0062C35.026 49.2823 35.2499 49.5 35.526 49.5H0.526002Z"
+              fill="#FAFAFA"
+              stroke="#FAFAFA"
+            />
+          </svg>
+          <div
+            className={styles.lessonHeaderCenter}
+            style={{ width: `${titleCenterWidth}px` }}
+          >
+            <svg
+              className={styles.lessonHeaderCenterSvg}
+              width="82"
+              height="50"
+              viewBox="0 0 82 50"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              preserveAspectRatio="none"
+              aria-hidden
+            >
+              <rect width="82" height="50" fill="#FAFAFA" />
+            </svg>
+            <input
+              className={styles.titleInput}
+              value={layout.title}
+              onChange={(e) => handleCourseTitleChange(e.target.value)}
+              placeholder="Название урока"
+            />
+            <span ref={titleMeasureRef} className={styles.titleMeasure}>
+              {layout.title || 'Название урока'}
+            </span>
+          </div>
+          <svg
+            className={styles.lessonHeaderCapRight}
+            width="36"
+            height="50"
+            viewBox="0 0 36 50"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden
+          >
+            <path
+              d="M35.0052 49.5C35.4673 49.5 29.6684 35.1201 25.0705 7.34502C24.4218 3.42623 21.0599 0.5 17.0878 0.5H0.00523758C0.28138 0.5 0.505238 0.73128 0.505238 1.00742V49.0062C0.505238 49.2823 0.28138 49.5 0.00523758 49.5H35.0052Z"
+              fill="#FAFAFA"
+              stroke="#FAFAFA"
+            />
+          </svg>
         </div>
       </div>
 
@@ -340,7 +461,8 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
             }`}
             onClick={() => setActiveTab('layout')}
           >
-            конструктор
+            <SideTabChrome />
+            <span className={styles.sideTabLabel}>конструктор</span>
           </button>
           <button
             type="button"
@@ -349,7 +471,8 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
             }`}
             onClick={() => setActiveTab('homework')}
           >
-            домашнее задание
+            <SideTabChrome />
+            <span className={styles.sideTabLabel}>домашнее задание</span>
           </button>
         </div>
 
@@ -458,16 +581,10 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
                   <button
                     type="button"
                     className={`${styles.button} ${styles.buttonSecondary}`}
-                    onClick={() => {
-                      const lessonData = toJSON();
-                      const homeworkData = homeworkToJSON();
-                      const hw = homeworkData.questions.length > 0 ? homeworkData : null;
-                      const page = serializeCoursePage(lessonData, hw);
-                       
-                      console.log('CoursePageDTO (draft):', JSON.stringify(page));
-                    }}
+                    disabled={saving}
+                    onClick={() => onSave(toSubmitPayload())}
                   >
-                    Сохранить черновик
+                    {saving ? 'Сохранение…' : 'Сохранить черновик'}
                   </button>
                   <button
                     type="button"
@@ -487,7 +604,13 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({ courseId }) => {
             </div>
           )}
 
-          {activeTab === 'homework' && <HomeworkBuilder />}
+          {activeTab === 'homework' && (
+            <HomeworkBuilder
+              courseSlug={courseSlug}
+              lessonSlug={lessonSlug}
+              lessonHomeworks={lessonHomeworks}
+            />
+          )}
         </div>
       </div>
 

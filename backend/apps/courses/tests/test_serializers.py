@@ -1,6 +1,5 @@
 from django.test import TestCase, SimpleTestCase, override_settings
-from unittest.mock import patch, MagicMock
-from rest_framework.exceptions import ValidationError
+from unittest.mock import patch
 import tempfile
 from django.utils import timezone
 from datetime import timedelta
@@ -14,9 +13,7 @@ from ..api.serializers import (
     HomeworkDetailSerializer,
     HomeworkItemsListSerializer,
 )
-from ..models import Course, Section, Lesson, Homework, Question, Task, PurchasedCourse
-from apps.users.models import User
-from apps.users.api.utils import encrypt_data
+from ..models import Question, Task, PurchasedCourse
 from apps.payments.models import Payment
 from .test_models import (
     BaseTestCase,
@@ -343,14 +340,11 @@ class LessonSerializerIntegrationTest(BaseTestCase):
 
         self.assertEqual(data['title'], 'Lesson 1')
         self.assertIn('slug', data)
-        self.assertIn('date_time', data)
 
     def test_create_lesson_via_serializer(self):
-        future_date = timezone.now() + timedelta(days=7)
         data = {
             'section': self.section.pk,
             'title': 'New Lesson',
-            'date_time': future_date.isoformat(),
         }
 
         serializer = LessonSerializer(data=data)

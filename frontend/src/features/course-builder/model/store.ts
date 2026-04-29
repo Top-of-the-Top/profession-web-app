@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import type { Block, BlockType, LessonLayout } from './types';
 import { serializeLessonLayout } from './types';
+import { makeStructureMediaPlaceholder } from '../api/courseBuilderApi';
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -12,8 +13,14 @@ import {
   DEFAULT_FONT_SIZE_INDEX,
 } from '../lib/constants';
 
+export interface SubmitPayload {
+  document: string;
+  files: Record<string, File>;
+}
+
 interface LessonBuilderState {
   layout: LessonLayout;
+  pendingFiles: Record<string, File>;
 }
 
 interface LessonBuilderActions {
@@ -22,10 +29,12 @@ interface LessonBuilderActions {
   addBlock: (type: BlockType) => void;
   addBlockAt: (type: BlockType, x: number, y: number, w: number, h: number) => void;
   updateBlock: (blockId: string, patch: Partial<Block>) => void;
+  setBlockFile: (blockId: string, file: File) => void;
   removeBlock: (blockId: string) => void;
   moveBlock: (blockId: string, x: number, y: number) => void;
   resizeBlock: (blockId: string, w: number, h: number) => void;
   toJSON: () => LessonLayout;
+  toSubmitPayload: () => SubmitPayload;
 }
 
 export type LessonBuilderStore = LessonBuilderState & LessonBuilderActions;
@@ -49,12 +58,26 @@ const rectsIntersect = (a: Block, b: Block): boolean => {
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
+const LOCAL_ASSET_RE = /^local:\/\/(\d+)$/;
+const REMOTE_ASSET_RE = /\/asset_(\d+)(?:\.[^/?#]+)?(?:[?#].*)?$/;
+
+const extractAssetId = (url: string | undefined): number | null => {
+  if (!url) return null;
+  const localMatch = url.match(LOCAL_ASSET_RE);
+  if (localMatch) return Number(localMatch[1]);
+  const remoteMatch = url.match(REMOTE_ASSET_RE);
+  if (remoteMatch) return Number(remoteMatch[1]);
+  return null;
+};
+
 export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
   layout: createEmptyLayout(),
+  pendingFiles: {},
 
   initialize: (layout) =>
     set(() => ({
       layout,
+      pendingFiles: {},
     })),
 
   setTitle: (title) =>
@@ -168,13 +191,33 @@ export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
       },
     })),
 
+  setBlockFile: (blockId, file) =>
+    set((state) => {
+      const previewUrl = URL.createObjectURL(file);
+      return {
+        pendingFiles: { ...state.pendingFiles, [blockId]: file },
+        layout: {
+          ...state.layout,
+          blocks: state.layout.blocks.map((block) =>
+            block.id === blockId
+              ? ({ ...block, url: previewUrl } as Block)
+              : block,
+          ),
+        },
+      };
+    }),
+
   removeBlock: (blockId) =>
-    set((state) => ({
-      layout: {
-        ...state.layout,
-        blocks: state.layout.blocks.filter((block) => block.id !== blockId),
-      },
-    })),
+    set((state) => {
+      const { [blockId]: _removed, ...remainingFiles } = state.pendingFiles;
+      return {
+        pendingFiles: remainingFiles,
+        layout: {
+          ...state.layout,
+          blocks: state.layout.blocks.filter((block) => block.id !== blockId),
+        },
+      };
+    }),
 
   moveBlock: (blockId, x, y) =>
     set((state) => {
@@ -222,6 +265,51 @@ export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
   toJSON: () => {
     const { layout } = get();
     return serializeLessonLayout(layout);
+  },
+
+  toSubmitPayload: () => {
+    const { layout, pendingFiles } = get();
+    const serialized = serializeLessonLayout(layout);
+    const blockAssetIds: Record<string, string> = {};
+    const filesByAssetId: Record<string, File> = {};
+    const usedAssetIds = new Set<number>();
+
+    for (const block of serialized.blocks) {
+      if (block.type !== 'photo' && block.type !== 'video') continue;
+      const currentAssetId = extractAssetId(block.url);
+      if (currentAssetId != null) usedAssetIds.add(currentAssetId);
+    }
+
+    let nextAssetId = usedAssetIds.size > 0 ? Math.max(...usedAssetIds) + 1 : 1;
+
+    for (const block of serialized.blocks) {
+      if (
+        (block.type === 'photo' || block.type === 'video') &&
+        pendingFiles[block.id]
+      ) {
+        while (usedAssetIds.has(nextAssetId)) {
+          nextAssetId += 1;
+        }
+        const assetId = String(nextAssetId);
+        usedAssetIds.add(nextAssetId);
+        nextAssetId += 1;
+        blockAssetIds[block.id] = assetId;
+        filesByAssetId[assetId] = pendingFiles[block.id];
+      }
+    }
+
+    const blocks = serialized.blocks.map((block) => {
+      const assetId = blockAssetIds[block.id];
+      if ((block.type === 'photo' || block.type === 'video') && assetId) {
+        return { ...block, url: makeStructureMediaPlaceholder(assetId) };
+      }
+      return block;
+    });
+
+    return {
+      document: JSON.stringify({ ...serialized, blocks }),
+      files: filesByAssetId,
+    };
   },
 }));
 

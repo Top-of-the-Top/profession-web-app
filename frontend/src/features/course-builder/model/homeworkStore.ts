@@ -14,7 +14,9 @@ interface HomeworkState {
 
 interface HomeworkActions {
   initialize: (lessonId: string, layout?: HomeworkLayout) => void;
-  addQuestion: (type: HomeworkQuestionType, index?: number) => void; // Изменено: добавлен параметр index
+  setTitle: (title: string) => void;
+  setDeadline: (deadline: string) => void;
+  addQuestion: (type: HomeworkQuestionType, index?: number) => void;
   updateQuestion: (id: string, patch: Partial<HomeworkQuestion>) => void;
   removeQuestion: (id: string) => void;
   reorderQuestions: (fromIndex: number, toIndex: number) => void;
@@ -37,6 +39,8 @@ export type HomeworkStore = HomeworkState & HomeworkActions;
 
 const createEmptyLayout = (lessonId: string): HomeworkLayout => ({
   lessonId,
+  title: '',
+  deadline: '',
   questions: [],
 });
 
@@ -78,6 +82,12 @@ export const useHomeworkStore = create<HomeworkStore>((set, get) => ({
       layout: layout ?? createEmptyLayout(lessonId),
     }));
   },
+
+  setTitle: (title) =>
+    set((state) => ({ layout: { ...state.layout, title } })),
+
+  setDeadline: (deadline) =>
+    set((state) => ({ layout: { ...state.layout, deadline } })),
 
   addQuestion: (type, index) =>
     set((state) => {

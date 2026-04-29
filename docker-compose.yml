@@ -3,18 +3,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    working_dir: /app
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
-    environment:
-      - VITE_ADMINKA_GATEWAY_URL=${VITE_ADMINKA_GATEWAY_URL:-http://localhost:9000}
-      - CHOKIDAR_USEPOLLING=true
-      - CHOKIDAR_INTERVAL=300
-      - WATCHPACK_POLLING=true
-      - WDS_SOCKET_PORT=0
+      - "3000:80"
+    depends_on:
+      - backend
     networks:
       - app_network
 
@@ -42,8 +34,6 @@ services:
       - redis_data:/data
     networks:
       - app_network
-
-  # Блок с асинхронной распределенной очередью celery
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -78,6 +68,21 @@ services:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
     networks:
       - app_network
+  
+  celery-beat:
+    build: ./backend
+    command: celery -A project beat -l info
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      - redis
+      - rabbitmq
+    env_file:
+      - ./backend/.env
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+    networks:
+      - app_network
 
   flower:
     build: ./backend
@@ -91,7 +96,7 @@ services:
     volumes:
       - ./backend:/app
     ports:
-      - "5555:5555"
+      - "15666:5555"
     depends_on:
       - rabbitmq
     networks:

@@ -9,6 +9,10 @@ export const courseKeys = {
   courseHome: (slug: string) => [...courseKeys.all, 'home', slug] as const,
   lesson: (courseSlug: string, lessonSlug: string) =>
     [...courseKeys.all, courseSlug, 'lessons', lessonSlug] as const,
+  homework: (courseSlug: string, lessonSlug: string, homeworkSlug: string) =>
+    [...courseKeys.all, courseSlug, 'lessons', lessonSlug, 'homework', homeworkSlug] as const,
+  homeworkAttempt: (homeworkSlug: string) =>
+    [...courseKeys.all, 'homework-attempt', homeworkSlug] as const,
 };
 
 export function useCourses() {
@@ -49,5 +53,36 @@ export function useLessonBySlug(
     queryKey: courseKeys.lesson(courseSlug!, lessonSlug!),
     queryFn: () => courseApi.getLessonBySlug(courseSlug!, lessonSlug!),
     enabled: !!courseSlug && !!lessonSlug,
+    refetchInterval: (query) => {
+      const recordings = query.state.data?.recordings ?? [];
+      return recordings.some(
+        (recording) =>
+          recording.kinescope_upload_status === 'pending' ||
+          recording.kinescope_upload_status === 'uploading' ||
+          recording.kinescope_upload_status === 'processing',
+      )
+        ? 10_000
+        : false;
+    },
+  });
+}
+
+export function useHomeworkDetail(
+  courseSlug: string | undefined,
+  lessonSlug: string | undefined,
+  homeworkSlug: string | undefined,
+) {
+  return useQuery({
+    queryKey: courseKeys.homework(courseSlug!, lessonSlug!, homeworkSlug!),
+    queryFn: () => courseApi.getHomeworkDetail(courseSlug!, lessonSlug!, homeworkSlug!),
+    enabled: !!courseSlug && !!lessonSlug && !!homeworkSlug,
+  });
+}
+
+export function useHomeworkAttempt(homeworkSlug: string | undefined) {
+  return useQuery({
+    queryKey: courseKeys.homeworkAttempt(homeworkSlug!),
+    queryFn: () => courseApi.getHomeworkAttempt(homeworkSlug!),
+    enabled: !!homeworkSlug,
   });
 }

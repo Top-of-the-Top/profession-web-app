@@ -10,6 +10,7 @@ export { default as CoursePreviewPage } from './coursePreview/ui/CoursePreviewPa
 export { default as CourseLessonsPage } from './courseLessons/ui/CourseLessonsPage'
 export { default as CartPage } from './cart/Cart';
 export { default as NotFoundPage } from './notfound/NotFoundPage'
-export { default as CreateLessonPage } from './lessonCreate/ui/CreateLessonPage'
+export { default as LessonEditPage } from './lessonEdit/ui/LessonEditPage'
 export { default as LessonPreviewPage } from './lessonPreview/ui/LessonPreviewPage'
 export { default as LessonViewPage } from './lessonView/ui/LessonViewPage'
+export { default as HomeworkSubmissionPage } from './homeworkSubmission/ui/HomeworkSubmissionPage'

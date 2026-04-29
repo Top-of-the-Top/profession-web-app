@@ -8,11 +8,11 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 from rest_framework import status
-from ..api.utils import get_tokens_for_user
+from ..api.utils.token_utils import get_tokens_for_user, set_reset_token
 import jwt
 
 from ..models import User, Profile
-from ..api.utils import encrypt_data, decrypt_data, set_reset_token
+from ..api.utils.crypto_utils import encrypt_data
 from ..api.views import (
     LoginView,
     ProfileView,
@@ -31,7 +31,7 @@ class RegisterViewUnitTest(SimpleTestCase):
 
     def setUp(self):
         self.factory = APIRequestFactory()
-        os.environ["FRONTEND_HOST"] = "http://localhost:5173"
+        os.environ["FRONTEND_HOST"] = "http://localhost:3000"
 
     def test_register_email_success_mocked(self):
         request = self.factory.post(
@@ -283,7 +283,7 @@ class ResetPasswordViewUnitTest(SimpleTestCase):
 
     def setUp(self):
         self.factory = APIRequestFactory()
-        os.environ["FRONTEND_HOST"] = "http://localhost:5173"
+        os.environ["FRONTEND_HOST"] = "http://localhost:3000"
 
     def test_reset_requires_email_or_phone(self):
         request = self.factory.post("/api/auth/reset/", {}, format="json")
@@ -316,7 +316,7 @@ class ResetPasswordViewUnitTest(SimpleTestCase):
 
         with patch("apps.users.api.views.User.objects.filter") as filter_mock, patch(
             "apps.users.api.views.set_reset_token", return_value="reset-token"
-        ), patch('apps.users.api.utils.send_mail', return_value=1) as send_mail_mock:
+        ), patch('apps.users.api.utils.notification_utils.send_mail', return_value=1) as send_mail_mock:
             filter_mock.return_value.first.return_value = mock_user
             response = ResetPasswordView.as_view()(request)
 
@@ -369,7 +369,7 @@ class RecoverPasswordViewUnitTest(SimpleTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_user.set_password.assert_called_once_with("NewStrongPass123!")
-        self.assertIsNone(mock_user.reset_token)
+        self.assertEqual(mock_user.reset_token, '')
         self.assertIsNone(mock_user.reset_token_expires)
 
 
@@ -380,14 +380,14 @@ class ProfileViewUnitTest(SimpleTestCase):
         self.factory = APIRequestFactory()
 
     def test_profile_requires_auth(self):
-        request = self.factory.get("/api/app/profile/")
+        request = self.factory.get("/api/profile/")
         response = ProfileView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_profile_get_success_mocked(self):
         """Test successful profile retrieval"""
-        request = self.factory.get("/api/app/profile/")
+        request = self.factory.get("/api/profile/")
         auth_user = SimpleNamespace(is_authenticated=True)
         force_authenticate(request, user=auth_user)
 
@@ -408,7 +408,7 @@ class ProfileViewUnitTest(SimpleTestCase):
 
     def test_profile_patch_validation_error(self):
         request = self.factory.patch(
-            "/api/app/profile/", {"gender": "X"}, format="json")
+            "/api/profile/", {"gender": "X"}, format="json")
         auth_user = MagicMock(is_authenticated=True)
         force_authenticate(request, user=auth_user)
 
@@ -424,7 +424,7 @@ class ProfileViewUnitTest(SimpleTestCase):
 
     def test_profile_patch_success_mocked(self):
         request = self.factory.patch(
-            "/api/app/profile/",
+            "/api/profile/",
             {"first_name": "Иван", "last_name": "Петров"},
             format="json",
         )
@@ -454,10 +454,11 @@ class RegisterViewIntegrationTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.register_url = reverse('users:register')
-        self.verify_url = reverse('users:register_verify')
+        self.verify_url = reverse('users:register-verify')
 
     def _register_and_verify(self, email, password):
-        with patch('apps.users.api.views.send_verification_email'):
+        with patch('apps.users.api.views.send_verification_email'), \
+             patch('apps.users.api.views.check_contact_rate_limit', return_value=(True, 0)):
             reg_response = self.client.post(
                 self.register_url,
                 {'email': email, 'password': password},
@@ -467,7 +468,7 @@ class RegisterViewIntegrationTest(TestCase):
         self.assertEqual(reg_response.data['status'], 'code_sent')
 
         from django.core.cache import cache
-        from ..api.utils import encrypt_data as enc
+        from ..api.utils.crypto_utils import encrypt_data as enc
         cache_key = f'pending_registration_email_{enc(email)}'
         cached = cache.get(cache_key)
         self.assertIsNotNone(cached, 'Registration code not found in cache')
@@ -512,7 +513,8 @@ class RegisterViewIntegrationTest(TestCase):
             password='testpass123'
         )
 
-        with patch('apps.users.api.views.send_verification_email'):
+        with patch('apps.users.api.views.send_verification_email'), \
+             patch('apps.users.api.views.check_contact_rate_limit', return_value=(True, 0)):
             response = self.client.post(
                 self.register_url,
                 {'email': email, 'password': 'testpass123'},
@@ -576,7 +578,7 @@ class RefreshTokenViewIntegrationTest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.url = reverse('users:token_refresh')
+        self.url = reverse('users:token-refresh')
         self.user = User.objects.create_user(
             email_cipher=encrypt_data('test@example.com'),
             password='testpass123'
@@ -623,7 +625,7 @@ class RecoverPasswordViewIntegrationTest(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(new_password))
 
-        self.assertIsNone(self.user.reset_token)
+        self.assertEqual(self.user.reset_token, '')
         self.assertIsNone(self.user.reset_token_expires)
 
     def test_recover_password_with_expired_token(self):
@@ -724,7 +726,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_requires_auth(self):
         request = self.factory.post(
-            "/api/app/profile/verify_email/",
+            "/api/profile/verify_email/",
             {"code": "123456"},
             format="json",
         )
@@ -734,7 +736,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_invalid_code_format(self):
         request = self.factory.post(
-            "/api/app/profile/verify_email/",
+            "/api/profile/verify_email/",
             {"code": "short"},
             format="json",
         )
@@ -747,7 +749,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_verification_error(self):
         request = self.factory.post(
-            "/api/app/profile/verify_email/",
+            "/api/profile/verify_email/",
             {"code": "000000"},
             format="json",
         )
@@ -765,7 +767,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_success_mocked(self):
         request = self.factory.post(
-            "/api/app/profile/verify_email/",
+            "/api/profile/verify_email/",
             {"code": "123456"},
             format="json",
         )
@@ -785,7 +787,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_duplicate_blocked(self):
         request = self.factory.post(
-            "/api/app/profile/verify_email/",
+            "/api/profile/verify_email/",
             {"code": "123456"},
             format="json",
         )
@@ -809,7 +811,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_requires_auth(self):
         request = self.factory.post(
-            "/api/app/profile/verify_phone/",
+            "/api/profile/verify_phone/",
             {"code": "123456"},
             format="json",
         )
@@ -819,7 +821,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_verification_error(self):
         request = self.factory.post(
-            "/api/app/profile/verify_phone/",
+            "/api/profile/verify_phone/",
             {"code": "000000"},
             format="json",
         )
@@ -837,7 +839,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_success_mocked(self):
         request = self.factory.post(
-            "/api/app/profile/verify_phone/",
+            "/api/profile/verify_phone/",
             {"code": "123456"},
             format="json",
         )
@@ -857,7 +859,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_duplicate_blocked(self):
         request = self.factory.post(
-            "/api/app/profile/verify_phone/",
+            "/api/profile/verify_phone/",
             {"code": "123456"},
             format="json",
         )
@@ -988,7 +990,7 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def test_reset_email_send_failure(self):
-        os.environ["FRONTEND_HOST"] = "http://localhost:5173"
+        os.environ["FRONTEND_HOST"] = "http://localhost:3000"
         request = self.factory.post(
             "/api/auth/reset/",
             {"email": "user@example.com"},
@@ -1013,7 +1015,7 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
 
     def test_profile_patch_email_triggers_verification(self):
         request = self.factory.patch(
-            "/api/app/profile/",
+            "/api/profile/",
             {"email": "new@example.com"},
             format="json",
         )
@@ -1041,7 +1043,7 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
 
     def test_profile_patch_phone_triggers_verification(self):
         request = self.factory.patch(
-            "/api/app/profile/",
+            "/api/profile/",
             {"phone_number": "+79990001122"},
             format="json",
         )
@@ -1070,7 +1072,7 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
 
     def test_profile_patch_phone_rate_limited(self):
         request = self.factory.patch(
-            "/api/app/profile/",
+            "/api/profile/",
             {"phone_number": "+79990001122"},
             format="json",
         )

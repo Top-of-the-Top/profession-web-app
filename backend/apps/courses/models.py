@@ -1,8 +1,6 @@
 from django.db import models
 import os
-from django.core.exceptions import ValidationError
 from ..users.models import User
-from django.db.models import Sum
 import uuid
 from slugify import slugify
 
@@ -76,7 +74,7 @@ def course_image_path(instance, filename):
     photo_uuid = uuid.uuid4()
     return f'courses/course_{photo_uuid}.{ext}'
 
-def generate_unique_slug(instance, title, slug_field='slug'):
+def generate_unique_slug(title):
     base_slug = slugify(title[:80])
     if not base_slug:
         base_slug = 'title'
@@ -104,6 +102,17 @@ class Course(AbstractComponentModel):
         verbose_name='Изображение курса',
         default=DEFAULT_COURSE_IMAGE,
     )
+    kinescope_folder_id = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name='Kinescope folder id'
+    )
+    yandex_vs_id = models.CharField( # Это хранилище с данными для курса, там хранится контекст курса
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name='Yandex Vector Store ID',
+    )
 
     @property
     def image_url(self):
@@ -116,7 +125,7 @@ class Course(AbstractComponentModel):
         is_new = self.pk is None
 
         if not self.slug:
-            self.slug = generate_unique_slug(self, self.title)
+            self.slug = generate_unique_slug(self.title)
 
         if is_new and self.image and hasattr(self.image, 'file') and self.image.name != DEFAULT_COURSE_IMAGE:
             image_file = self.image.file
@@ -133,6 +142,36 @@ class Course(AbstractComponentModel):
             super().save(update_fields=['image'])
         else:
             super().save(*args, **kwargs)
+
+    def prepare_full_content_file(self):
+        sections = (
+            self.section_set
+            .prefetch_related('lesson_set__homework_set__question_set', 'lesson_set__homework_set__task_set')
+            .order_by('section_number', 'created_at')
+        )
+
+        chunks = [
+            f"Курс: {self.title}",
+            f"Краткое описание: {self.sub_title}",
+            f"Описание: {self.description}",
+        ]
+
+        for section in sections:
+            chunks.append(f"\nСекция {section.section_number}: {section.title}")
+            lessons = section.lesson_set.order_by('lesson_number', 'created_at')
+            for lesson in lessons:
+                chunks.append(f"  Урок {lesson.lesson_number}: {lesson.title}")
+                if lesson.document:
+                    chunks.append(f"  Контент урока: {lesson.document}")
+                homeworks = lesson.homework_set.order_by('homework_number', 'created_at')
+                for homework in homeworks:
+                    chunks.append(f"    Домашнее задание {homework.homework_number}: {homework.title}")
+                    for question in homework.question_set.order_by('question_number', 'created_at'):
+                        chunks.append(f"      Вопрос {question.question_number}: {question.text}")
+                    for task in homework.task_set.order_by('task_number', 'created_at'):
+                        chunks.append(f"      Задание {task.task_number}: {task.text}")
+
+        return "\n".join(chunks)
 
 
     class Meta:
@@ -152,7 +191,7 @@ class Section(AbstractComponentModel, AutoIncrementMixin):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = generate_unique_slug(self, self.title)
+            self.slug = generate_unique_slug(self.title)
 
         self._generate_next_number(parent_field='course', number_field='section_number')
 
@@ -175,14 +214,18 @@ class Lesson(AbstractComponentModel, AutoIncrementMixin):
     section = models.ForeignKey(Section, on_delete=models.CASCADE, null=True, verbose_name='ID секции')
     title = models.CharField(max_length=120, verbose_name='Название урока')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
-    date_time = models.DateTimeField(verbose_name='Время проведения урока', null=True, blank=True)
+    document = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='JSON урока после подстановки URL (local:// → хранилище)',
+    )
 
     def __str__(self):
         return self.title
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = generate_unique_slug(self, self.title)
+            self.slug = generate_unique_slug(self.title)
         self._generate_next_number(parent_field='section', number_field='lesson_number')
 
         super().save(*args, **kwargs)
@@ -207,7 +250,7 @@ class Homework(AbstractComponentModel, AutoIncrementMixin):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = generate_unique_slug(self, self.title)
+            self.slug = generate_unique_slug(self.title)
         self._generate_next_number(parent_field='lesson', number_field='homework_number')
 
         super().save(*args, **kwargs)
@@ -231,6 +274,9 @@ class Question(AbstractComponentModel, AutoIncrementMixin):
     text = models.CharField(max_length=200, verbose_name='Текст вопроса')
     correct_ans = models.CharField(verbose_name='Правильный ответ на вопрос')
     answer_options = models.JSONField(verbose_name='Варианты ответов')
+    max_points = models.PositiveIntegerField(
+        default=1, verbose_name='Максимальное количество баллов за вопрос'
+    )
 
 
     class Meta:
@@ -271,149 +317,6 @@ class Task(AbstractComponentModel, AutoIncrementMixin):
     def __str__(self):
         return self.text
 
-class AttemptStatusMixin(models.Model):
-    DRAFT_STATUS = 'draft'
-    SUBMITTED_STATUS = 'submitted'
-    REVIEWED_STATUS = 'reviewed'
-
-    STATUS_CHOICES = [
-        (DRAFT_STATUS, 'Черновик'),
-        (SUBMITTED_STATUS, 'Отправлено'),
-        (REVIEWED_STATUS, 'Оценено'),
-    ]
-
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default=DRAFT_STATUS,
-        verbose_name='Статус',
-    )
-
-    send_at = models.DateTimeField(null=True, blank=True, verbose_name='Отправлено в')
-
-    class Meta:
-        abstract = True
-
-class Users_Homeworks_Attempts(AttemptStatusMixin, TimestampedMixin, AutoIncrementMixin):
-
-    attempt_id = models.UUIDField(primary_key=True, verbose_name="id", default=uuid.uuid4)
-    attempt_number = models.PositiveIntegerField(verbose_name='Номер домашнего задания', blank=True)
-    homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-    @property
-    def grade(self):
-        if self.status != 'reviewed':
-            return None
-
-        task_points = self.task_answers.filter(
-            status='reviewed'
-        ).aggregate(points=Sum('points'))['points'] or 0
-
-        question_points = self.question_answers.filter(
-            is_correct=True,
-        ).count()
-
-        task_max = self.homework.task_set.aggregate(
-            total=Sum('max_points')
-        )['total'] or 0
-
-        question_max = self.homework.question_set.count()
-
-        total_max = task_max + question_max
-        total_points = task_points + question_points
-
-        percentage: float = (total_points / total_max * 100.0) if total_max > 0 else 0
-
-        return max(1, min(10, round(percentage / 10)))
-
-    class Meta:
-        verbose_name = 'Попытка'
-        verbose_name_plural = 'Попытки'
-        ordering = ['created_at']
-
-        indexes = [
-            models.Index(fields=['user', 'attempt_number']),
-        ]
-
-    def save(self, *args, **kwargs):
-        self._generate_next_number(parent_field='homework', number_field='attempt_number')
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.attempt_id
-
-class Users_questions_answers(TimestampedMixin, AutoIncrementMixin):
-    question_answer_id = models.UUIDField(primary_key=True, verbose_name="id", default=uuid.uuid4)
-    question_answer_number = models.PositiveIntegerField(verbose_name='Номер попытки ответа на вопрос', blank=True)
-
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    attempt = models.ForeignKey(
-        Users_Homeworks_Attempts,
-        on_delete=models.CASCADE,
-        related_name='question_answers')
-
-    user_answer = models.CharField(max_length=120, verbose_name='Ответ пользователя')
-
-    is_correct = models.BooleanField(default=False)
-    def save(self, *args, **kwargs):
-        self.is_correct = (self.user_answer == self.question.correct_ans)
-
-        if self.user_answer not in self.question.answer_options:
-            raise ValidationError({
-                'user_answer': f'Answer must be one of: {", ".join(self.question.answer_options)}'
-            })
-        self._generate_next_number(parent_field='question', number_field='question_answer_number')
-        super().save(*args, **kwargs)
-
-    class Meta:
-        verbose_name = 'Ответ на вопрос'
-        verbose_name_plural = 'Ответы на вопросы'
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['question_answer_number']),
-        ]
-
-    def __str__(self):
-        return self.question_answer_id
-class Users_tasks_answers(AttemptStatusMixin, TimestampedMixin, AutoIncrementMixin):
-
-    task_answer_id = models.UUIDField(primary_key=True, verbose_name="id", default=uuid.uuid4)
-    task_answer_number = models.PositiveIntegerField(verbose_name='Номер попытки ответа на задачу', blank=True)
-
-    task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    attempt = models.ForeignKey(
-        Users_Homeworks_Attempts,
-        on_delete=models.CASCADE,
-        related_name='task_answers'    )
-
-    points = models.PositiveIntegerField(default=0)
-
-    user_answer = models.TextField()
-
-    def clean(self):
-        if self.points > self.task.max_points:
-            raise ValidationError({
-                'points': f'За задание {self.task} можно получить максимум {self.task.max_points}'
-            })
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        self._generate_next_number(parent_field='task', number_field='task_answer_number')
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.task_answer_id
-
-    class Meta:
-        verbose_name = 'Ответ на задание'
-        verbose_name_plural = 'Ответы на задания'
-        ordering = ['created_at']
-
-        indexes = [
-            models.Index(fields=['task_answer_number'])
-        ]
-
 class PurchasedCourse(models.Model):
 
     user = models.ForeignKey(
@@ -448,3 +351,4 @@ class PurchasedCourse(models.Model):
     def is_active(self):
         from django.utils import timezone
         return timezone.now() < self.access_expires_at
+    

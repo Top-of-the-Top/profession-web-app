@@ -1,11 +1,3 @@
-.page {
-  width: 100%;
-  min-height: 100%;
-  padding: 28px 40px 48px;
-  background-color: #E2E8F0;
-  box-sizing: border-box;
-}
-
 .breadcrumbWrap {
   margin-bottom: 16px;
 }
@@ -511,6 +503,42 @@
   color: black;
 }
 
+.lessonTitleLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.lessonStudentState {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lessonHomeworkBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.lessonHomeworkBadgeReviewed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.lessonHomeworkBadgeSubmitted {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.lessonHomeworkBadgeDraft {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+
 .staffLessonActions {
   display: flex;
   align-items: center;
@@ -578,16 +606,21 @@
   border-color: #94a3b8;
 }
 
-.addSectionBtn {
+.addSectionTriggerBtn {
   flex-shrink: 0;
   justify-content: center;
   gap: 8px;
-	color: #94A3B8 !important;
-	border: 1px dashed #94A3B8 !important;
-	background-color: transparent !important;
+  color: #94A3B8 !important;
+  border: 1px dashed #94A3B8 !important;
+  background-color: transparent !important;
   padding-top: 14px;
   padding-bottom: 14px;
-	border-radius: 15px !important;
+  border-radius: 15px !important;
+}
+
+.addSectionSubmitBtn {
+  border-radius: 8px !important;
+  padding-inline: 14px !important;
 }
 
 .addFlowCollapsed {
@@ -603,11 +636,17 @@
   align-items: center;
   gap: 10px;
   width: 100%;
+  padding: 12px 14px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
 }
 
 .addSectionExpanded .inlineAddSectionInput {
   flex: 1;
   min-width: 200px;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .addFlowActions {
@@ -726,12 +765,9 @@
 }
 
 @media (max-width: 640px) {
-  .page {
-    padding: 20px 16px 32px;
-  }
-
   .staffLessonActions {
     flex-wrap: wrap;
     justify-content: flex-end;
   }
 }
+

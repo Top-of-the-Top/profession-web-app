@@ -1,14 +1,12 @@
 from django.test import TestCase, SimpleTestCase
 from django.utils import timezone
 from datetime import timedelta
-from rest_framework_simplejwt.tokens import AccessToken
 import jwt
 from datetime import datetime
 from unittest.mock import MagicMock
 from ..models import User
-from ..api.utils import (
-    encrypt_data,
-    decrypt_data,
+from ..api.utils.crypto_utils import encrypt_data, decrypt_data
+from ..api.utils.token_utils import (
     generate_reset_token,
     set_reset_token,
     get_tokens_for_user,

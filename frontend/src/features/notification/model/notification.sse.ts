@@ -5,7 +5,7 @@ import { tokenService } from '@shared/lib/auth/tokenService';
 let source: EventSource | null = null;
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim() ?? '';
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_DELAY = 500;
@@ -60,9 +60,10 @@ export function connectNotificationSSE() {
         message: payload.message,
         created_at: new Date(payload.created_at),
       });
+      const toastDescription = payload.message.replace(/\n+/g, ' ').trim();
       notifyInfo({
         title: payload.title,
-        description: payload.message,
+        description: toastDescription,
       });
     } catch (err) {
       console.error(`SSE Error: ${err}`);

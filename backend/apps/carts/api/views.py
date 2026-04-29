@@ -8,7 +8,7 @@ from ..models import Cart, CartItem
 from .serializers import CartItemSerializer, CartSerializer
 from django.core.cache import caches
 
-def cart_hot_cache_key(user_id: int) -> str:
+def cart_hot_cache_key(user_id):
     return f"hot:carts:cart:{int(user_id)}"
 
 

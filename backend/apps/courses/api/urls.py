@@ -9,31 +9,31 @@ urlpatterns = [
         views.CourseDTOList.as_view(),
         name='course-list-preview',
     ),
-]
-
-urlpatterns += [
     path(
-        'app/my-courses/',
+        'my-courses/',
         views.PurchasedCoursesView.as_view(),
         name='my-courses',
     ),
-]
-
-urlpatterns += [
     path(
-        'app/courses/<slug:course_slug>/home/',
+        'my-schedule/',
+        views.MyScheduleView.as_view(),
+        name='my-schedule',
+    ),
+    path(
+        'courses/<slug:course_slug>/home/',
         views.CourseHomePageView.as_view(),
         name='course-homepage',
     ),
-    path('app/courses/', views.CourseListView.as_view(), name='courses-list'),
     path(
-        'app/courses/<slug:slug>/',
+        'courses/', 
+        views.CourseListView.as_view(),
+        name='courses-list'
+    ),
+    path(
+        'courses/<slug:slug>/',
         views.CourseDetailView.as_view(),
         name='courses-detail',
     ),
-]
-
-urlpatterns += [
     path(
         'courses/<slug:course_slug>/sections/',
         views.SectionCreateView.as_view(),
@@ -54,9 +54,6 @@ urlpatterns += [
         views.LessonDetailView.as_view(),
         name='course-lessons-detail',
     ),
-]
-
-urlpatterns += [
     path(
         'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/homeworks/',
         views.HomeworkCreateView.as_view(),

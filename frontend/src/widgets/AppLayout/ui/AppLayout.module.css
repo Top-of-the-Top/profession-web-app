@@ -14,13 +14,16 @@
   inset: 0;
   width: 100vw;
   height: 100vh;
+  --app-shell-pad-x: 24px;
+  --app-shell-pad-y: 24px;
+  --app-shell-pad-bottom: 32px;
 }
 .topbar {
   height: 70px;
   background: white;
   display: flex;
   align-items: center;
-  padding: 0 24px;
+  padding: 0 20px 0 15px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   z-index: 10;
   flex-shrink: 0;
@@ -80,62 +83,165 @@
 }
 .main {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   box-sizing: border-box;
+  background-color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pageShell {
+  flex: 1 0 auto;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
+  padding: var(--app-shell-pad-y) var(--app-shell-pad-x)
+    var(--app-shell-pad-bottom);
+}
+
+.pageShellBleed {
+  padding: 0;
+  min-height: 100%;
 }
 
 .sidebar {
-  width: 220px;
-  padding: 20px;
+  position: relative;
+  width: 50px;
+  padding: 10px;
   border-right: 1px solid #E6E6E6;
   display: flex;
   flex-direction: column;
   background-color: white;
-  overflow-y: auto;
-  /* box-sizing: border-box; */
+  overflow-y: visible;
+  overflow-x: visible;
+  z-index: 20;
 }
 
 .navContainer {
   flex: 1;
-  overflow-y: auto;
-	width: 175px;
+  overflow-y: visible;
+  width: 100%;
+  overflow-x: visible;
 }
 .navContainer p {
-	margin: 0 0 10px 10px;
-	font-weight: 600;
-	color: rgb(138, 138, 138);
-	font-size: 15px;
+  margin: 0 0 10px 10px;
+  font-weight: 600;
+  color: rgb(138, 138, 138);
+  font-size: 15px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar:hover .navContainer p {
+  opacity: 1;
 }
 
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  position: relative;
+  overflow: visible;
 }
 
 .navButton {
   display: flex;
-  width: 90%;
-  justify-content: flex-start;
-  gap: 15px;
-	background-color: white !important;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  justify-content: center;
+  align-items: center;
+  padding: 0 !important;
+  background-color: #f8fafc !important;
+  border-radius: 12px;
+  transition: background-color 0.2s ease, transform 0.2s ease, filter 0.2s ease;
 }
 .navIcon {
-	width: 50px;
-	height: 50px;
+  width: 25px;
+  height: 25px;
+}
+
+.navButton > .navIcon {
+  width: 20px !important;
+  height: 20px !important;
 }
 
 .navLink {
+  position: relative;
   display: flex;
-  flex-direction: row;
-  gap: 10px;
+  justify-content: center;
   align-items: center;
   text-decoration: none;
   border-radius: var(--radius-md, 8px);
+  width: 100%;
+  min-height: 50px;
+}
+
+.navLink button {
+	background-color: transparent !important;
+}
+
+.navTooltip {
+  position: absolute;
+  left: calc(100% + 25px);
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  padding: 8px 12px;
+  border-radius: 7px;
+  background: rgb(93, 93, 93);
+  color: #f8fafc;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1), transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), filter 0.22s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.22s;
+  z-index: 40;
+}
+
+.nav::after {
+  content: '';
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  width: 140px;
+  height: 100%;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  filter: blur(30px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  z-index: 1;
+}
+
+.nav:hover .navTooltip,
+.nav:focus-visible .navTooltip {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.nav:hover::after,
+.nav:focus-visible::after {
+  opacity: 1;
+}
+
+.navLink:not(.navLinkActive):hover .navButton,
+.navLink:not(.navLinkActive):focus-visible .navButton,
+.navLink:not(.navLinkActive):focus-within .navButton {
+  background-color: #eef2ff !important;
+  filter: brightness(1.06);
+}
+
+.navLink:hover > .navTooltip {
+  transform: translateY(-50%) translateX(-6px);
+  filter: brightness(1.08);
 }
 
 .navLinkActive .navButton {
-  background-color: #eeeef0 !important;
+  background-color: #edf1f9b7 !important;
 }
 
 .delete Button {

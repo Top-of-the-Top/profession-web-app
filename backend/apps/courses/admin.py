@@ -1,4 +1,4 @@
-from .models import Course, Section, Lesson, Homework, Task, Question, Users_tasks_answers, Users_Homeworks_Attempts, Users_questions_answers, PurchasedCourse
+from .models import Course, Section, Lesson, Homework, Task, Question, PurchasedCourse
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -13,17 +13,15 @@ class CourseAdmin(admin.ModelAdmin):
     list_display = ['title_link', 'price', 'image_preview']
     list_per_page = 25
 
-    readonly_fields = ['image_preview']
+    readonly_fields = ['image_preview', 'kinescope_folder_id']
 
     def title_link(self, obj):
-        """Кликабельное название → сразу на страницу курса"""
         url = reverse('admin:courses_course_change', args=[obj.pk])
         return format_html('<a href="{}">{}</a>', url, obj.title)
 
     title_link.short_description = 'Название курса'
 
     def image_preview(self, obj):
-        """Миниатюра картинки"""
         if obj.image_url:
             return format_html(
                 '<img src="{}" style="max-height: 50px;" />', obj.image_url)
@@ -52,21 +50,6 @@ class TaskAdmin(admin.ModelAdmin):
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    pass
-
-
-@admin.register(Users_Homeworks_Attempts)
-class AttemptAdmin(admin.ModelAdmin):
-    pass
-
-
-@admin.register(Users_questions_answers)
-class QuestionAnswerAdmin(admin.ModelAdmin):
-    pass
-
-
-@admin.register(Users_tasks_answers)
-class TaskAnswerAdmin(admin.ModelAdmin):
     pass
 
 

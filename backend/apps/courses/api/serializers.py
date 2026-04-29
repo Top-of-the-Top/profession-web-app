@@ -1,3 +1,6 @@
+from .utils.rbac_utils import filter_homework_queryset_for_visibility
+import json
+
 from ..models import (
     Course,
     PurchasedCourse,
@@ -6,9 +9,10 @@ from ..models import (
     Section,
     Question,
     Task,
+    PublishableMixin,
 )
+from ..lesson_content import resolve_lesson_document_string, parse_content_value
 from django.db.models import Prefetch
-
 from apps.users.models import User
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
@@ -104,16 +108,26 @@ class CourseHomeSerializer(serializers.Serializer):
 
     @extend_schema_field(SectionWithLessonsAndTypeSerializer(many=True))
     def get_content(self, obj):
-        lesson_qs = Lesson.objects.order_by('lesson_number')
-        sections = (
-            Section.objects.filter(course=obj)
-            .order_by('section_number')
-            .prefetch_related(Prefetch('lesson_set', queryset=lesson_qs))
-        )
         is_author = self.context.get('is_author', False)
 
         if is_author:
+            lesson_qs = Lesson.objects.order_by('lesson_number')
+            sections = (
+                Section.objects.filter(course=obj)
+                .order_by('section_number')
+                .prefetch_related(Prefetch('lesson_set', queryset=lesson_qs))
+            )
             return SectionWithLessonsAndTypeSerializer(sections, many=True).data
+
+        if obj.type != Course.PUBLISHED_STATUS:
+            return []
+
+        lesson_qs = Lesson.objects.filter(type=Lesson.PUBLISHED_STATUS).order_by('lesson_number')
+        sections = (
+            Section.objects.filter(course=obj, type=Section.PUBLISHED_STATUS)
+            .order_by('section_number')
+            .prefetch_related(Prefetch('lesson_set', queryset=lesson_qs))
+        )
         return SectionWithLessonsSerializer(sections, many=True).data
 
     @extend_schema_field(OpenApiTypes.OBJECT)
@@ -126,11 +140,14 @@ class HomeworkBriefSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=120)
     homework_slug = serializers.SlugField()
     deadline = serializers.DateTimeField()
+    type = serializers.CharField()
 
 
 class LessonContentReadSerializer(serializers.Serializer):
-    recording_url = serializers.URLField()
-    started_at = serializers.DateTimeField()
+    document = serializers.CharField()
+    started_at = serializers.DateTimeField(required=False, allow_null=True)
+    webinar_status = serializers.CharField(allow_null=True)
+    recordings = serializers.ListField(child=serializers.DictField())
     homeworks = HomeworkBriefSerializer(many=True)
 
 
@@ -144,19 +161,235 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(LessonContentReadSerializer)
     def get_content(self, obj):
+        from apps.webinars.api.serializers import RecordingListItemSerializer
+        
+        include_drafts = self.context.get('include_drafts', False)
+        hws = filter_homework_queryset_for_visibility(
+            obj.homework_set.all(), include_drafts
+        )
+
+        webinar = getattr(obj, 'webinar', None)
+        started_at = webinar.started_at if webinar else None
+        webinar_status = webinar.status if webinar else None
+
+        if webinar:
+            recordings_qs = webinar.recordings.filter(is_deleted=False).order_by('-started_at')
+            recordings_data = RecordingListItemSerializer(
+                recordings_qs, many=True, context=self.context,
+            ).data
+        else:
+            recordings_data = []
+
         return {
-            'recording_url': 'https://example.com/recordings/mock-lesson',
-            'started_at': '2026-01-15T10:00:00+00:00',
+            'document': obj.document or '',
+            'started_at': started_at,
+            'webinar_status': webinar_status,
+            'recordings': recordings_data,
             'homeworks': [
                 {
                     'homework_id': h.homework_id,
                     'title': h.title,
                     'homework_slug': h.slug,
                     'deadline': h.deadline,
+                    'type': h.type,
                 }
-                for h in obj.homework_set.all()
+                for h in hws
             ],
         }
+
+
+class LessonSimpleCreateSerializer(serializers.ModelSerializer):
+    section = serializers.PrimaryKeyRelatedField(
+        queryset=Section.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    title = serializers.CharField(max_length=120)
+    type = serializers.ChoiceField(
+        choices=Lesson._meta.get_field('type').choices,
+        default=PublishableMixin.DRAFT_STATUS,
+        required=False,
+    )
+
+    class Meta:
+        model = Lesson
+        fields = ('section', 'title', 'type')
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if request is not None:
+            data = getattr(request, 'data', None)
+            if data is not None and data.get('content') is not None:
+                raise serializers.ValidationError(
+                    {
+                        'content': 'Создание с контентом и вложениями выполняйте запросом '
+                        'PUT на этот же URL.'
+                    }
+                )
+        return attrs
+
+    def validate_section(self, section):
+        course = self.context.get('course')
+        if course is None:
+            return section
+        if section is not None and section.course_id != course.course_id:
+            raise serializers.ValidationError('Секция не принадлежит этому курсу.')
+        return section
+
+
+class LessonDocumentStrField(serializers.Field):
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            return data
+        if isinstance(data, dict):
+            return json.dumps(data, ensure_ascii=False)
+        raise serializers.ValidationError('document: ожидается JSON-объект или строка JSON.')
+
+
+class LessonAssetPayloadSerializer(serializers.Serializer):
+    asset_id = serializers.IntegerField(min_value=1)
+    asset_type = serializers.CharField(max_length=64)
+    asset_file = serializers.CharField(
+        max_length=128,
+        required=False,
+        allow_blank=True,
+        help_text='Имя поля FormData с файлом, по умолчанию asset_<asset_id>',
+    )
+
+
+class LessonContentPayloadSerializer(serializers.Serializer):
+    document = LessonDocumentStrField()
+    assets = LessonAssetPayloadSerializer(many=True, required=False, default=list)
+
+
+class LessonCreateSerializer(serializers.Serializer):
+    section = serializers.PrimaryKeyRelatedField(
+        queryset=Section.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    title = serializers.CharField(max_length=120)
+    type = serializers.ChoiceField(
+        choices=Lesson._meta.get_field('type').choices,
+        default=PublishableMixin.DRAFT_STATUS,
+        required=False,
+    )
+    content = LessonContentPayloadSerializer(required=False, allow_null=True)
+
+    def to_internal_value(self, data):
+        if not hasattr(data, 'get'):
+            return super().to_internal_value(data)
+
+        raw_content = data.get('content')
+        normalized_content = raw_content
+
+        if isinstance(raw_content, str):
+            stripped = raw_content.strip()
+            if not stripped:
+                normalized_content = None
+            else:
+                try:
+                    normalized_content = json.loads(raw_content)
+                except json.JSONDecodeError as e:
+                    raise serializers.ValidationError(
+                        {'content': 'Невалидный JSON в поле content.'}
+                    ) from e
+
+        payload = {
+            'content': normalized_content,
+        }
+        title_sentinel = object()
+        raw_title = data.get('title', title_sentinel)
+        if raw_title is not title_sentinel:
+            payload['title'] = raw_title
+        raw_section = data.get('section')
+        if raw_section not in (None, ''):
+            payload['section'] = raw_section
+        raw_type = data.get('type')
+        if raw_type not in (None, ''):
+            payload['type'] = raw_type
+
+        return super().to_internal_value(payload)
+
+    def validate_section(self, section):
+        course = self.context.get('course')
+        if course is None:
+            return section
+        if section is not None and section.course_id != course.course_id:
+            raise serializers.ValidationError('Секция не принадлежит этому курсу.')
+        return section
+
+    def _resolve_document(self, lesson, content_payload):
+        doc_str = content_payload['document']
+        assets = list(content_payload.get('assets') or [])
+        return resolve_lesson_document_string(
+            self.context['course'].course_id,
+            lesson.lesson_id,
+            doc_str,
+            assets,
+            self.context['request'].FILES,
+        )
+
+    def _extract_content_payload(self, validated_data):
+        content_payload = validated_data.pop('content', None)
+        if content_payload is not None:
+            return content_payload
+
+        initial_data = getattr(self, 'initial_data', None)
+        if hasattr(initial_data, 'get'):
+            raw = initial_data.get('content')
+        elif isinstance(initial_data, dict):
+            raw = initial_data.get('content')
+        else:
+            raw = None
+
+        parsed = parse_content_value(raw)
+        if parsed is None:
+            return None
+
+        serializer = LessonContentPayloadSerializer(data=parsed)
+        serializer.is_valid(raise_exception=True)
+        return serializer.validated_data
+
+    def create(self, validated_data):
+        content_payload = self._extract_content_payload(validated_data)
+        lesson = Lesson.objects.create(**validated_data)
+        if content_payload is not None:
+            try:
+                resolved = self._resolve_document(lesson, content_payload)
+            except ValueError as e:
+                lesson.delete()
+                raise serializers.ValidationError({'content': str(e)}) from e
+            lesson.document = resolved
+            lesson.save(update_fields=['document'])
+        return lesson
+
+    def update(self, instance, validated_data):
+        content_payload = self._extract_content_payload(validated_data)
+
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+
+        update_fields = list(validated_data.keys())
+
+        if content_payload is not None:
+            try:
+                resolved = self._resolve_document(instance, content_payload)
+            except ValueError as e:
+                raise serializers.ValidationError({'content': str(e)}) from e
+            instance.document = resolved
+            update_fields.append('document')
+
+        if update_fields:
+            instance.save(update_fields=update_fields)
+
+        return instance
+
+    def to_representation(self, instance):
+        data = LessonSerializer(instance).data
+        doc = data.pop('document', '')
+        data['content'] = {'document': doc, 'assets': []}
+        return data
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -229,7 +462,7 @@ class HomeworkDetailSerializer(serializers.ModelSerializer):
                 'text': q.text,
                 'answer_options': q.answer_options,
                 'correct_ans': q.correct_ans,
-                'max_points': None,
+                'max_points': q.max_points,
                 'created_at': q.created_at,
             })
         for t in tasks:
@@ -293,3 +526,12 @@ class QuestionSerializer(serializers.ModelSerializer):
             'updated_at',
             'last_modified_by',
         )
+
+
+class UserWebinarListItemSerializer(serializers.Serializer):
+    course_title = serializers.CharField()
+    course_slug = serializers.CharField()
+    lesson_title = serializers.CharField()
+    lesson_slug = serializers.CharField()
+    started_at = serializers.DateTimeField(allow_null=True)
+    ended_at = serializers.DateTimeField(allow_null=True)

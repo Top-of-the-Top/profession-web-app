@@ -1,0 +1,55 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: var(--background, #000);
+  overflow: hidden;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.whiteboardArea {
+  flex: 3;
+  min-width: 0;
+  background: #ffffff;
+}
+
+.videoSidebar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+
+.stateCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  background: var(--background, #000);
+}
+
+.errorBox {
+  max-width: 480px;
+  padding: 32px;
+  text-align: center;
+  color: var(--foreground);
+}
+
+.errorTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.errorText {
+  font-size: 1rem;
+  color: var(--muted-foreground);
+}

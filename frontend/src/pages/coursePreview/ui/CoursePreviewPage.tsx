@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Skeleton, PageTransition } from '@shared/ui';
+import { Button, PageFrame, Skeleton } from '@shared/ui';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
@@ -64,9 +64,9 @@ export default function CoursePreviewPage() {
 
   if (isInitialLoading) {
     return (
-      <PageTransition className={styles.container}>
+      <PageFrame>
         <Skeleton className={styles.skeletonPageTitle} />
-        <div className={styles.contentWrapper}>
+        <div className={styles.layout}>
           <div className={styles.mainContent}>
             <div className={styles.imageSection}>
               <Skeleton className={styles.skeletonImage} />
@@ -88,13 +88,13 @@ export default function CoursePreviewPage() {
             </div>
           </aside>
         </div>
-      </PageTransition>
+      </PageFrame>
     );
   }
 
   if (error || !course) {
     return (
-      <div className={styles.container}>
+      <PageFrame>
         <p>{error ? 'Не удалось загрузить курс' : 'Курс недоступен'}</p>
         <Button
           style={{ marginTop: 16 }}
@@ -103,15 +103,15 @@ export default function CoursePreviewPage() {
         >
           В каталог
         </Button>
-      </div>
+      </PageFrame>
     );
   }
 
   return (
-    <PageTransition className={styles.container}>
+    <PageFrame>
       <h1 className={styles.pageTitle}>{course.title}</h1>
 
-      <div className={styles.contentWrapper}>
+      <div className={styles.layout}>
         <div className={styles.mainContent}>
           <div className={styles.imageSection}>
             <img
@@ -138,11 +138,15 @@ export default function CoursePreviewPage() {
               disabled={addToCart.isPending || inCart || cartLoading}
               onClick={handleAddToCart}
             >
-              {inCart ? 'В корзине' : addToCart.isPending ? 'Добавляем...' : 'Выбрать'}
+              {inCart
+                ? 'В корзине'
+                : addToCart.isPending
+                  ? 'Добавляем...'
+                  : 'Выбрать'}
             </Button>
           </div>
         </aside>
       </div>
-    </PageTransition>
+    </PageFrame>
   );
 }

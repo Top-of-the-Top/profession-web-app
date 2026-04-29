@@ -147,7 +147,7 @@ class RecordingListItemSerializerTest(BaseWebinarTestCase):
 
         self.assertEqual(data['kinescope_embed_url'], '')
 
-    @patch('apps.webinars.api.serializers.generate_drm_token' if False else 'apps.webinars.api.utils.kinescope_utils.generate_drm_token')
+    @patch('apps.webinars.api.utils.kinescope_utils.generate_drm_token')
     def test_embed_url_generated_for_ready_recording(self, mock_token):
         mock_token.return_value = 'drm-token-123'
         rec = Recording.objects.create(

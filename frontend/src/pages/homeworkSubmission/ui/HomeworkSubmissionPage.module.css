@@ -1,0 +1,266 @@
+.breadcrumbWrap {
+  margin-bottom: 16px;
+}
+
+.topNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stepArrow {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #667085;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.stepArrow:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.stepsRow {
+  display: flex;
+  gap: 8px;
+}
+
+.stepButton {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid #e4e7ec;
+  background: #f5f7fa;
+  color: #1d2939;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stepButtonActive {
+  border-color: #211c84;
+  background: #211c84;
+  color: #fff;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  gap: 24px;
+  align-items: start;
+}
+
+.itemCard {
+  background: #fff;
+  border: 1px solid #eaecf0;
+  border-radius: 16px;
+  padding: 22px 20px 16px;
+}
+
+.itemMeta {
+  margin: 0 0 8px;
+  color: #101828;
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.itemTitle {
+  margin: 0 0 16px;
+  color: #101828;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.32;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eaecf0;
+}
+
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.optionLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 30px;
+  color: #1f2937;
+}
+
+.optionLabel input {
+  margin: 0;
+}
+
+.optionLabelSelected {
+  background: #d9d6f1;
+}
+
+.taskAnswerWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.answerArea {
+  width: 100%;
+  border: 1px solid #d0d5dd;
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-height: 120px;
+  font-size: 28px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.attachmentsBlock {
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.uploadButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  border: 1px solid #d0d5dd;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #344054;
+  background: #fff;
+}
+
+.uploadButton input {
+  display: none;
+}
+
+.attachmentsList {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attachmentItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.removeAttachment {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.answerActionRow {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sideCard {
+  background: #fff;
+  border: 1px solid #eaecf0;
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backToList {
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #667085;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sideCardTitle {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.statusBadge {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #e7e7f6;
+  color: #211c84;
+  font-size: 12px;
+}
+
+.deadlineText {
+  font-size: 12px;
+  color: #667085;
+}
+
+.sideActions {
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.centered {
+  display: flex;
+  min-height: 260px;
+  justify-content: center;
+  align-items: center;
+}
+
+.errorBox {
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 18px;
+  max-width: 460px;
+}
+
+.errorText {
+  margin: 0 0 14px;
+  color: #b91c1c;
+}
+
+.errorActions {
+  display: flex;
+  gap: 10px;
+}
+
+@media (max-width: 1200px) {
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+}

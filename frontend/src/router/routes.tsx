@@ -13,6 +13,7 @@ import {
   LessonEditPage,
   LessonPreviewPage,
   LessonViewPage,
+  HomeworkSubmissionPage,
   NotAuthorizedPage,
   WebinarPage,
   WebinarRecordPage,
@@ -68,6 +69,10 @@ export const routes: AppRoute[] = [
         path: 'courses/:slug/:lessonSlug/edit',
         element: <LessonEditPage />,
         roles: ['teacher', 'moderator'],
+      },
+      {
+        path: 'courses/:slug/:lessonSlug/homework/:homeworkSlug',
+        element: <HomeworkSubmissionPage />,
       },
       {
         path: 'courses/:slug/:lessonSlug',

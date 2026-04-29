@@ -3,8 +3,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        VITE_ADMINKA_GATEWAY_URL: ${VITE_ADMINKA_GATEWAY_URL:-http://localhost:9000}
     ports:
       - "3000:80"
     depends_on:

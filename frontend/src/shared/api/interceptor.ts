@@ -1,7 +1,7 @@
 import { authEvents } from '@shared/events/authEvents';
 import { tokenService, type Tokens } from '@shared/lib/auth/tokenService';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim() ?? '';
 
 export type TokensResponse = Tokens;
 

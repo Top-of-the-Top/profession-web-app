@@ -16,6 +16,8 @@ const importMap = {
   coursePreview: () => import('@pages/coursePreview/ui/CoursePreviewPage'),
   courseLessons: () => import('@pages/courseLessons/ui/CourseLessonsPage'),
   lessonView: () => import('@pages/lessonView/ui/LessonViewPage'),
+  homeworkSubmission: () =>
+    import('@pages/homeworkSubmission/ui/HomeworkSubmissionPage'),
   lessonEdit: () => import('@pages/lessonEdit/ui/LessonEditPage'),
   cart: () => import('@pages/cart/Cart'),
   lessonPreview: () => import('@pages/lessonPreview/ui/LessonPreviewPage'),
@@ -38,6 +40,7 @@ export const CourseStorePage = lazy(importMap.courseStore);
 export const CoursePreviewPage = lazy(importMap.coursePreview);
 export const CourseLessonsPage = lazy(importMap.courseLessons);
 export const LessonViewPage = lazy(importMap.lessonView);
+export const HomeworkSubmissionPage = lazy(importMap.homeworkSubmission);
 export const LessonEditPage = lazy(importMap.lessonEdit);
 export const CartPage = lazy(importMap.cart);
 export const LessonPreviewPage = lazy(importMap.lessonPreview);

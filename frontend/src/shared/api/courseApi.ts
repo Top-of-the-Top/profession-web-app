@@ -101,6 +101,95 @@ export interface HomeworkDetail {
   items: HomeworkDetailItem[];
 }
 
+export type HomeworkAttemptStatus = 'draft' | 'submitted' | 'reviewed';
+
+export interface HomeworkAttemptAttachment {
+  attachment_id: string;
+  file_name: string;
+  file_url: string;
+  file_size: number;
+  file_extension: string;
+}
+
+export interface HomeworkAttemptQuestionItem {
+  type: 'question';
+  question_id: string;
+  answer_id: string;
+  status: string;
+  number: number;
+  text: string;
+  answer_options: string[];
+  user_answer: string | null;
+  max_points: number;
+}
+
+export interface HomeworkAttemptTaskItem {
+  type: 'task';
+  task_id: string;
+  answer_id: string;
+  status: string;
+  number: number;
+  text: string;
+  user_answer: string | null;
+  points: number | null;
+  max_points: number;
+  teacher_comment: string | null;
+  file_attachments: HomeworkAttemptAttachment[];
+}
+
+export type HomeworkAttemptItem = HomeworkAttemptQuestionItem | HomeworkAttemptTaskItem;
+
+export interface HomeworkAttempt {
+  homework_id: string;
+  attempt_id: string;
+  status: HomeworkAttemptStatus;
+  deadline: string;
+  score: number | null;
+  max_points: number | null;
+  items: HomeworkAttemptItem[];
+}
+
+export interface SubmitHomeworkAttemptItemQuestionPayload {
+  type: 'question';
+  id: string;
+  number: number;
+  user_answer: string | null;
+}
+
+export interface SubmitHomeworkAttemptItemTaskPayload {
+  type: 'task';
+  id: string;
+  number: number;
+  user_answer: string | null;
+  file_attachments?: HomeworkAttemptAttachment[];
+}
+
+export type SubmitHomeworkAttemptItemPayload =
+  | SubmitHomeworkAttemptItemQuestionPayload
+  | SubmitHomeworkAttemptItemTaskPayload;
+
+export interface SubmitHomeworkAttemptPayload {
+  homework_id: string;
+  attempt_id: string;
+  send_at: string;
+  items: SubmitHomeworkAttemptItemPayload[];
+}
+
+export interface UploadHomeworkFilePayload {
+  attempt_id: string;
+  task_id: string;
+  file_name: string;
+  file_size: number;
+  file_extension: string;
+}
+
+export interface HomeworkUploadResponse {
+  url: string;
+  method: string;
+  expires_at: string;
+  fields: Record<string, string>;
+}
+
 export interface HomeworkCreatePayload {
   title: string;
   deadline: string;
@@ -254,6 +343,51 @@ type RawLessonDetailResponse = {
   meta?: Record<string, unknown>;
 };
 
+type RawHomeworkAttemptAttachment = {
+  attachment_id?: unknown;
+  file_name?: unknown;
+  file_url?: unknown;
+  file_size?: unknown;
+  file_extension?: unknown;
+  file_format?: unknown;
+};
+
+type RawHomeworkAttemptQuestionItem = {
+  type: 'question';
+  question_id?: unknown;
+  answer_id?: unknown;
+  status?: unknown;
+  number?: unknown;
+  text?: unknown;
+  answer_options?: unknown;
+  user_answer?: unknown;
+  max_points?: unknown;
+};
+
+type RawHomeworkAttemptTaskItem = {
+  type: 'task';
+  task_id?: unknown;
+  answer_id?: unknown;
+  status?: unknown;
+  number?: unknown;
+  text?: unknown;
+  user_answer?: unknown;
+  points?: unknown;
+  max_points?: unknown;
+  teacher_comment?: unknown;
+  file_attachments?: unknown;
+};
+
+type RawHomeworkAttempt = {
+  homework_id?: unknown;
+  attempt_id?: unknown;
+  status?: unknown;
+  deadline?: unknown;
+  score?: unknown;
+  max_points?: unknown;
+  items?: unknown;
+};
+
 function normalizeLessonRecordings(
   content: RawLessonDetailResponse['content'],
 ): LessonRecording[] {
@@ -370,6 +504,88 @@ function normalizeLessonDetailRead(raw: RawLessonDetailResponse): CourseLessonDe
     recordings: normalizeLessonRecordings(c),
     homeworks: Array.isArray(c.homeworks) ? c.homeworks : [],
     meta: raw.meta ?? {},
+  };
+}
+
+function normalizeAttemptAttachment(
+  attachment: RawHomeworkAttemptAttachment,
+): HomeworkAttemptAttachment {
+  const extensionRaw = attachment.file_extension ?? attachment.file_format;
+  return {
+    attachment_id: String(attachment.attachment_id ?? ''),
+    file_name: String(attachment.file_name ?? ''),
+    file_url: String(attachment.file_url ?? ''),
+    file_size: Number(attachment.file_size ?? 0),
+    file_extension: String(extensionRaw ?? ''),
+  };
+}
+
+function normalizeHomeworkAttemptItem(item: unknown): HomeworkAttemptItem | null {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  if ((item as { type?: unknown }).type === 'question') {
+    const question = item as RawHomeworkAttemptQuestionItem;
+    return {
+      type: 'question',
+      question_id: String(question.question_id ?? ''),
+      answer_id: String(question.answer_id ?? ''),
+      status: String(question.status ?? ''),
+      number: Number(question.number ?? 0),
+      text: String(question.text ?? ''),
+      answer_options: Array.isArray(question.answer_options)
+        ? question.answer_options.map((option) => String(option))
+        : [],
+      user_answer:
+        question.user_answer == null ? null : String(question.user_answer),
+      max_points: Number(question.max_points ?? 0),
+    };
+  }
+
+  if ((item as { type?: unknown }).type === 'task') {
+    const task = item as RawHomeworkAttemptTaskItem;
+    return {
+      type: 'task',
+      task_id: String(task.task_id ?? ''),
+      answer_id: String(task.answer_id ?? ''),
+      status: String(task.status ?? ''),
+      number: Number(task.number ?? 0),
+      text: String(task.text ?? ''),
+      user_answer: task.user_answer == null ? null : String(task.user_answer),
+      points: task.points == null ? null : Number(task.points),
+      max_points: Number(task.max_points ?? 0),
+      teacher_comment:
+        task.teacher_comment == null ? null : String(task.teacher_comment),
+      file_attachments: Array.isArray(task.file_attachments)
+        ? task.file_attachments.map((attachment) =>
+            normalizeAttemptAttachment(
+              attachment as RawHomeworkAttemptAttachment,
+            ),
+          )
+        : [],
+    };
+  }
+
+  return null;
+}
+
+function normalizeHomeworkAttempt(raw: RawHomeworkAttempt): HomeworkAttempt {
+  const normalizedStatus = String(raw.status ?? 'draft');
+  const itemsRaw = Array.isArray(raw.items) ? raw.items : [];
+  return {
+    homework_id: String(raw.homework_id ?? ''),
+    attempt_id: String(raw.attempt_id ?? ''),
+    status:
+      normalizedStatus === 'submitted' || normalizedStatus === 'reviewed'
+        ? normalizedStatus
+        : 'draft',
+    deadline: String(raw.deadline ?? ''),
+    score: raw.score == null ? null : Number(raw.score),
+    max_points: raw.max_points == null ? null : Number(raw.max_points),
+    items: itemsRaw
+      .map((item) => normalizeHomeworkAttemptItem(item))
+      .filter((item): item is HomeworkAttemptItem => item != null),
   };
 }
 
@@ -589,6 +805,39 @@ export const courseApi = {
     return apiClient.request<HomeworkDetail>(
       `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
       { method: 'GET' },
+    );
+  },
+
+  getHomeworkAttempt(homeworkSlug: string): Promise<HomeworkAttempt> {
+    return apiClient
+      .request<RawHomeworkAttempt>(`/api/homeworks/${homeworkSlug}/attempt/`, {
+        method: 'GET',
+      })
+      .then(normalizeHomeworkAttempt);
+  },
+
+  submitHomeworkAttempt(
+    homeworkSlug: string,
+    payload: SubmitHomeworkAttemptPayload,
+  ): Promise<HomeworkAttempt> {
+    return apiClient
+      .request<RawHomeworkAttempt>(`/api/homeworks/${homeworkSlug}/attempt/submit`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      .then(normalizeHomeworkAttempt);
+  },
+
+  requestHomeworkUpload(
+    homeworkSlug: string,
+    payload: UploadHomeworkFilePayload,
+  ): Promise<HomeworkUploadResponse> {
+    return apiClient.request<HomeworkUploadResponse>(
+      `/api/homeworks/${homeworkSlug}/attempt/upload_file`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
     );
   },
 

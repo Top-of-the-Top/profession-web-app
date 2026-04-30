@@ -52,3 +52,17 @@ class RecordingAdmin(admin.ModelAdmin):
         'started_at', 'ended_at',
         'is_deleted', 'deleted_at', 'deleted_by',
     )
+
+    actions = ['retry_kinescope_upload']
+
+    def retry_kinescope_upload(self, request, queryset):
+        from .tasks import upload_recording_to_kinescope
+        count = 0
+        for rec in queryset:
+            if rec.recording_url:
+                rec.kinescope_upload_status = 'pending'
+                rec.save(update_fields=['kinescope_upload_status', 'updated_at'])
+                upload_recording_to_kinescope.delay(str(rec.recording_id))
+                count += 1
+        self.message_user(request, f'Запущено повторных загрузок: {count}')
+    retry_kinescope_upload.short_description = 'Повторить загрузку в Kinescope'

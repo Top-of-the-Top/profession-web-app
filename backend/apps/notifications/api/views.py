@@ -64,7 +64,7 @@ def get_notifications_for_user(request):
 )
 async def sse_notifications(request):
     # async - функция корутина, которая умеет приостанавливать свое выполнение ( замораживаться в ожидании )
-    # Под капотом async - создает state machine, которая умеет сохранять локальные переменные и контекст и соответственно состояние
+    # Под капотом async создает state machine, которая умеет сохранять локальные переменные и контекст и соответственно состояние
 
     if request.method != 'GET':
         return HttpResponseNotAllowed(['GET'])
@@ -82,6 +82,8 @@ async def sse_notifications(request):
     except (TokenError, User.DoesNotExist):
         return HttpResponse("Invalid token", status=401)
 
+    webinar_id = request.GET.get('webinar_id')
+    
     async def event_stream():
         # В этой точке await сигнализирует что операция занимает какое-то время
         # В этой точке мы идем заниматься своими вещами, когда мы получаем отсюда сообщение что "готово", то продолжаем с этого места
@@ -104,6 +106,9 @@ async def sse_notifications(request):
             await queue.bind(exchange, routing_key=f"course.{c_id}")
 
         await queue.bind(exchange, routing_key="system.all")
+
+        if webinar_id:
+            await queue.bind(exchange, routing_key=f"webinar.{webinar_id}")
 
         try:
             async with queue.iterator() as queue_iter:

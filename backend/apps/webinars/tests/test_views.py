@@ -116,13 +116,22 @@ class WebinarStartViewTest(WebinarEndpointsBase):
         response = self.client.post(self.url_start())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_cannot_start_already_live_webinar(self, *_):
-        Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
+    def test_start_on_live_webinar_returns_existing_without_recreating_room(self, mock_ban, mock_create, *args):
+        existing = Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.LIVE_STATUS,
+            whiteboard_room_uuid='live-room',
+        )
         self.authenticate(self.teacher)
 
         response = self.client.post(self.url_start())
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['webinar_id'], str(existing.webinar_id))
+        existing.refresh_from_db()
+        self.assertEqual(existing.whiteboard_room_uuid, 'live-room')
+        mock_create.assert_not_called()
+        mock_ban.assert_not_called()
 
     def test_whiteboard_creation_failure_returns_502(self, mock_ban, mock_create, *args):
         mock_create.side_effect = Exception('netless down')

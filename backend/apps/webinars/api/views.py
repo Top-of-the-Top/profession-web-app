@@ -30,6 +30,30 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def _extract_recording_url(agora_response):
+    sr = agora_response.get('serverResponse', {})
+
+    ext_state = sr.get('extensionServiceState', [])
+    if ext_state:
+        files = ext_state[0].get('payload', {}).get('fileList', [])
+        if files:
+            url = files[0].get('fileName', '')
+            if url:
+                return url
+
+    file_list = sr.get('fileList', [])
+    if isinstance(file_list, list) and file_list:
+        first = file_list[0]
+        if isinstance(first, dict):
+            url = first.get('fileName', '') or first.get('filename', '')
+            if url:
+                return url
+        elif isinstance(first, str):
+            return first
+
+    return sr.get('fileName', '') or sr.get('filename', '')
+
+
 def _stop_recording(recording):
     webinar = recording.webinar
     if recording.resource_id and recording.sid:
@@ -40,11 +64,22 @@ def _stop_recording(recording):
                 resource_id=recording.resource_id,
                 sid=recording.sid,
             )
-            ext_state = result.get('serverResponse', {}).get('extensionServiceState', [])
-            if ext_state:
-                file_list = ext_state[0].get('payload', {}).get('fileList', [])
-                if file_list:
-                    recording.recording_url = file_list[0].get('fileName', '')
+            logger.info(
+                "Agora stop_web ответ для записи %s: %s",
+                recording.recording_id, result,
+            )
+            recording_url = _extract_recording_url(result)
+            if recording_url:
+                recording.recording_url = recording_url
+                logger.info(
+                    "Извлечен recording_url для записи %s: %s",
+                    recording.recording_id, recording_url,
+                )
+            else:
+                logger.error(
+                    "Не удалось извлечь recording_url из ответа Agora для записи %s. Ответ: %s",
+                    recording.recording_id, result,
+                )
         except Exception:
             logger.exception("Ошибка остановки записи %s", recording.recording_id)
 
@@ -58,6 +93,22 @@ def _stop_recording(recording):
         recording.kinescope_upload_status = 'pending'
         recording.save(update_fields=['kinescope_upload_status', 'updated_at'])
         upload_recording_to_kinescope.delay(str(recording.recording_id))
+    else:
+        logger.warning(
+            "Запись %s остается в processing без recording_url, kinescope upload не запущен",
+            recording.recording_id,
+        )
+
+    from apps.notifications.tasks import publish_event_async
+    publish_event_async.delay(
+        routing_key=f"webinar.{webinar.webinar_id}",
+        payload={
+            "type": "recording_stopped",
+            "webinar_id": str(webinar.webinar_id),
+            "recording_id": str(recording.recording_id),
+            "ended_at": recording.ended_at.isoformat() if recording.ended_at else None,
+        },
+    )
 
 
 @extend_schema_view(
@@ -111,10 +162,10 @@ class WebinarStartView(APIView):
         )
 
         if webinar.status == Webinar.LIVE_STATUS:
-            return Response(
-                {'detail': 'Вебинар уже запущен'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({
+                'detail': 'Вебинар уже запущен, поэтому запуск проигнорирован',
+                'webinar_id': str(webinar.webinar_id),
+            })
 
         old_room_uuid = webinar.whiteboard_room_uuid
         try:
@@ -199,6 +250,15 @@ class WebinarStopView(APIView):
         webinar.ended_at = timezone.now()
         webinar.save(update_fields=['status', 'ended_at', 'updated_at'])
 
+        from apps.notifications.tasks import publish_event_async
+        publish_event_async.delay(
+            routing_key=f"webinar.{webinar.webinar_id}",
+            payload={
+                "type": "webinar_ended",
+                "webinar_id": str(webinar.webinar_id),
+            },
+        )
+
         return Response({'detail': 'Вебинар завершен'})
 
 
@@ -273,11 +333,16 @@ class WebinarJoinView(APIView):
             role=whiteboard_role,
         )
 
+        full_name = f"{request.user.last_name} {request.user.first_name}".strip()
+        if not full_name:
+            full_name = 'Пользователь'
+
         return Response({
             'rtc_token': rtc_token,
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,
             'uid': uid,
+            'user_name': full_name,
             'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),
             'whiteboard_room_uuid': webinar.whiteboard_room_uuid,
             'whiteboard_room_token': whiteboard_room_token,
@@ -346,6 +411,7 @@ class WebinarRecorderJoinView(APIView):
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,
             'uid': recorder_uid,
+            'user_name': 'Recorder',
             'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),
             'whiteboard_room_uuid': webinar.whiteboard_room_uuid,
             'whiteboard_room_token': wb_token,
@@ -427,6 +493,17 @@ class WebinarRecordingStartView(APIView):
         recording.sid = sid
         recording.save(update_fields=['resource_id', 'sid', 'updated_at'])
         
+        from apps.notifications.tasks import publish_event_async
+        publish_event_async.delay(
+            routing_key=f"webinar.{webinar.webinar_id}",
+            payload={
+                "type": "recording_started",
+                "webinar_id": str(webinar.webinar_id),
+                "recording_id": str(recording.recording_id),
+                "started_at": recording.started_at.isoformat() if recording.started_at else None,
+            },
+        )
+
         return Response({'detail': 'Запись началась', 'recording_id': str(recording.recording_id)})
 
 
@@ -613,6 +690,97 @@ class RecordingPdfView(APIView):
         recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
         
         return Response({'detail': 'pdf доски удален'}, status=status.HTTP_204_NO_CONTENT)
+    
+
+@extend_schema_view(
+    post=extend_schema(
+        summary="Сохранить финальный PDF доски при завершении вебинара",
+        description=(
+            "Создает служебную Recording (status=ready, без видео) "
+            "с PDF доски, отражающим ее состояние на момент завершения вебинара. "
+            "Вызывается фронтом ПЕРЕД POST /webinar/stop/."
+        ),
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(name='course_slug', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+            OpenApiParameter(name='lesson_slug', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        ],
+        responses={
+            200: DetailResponseSerializer,
+            400: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
+class WebinarFinalPdfView(APIView):
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (MultiPartParser,)
+
+    def post(self, request, course_slug, lesson_slug):
+        lesson = get_object_or_404(
+            Lesson.objects.select_related('section__course'),
+            slug=lesson_slug,
+            section__course__slug=course_slug,
+        )
+        course = lesson.section.course
+        is_author = course.authors.filter(pk=request.user.pk).exists()
+        is_moderator = request.user.is_moderator()
+        if not is_author and not is_moderator:
+            return Response(
+                {'detail': 'Только автор курса/админ может сохранять финальный PDF доски'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        webinar = get_object_or_404(Webinar, lesson=lesson)
+
+        screenshots = request.FILES.getlist('screenshots')
+        if not screenshots:
+            return Response(
+                {'detail': 'Нет скриншотов'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            images = [f.read() for f in screenshots]
+            pdf_bytes = img2pdf.convert(images)
+        except Exception:
+            logger.exception(
+                'Ошибка конвертации финальных скриншотов в PDF для вебинара %s',
+                webinar.webinar_id,
+            )
+            return Response(
+                {'detail': 'Не удалось обработать скриншоты'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        now = timezone.now()
+        recording = Recording.objects.create(
+            webinar=webinar,
+            started_by=request.user,
+            status=Recording.READY_STATUS,
+            started_at=now,
+            ended_at=now,
+        )
+
+        pdf_path = f'whiteboards/recording_{recording.recording_id}.pdf'
+        saved_path = default_storage.save(pdf_path, ContentFile(pdf_bytes))
+
+        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        recording.whiteboard_pdf_url = f'https://storage.yandexcloud.net/{bucket}/{saved_path}'
+        recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+
+        logger.info(
+            'Финальный PDF доски сохранен для вебинара %s, recording %s: %s',
+            webinar.webinar_id, recording.recording_id, recording.whiteboard_pdf_url,
+        )
+
+        return Response({
+            'detail': 'Финальный PDF доски сохранен',
+            'recording_id': str(recording.recording_id),
+            'whiteboard_pdf_url': recording.whiteboard_pdf_url,
+        })
     
 
 @extend_schema_view(

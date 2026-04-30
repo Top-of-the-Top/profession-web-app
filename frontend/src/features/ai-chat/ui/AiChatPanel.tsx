@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { BotMessageSquare, Menu, Plus, Trash2, X } from 'lucide-react';
+import { BotMessageSquare, Menu, Plus, Send, Trash2, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button, Input } from '@shared/ui';
 import { useAiChat } from '../model/useAiChat';
 import styles from './AiChatPanel.module.css';
@@ -34,6 +36,10 @@ function statusLabel(status: string): string {
   }
 }
 
+function formatMarkdownForDisplay(value: string): string {
+  return value.replace(/([^\n])(\s*)(#{1,6}\s+)/g, '$1\n\n$3');
+}
+
 export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
   const {
     status,
@@ -54,9 +60,12 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
     sendMessage,
   } = useAiChat(courseSlug);
   const [text, setText] = useState('');
+  const [isWidgetOpen, setIsWidgetOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-  const [animatedLength, setAnimatedLength] = useState(0);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
+  const [appearingChatIds, setAppearingChatIds] = useState<string[]>([]);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const preserveScrollRef = useRef<{
     pending: boolean;
@@ -72,8 +81,10 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
   const lastStreamSizeRef = useRef(0);
   const lastActiveChatIdRef = useRef<string | null>(null);
   const shouldScrollOnResponseRef = useRef(false);
-  const streamTargetLengthRef = useRef(0);
-  const tickCounterRef = useRef(0);
+  const autoCreateRequestedRef = useRef(false);
+  const deleteDelayRef = useRef<number | null>(null);
+  const appearFrameRef = useRef<number | null>(null);
+  const prevChatIdsRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (activeChatId) {
@@ -88,9 +99,6 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
       lastHistorySizeRef.current = 0;
       lastStreamSizeRef.current = 0;
       shouldScrollOnResponseRef.current = false;
-      streamTargetLengthRef.current = 0;
-      tickCounterRef.current = 0;
-      setAnimatedLength(0);
     }
   }, [activeChatId]);
 
@@ -101,86 +109,44 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
     return streamBuffer;
   }, [activeChatId, isAnswerStreaming, streamBuffer, streamChatId]);
 
-  const streamDisplayText = activeStreamText;
-
-  useEffect(() => {
-    if (!isAnswerStreaming) {
-      streamTargetLengthRef.current = 0;
-      tickCounterRef.current = 0;
-      if (animatedLength !== 0) {
-        console.log('[ai-chat:anim] stream stopped, reset animated length');
-      }
-      setAnimatedLength(0);
-      return;
-    }
-    streamTargetLengthRef.current = streamDisplayText.length;
-    if (streamDisplayText.length < animatedLength) {
-      console.log(
-        `[ai-chat:anim] clamp source=${streamDisplayText.length} animated=${animatedLength}`
-      );
-      setAnimatedLength(streamDisplayText.length);
-    }
-  }, [animatedLength, isAnswerStreaming, streamDisplayText]);
-
-  useEffect(() => {
-    if (!isAnswerStreaming) {
-      return;
-    }
-    const timer = window.setInterval(() => {
-      setAnimatedLength((prev) => {
-        const target = streamTargetLengthRef.current;
-        if (target <= prev) {
-          return prev;
-        }
-        const remaining = target - prev;
-        const step = remaining > 80 ? 3 : remaining > 30 ? 2 : 1;
-        const next = Math.min(target, prev + step);
-        tickCounterRef.current += 1;
-        if (tickCounterRef.current % 20 === 0 || next === target) {
-          console.log(
-            `[ai-chat:anim] tick#${tickCounterRef.current} prev=${prev} next=${next} target=${target} step=${step} remaining=${remaining}`
-          );
-        }
-        return next;
-      });
-    }, 14);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [isAnswerStreaming]);
-
-  const animatedStreamText = streamDisplayText.slice(0, animatedLength);
   const showStreamingBubble = Boolean(isAnswerStreaming && activeChatId && streamChatId === activeChatId);
-  const showWaitingIndicator = showStreamingBubble && !streamDisplayText;
+  const showWaitingIndicator = showStreamingBubble && !activeStreamText;
 
   const onCreateChat = () => {
     startNewChat();
   };
 
   const onDeleteChat = () => {
-    if (!activeChatId) {
+    if (!activeChatId || chats.length <= 1 || deletingChatId) {
       return;
     }
-    deleteChat(activeChatId);
+    setDeletingChatId(activeChatId);
+    if (deleteDelayRef.current) {
+      window.clearTimeout(deleteDelayRef.current);
+    }
+    deleteDelayRef.current = window.setTimeout(() => {
+      deleteChat(activeChatId);
+      deleteDelayRef.current = null;
+    }, 180);
   };
 
   const onSendMessage = () => {
-    if (!activeChatId) {
-      return;
-    }
     const trimmed = text.trim();
     if (!trimmed) {
       return;
     }
     stickToBottomRef.current = true;
     shouldScrollOnResponseRef.current = true;
-    streamTargetLengthRef.current = 0;
-    tickCounterRef.current = 0;
-    setAnimatedLength(0);
-    console.log('[ai-chat:send] message sent, wait streaming bubble before scroll');
-    sendMessage(activeChatId, trimmed);
     setText('');
+    if (!activeChatId) {
+      setPendingMessage(trimmed);
+      if (!autoCreateRequestedRef.current) {
+        autoCreateRequestedRef.current = true;
+        startNewChat();
+      }
+      return;
+    }
+    sendMessage(activeChatId, trimmed);
   };
 
   const onLoadOlder = () => {
@@ -209,6 +175,86 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
     }
   };
 
+  useEffect(() => {
+    if (!isWidgetOpen) {
+      autoCreateRequestedRef.current = false;
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      if (!messagesRef.current) {
+        return;
+      }
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    });
+  }, [isWidgetOpen]);
+
+  useEffect(() => {
+    if (!isWidgetOpen) {
+      return;
+    }
+    if (chats.length > 0) {
+      autoCreateRequestedRef.current = false;
+      return;
+    }
+    if (autoCreateRequestedRef.current) {
+      return;
+    }
+    autoCreateRequestedRef.current = true;
+    startNewChat();
+  }, [chats.length, isWidgetOpen, startNewChat]);
+
+  useEffect(() => {
+    const currentIds = chats.map((chat) => chat.chat_id);
+    if (prevChatIdsRef.current.length === 0) {
+      prevChatIdsRef.current = currentIds;
+      return;
+    }
+    const previous = new Set(prevChatIdsRef.current);
+    const added = currentIds.filter((id) => !previous.has(id));
+    if (added.length > 0) {
+      setAppearingChatIds((prev) => Array.from(new Set([...prev, ...added])));
+      if (appearFrameRef.current) {
+        window.cancelAnimationFrame(appearFrameRef.current);
+      }
+      appearFrameRef.current = window.requestAnimationFrame(() => {
+        appearFrameRef.current = window.requestAnimationFrame(() => {
+          setAppearingChatIds((prev) => prev.filter((id) => !added.includes(id)));
+          appearFrameRef.current = null;
+        });
+      });
+    }
+    prevChatIdsRef.current = currentIds;
+  }, [chats]);
+
+  useEffect(() => {
+    if (!activeChatId || !pendingMessage || status !== 'connected') {
+      return;
+    }
+    sendMessage(activeChatId, pendingMessage);
+    setPendingMessage(null);
+  }, [activeChatId, pendingMessage, sendMessage, status]);
+
+  useEffect(() => {
+    if (!deletingChatId) {
+      return;
+    }
+    const stillExists = chats.some((chat) => chat.chat_id === deletingChatId);
+    if (!stillExists) {
+      setDeletingChatId(null);
+    }
+  }, [chats, deletingChatId]);
+
+  useEffect(() => {
+    return () => {
+      if (deleteDelayRef.current) {
+        window.clearTimeout(deleteDelayRef.current);
+      }
+      if (appearFrameRef.current) {
+        window.cancelAnimationFrame(appearFrameRef.current);
+      }
+    };
+  }, []);
+
   useLayoutEffect(() => {
     const container = messagesRef.current;
     if (!container) {
@@ -225,11 +271,10 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
     if (shouldScrollOnResponseRef.current && showStreamingBubble) {
       container.scrollTop = container.scrollHeight;
       shouldScrollOnResponseRef.current = false;
-      console.log('[ai-chat:scroll] moved to streaming bubble');
     }
 
     const currentHistorySize = fullHistory.length;
-    const currentStreamSize = animatedLength;
+    const currentStreamSize = activeStreamText.length;
     const hasNewHistoryItem = currentHistorySize > lastHistorySizeRef.current;
     const hasStreamUpdate = currentStreamSize !== lastStreamSizeRef.current;
 
@@ -239,154 +284,198 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
 
     lastHistorySizeRef.current = currentHistorySize;
     lastStreamSizeRef.current = currentStreamSize;
-  }, [animatedLength, fullHistory.length, showStreamingBubble, visibleHistory.length]);
+  }, [activeStreamText.length, fullHistory.length, showStreamingBubble, visibleHistory.length]);
 
   return (
-    <section className={styles.panel}>
-      <button
-        type="button"
-        className={`${styles.drawerBackdrop} ${isDrawerOpen ? styles.drawerBackdropVisible : ''}`}
-        onClick={() => setIsDrawerOpen(false)}
-        aria-label="Закрыть список чатов"
-        aria-hidden={!isDrawerOpen}
-        tabIndex={isDrawerOpen ? 0 : -1}
-      />
+    <section className={styles.floatingRoot}>
+      <div className={`${styles.floatingWindow} ${isWidgetOpen ? styles.floatingWindowOpen : ''}`}>
+        <div className={styles.panel}>
+            <button
+              type="button"
+              className={`${styles.drawerBackdrop} ${isDrawerOpen ? styles.drawerBackdropVisible : ''}`}
+              onClick={() => setIsDrawerOpen(false)}
+              aria-label="Закрыть список чатов"
+              aria-hidden={!isDrawerOpen}
+              tabIndex={isDrawerOpen ? 0 : -1}
+            />
 
-      <aside className={`${styles.drawer} ${isDrawerOpen ? styles.drawerOpen : ''}`}>
-        <div className={styles.drawerHeader}>
-          <h4 className={styles.drawerTitle}>Чаты</h4>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={() => setIsDrawerOpen(false)}
-            aria-label="Закрыть список чатов"
-          >
-            <X size={16} />
-          </Button>
-        </div>
-
-        <div className={styles.drawerActions}>
-          <Button type="button" size="icon-sm" onClick={onCreateChat}>
-            <Plus size={16} />
-          </Button>
-        </div>
-
-        <div className={styles.chatList}>
-          {!chats.length ? (
-            <p className={styles.chatListEmpty}>Пока нет чатов</p>
-          ) : (
-            chats.map((chat) => (
-              <div
-                key={chat.chat_id}
-                className={`${styles.chatItem} ${activeChatId === chat.chat_id ? styles.chatItemActive : ''}`}
-              >
-                <button
-                  type="button"
-                  className={styles.chatItemSelect}
-                  onClick={() => {
-                    setActiveChatId(chat.chat_id);
-                    setIsDrawerOpen(false);
-                  }}
-                >
-                  <span className={styles.chatItemTitle}>{chat.title}</span>
-                  <span className={styles.chatItemMeta}>{formatDateTime(chat.updated_at)}</span>
-                </button>
+            <aside className={`${styles.drawer} ${isDrawerOpen ? styles.drawerOpen : ''}`}>
+              <div className={styles.drawerHeader}>
+                <h4 className={styles.drawerTitle}>Чаты</h4>
                 <Button
                   type="button"
                   size="icon-sm"
-                  variant="destructive"
-                  onClick={() => deleteChat(chat.chat_id)}
-                  aria-label={`Удалить чат ${chat.title}`}
+                  variant="ghost"
+                  onClick={() => setIsDrawerOpen(false)}
+                  aria-label="Закрыть список чатов"
                 >
-                  <Trash2 size={14} />
+                  <X size={16} />
                 </Button>
               </div>
-            ))
-          )}
-        </div>
-      </aside>
 
-      <header className={styles.header}>
-        <div className={styles.titleRow}>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="outline"
-            onClick={() => setIsDrawerOpen(true)}
-            aria-label="Открыть список чатов"
-          >
-            <Menu size={16} />
-          </Button>
-          <h3 className={styles.title}>
-            <BotMessageSquare size={16} /> <span>ИИ-помощник</span>
-          </h3>
-        </div>
+              <div className={styles.drawerActions}>
+                <Button type="button" size="icon-sm" onClick={onCreateChat}>
+                  <Plus size={16} />
+                </Button>
+              </div>
 
-        {/* <p className={styles.status}>{statusLabel(status)}</p>
-        {error ? <p className={styles.error}>{error}</p> : null}
+              <div className={styles.chatList}>
+                {!chats.length ? (
+                  <p className={styles.chatListEmpty}>Пока нет чатов</p>
+                ) : (
+                  chats.map((chat) => (
+                    <div
+                      key={chat.chat_id}
+                      className={`${styles.chatItem} ${activeChatId === chat.chat_id ? styles.chatItemActive : ''} ${deletingChatId === chat.chat_id ? styles.chatItemRemoving : ''} ${appearingChatIds.includes(chat.chat_id) ? styles.chatItemAppearing : ''}`}
+                    >
+                      <button
+                        type="button"
+                        className={styles.chatItemSelect}
+                        onClick={() => {
+                          setActiveChatId(chat.chat_id);
+                          setIsDrawerOpen(false);
+                        }}
+                      >
+                        <span className={styles.chatItemTitle}>{chat.title}</span>
+                        <span className={styles.chatItemMeta}>{formatDateTime(chat.updated_at)}</span>
+                      </button>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (chats.length <= 1 || deletingChatId) {
+                            return;
+                          }
+                          setDeletingChatId(chat.chat_id);
+                          if (deleteDelayRef.current) {
+                            window.clearTimeout(deleteDelayRef.current);
+                          }
+                          deleteDelayRef.current = window.setTimeout(() => {
+                            deleteChat(chat.chat_id);
+                            deleteDelayRef.current = null;
+                          }, 180);
+                        }}
+                        disabled={chats.length <= 1}
+                        aria-label={`Удалить чат ${chat.title}`}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </aside>
 
-        <p className={styles.activeChatLabel}>
-          {activeChatId
-            ? chats.find((chat) => chat.chat_id === activeChatId)?.title ?? 'Выбран чат'
-            : 'Выберите чат в списке слева'}
-        </p> */}
-      </header>
+            <header className={styles.header}>
+              <div className={styles.titleRow}>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="outline"
+                  onClick={() => setIsDrawerOpen(true)}
+                  aria-label="Открыть список чатов"
+                >
+                  <Menu size={16} />
+                </Button>
+                <h3 className={styles.title}>
+                  <BotMessageSquare size={16} /> <span>ИИ-помощник</span>
+                </h3>
+              </div>
 
-      <div ref={messagesRef} className={styles.messages} onScroll={onMessagesScroll}>
-        {hasOlder ? (
-          <p className={styles.historyHint}>
-            {isLoadingOlder ? 'Загружаем более ранние сообщения...' : 'Прокрутите выше для загрузки истории'}
-          </p>
-        ) : null}
+              {/* <p className={styles.status}>{statusLabel(status)}</p>
+              {error ? <p className={styles.error}>{error}</p> : null}
 
-        {/* {!fullHistory.length && !activeStreamText ? (
-          <p className={styles.empty}>
-            Выберите чат или создайте новый, чтобы начать диалог
-          </p>
-        ) : null} */}
+              <p className={styles.activeChatLabel}>
+                {activeChatId
+                  ? chats.find((chat) => chat.chat_id === activeChatId)?.title ?? 'Выбран чат'
+                  : 'Выберите чат в списке слева'}
+              </p> */}
+            </header>
 
-        {visibleHistory.map((message) => (
-          <div
-            key={message.messageId}
-            className={`${styles.bubble} ${message.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant}`}
-          >
-            <div>{message.content}</div>
-            <span className={styles.meta}>{formatDateTime(message.createdAt)}</span>
-          </div>
-        ))}
+            <div ref={messagesRef} className={styles.messages} onScroll={onMessagesScroll}>
+              {hasOlder ? (
+                <p className={styles.historyHint}>
+                  {isLoadingOlder ? 'Загружаем более ранние сообщения...' : 'Прокрутите выше для загрузки истории'}
+                </p>
+              ) : null}
 
-        {showStreamingBubble ? (
-          <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
-            <div className={styles.streamingContent}>
-              {showWaitingIndicator ? null : animatedStreamText}
-              <span className={styles.streamingDot} />
+              {/* {!fullHistory.length && !activeStreamText ? (
+                <p className={styles.empty}>
+                  Выберите чат или создайте новый, чтобы начать диалог
+                </p>
+              ) : null} */}
+
+              {visibleHistory.map((message) => (
+                <div
+                  key={message.messageId}
+                  className={`${styles.bubble} ${message.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant}`}
+                >
+                  <div className={styles.markdownContent}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {formatMarkdownForDisplay(message.content)}
+                    </ReactMarkdown>
+                  </div>
+                  <span className={styles.meta}>{formatDateTime(message.createdAt)}</span>
+                </div>
+              ))}
+
+              {showStreamingBubble ? (
+                <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
+                  <div className={styles.streamingContent}>
+                    {showWaitingIndicator ? null : (
+                      <div className={styles.markdownContent}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {formatMarkdownForDisplay(activeStreamText)}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                    <span className={styles.streamingDot} />
+                  </div>
+                </div>
+              ) : null}
             </div>
-          </div>
-        ) : null}
+
+            <div className={styles.composer}>
+              <Input
+                className={styles.input}
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                placeholder="Введите сообщение..."
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    onSendMessage();
+                  }
+                }}
+                disabled={status !== 'connected'}
+              />
+              <Button
+                type="button"
+                onClick={onSendMessage}
+                disabled={status !== 'connected' || !text.trim()}
+              >
+                <Send />
+              </Button>
+            </div>
+        </div>
       </div>
 
-      <div className={styles.composer}>
-        <Input
-          className={styles.input}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder="Введите сообщение..."
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              onSendMessage();
+      <button
+        type="button"
+        className={styles.floatingToggle}
+        onClick={() => {
+          setIsWidgetOpen((prev) => {
+            const next = !prev;
+            if (!next) {
+              setIsDrawerOpen(false);
             }
-          }}
-          disabled={!activeChatId || status !== 'connected'}
-        />
-        <Button
-          type="button"
-          onClick={onSendMessage}
-          disabled={!activeChatId || status !== 'connected' || !text.trim()}
-        >
-          Отправить
-        </Button>
-      </div>
+            return next;
+          });
+        }}
+        aria-label={isWidgetOpen ? 'Свернуть ИИ-чат' : 'Открыть ИИ-чат'}
+      >
+        {isWidgetOpen ? <X size={20} /> : <BotMessageSquare size={20} />}
+      </button>
     </section>
   );
 }

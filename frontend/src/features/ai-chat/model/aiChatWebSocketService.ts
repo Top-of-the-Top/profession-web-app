@@ -68,6 +68,7 @@ class AiChatWebSocketService {
   private activeCourseSlug: string | null = null;
   private shouldReconnect = false;
   private authListenerBound = false;
+  private pendingDeleteChatId: string | null = null;
 
   connect(courseSlug: string) {
     const store = useAiChatStore.getState();
@@ -153,6 +154,7 @@ class AiChatWebSocketService {
     if (!chatId) {
       return;
     }
+    this.pendingDeleteChatId = chatId;
     this.send({
       type: AI_CHAT_CLIENT_MESSAGE_TYPES.DELETE_CHAT,
       chat_id: chatId,
@@ -220,9 +222,11 @@ class AiChatWebSocketService {
           break;
         }
         case AI_CHAT_SERVER_MESSAGE_TYPES.CHAT_DELETED: {
-          if (message.chat_id) {
-            store.removeChat(message.chat_id);
+          const deletedChatId = message.chat_id || this.pendingDeleteChatId;
+          if (deletedChatId && store.chats.some((chat) => chat.chat_id === deletedChatId)) {
+            store.removeChat(deletedChatId);
           }
+          this.pendingDeleteChatId = null;
           break;
         }
         case AI_CHAT_SERVER_MESSAGE_TYPES.HISTORY_RECEIVED: {

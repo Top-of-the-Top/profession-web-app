@@ -5,6 +5,8 @@ import type {
   AiChatSummary,
 } from './types';
 
+const VISIBLE_BATCH_SIZE = 30;
+
 function byUpdatedAtDesc(a: AiChatSummary, b: AiChatSummary) {
   return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
 }
@@ -25,6 +27,7 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
   chats: [],
   activeChatId: null,
   historyByChatId: {},
+  visibleStartByChatId: {},
   isAnswerStreaming: false,
   streamBuffer: '',
   streamChatId: null,
@@ -65,6 +68,7 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
     set((state) => {
       const chats = state.chats.filter((chat) => chat.chat_id !== chatId);
       const { [chatId]: _removed, ...historyByChatId } = state.historyByChatId;
+      const { [chatId]: _removedVisibleStart, ...visibleStartByChatId } = state.visibleStartByChatId;
 
       const shouldResetActive = state.activeChatId === chatId;
       const nextActive = shouldResetActive ? (chats[0]?.chat_id ?? null) : state.activeChatId;
@@ -75,6 +79,7 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
         chats,
         activeChatId: nextActive,
         historyByChatId,
+        visibleStartByChatId,
         isAnswerStreaming: shouldResetStream ? false : state.isAnswerStreaming,
         streamBuffer: shouldResetStream ? '' : state.streamBuffer,
         streamChatId: shouldResetStream ? null : state.streamChatId,
@@ -89,15 +94,62 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
         ...state.historyByChatId,
         [chatId]: history,
       },
+      visibleStartByChatId: {
+        ...state.visibleStartByChatId,
+        [chatId]: Math.max(0, history.length - VISIBLE_BATCH_SIZE),
+      },
     })),
+
+  initVisibleWindow: (chatId, batchSize = VISIBLE_BATCH_SIZE) =>
+    set((state) => {
+      const history = state.historyByChatId[chatId] ?? [];
+      return {
+        visibleStartByChatId: {
+          ...state.visibleStartByChatId,
+          [chatId]: Math.max(0, history.length - batchSize),
+        },
+      };
+    }),
+
+  loadOlderVisible: (chatId, step = VISIBLE_BATCH_SIZE) =>
+    set((state) => {
+      const currentStart = state.visibleStartByChatId[chatId] ?? 0;
+      const nextStart = Math.max(0, currentStart - step);
+      if (nextStart === currentStart) {
+        return state;
+      }
+      return {
+        visibleStartByChatId: {
+          ...state.visibleStartByChatId,
+          [chatId]: nextStart,
+        },
+      };
+    }),
+
+  pinWindowToBottom: (chatId, batchSize = VISIBLE_BATCH_SIZE) =>
+    set((state) => {
+      const history = state.historyByChatId[chatId] ?? [];
+      const nextStart = Math.max(0, history.length - batchSize);
+      return {
+        visibleStartByChatId: {
+          ...state.visibleStartByChatId,
+          [chatId]: nextStart,
+        },
+      };
+    }),
 
   addMessage: (chatId, message) =>
     set((state) => {
       const existing = state.historyByChatId[chatId] ?? [];
+      const nextHistory = [...existing, message];
       return {
         historyByChatId: {
           ...state.historyByChatId,
-          [chatId]: [...existing, message],
+          [chatId]: nextHistory,
+        },
+        visibleStartByChatId: {
+          ...state.visibleStartByChatId,
+          [chatId]: Math.max(0, nextHistory.length - VISIBLE_BATCH_SIZE),
         },
       };
     }),
@@ -146,6 +198,10 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
           ...state.historyByChatId,
           [chatId]: [...existing, assistantMessage],
         },
+        visibleStartByChatId: {
+          ...state.visibleStartByChatId,
+          [chatId]: Math.max(0, existing.length + 1 - VISIBLE_BATCH_SIZE),
+        },
         isAnswerStreaming: false,
         streamBuffer: '',
         streamChatId: null,
@@ -160,6 +216,7 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
       chats: [],
       activeChatId: null,
       historyByChatId: {},
+      visibleStartByChatId: {},
       isAnswerStreaming: false,
       streamBuffer: '',
       streamChatId: null,

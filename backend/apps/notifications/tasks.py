@@ -11,6 +11,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+@shared_task
+def publish_event_async(routing_key, payload):
+    """Неблокирующая публикация события в RabbitMQ. Вызывается через .delay() из view."""
+    publish_event(routing_key=routing_key, payload=payload)
+
 @shared_task
 def send_course_notification(course_id, title, message):
     """Рассылка на весь курс: запись в БД + RabbitMQ + (опционально) Почта"""

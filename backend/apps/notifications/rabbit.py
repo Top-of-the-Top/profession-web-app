@@ -3,6 +3,7 @@ import os
 import logging
 from typing import Any, Dict
 import pika
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +26,9 @@ def get_connection_parameters() -> pika.ConnectionParameters:
     )
 
 def publish_event(*, routing_key: str, payload: Dict[str, Any]) -> None:
-    """
-    Публикует событие. Вызывается из Celery.
-    Использует BlockingConnection, так как Celery-воркеры работают синхронно.
-    """
+    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+        return
+
     connection = None
     try:
         connection = pika.BlockingConnection(get_connection_parameters())
@@ -52,8 +52,8 @@ def publish_event(*, routing_key: str, payload: Dict[str, Any]) -> None:
             ),
         )
     except Exception as e:
-        logger.error(f"Не удалось опубликовать событие в RabbitMQ: {e}")
-        raise e
+        logger.error("Не удалось опубликовать событие в RabbitMQ (routing_key=%s): %s", routing_key, e)
     finally:
         if connection and not connection.is_closed:
             connection.close()
+            

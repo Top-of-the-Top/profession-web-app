@@ -125,6 +125,7 @@ export interface AiChatState {
   chats: AiChatSummary[];
   activeChatId: string | null;
   historyByChatId: Record<string, AiChatMessage[]>;
+  visibleStartByChatId: Record<string, number>;
   isAnswerStreaming: boolean;
   streamBuffer: string;
   streamChatId: string | null;
@@ -136,6 +137,9 @@ export interface AiChatState {
   removeChat: (chatId: string) => void;
   setActiveChatId: (chatId: string | null) => void;
   setHistory: (chatId: string, history: AiChatMessage[]) => void;
+  initVisibleWindow: (chatId: string, batchSize?: number) => void;
+  loadOlderVisible: (chatId: string, step?: number) => void;
+  pinWindowToBottom: (chatId: string, batchSize?: number) => void;
   addMessage: (chatId: string, message: AiChatMessage) => void;
   startStreaming: (chatId: string) => void;
   appendStreamChunk: (chatId: string, chunk: string) => void;

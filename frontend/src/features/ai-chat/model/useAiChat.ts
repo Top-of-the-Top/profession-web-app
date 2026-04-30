@@ -9,10 +9,13 @@ export function useAiChat(courseSlug: string | null | undefined) {
   const chats = useAiChatStore((state) => state.chats);
   const activeChatId = useAiChatStore((state) => state.activeChatId);
   const historyByChatId = useAiChatStore((state) => state.historyByChatId);
+  const visibleStartByChatId = useAiChatStore((state) => state.visibleStartByChatId);
   const isAnswerStreaming = useAiChatStore((state) => state.isAnswerStreaming);
   const streamBuffer = useAiChatStore((state) => state.streamBuffer);
   const streamChatId = useAiChatStore((state) => state.streamChatId);
   const setActiveChatId = useAiChatStore((state) => state.setActiveChatId);
+  const initVisibleWindow = useAiChatStore((state) => state.initVisibleWindow);
+  const loadOlderVisibleInStore = useAiChatStore((state) => state.loadOlderVisible);
   const startNewChat = useCallback(() => aiChatWebSocketService.startNewChat(), []);
   const deleteChat = useCallback(
     (chatId: string) => aiChatWebSocketService.deleteChat(chatId),
@@ -25,6 +28,10 @@ export function useAiChat(courseSlug: string | null | undefined) {
   const sendMessage = useCallback(
     (chatId: string, text: string) => aiChatWebSocketService.sendMessage(chatId, text),
     []
+  );
+  const loadOlderVisible = useCallback(
+    (chatId: string) => loadOlderVisibleInStore(chatId),
+    [loadOlderVisibleInStore]
   );
 
   useEffect(() => {
@@ -39,12 +46,26 @@ export function useAiChat(courseSlug: string | null | undefined) {
     };
   }, [courseSlug]);
 
+  useEffect(() => {
+    if (!activeChatId) {
+      return;
+    }
+    initVisibleWindow(activeChatId);
+  }, [activeChatId, initVisibleWindow]);
+
+  const fullHistory = activeChatId ? historyByChatId[activeChatId] ?? [] : [];
+  const visibleStart = activeChatId ? visibleStartByChatId[activeChatId] ?? 0 : 0;
+  const visibleHistory = fullHistory.slice(visibleStart);
+  const hasOlder = visibleStart > 0;
+
   return {
     status,
     error,
     chats,
     activeChatId,
-    history: activeChatId ? historyByChatId[activeChatId] ?? [] : [],
+    fullHistory,
+    visibleHistory,
+    hasOlder,
     isAnswerStreaming,
     streamBuffer,
     streamChatId,
@@ -52,6 +73,7 @@ export function useAiChat(courseSlug: string | null | undefined) {
     startNewChat,
     deleteChat,
     getHistory,
+    loadOlderVisible,
     sendMessage,
   };
 }

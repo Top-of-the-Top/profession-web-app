@@ -4,6 +4,7 @@ import {
   RegistrationPage,
   RecoverPage,
   ResetPage,
+  OAuthVkCallbackPage,
   OAuthYandexCallbackPage,
   AppHomePage,
   CourseStorePage,
@@ -43,6 +44,10 @@ export const routes: AppRoute[] = [
   {
     path: '/recover',
     element: <RecoverPage />,
+  },
+  {
+    path: '/oauth/vk/callback',
+    element: <OAuthVkCallbackPage />,
   },
   {
     path: '/oauth/yandex/callback',

@@ -3,6 +3,7 @@ export { default as LoginPage } from "./login/ui/LoginPage";
 export { default as RegistrationPage } from "./register/ui/RegistrationPage";
 export { default as ResetPage } from "./reset/ui/ResetPage";
 export { default as RecoverPage } from "./recover/ui/RecoverPage";
+export { default as OAuthVkCallbackPage } from "./oauth-vk-callback/ui/OAuthVkCallbackPage";
 export { default as OAuthYandexCallbackPage } from "./oauth-yandex-callback/ui/OAuthYandexCallbackPage";
 export { default as ProfilePage } from "./profile/ui/ProfilePage";
 export { default as AppHomePage } from './home/ui/AppHomePage';

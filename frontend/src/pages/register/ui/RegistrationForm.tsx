@@ -30,6 +30,7 @@ import {
   type RegisterCredentialsFormValues,
 } from '@shared/utils/formSchemas';
 import { startYandexOAuth } from '@shared/lib/auth/yandexOAuth';
+import { startVkOAuth } from '@shared/lib/auth/vkOAuth';
 
 function notifyRegisterFailure(err: unknown) {
   if (
@@ -231,6 +232,15 @@ export default function RegistrationForm({
     }
   };
 
+  const handleVkLogin = () => {
+    void startVkOAuth().catch((err) => {
+      notifyError({
+        title: 'не удалось запустить вход через VK',
+        description: err instanceof Error ? err.message : 'Проверьте настройки OAuth.',
+      });
+    });
+  };
+
   return (
     <div className={cn(styles.loginPage, className)} {...props}>
       <div className={styles.loginWrapper}>
@@ -329,6 +339,7 @@ export default function RegistrationForm({
                         variant="outline"
                         type="button"
                         className={cn(styles.socialButton, styles.loginVk)}
+                        onClick={handleVkLogin}
                       >
                         <span className={styles.socialIcon}>
                           <img src="login/vk.svg" alt="" />

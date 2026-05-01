@@ -11,6 +11,12 @@ export type RegisterVerifyBody =
 
 export type ResetBody = { email: string } | { phone_number: string };
 export type YandexExchangeBody = { code: string; state: string };
+export type VkExchangeBody = {
+  code: string;
+  state: string;
+  code_verifier: string;
+  device_id: string;
+};
 
 const publicAuth = { skipAuth: true as const };
 
@@ -73,6 +79,14 @@ export const authApi = {
 
   yandexExchange(data: YandexExchangeBody) {
     return apiClient.request('/api/auth/yandex/exchange/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      ...publicAuth,
+    });
+  },
+
+  vkExchange(data: VkExchangeBody) {
+    return apiClient.request('/api/auth/vk/exchange/', {
       method: 'POST',
       body: JSON.stringify(data),
       ...publicAuth,

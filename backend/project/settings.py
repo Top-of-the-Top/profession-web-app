@@ -369,6 +369,11 @@ YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID', '')
 YANDEX_MODEL = os.getenv('YANDEX_MODEL', '')
 YANDEX_ASSISTANT_ID = os.getenv('YANDEX_ASSISTANT_ID', '')
 
+
+YANDEX_CLIENT_ID = os.getenv('YANDEX_CLIENT_ID', '')
+YANDEX_CLIENT_SECRET = os.getenv('YANDEX_CLIENT_SECRET', '')
+YANDEX_REDIRECT_URI = os.getenv('YANDEX_REDIRECT_URI', '')
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",

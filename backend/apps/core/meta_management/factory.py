@@ -27,6 +27,7 @@ def _get_backends():
 
     backends['kinescope'] = KinescopeBackend(
         api_key=getattr(settings, 'KINESCOPE_API_KEY', ''),
+        project_id=getattr(settings, 'KINESCOPE_PROJECT_ID', ''),
     )
 
     backends['external'] = ExternalBackend()

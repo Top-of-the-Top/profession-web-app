@@ -11,12 +11,6 @@ class InitiateUploadRequestSerializer(serializers.Serializer):
     filename = serializers.CharField(max_length=512)
     mime_type = serializers.CharField(max_length=128)
     size = serializers.IntegerField(min_value=1)
-    sha256 = serializers.RegexField(
-        regex=r'^[0-9a-fA-F]{64}$',
-        required=False,
-        allow_blank=True,
-        default='',
-    )
 
 
 class PresignedUploadSerializer(serializers.Serializer):
@@ -42,7 +36,6 @@ class UploadStatusResponseSerializer(serializers.Serializer):
     visibility = serializers.CharField()
     mime_type = serializers.CharField(allow_blank=True)
     size_bytes = serializers.IntegerField()
-    checksum_sha256 = serializers.CharField(allow_blank=True)
     original_filename = serializers.CharField(allow_blank=True)
     created_at = serializers.DateTimeField()
     committed_at = serializers.DateTimeField(allow_null=True)

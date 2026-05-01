@@ -36,12 +36,6 @@ class ExternalBackend(StorageBackend):
     def resolve_url(self, asset, viewer=None, ttl_seconds=300):
         return asset.storage_key
 
-    def stream_read(self, storage_key, chunk_size=1024 * 1024):
-        raise AssetStorageUnavailable(
-            message='Стриминг внешних ссылок не поддерживается.',
-            details={'stage': 'stream_read'},
-        )
-
     def put_object(self, storage_key, body, mime_type=''):
         raise AssetStorageUnavailable(
             message='External backend не поддерживает put_object.',

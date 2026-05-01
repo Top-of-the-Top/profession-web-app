@@ -128,23 +128,6 @@ class S3Backend(StorageBackend):
             logger.error('S3 delete_object failed: %s', e)
             raise AssetStorageUnavailable()
 
-    def stream_read(self, storage_key, chunk_size=1024 * 1024):
-        try:
-            response = self._client.get_object(Bucket=self._bucket, Key=storage_key)
-        except ClientError as e:
-            logger.error('S3 get_object failed: %s', e)
-            raise AssetStorageUnavailable()
-
-        body = response['Body']
-        try:
-            while True:
-                chunk = body.read(chunk_size)
-                if not chunk:
-                    break
-                yield chunk
-        finally:
-            body.close()
-
     def put_object(self, storage_key, body, mime_type=''):
         params = {
             'Bucket': self._bucket,

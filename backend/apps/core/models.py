@@ -31,6 +31,7 @@ class AssetRole(models.TextChoices):
     COURSE_COVER = 'course_cover', 'Обложка курса'
     WEBINAR_RECORDING = 'webinar_recording', 'Запись вебинара'
     USER_AVATAR = 'user_avatar', 'Аватар пользователя'
+    WHITEBOARD_PDF = 'whiteboard_pdf', 'PDF вебинарной доски'
 
 
 class MediaAsset(models.Model):
@@ -65,13 +66,6 @@ class MediaAsset(models.Model):
         default=0,
         verbose_name='Размер (байт)',
     )
-    checksum_sha256 = models.CharField(
-        max_length=64,
-        blank=True,
-        db_index=True,
-        verbose_name='Хэш код SHA-256',
-    )
-
     status = models.CharField(
         max_length=20,
         choices=AssetStatus.choices,
@@ -125,11 +119,6 @@ class MediaAsset(models.Model):
         verbose_name_plural = 'Медиа-ассеты'
         ordering = ['-created_at']
         constraints = [
-            models.UniqueConstraint(
-                fields=['owner', 'checksum_sha256', 'storage_backend'],
-                condition=models.Q(status='ready') & ~models.Q(checksum_sha256=''),
-                name='uniq_owner_sha256_per_backend_ready',
-            ),
             models.CheckConstraint(
                 condition=models.Q(size_bytes__gte=0),
                 name='asset_size_non_negative',

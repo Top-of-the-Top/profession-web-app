@@ -1,20 +1,16 @@
 import re
-from apps.core.services.presigned_url import PresignedUrlService
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from uuid import uuid4
 
 from apps.courses.models import Homework
 from apps.homeworks.models import Attempt
 
-from ..services import (
-    AttemptService,
-    HomeworkServiceError,
-)
+from ..services.attempt_service import AttemptService
+from ..services.errors import HomeworkServiceError
 
 from .serializers import (
     AttemptSerializer,
@@ -145,49 +141,3 @@ class HomeworkAttemptSubmitView(APIView):
         data = AttemptSerializer(attempt, context={'request': request}).data
         return Response(data, status=status.HTTP_201_CREATED)
 
-class UploadFileAttachmentView(APIView):
-    permission_classes = (IsAuthenticated, )
-    
-    @extend_schema(
-        summary='Загрузить файл в хранилище',
-        tags=['Homework'],
-        parameters=[HOMEWORK_SLUG_PARAM],
-        request=UploadFileRequestSerializer,
-        responses={
-            201: S3UploadResponseSerializer,
-            400: OpenApiTypes.OBJECT, 
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            413: OpenApiTypes.OBJECT,
-            503: OpenApiTypes.OBJECT,
-        }
-    )
-    def post(self, request, homework_slug):
-        serializer = UploadFileRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return _error_response(
-                AttemptValidationError(details=serializer.errors)
-            )
-
-        payload = serializer.validated_data
-
-        if payload['file_size'] > 10 * 1024 * 1024:
-            return _error_response(UploadFileTooLarge())
-
-        unique_id = uuid4().hex[:8]
-        filepath = (
-            f"homeworks/{homework_slug}/"
-            f"task_{payload['task_id']}/"
-            f"attempt_{payload['attempt_id']}/"
-            f"{unique_id}_{payload['file_name']}.{payload['file_extension']}"
-        )
-
-        presigned_url_service = PresignedUrlService()
-        data = presigned_url_service.get_presigned_url_response(filepath)
-
-        if not data:
-            return _error_response(StorageUnavailable())
-
-        data['method'] = 'POST'
-
-        return Response(data=data, status=status.HTTP_201_CREATED)

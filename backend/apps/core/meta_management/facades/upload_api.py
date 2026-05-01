@@ -8,23 +8,14 @@ class UploadApi:
     def __init__(self, asset_service):
         self._service = asset_service
 
-    def initiate_upload(self, user, intent, filename, mime_type, size, sha256=''):
-        asset, dedup = self._service.create_pending_asset(
+    def initiate_upload(self, user, intent, filename, mime_type, size):
+        asset = self._service.create_pending_asset(
             owner=user,
             intent=intent,
             filename=filename,
             mime_type=mime_type,
             size=size,
-            sha256=sha256,
         )
-
-        if dedup:
-            return InitiateResult(
-                asset_id=str(asset.asset_id),
-                dedup=True,
-                storage_backend=asset.storage_backend,
-                upload=None,
-            )
 
         upload = self._service.issue_upload_url(asset, intent)
         return InitiateResult(
@@ -35,7 +26,25 @@ class UploadApi:
         )
 
     def get_upload_status(self, user, asset_id):
-        return self._authorize(user, asset_id)
+        asset = self._authorize(user, asset_id)
+        if asset.status == AssetStatus.PENDING:
+            self._try_trigger_commit(asset)
+        return asset
+
+    def _try_trigger_commit(self, asset):
+        try:
+            backend = self._service.get_backend(asset.storage_backend)
+            meta = backend.head(asset.storage_key)
+            if meta is not None:
+                from ..tasks import commit_pending_asset
+                # Фиксированный task_id гарантирует что Celery не запустит
+                # дублирующую задачу если фронт поллит часто
+                commit_pending_asset.apply_async(
+                    args=[str(asset.asset_id)],
+                    task_id=f'commit-{asset.asset_id}',
+                )
+        except Exception:
+            pass
 
     def commit_for_user(self, user, asset_id):
         asset = self._authorize(user, asset_id)

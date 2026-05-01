@@ -259,15 +259,15 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 60.0,
     },
     'assets-poll-s3-events': {
-        'task': 'apps.core.tasks.poll_s3_upload_events',
+        'task': 'apps.core.meta_management.tasks.poll_s3_upload_events',
         'schedule': 30.0,
     },
     'assets-sweep-pending': {
-        'task': 'apps.core.tasks.sweep_pending_assets',
+        'task': 'apps.core.meta_management.tasks.sweep_pending_assets',
         'schedule': 600.0,
     },
     'assets-sweep-orphaned': {
-        'task': 'apps.core.tasks.sweep_orphaned_assets',
+        'task': 'apps.core.meta_management.tasks.sweep_orphaned_assets',
         'schedule': 3600.0,
     },
 }

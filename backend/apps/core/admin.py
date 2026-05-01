@@ -26,7 +26,6 @@ class MediaAssetAdmin(admin.ModelAdmin):
         'asset_id',
         'storage_key',
         'original_filename',
-        'checksum_sha256',
         'owner__username',
         'owner__email',
     )
@@ -37,7 +36,6 @@ class MediaAssetAdmin(admin.ModelAdmin):
         'committed_at',
         'deleted_at',
         'unreferenced_since',
-        'checksum_sha256',
         'size_bytes',
     )
     fieldsets = (
@@ -49,7 +47,6 @@ class MediaAssetAdmin(admin.ModelAdmin):
                 'original_filename',
                 'mime_type',
                 'size_bytes',
-                'checksum_sha256',
             ),
         }),
         ('Жизненный цикл', {

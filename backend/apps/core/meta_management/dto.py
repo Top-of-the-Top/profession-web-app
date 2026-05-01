@@ -26,7 +26,6 @@ class StorageKeyHint:
     backend: str
     intent: str
     owner_id: str = ''
-    sha256: str = ''
     filename: str = ''
 
 

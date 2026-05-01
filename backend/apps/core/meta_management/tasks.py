@@ -19,6 +19,16 @@ def _get_worker_api():
     return build_worker_api()
 
 
+@shared_task(bind=True, max_retries=3, default_retry_delay=5, acks_late=True)
+def commit_pending_asset(self, asset_id):
+    worker = _get_worker_api()
+    try:
+        return worker.commit_by_id(asset_id)
+    except Exception as exc:
+        logger.exception('commit_pending_asset: ошибка для %s', asset_id)
+        raise self.retry(exc=exc)
+
+
 @shared_task(
     bind=True,
     max_retries=5,

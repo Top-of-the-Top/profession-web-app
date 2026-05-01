@@ -4,7 +4,6 @@ from .views import (
     HomeworkAttemptSubmitView,
     HomeworkAttemptView,
     HomeworkAttemptListView,
-    UploadFileAttachmentView
 )
 
 app_name = 'homeworks'

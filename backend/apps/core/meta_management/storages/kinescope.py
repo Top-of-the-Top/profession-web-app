@@ -19,6 +19,7 @@ API_BASE = 'https://api.kinescope.io/v1'
 UPLOADER_BASE = 'https://uploader.kinescope.io/v2'
 EMBED_URL_TEMPLATE = 'https://kinescope.io/embed/{video_id}'
 
+# Видео загружено когда Kinescope вернул processing или ready
 UPLOADED_STATUSES = {'processing', 'ready'}
 
 
@@ -125,7 +126,7 @@ class KinescopeBackend(StorageBackend):
             },
         )
         payload = {'title': hint.filename or 'video'}
-        data = self._post(endpoint, json=payload)
+        data = self._post(endpoint, json=payload, base=API_BASE)
 
         video = data.get('data', {})
         video_id = video.get('id')

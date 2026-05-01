@@ -53,17 +53,17 @@ export function useLessonBySlug(
     queryKey: courseKeys.lesson(courseSlug!, lessonSlug!),
     queryFn: () => courseApi.getLessonBySlug(courseSlug!, lessonSlug!),
     enabled: !!courseSlug && !!lessonSlug,
-    refetchInterval: (query) => {
-      const recordings = query.state.data?.recordings ?? [];
-      return recordings.some(
-        (recording) =>
-          recording.kinescope_upload_status === 'pending' ||
-          recording.kinescope_upload_status === 'uploading' ||
-          recording.kinescope_upload_status === 'processing',
-      )
-        ? 10_000
-        : false;
-    },
+    // refetchInterval: (query) => {
+    //   const recordings = query.state.data?.recordings ?? [];
+    //   return recordings.some(
+    //     (recording) =>
+    //       recording.kinescope_upload_status === 'pending' ||
+    //       recording.kinescope_upload_status === 'uploading' ||
+    //       recording.kinescope_upload_status === 'processing',
+    //   )
+    //     ? 10_000
+    //     : false;
+    // },
   });
 }
 

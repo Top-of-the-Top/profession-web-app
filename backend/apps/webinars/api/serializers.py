@@ -15,6 +15,7 @@ class WebinarSerializer(serializers.ModelSerializer):
 
 
 class WebinarTokenSerializer(serializers.Serializer):
+    webinar_id = serializers.UUIDField()
     rtc_token = serializers.CharField()
     agora_app_id = serializers.CharField()
     channel_name = serializers.CharField()

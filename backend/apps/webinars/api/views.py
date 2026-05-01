@@ -358,6 +358,7 @@ class WebinarJoinView(APIView):
             full_name = 'Пользователь'
 
         return Response({
+            'webinar_id': str(webinar.webinar_id),
             'rtc_token': rtc_token,
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,
@@ -427,6 +428,7 @@ class WebinarRecorderJoinView(APIView):
         wb_token = generate_whiteboard_room_token(webinar.whiteboard_room_uuid, 'reader')
 
         return Response({
+            'webinar_id': str(webinar.webinar_id),
             'rtc_token': rtc_token,
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,

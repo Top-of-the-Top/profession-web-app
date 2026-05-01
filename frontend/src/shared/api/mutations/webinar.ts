@@ -82,6 +82,20 @@ export function useUploadRecordingPdf(courseSlug: string, lessonSlug: string) {
   });
 }
 
+export function useUploadFinalPdf(courseSlug: string, lessonSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ screenshots }: { screenshots: Blob[] }) =>
+      webinarApi.uploadFinalPdf(courseSlug, lessonSlug, screenshots),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+      });
+    },
+    onError: (err) => handleWebinarError(err, 'recordingPdfUpload'),
+  });
+}
+
 export function useDeleteRecordingPdf(courseSlug: string, lessonSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({

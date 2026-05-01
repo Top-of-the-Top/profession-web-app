@@ -1,10 +1,15 @@
 from django.utils import timezone
 import os
 import hashlib
-from django.core.cache import cache
-from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from django.shortcuts import redirect
+from django.conf import settings
+from urllib.parse import urlencode
+import httpx
+from django.core.cache import cache
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from .errors import VerificationError
@@ -728,4 +733,160 @@ class VerifyPhoneChangeView(APIView):
             )
 
         return Response({'status': 'success'}, status=status.HTTP_200_OK)
-    
+
+class YandexCallbackAPIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        code = request.query_params.get('code')
+        state = request.query_params.get('state')
+        error = request.query_params.get('error')
+
+        params = {"provider": "yandex"}
+
+        if code:
+            params.update({'code': code, 'state': state})
+        elif error:
+            params.update({
+                'error': error,
+                'error_description': request.query_params.get('error_description', '')
+            })
+            if state:
+                params['state'] = state
+        else:
+            params['error'] = 'invalid_callback_payload'
+
+        target_url = f"{settings.FRONTEND_OAUTH_REDIRECT_URI}?{urlencode(params)}"
+        return redirect(target_url)
+
+
+class YandexOauth2APIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def _validate_state(self, state):
+        key = f"oauth:yandex:state:{state}"
+        if cache.get(key):
+            cache.delete(key)
+            return True
+        return False
+
+    def _exchange_code_for_token(self, code):
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": settings.YANDEX_CLIENT_ID,
+            "client_secret": settings.YANDEX_CLIENT_SECRET,
+        }
+        try:
+            response = httpx.post("https://oauth.yandex.ru/token", data=data, timeout=5.0)
+            if response.status_code == 200:
+                return response.json()
+        except httpx.RequestError:
+            return None
+        return None
+
+    def post(self, request):
+        code = request.data.get('code')
+        state = request.data.get('state')
+
+        if not code or not state:
+            return Response({"error": "invalid_request", "detail": "Code and state are required."}, status=400)
+
+        if not self._validate_state(state):
+            return Response(
+                {"error": "invalid_state", "detail": "OAuth state is invalid or expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        yandex_data = self._exchange_code_for_token(code)
+        if not yandex_data:
+            return Response({"error": "invalid_code"}, status=400)
+
+        return Response({"status": "success", "data": yandex_data})
+
+
+class VKCallbackAPIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        code = request.query_params.get('code')
+        state = request.query_params.get('state')
+        device_id = request.query_params.get('device_id')
+        error = request.query_params.get('error')
+
+        params = {"provider": "vk"}
+
+        if code:
+            params.update({
+                'code': code,
+                'state': state,
+                'device_id': device_id
+            })
+        elif error:
+            params.update({
+                'error': error,
+                'error_description': request.query_params.get('error_description', ''),
+                'state': state if state else ''
+            })
+        else:
+            params['error'] = 'invalid_callback_payload'
+
+        target_url = f"{settings.FRONTEND_OAUTH_VK_REDIRECT_URI}?{urlencode(params)}"
+        return redirect(target_url)
+
+
+class VKOAauth2APIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def _validate_state(self, state):
+        key = f"oauth:vk:state:{state}"
+        if cache.get(key):
+            cache.delete(key)
+            return True
+        return False
+
+    def _exchange_code_for_token(self, code, code_verifier, device_id):
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "code_verifier": code_verifier,
+            "device_id": device_id,
+            "client_id": settings.VK_CLIENT_ID,
+            "client_secret": settings.VK_CLIENT_SECRET,
+            "redirect_uri": settings.VK_REDIRECT_URI,
+        }
+        try:
+            response = httpx.post("https://id.vk.com/oauth2/auth", data=data, timeout=5.0)
+            if response.status_code == 200:
+                return response.json()
+        except httpx.RequestError:
+            return None
+        return None
+
+    def post(self, request):
+        code = request.data.get('code')
+        state = request.data.get('state')
+        code_verifier = request.data.get('code_verifier')
+        device_id = request.data.get('device_id')
+
+        if not all([code, state, code_verifier, device_id]):
+            return Response({"error": "invalid_request", "detail": "Missing required fields."}, status=400)
+
+        if not (43 <= len(code_verifier) <= 128):
+            return Response({"error": "invalid_code_verifier"}, status=400)
+
+        if not self._validate_state(state):
+            return Response(
+                {"error": "invalid_state", "detail": "OAuth state is invalid or expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        vk_data = self._exchange_code_for_token(code, code_verifier, device_id)
+        if not vk_data:
+            return Response({"error": "provider_invalid_response"}, status=502)
+
+        return Response({"status": "success", "data": vk_data})

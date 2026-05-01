@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
   RegisterView, VerifyRegisterView, LoginView, RefreshTokenView,
   ResetPasswordView, RecoverPasswordPhoneView, RecoverPasswordView, 
-  ProfileView, VerifyEmailChangeView, VerifyPhoneChangeView
+  ProfileView, VerifyEmailChangeView, VerifyPhoneChangeView, VKCallbackAPIView,
+  VKOAauth2APIView, YandexCallbackAPIView, YandexOauth2APIView
 )
 
 app_name = 'users'
@@ -18,4 +19,8 @@ urlpatterns = [
     path('profile/', ProfileView.as_view(), name='profile'),
     path('profile/verify-email/', VerifyEmailChangeView.as_view(), name='verify-email'),
     path('profile/verify-phone/', VerifyPhoneChangeView.as_view(), name='verify-phone'),
+    path('auth/yandex/callback/', YandexCallbackAPIView.as_view(), name='yandex-callback'),
+    path('auth/vk/callback/', VKCallbackAPIView.as_view(), name='vk-callback'),
+    path('api/auth/yandex/exchange/', YandexOauth2APIView.as_view(), name='yandex-exchange'),
+    path('api/auth/vk/exchange/', VKOAauth2APIView.as_view(), name='vk-exchange'),
 ]

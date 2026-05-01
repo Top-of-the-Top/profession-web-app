@@ -15,21 +15,7 @@ const BASE_RECONNECT_DELAY_MS = 500;
 const MAX_RECONNECT_DELAY_MS = 8000;
 
 function normalizeApiUrl(): URL {
-  const envApiUrlRaw = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
-  const fallback = new URL(window.location.origin);
-
-  if (!envApiUrlRaw) {
-    return fallback;
-  }
-
-  const hasProtocol = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(envApiUrlRaw);
-  const candidate = hasProtocol ? envApiUrlRaw : `http://${envApiUrlRaw}`;
-
-  try {
-    return new URL(candidate);
-  } catch {
-    return fallback;
-  }
+  return new URL(window.location.origin);
 }
 
 function buildWebSocketUrl(courseSlug: string, token: string): string {

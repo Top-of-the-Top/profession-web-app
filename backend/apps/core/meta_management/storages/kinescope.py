@@ -1,13 +1,14 @@
 import logging
 import time
 from datetime import timedelta
+from urllib.parse import quote
 
 import jwt
 import requests
 from django.conf import settings
 from django.utils import timezone
 
-from ..dto import ObjectMeta, PresignedUpload
+from ..dto import BuildStorageKeyResult, ObjectMeta, PresignedUpload
 from ..errors import AssetStorageUnavailable
 from .base import StorageBackend
 
@@ -22,6 +23,11 @@ EMBED_URL_TEMPLATE = 'https://kinescope.io/embed/{video_id}'
 UPLOADED_STATUSES = {'processing', 'ready'}
 
 
+def _encode_header_value(value):
+    """RFC 5987 / percent-encoding для заголовков (кириллица в названии видео)."""
+    return quote(str(value), safe='')
+
+
 class KinescopeBackend(StorageBackend):
 
     name = 'kinescope'
@@ -34,12 +40,18 @@ class KinescopeBackend(StorageBackend):
             'Content-Type': 'application/json',
         })
 
-        self._pending_upload_links: dict[str, str] = {}
-
-    def _post(self, path, base=None, extra_headers=None, json=None):
+    def _post(self, path, base=None, extra_headers=None, json=None, strip_json_content_type=False):
         url = f'{base or API_BASE}{path}'
         try:
-            resp = self._session.post(url, headers=extra_headers, json=json, timeout=15)
+            if extra_headers or strip_json_content_type:
+                headers = dict(self._session.headers)
+                if strip_json_content_type:
+                    headers.pop('Content-Type', None)
+                if extra_headers:
+                    headers.update(extra_headers)
+                resp = self._session.post(url, headers=headers, json=json, timeout=15)
+            else:
+                resp = self._session.post(url, json=json, timeout=15)
             resp.raise_for_status()
             return resp.json()
         except requests.RequestException as exc:
@@ -74,6 +86,56 @@ class KinescopeBackend(StorageBackend):
                 details={'path': path},
             )
 
+    def _put_json(self, path, payload):
+        url = f'{API_BASE}{path}'
+        try:
+            resp = self._session.put(url, json=payload, timeout=15)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.RequestException as exc:
+            logger.error('Kinescope PUT %s failed: %s', path, exc)
+            raise AssetStorageUnavailable(
+                message='Kinescope API недоступен.',
+                details={'path': path},
+            )
+
+    def create_folder(self, name, project_id=None):
+        pid = project_id or self._project_id
+        if not pid:
+            raise AssetStorageUnavailable(
+                message='Нужен project_id для создания папки Kinescope.',
+                details={'stage': 'create_folder'},
+            )
+        data = self._post(f'/projects/{pid}/folders', json={'name': name})
+        return (data.get('data') or {}).get('id', '')
+
+    def get_video_payload(self, video_id):
+        data = self._get(f'/videos/{video_id}')
+        if not data:
+            return {}
+        return data.get('data') or {}
+
+    def configure_drm_auth(self, callback_url, username, password, strict=True):
+        return self._put_json(
+            '/drm/auth',
+            {
+                'url': callback_url,
+                'username': username,
+                'password': password,
+                'strict': strict,
+            },
+        )
+
+    @staticmethod
+    def generate_drm_token(user_id, video_id, lifetime_seconds=3600):
+        payload = {
+            'user_id': str(user_id),
+            'video_id': video_id,
+            'exp': int(time.time()) + lifetime_seconds,
+            'token_type': 'kinescope_drm',
+        }
+        return jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+
     def build_storage_key(self, hint):
         """Создаёт видео-placeholder в Kinescope, возвращает video_id."""
         endpoint = (
@@ -94,11 +156,12 @@ class KinescopeBackend(StorageBackend):
                 details={'response': data},
             )
 
-        self._pending_upload_links[video_id] = upload_link
-        return video_id
+        meta = {'upload_link': upload_link} if upload_link else {}
+        return BuildStorageKeyResult(storage_key=video_id, meta=meta)
 
-    def issue_presigned_upload(self, storage_key, policy):
-        upload_link = self._pending_upload_links.pop(storage_key, '')
+    def issue_presigned_upload(self, storage_key, policy, storage_meta=None):
+        meta = storage_meta or {}
+        upload_link = (meta.get('upload_link') or '').strip()
 
         if not upload_link:
             data = self._get(f'/videos/{storage_key}')
@@ -170,9 +233,10 @@ class KinescopeBackend(StorageBackend):
             base=UPLOADER_BASE,
             extra_headers={
                 'X-Parent-ID': parent_id or self._project_id or '',
-                'X-Video-Title': title,
+                'X-Video-Title': _encode_header_value(title),
                 'X-Video-URL': video_url,
             },
+            strip_json_content_type=True,
         )
         video_id = (data.get('data') or {}).get('id', '')
         if not video_id:
@@ -187,13 +251,11 @@ class KinescopeBackend(StorageBackend):
         if viewer is None:
             return None
         try:
-            payload = {
-                'user_id': str(getattr(viewer, 'pk', '')),
-                'video_id': video_id,
-                'exp': int(time.time()) + ttl_seconds,
-                'token_type': 'kinescope_drm',
-            }
-            return jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+            return self.generate_drm_token(
+                getattr(viewer, 'pk', ''),
+                video_id,
+                lifetime_seconds=ttl_seconds,
+            )
         except Exception as exc:
             logger.warning('Kinescope DRM token error: %s', exc)
             return None

@@ -22,6 +22,13 @@ class ObjectMeta:
 
 
 @dataclass(frozen=True)
+class BuildStorageKeyResult:
+    """Результат резервирования ключа: ключ + мета для сохранения в MediaAsset.storage_meta."""
+    storage_key: str
+    meta: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class StorageKeyHint:
     backend: str
     intent: str

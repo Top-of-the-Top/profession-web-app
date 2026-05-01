@@ -5,7 +5,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from ..models import AssetStatus, AssetUsage, MediaAsset
-from .dto import StorageKeyHint, UploadPolicy
+from .dto import BuildStorageKeyResult, StorageKeyHint, UploadPolicy
 from .errors import (
     AssetBindConflict,
     AssetCommitMismatch,
@@ -19,6 +19,12 @@ from .policies import get_bind_policy, get_intent_policy
 
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_build_storage_key(result):
+    if isinstance(result, BuildStorageKeyResult):
+        return result.storage_key, dict(result.meta or {})
+    return result, {}
 
 
 class AssetService:
@@ -73,7 +79,9 @@ class AssetService:
             owner_id=str(owner.pk) if owner is not None else '',
             filename=filename,
         )
-        storage_key = backend.build_storage_key(hint)
+        storage_key, storage_meta = _normalize_build_storage_key(
+            backend.build_storage_key(hint),
+        )
 
         asset = MediaAsset.objects.create(
             storage_backend=backend_name,
@@ -84,6 +92,7 @@ class AssetService:
             status=AssetStatus.PENDING,
             visibility=intent_policy['default_visibility'],
             owner=owner,
+            storage_meta=storage_meta,
         )
 
         return asset
@@ -105,7 +114,11 @@ class AssetService:
 
         backend = self.get_backend(asset.storage_backend)
         policy = self._build_policy(intent_policy)
-        return backend.issue_presigned_upload(asset.storage_key, policy)
+        return backend.issue_presigned_upload(
+            asset.storage_key,
+            policy,
+            storage_meta=dict(asset.storage_meta or {}),
+        )
 
     def commit_asset(self, asset_id):
         asset = self.get_asset(asset_id)
@@ -176,7 +189,9 @@ class AssetService:
             owner_id=str(owner.pk) if owner is not None else '',
             filename=filename,
         )
-        storage_key = backend.build_storage_key(hint)
+        storage_key, storage_meta = _normalize_build_storage_key(
+            backend.build_storage_key(hint),
+        )
 
         backend.put_object(storage_key, body, mime_type=mime_type)
 
@@ -191,6 +206,7 @@ class AssetService:
             visibility=intent_policy['default_visibility'],
             owner=owner,
             committed_at=timezone.now(),
+            storage_meta=storage_meta,
         )
         return asset
 
@@ -213,18 +229,49 @@ class AssetService:
         )
         return asset
 
-    def bind_asset(self, asset, content_object, role):
-        if asset.status != AssetStatus.READY:
-            raise AssetStatusInvalid(
-                details={'asset_id': str(asset.asset_id), 'status': asset.status},
-            )
+    def register_pending_storage_asset(
+        self,
+        *,
+        backend_name,
+        storage_key,
+        owner,
+        original_filename='',
+        mime_type='',
+        size_bytes=0,
+        visibility,
+        storage_meta=None,
+    ):
+        """
+        Регистрирует PENDING-ассет по уже известному ключу в хранилище
+        (например после upload_by_url в Kinescope).
+        """
+        self.get_backend(backend_name)
+        return MediaAsset.objects.create(
+            storage_backend=backend_name,
+            storage_key=storage_key,
+            original_filename=original_filename or '',
+            mime_type=mime_type or '',
+            size_bytes=size_bytes,
+            status=AssetStatus.PENDING,
+            visibility=visibility,
+            owner=owner,
+            storage_meta=dict(storage_meta or {}),
+        )
 
+    def bind_asset(self, asset, content_object, role):
         bind_policy = get_bind_policy(role)
         if bind_policy is None:
             raise AssetPolicyViolation(
                 message='Неизвестная роль привязки.',
                 details={'role': role},
             )
+
+        allow_pending = bind_policy.get('allow_pending_asset', False)
+        if asset.status != AssetStatus.READY:
+            if not (allow_pending and asset.status == AssetStatus.PENDING):
+                raise AssetStatusInvalid(
+                    details={'asset_id': str(asset.asset_id), 'status': asset.status},
+                )
 
         if asset.storage_backend not in bind_policy['allowed_backends']:
             raise AssetPolicyViolation(

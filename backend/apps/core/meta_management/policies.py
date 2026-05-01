@@ -124,6 +124,8 @@ BIND_POLICIES = {
     'webinar_recording': {
         'max_usages_per_target': 1,
         'allowed_backends': ('kinescope',),
+        # Серверная загрузка по URL: привязка к Recording до commit в Kinescope
+        'allow_pending_asset': True,
     },
     'user_avatar': {
         'max_usages_per_target': 1,

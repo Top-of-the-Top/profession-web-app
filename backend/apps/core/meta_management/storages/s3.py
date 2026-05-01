@@ -7,7 +7,7 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 from django.utils import timezone
 
-from ..dto import ObjectMeta, PresignedUpload
+from ..dto import BuildStorageKeyResult, ObjectMeta, PresignedUpload
 from ..errors import AssetStorageUnavailable
 from .base import StorageBackend
 
@@ -93,9 +93,10 @@ class S3Backend(StorageBackend):
     def build_storage_key(self, hint):
         owner_part = hint.owner_id or 'anon'
         month = timezone.now().strftime('%Y%m')
-        return f'assets/u/{owner_part}/{month}/{uuid.uuid4().hex}'
+        key = f'assets/u/{owner_part}/{month}/{uuid.uuid4().hex}'
+        return BuildStorageKeyResult(storage_key=key, meta={})
 
-    def issue_presigned_upload(self, storage_key, policy):
+    def issue_presigned_upload(self, storage_key, policy, storage_meta=None):
         return self._urls.issue_post(storage_key, policy.max_size)
 
     def resolve_url(self, asset, viewer=None, ttl_seconds=DEFAULT_PRESIGN_TTL_SECONDS):

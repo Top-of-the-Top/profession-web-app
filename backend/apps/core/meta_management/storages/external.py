@@ -15,7 +15,7 @@ class ExternalBackend(StorageBackend):
             details={'stage': 'build_storage_key'},
         )
 
-    def issue_presigned_upload(self, storage_key, policy):
+    def issue_presigned_upload(self, storage_key, policy, storage_meta=None):
         raise AssetStorageUnavailable(
             message='Для external backend загрузка через presigned URL невозможна.',
             details={'stage': 'issue_presigned_upload'},

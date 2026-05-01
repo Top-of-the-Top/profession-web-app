@@ -37,10 +37,11 @@ class MediaAssetAdmin(admin.ModelAdmin):
         'deleted_at',
         'unreferenced_since',
         'size_bytes',
+        'storage_meta',
     )
     fieldsets = (
         ('Идентификация', {
-            'fields': ('asset_id', 'storage_backend', 'storage_key'),
+            'fields': ('asset_id', 'storage_backend', 'storage_key', 'storage_meta'),
         }),
         ('Содержимое', {
             'fields': (

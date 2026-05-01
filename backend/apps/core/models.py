@@ -114,6 +114,13 @@ class MediaAsset(models.Model):
         verbose_name='Физически удалён',
     )
 
+    # Служебные данные бэкенда (например upload_link для Kinescope), не для публичного API
+    storage_meta = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Метаданные хранилища',
+    )
+
     class Meta:
         verbose_name = 'Медиа-ассет'
         verbose_name_plural = 'Медиа-ассеты'

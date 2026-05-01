@@ -10,7 +10,7 @@ class StorageBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def issue_presigned_upload(self, storage_key, policy):
+    def issue_presigned_upload(self, storage_key, policy, storage_meta=None):
         raise NotImplementedError
 
     @abstractmethod

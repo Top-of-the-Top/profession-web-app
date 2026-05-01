@@ -1,5 +1,6 @@
 import json
 import logging
+from collections import deque
 from channels.generic.websocket import AsyncWebsocketConsumer
 from apps.ai_chat_bot.services import YandexChatAIService
 from apps.courses.models import Course
@@ -29,10 +30,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
   course_slug: str
   session: Session 
   group_name: str
-  session_chat_history: dict[str, str]
+  session_chat_history: dict[str, deque]
   chat_service: YandexChatAIService
 
   async def connect(self):
+    self.session_chat_history = {}
     self.course_slug = self.scope['url_route']['kwargs']['course_slug']
     self.user = self.scope['user']
     self.chat_service = YandexChatAIService()
@@ -104,18 +106,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
               await self._send_ws_message(ChatDeletedMessage())
           case GetHistoryRequest(chat_id=chat_id):
               history = await self.chat_service.get_chat_history(chat_id)
-              self.session_chat_history[chat_id] = history
+              for message in history:
+                self.session_chat_history[chat_id].append(message) 
               await self._send_ws_message(
                   HistoryReceivedMessage(chat_id=chat_id, history=history)
               )
           case SendMessageRequest(chat_id=chat_id, content=content):
               user_message = str(content.get("text", "")).strip()
+              if chat_id not in self.session_chat_history:
+                  self.session_chat_history[chat_id] = deque(maxlen=20)
               self.session_chat_history[chat_id].append(user_message)
               chat = await self.chat_service.get_chat_for_current_session(chat_id)
               await self._send_ws_message(StartingAnswerMessage(chat_id=chat_id))
               await self.chat_service.save_message(chat, "user", user_message)
 
-              ai_chat_context = " ".join(self.session_chat_histor[chat_id][:20])
+              ai_chat_context = " ".join(self.session_chat_history[chat_id])
 
               full_ai_response = ""
               try:

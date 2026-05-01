@@ -72,15 +72,35 @@ export default function WebinarPage() {
     return screenshots;
   }, []);
 
-  const stopRecordingWithPdfUpload = useCallback(async (screenshots: Blob[]) => {
+  const stopRecordingWithOptionalPdfUpload = useCallback(async (screenshots?: Blob[] | null) => {
     const stopResponse = await stopRecording.mutateAsync();
     setActiveRecordingId(null);
 
-    await uploadRecordingPdf.mutateAsync({
-      recordingId: stopResponse.recording_id,
-      screenshots,
-    });
-  }, [stopRecording, uploadRecordingPdf]);
+    const screenshotsToUpload =
+      screenshots && screenshots.length > 0
+        ? screenshots
+        : await captureWhiteboardScreenshots();
+
+    if (!screenshotsToUpload || screenshotsToUpload.length === 0) {
+      notifyWarning({
+        title: 'запись остановлена без PDF',
+        description: 'Не удалось сохранить PDF доски для этой записи.',
+      });
+      return;
+    }
+
+    try {
+      await uploadRecordingPdf.mutateAsync({
+        recordingId: stopResponse.recording_id,
+        screenshots: screenshotsToUpload,
+      });
+    } catch {
+      notifyWarning({
+        title: 'запись остановлена без PDF',
+        description: 'Не удалось загрузить скриншоты доски. Видео продолжит обработку.',
+      });
+    }
+  }, [captureWhiteboardScreenshots, stopRecording, uploadRecordingPdf]);
 
   const handleStartRecording = useCallback(() => {
     startRecording.mutate(undefined, {
@@ -90,13 +110,9 @@ export default function WebinarPage() {
 
   const handleStopRecording = useCallback(() => {
     void (async () => {
-      const screenshots = await captureWhiteboardScreenshots();
-      if (!screenshots || screenshots.length === 0) {
-        return;
-      }
-      await stopRecordingWithPdfUpload(screenshots);
+      await stopRecordingWithOptionalPdfUpload();
     })();
-  }, [captureWhiteboardScreenshots, stopRecordingWithPdfUpload]);
+  }, [stopRecordingWithOptionalPdfUpload]);
 
   const handleLeave = useCallback(() => {
     navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
@@ -106,12 +122,12 @@ export default function WebinarPage() {
     setIsFinishing(true);
     try {
       const screenshots = await captureWhiteboardScreenshots();
+      if (activeRecordingId) {
+        await stopRecordingWithOptionalPdfUpload(screenshots);
+      }
       if (!screenshots || screenshots.length === 0) {
         setIsExitWithoutRecordingDialogOpen(true);
         return;
-      }
-      if (activeRecordingId) {
-        await stopRecordingWithPdfUpload(screenshots);
       }
       await uploadFinalPdf.mutateAsync({ screenshots });
       await stopWebinar.mutateAsync();
@@ -123,7 +139,7 @@ export default function WebinarPage() {
     }
   }, [
     activeRecordingId,
-    stopRecordingWithPdfUpload,
+    stopRecordingWithOptionalPdfUpload,
     captureWhiteboardScreenshots,
     uploadFinalPdf,
     stopWebinar,

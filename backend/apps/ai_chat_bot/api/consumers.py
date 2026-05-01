@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 class ChatConsumer(AsyncWebsocketConsumer):
   course_slug: str
   session: Session 
+  group_name: str
+  session_chat_history: dict[str, str]
   chat_service: YandexChatAIService
 
   async def connect(self):
@@ -53,6 +55,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.course_slug,
             self.session.session_id,
         )
+
+        self.group_name = f"session_{self.session.session_id}"
+    
+        await self.channel_layer.group_add(
+            self.group_name,
+            self.channel_name
+        )
+    
         await self.accept()
         
         chats = await self.chat_service.get_chats()
@@ -74,7 +84,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
       await self._handle_request(request)
               
   async def disconnect(self, close_code):
-      logger.info(f"Socket closed. Event: {close_code}")
+    if hasattr(self, 'group_name'):
+        await self.channel_layer.group_discard(
+            self.group_name,
+            self.channel_name
+        )
+    logger.info(f"Socket closed. Event: {close_code}")
 
   async def _send_ws_message(self, ws_message: WsMessage):
       await self.send(text_data=json.dumps(ws_message.to_dict()))
@@ -89,22 +104,28 @@ class ChatConsumer(AsyncWebsocketConsumer):
               await self._send_ws_message(ChatDeletedMessage())
           case GetHistoryRequest(chat_id=chat_id):
               history = await self.chat_service.get_chat_history(chat_id)
+              self.session_chat_history[chat_id] = history
               await self._send_ws_message(
                   HistoryReceivedMessage(chat_id=chat_id, history=history)
               )
           case SendMessageRequest(chat_id=chat_id, content=content):
               user_message = str(content.get("text", "")).strip()
+              self.session_chat_history[chat_id].append(user_message)
               chat = await self.chat_service.get_chat_for_current_session(chat_id)
               await self._send_ws_message(StartingAnswerMessage(chat_id=chat_id))
               await self.chat_service.save_message(chat, "user", user_message)
+
+              ai_chat_context = " ".join(self.session_chat_histor[chat_id][:20])
+
               full_ai_response = ""
               try:
-                  stream = self.chat_service.ask_question_stream(user_message)
+                  stream = self.chat_service.ask_question_stream(ai_chat_context)
                   async for chunk in stream:
                       full_ai_response += chunk
                       await self._send_ws_message(
                           StreamingResponseMessage(chat_id=chat_id, chunk=chunk)
                       )
+                  self.session_chat_history[chat_id].append(full_ai_response)
                   await self.chat_service.save_message(chat, "assistant", full_ai_response)
               except Exception as e:
                   await self._send_ws_message(ErrorMessage(message=str(e)))

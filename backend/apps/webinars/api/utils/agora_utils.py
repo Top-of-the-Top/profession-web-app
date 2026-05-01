@@ -122,12 +122,15 @@ def recording_start(channel_name, uid, resource_id, token):
   app_id = os.getenv('AGORA_APP_ID')
 
   storage_config = {
-    'vendor': 1,
-    'region': 3,
+    'vendor': 11,
+    'region': 0,
     'bucket': os.getenv('AWS_S3_BUCKET_NAME'),
     'accessKey': os.getenv('AWS_ACCESS_KEY_ID'),
     'secretKey': os.getenv('AWS_SECRET_ACCESS_KEY'),
     'fileNamePrefix': ['recordings', 'webinars'],
+    'extensionParams': {
+      'endpoint': 'storage.yandexcloud.net',
+    },
   }
 
   response = requests.post(
@@ -185,12 +188,15 @@ def recording_start_web(channel_name, uid, resource_id, recorder_url):
   app_id = os.getenv('AGORA_APP_ID')
 
   storage_config = {
-    'vendor': 1,
-    'region': 3,
+    'vendor': 11,
+    'region': 0,
     'bucket': os.getenv('AWS_S3_BUCKET_NAME'),
     'accessKey': os.getenv('AWS_ACCESS_KEY_ID'),
     'secretKey': os.getenv('AWS_SECRET_ACCESS_KEY'),
     'fileNamePrefix': ['recordings', 'webinars'],
+    'extensionParams': {
+      'endpoint': 'storage.yandexcloud.net',
+    },
   }
 
   response = requests.post(

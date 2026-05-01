@@ -124,6 +124,21 @@ class KinescopeBackend(StorageBackend):
                 'strict': strict,
             },
         )
+        payload = {'title': hint.filename or 'video'}
+        data = self._post(endpoint, json=payload)
+
+        video = data.get('data', {})
+        video_id = video.get('id')
+        upload_link = video.get('upload_link', '')
+
+        if not video_id:
+            raise AssetStorageUnavailable(
+                message='Kinescope не вернул video_id.',
+                details={'response': data},
+            )
+
+        self._pending_upload_links[video_id] = upload_link
+        return video_id
 
     @staticmethod
     def generate_drm_token(user_id, video_id, lifetime_seconds=3600):

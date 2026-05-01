@@ -56,7 +56,7 @@ export default function WebinarRecordPage() {
             roomUUID={session.whiteboard_room_uuid}
             roomToken={session.whiteboard_room_token}
             region={session.whiteboard_region}
-            uid={String(session.uid)}
+            uid={session.user_name?.trim() || String(session.uid)}
             userName={session.user_name}
             isWritable={false}
           />

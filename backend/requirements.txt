@@ -32,3 +32,4 @@ img2pdf>=0.5
 openai
 django-celery-beat
 channels==4.0.0
+channels-redis==4.2.0

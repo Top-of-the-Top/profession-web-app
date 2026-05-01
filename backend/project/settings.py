@@ -275,25 +275,6 @@ else:
 
 RABBITMQ_URL = os.getenv('RABBITMQ_URL', 'amqp://guest:guest@rabbitmq:5672//')
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': True,
-    'formatters': {
-        'simple': {'format': '{message}', 'style': '{'},
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-    },
-    'loggers': {
-        'django.server': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
-        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
-        'daphne': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
-        'twisted': {'handlers': ['console'], 'level': 'CRITICAL', 'propagate': False},
-    },
-}
 
 REDIS_PASS = os.getenv('REDIS_PASS', '')
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # Имя сервиса в docker-compose
@@ -387,3 +368,12 @@ YANDEX_API_KEY = os.getenv('YANDEX_API_KEY', '')
 YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID', '')
 YANDEX_MODEL = os.getenv('YANDEX_MODEL', '')
 YANDEX_ASSISTANT_ID = os.getenv('YANDEX_ASSISTANT_ID', '')
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    },
+}

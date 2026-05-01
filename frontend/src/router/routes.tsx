@@ -4,6 +4,7 @@ import {
   RegistrationPage,
   RecoverPage,
   ResetPage,
+  OAuthYandexCallbackPage,
   AppHomePage,
   CourseStorePage,
   CoursePreviewPage,
@@ -42,6 +43,10 @@ export const routes: AppRoute[] = [
   {
     path: '/recover',
     element: <RecoverPage />,
+  },
+  {
+    path: '/oauth/yandex/callback',
+    element: <OAuthYandexCallbackPage />,
   },
   {
     path: '/webinar-record/:slug/:lessonSlug',

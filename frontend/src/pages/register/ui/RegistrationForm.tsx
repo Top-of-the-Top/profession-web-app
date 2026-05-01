@@ -29,6 +29,7 @@ import {
   registerCredentialsSchema,
   type RegisterCredentialsFormValues,
 } from '@shared/utils/formSchemas';
+import { startYandexOAuth } from '@shared/lib/auth/yandexOAuth';
 
 function notifyRegisterFailure(err: unknown) {
   if (
@@ -219,6 +220,17 @@ export default function RegistrationForm({
     setOtp([...EMPTY_OTP]);
   };
 
+  const handleYandexLogin = () => {
+    try {
+      startYandexOAuth();
+    } catch (err) {
+      notifyError({
+        title: 'не удалось запустить вход через Яндекс',
+        description: err instanceof Error ? err.message : 'Проверьте настройки OAuth.',
+      });
+    }
+  };
+
   return (
     <div className={cn(styles.loginPage, className)} {...props}>
       <div className={styles.loginWrapper}>
@@ -327,6 +339,7 @@ export default function RegistrationForm({
                         variant="outline"
                         type="button"
                         className={cn(styles.socialButton, styles.loginYa)}
+                        onClick={handleYandexLogin}
                       >
                         <span className={styles.socialIcon}>
                           <img src="login/ya.svg" alt="" />

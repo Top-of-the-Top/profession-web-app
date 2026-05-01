@@ -10,6 +10,7 @@ export type RegisterVerifyBody =
   | { phone_number: string; code: string };
 
 export type ResetBody = { email: string } | { phone_number: string };
+export type YandexExchangeBody = { code: string; state: string };
 
 const publicAuth = { skipAuth: true as const };
 
@@ -65,6 +66,14 @@ export const authApi = {
   recoverSet(data: { token: string; password_hash: string }) {
     return apiClient.request('/api/auth/recover/set/', {
       method: 'PATCH',
+      body: JSON.stringify(data),
+      ...publicAuth,
+    });
+  },
+
+  yandexExchange(data: YandexExchangeBody) {
+    return apiClient.request('/api/auth/yandex/exchange/', {
+      method: 'POST',
       body: JSON.stringify(data),
       ...publicAuth,
     });

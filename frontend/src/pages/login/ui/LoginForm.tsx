@@ -23,6 +23,7 @@ import { preloadRegisterRoute, preloadResetRoute } from '@router/lazyPages';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginFormSchema, type LoginFormValues } from '@shared/utils/formSchemas';
+import { startYandexOAuth } from '@shared/lib/auth/yandexOAuth';
 
 function notifyLoginFailure(err: unknown) {
   if (err instanceof Error && err.message === 'Invalid email or phone number') {
@@ -75,6 +76,17 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
       notifyLoginFailure(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleYandexLogin = () => {
+    try {
+      startYandexOAuth();
+    } catch (err) {
+      notifyError({
+        title: 'не удалось запустить вход через Яндекс',
+        description: err instanceof Error ? err.message : 'Проверьте настройки OAuth.',
+      });
     }
   };
 
@@ -149,6 +161,7 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                       variant="outline"
                       type="button"
                       className={cn(styles.socialButton, styles.loginYa)}
+                      onClick={handleYandexLogin}
                     >
                       <span className={styles.socialIcon}>
                         <img src="login/ya.svg" alt="" />

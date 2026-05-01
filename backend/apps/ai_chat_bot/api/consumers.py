@@ -107,7 +107,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
           case GetHistoryRequest(chat_id=chat_id):
               history = await self.chat_service.get_chat_history(chat_id)
               for message in history:
-                self.session_chat_history[chat_id].append(message) 
+                if chat_id not in self.session_chat_history:
+                  self.session_chat_history[chat_id] = deque(maxlen=20)
               await self._send_ws_message(
                   HistoryReceivedMessage(chat_id=chat_id, history=history)
               )

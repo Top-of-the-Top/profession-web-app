@@ -6,6 +6,7 @@ const importMap = {
   register: () => import('@pages/register/ui/RegistrationPage'),
   recover: () => import('@pages/recover/ui/RecoverPage'),
   reset: () => import('@pages/reset/ui/ResetPage'),
+  oauthYandexCallback: () => import('@pages/oauth-yandex-callback/ui/OAuthYandexCallbackPage'),
   notFound: () => import('@pages/notfound/NotFoundPage'),
   notAuthorized: () => import('@pages/notAuthorized/NotAuthorizedPage'),
 
@@ -30,6 +31,7 @@ export const LoginPage = lazy(importMap.login);
 export const RegistrationPage = lazy(importMap.register);
 export const RecoverPage = lazy(importMap.recover);
 export const ResetPage = lazy(importMap.reset);
+export const OAuthYandexCallbackPage = lazy(importMap.oauthYandexCallback);
 export const NotFoundPage = lazy(importMap.notFound);
 export const NotAuthorizedPage = lazy(importMap.notAuthorized);
 

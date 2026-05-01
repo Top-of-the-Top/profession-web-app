@@ -767,22 +767,35 @@ class WebinarFinalPdfView(APIView):
             ended_at=now,
         )
 
-        pdf_path = f'whiteboards/recording_{recording.recording_id}.pdf'
-        saved_path = default_storage.save(pdf_path, ContentFile(pdf_bytes))
-
-        bucket = os.getenv('AWS_S3_BUCKET_NAME')
-        recording.whiteboard_pdf_url = f'https://storage.yandexcloud.net/{bucket}/{saved_path}'
-        recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+        filename = f'whiteboard_{recording.recording_id}.pdf'
+        upload_api = build_upload_api()
+        binding_api = build_binding_api()
+        try:
+            asset = upload_api.upload_server_side(
+                owner=request.user,
+                intent='webinar_whiteboard',
+                filename=filename,
+                mime_type='application/pdf',
+                body=pdf_bytes,
+            )
+            binding_api.sync_single(
+                content_object=recording,
+                role='whiteboard_pdf',
+                asset_id=asset.asset_id,
+                owner=None,
+            )
+        except AssetError as exc:
+            recording.delete()
+            return process_error_response(exc)
 
         logger.info(
-            'Финальный PDF доски сохранен для вебинара %s, recording %s: %s',
-            webinar.webinar_id, recording.recording_id, recording.whiteboard_pdf_url,
+            'Финальный PDF доски сохранен для вебинара %s, recording %s',
+            webinar.webinar_id, recording.recording_id,
         )
 
         return Response({
             'detail': 'Финальный PDF доски сохранен',
             'recording_id': str(recording.recording_id),
-            'whiteboard_pdf_url': recording.whiteboard_pdf_url,
         })
     
 

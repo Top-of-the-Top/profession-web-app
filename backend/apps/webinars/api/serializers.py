@@ -73,17 +73,19 @@ class RecordingListItemSerializer(serializers.ModelSerializer):
         )
 
     def get_kinescope_embed_url(self, obj):
-        if obj.kinescope_upload_status != 'ready' or not obj.kinescope_video_id:
-            return ''
-
         request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
+        viewer = request.user if request and request.user.is_authenticated else None
+
+        try:
+            url = build_access_api().resolve_bound_url(
+                obj,
+                role='webinar_recording',
+                viewer=viewer,
+                ttl_seconds=3600,
+            )
+            return url or ''
+        except Exception:
             return ''
-
-        from .utils.kinescope_utils import generate_drm_token
-
-        drm_token = generate_drm_token(user_id=request.user.pk, video_id=obj.kinescope_video_id)
-        return f'https://kinescope.io/embed/{obj.kinescope_video_id}?drmauthtoken={drm_token}'
 
     def get_whiteboard_pdf_url(self, obj):
         mapping = self.context.get(RECORDING_WHITEBOARD_CONTEXT_KEY)

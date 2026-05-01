@@ -90,6 +90,17 @@ INTENT_POLICIES = {
         'default_visibility': 'course_paid',
         'default_role': 'whiteboard_pdf',
     },
+    'lesson_video': {
+        'backend': 'kinescope',
+        'max_size': 20 * 1024 * MB,
+        'mime_allowlist': (
+            'video/mp4',
+            'video/webm',
+            'video/quicktime',
+        ),
+        'default_visibility': 'course_paid',
+        'default_role': 'lesson_block',
+    },
 }
 
 

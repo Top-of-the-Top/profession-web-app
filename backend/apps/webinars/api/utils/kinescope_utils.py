@@ -3,12 +3,20 @@ import time
 import logging
 import jwt
 import requests
+from urllib.parse import quote
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 KINESCOPE_API_BASE = 'https://api.kinescope.io/v1'
 KINESCOPE_UPLOADER_BASE = 'https://uploader.kinescope.io/v2'
+
+
+def _encode_header_value(value):
+    """Кодирует значение заголовка в URL-encoded UTF-8 (RFC 5987),
+    чтобы не падало на не-ASCII символах (например, кириллица в title).
+    """
+    return quote(str(value), safe='')
 
 
 def _get_auth_header():
@@ -39,7 +47,7 @@ def upload_video_by_url(video_url, title, parent_id=None):
         headers={
             'Authorization': _get_auth_header(),
             'X-Parent-ID': parent_id,
-            'X-Video-Title': title,
+            'X-Video-Title': _encode_header_value(title),
             'X-Video-URL': video_url,
         },
     )

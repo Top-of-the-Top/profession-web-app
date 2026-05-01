@@ -506,6 +506,88 @@ class StopRecordingHelperTest(WebinarEndpointsBase):
         mock_upload.assert_not_called()
 
 
+class ExtractRecordingUrlTest(BaseWebinarTestCase):
+
+    def _extract(self, payload):
+        from ..api.views import _extract_recording_url
+        return _extract_recording_url(payload)
+
+    def test_camel_case_filename_in_extension_service(self):
+        url = self._extract({
+            'serverResponse': {
+                'extensionServiceState': [
+                    {'payload': {'fileList': [{'fileName': 'rec/a.mp4'}]}}
+                ]
+            }
+        })
+        self.assertEqual(url, 'rec/a.mp4')
+
+    def test_lowercase_filename_in_extension_service(self):
+        url = self._extract({
+            'serverResponse': {
+                'extensionServiceState': [
+                    {'payload': {'fileList': [{'filename': 'rec/a.mp4'}]}}
+                ]
+            }
+        })
+        self.assertEqual(url, 'rec/a.mp4')
+
+    def test_prefers_mp4_over_m3u8(self):
+        url = self._extract({
+            'serverResponse': {
+                'extensionServiceState': [
+                    {'payload': {'fileList': [
+                        {'filename': 'rec/a.m3u8'},
+                        {'filename': 'rec/a_0.mp4'},
+                    ]}}
+                ]
+            }
+        })
+        self.assertEqual(url, 'rec/a_0.mp4')
+
+    def test_real_agora_response_with_multiple_services(self):
+        url = self._extract({
+            'serverResponse': {
+                'extensionServiceState': [
+                    {
+                        'payload': {'fileList': [
+                            {'filename': 'b0c07c_webinar.m3u8', 'sliceStartTime': 1},
+                            {'filename': 'b0c07c_webinar_0.mp4', 'sliceStartTime': 1},
+                        ]},
+                        'serviceName': 'web_recorder_service',
+                    },
+                    {
+                        'payload': {'uploadingStatus': 'backuped'},
+                        'serviceName': 'upload_service',
+                    },
+                ]
+            }
+        })
+        self.assertEqual(url, 'b0c07c_webinar_0.mp4')
+
+    def test_top_level_file_list(self):
+        url = self._extract({
+            'serverResponse': {
+                'fileList': [{'filename': 'rec/x.mp4'}]
+            }
+        })
+        self.assertEqual(url, 'rec/x.mp4')
+
+    def test_returns_first_when_no_mp4(self):
+        url = self._extract({
+            'serverResponse': {
+                'extensionServiceState': [
+                    {'payload': {'fileList': [{'filename': 'rec/a.m3u8'}]}}
+                ]
+            }
+        })
+        self.assertEqual(url, 'rec/a.m3u8')
+
+    def test_empty_response_returns_empty(self):
+        self.assertEqual(self._extract({}), '')
+        self.assertEqual(self._extract({'serverResponse': {}}), '')
+
+
 class RecordingPdfViewTest(WebinarEndpointsBase):
 
     def setUp(self):

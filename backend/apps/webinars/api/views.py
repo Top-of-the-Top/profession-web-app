@@ -30,28 +30,48 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def _pick_filename(file_entry):
+    if isinstance(file_entry, dict):
+        return file_entry.get('fileName', '') or file_entry.get('filename', '')
+    if isinstance(file_entry, str):
+        return file_entry
+    return ''
+
+
 def _extract_recording_url(agora_response):
     sr = agora_response.get('serverResponse', {})
 
+    candidates = []
+
     ext_state = sr.get('extensionServiceState', [])
-    if ext_state:
-        files = ext_state[0].get('payload', {}).get('fileList', [])
-        if files:
-            url = files[0].get('fileName', '')
-            if url:
-                return url
+    if isinstance(ext_state, list):
+        for service in ext_state:
+            files = service.get('payload', {}).get('fileList', []) if isinstance(service, dict) else []
+            if isinstance(files, list):
+                for f in files:
+                    name = _pick_filename(f)
+                    if name:
+                        candidates.append(name)
 
     file_list = sr.get('fileList', [])
-    if isinstance(file_list, list) and file_list:
-        first = file_list[0]
-        if isinstance(first, dict):
-            url = first.get('fileName', '') or first.get('filename', '')
-            if url:
-                return url
-        elif isinstance(first, str):
-            return first
+    if isinstance(file_list, list):
+        for f in file_list:
+            name = _pick_filename(f)
+            if name:
+                candidates.append(name)
 
-    return sr.get('fileName', '') or sr.get('filename', '')
+    single = sr.get('fileName', '') or sr.get('filename', '')
+    if single:
+        candidates.append(single)
+
+    if not candidates:
+        return ''
+
+    for name in candidates:
+        if name.lower().endswith('.mp4'):
+            return name
+
+    return candidates[0]
 
 
 def _stop_recording(recording):

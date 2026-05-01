@@ -78,8 +78,19 @@ class KinescopeApiTest(SimpleTestCase):
         _, kwargs = mock_post.call_args
         headers = kwargs['headers']
         self.assertEqual(headers['X-Video-URL'], 'http://video-url')
-        self.assertEqual(headers['X-Video-Title'], 'My Title')
+        self.assertEqual(headers['X-Video-Title'], 'My%20Title')
         self.assertEqual(headers['X-Parent-ID'], 'parent-xyz')
+
+    @patch('apps.webinars.api.utils.kinescope_utils.requests.post')
+    def test_upload_video_by_url_encodes_cyrillic_title(self, mock_post):
+        mock_post.return_value = self._json_resp({'data': {}})
+        upload_video_by_url('http://video-url', 'Вебинар: Урок', parent_id='p')
+
+        _, kwargs = mock_post.call_args
+        headers = kwargs['headers']
+        title = headers['X-Video-Title']
+        self.assertTrue(all(ord(c) < 128 for c in title), f'Title содержит non-ASCII: {title}')
+        self.assertIn('%D0%92', title)
 
     @patch('apps.webinars.api.utils.kinescope_utils.requests.get')
     def test_get_video_status_returns_data(self, mock_get):

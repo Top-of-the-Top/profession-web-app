@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { XIcon } from 'lucide-react';
 import { Button, PageFrame, Spinner } from '@shared/ui';
 import { useWebinarJoin } from '@shared/api/queries/webinar';
 import { useLessonBySlug } from '@shared/api/queries/courses';
 import {
   useStopRecording,
   useUploadRecordingPdf,
+  useUploadFinalPdf,
   useStartRecording,
   useStopWebinar,
 } from '@shared/api/mutations/webinar';
@@ -13,6 +15,7 @@ import {
   VideoGrid,
   WhiteboardPanel,
   WebinarControls,
+  connectWebinarSSE,
   useMediaControls,
   type WhiteboardPanelHandle,
 } from '../../../features/webinar';
@@ -34,12 +37,15 @@ export default function WebinarPage() {
 
   const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [isExitWithoutRecordingDialogOpen, setIsExitWithoutRecordingDialogOpen] =
+    useState(false);
 
   const whiteboardRef = useRef<WhiteboardPanelHandle>(null);
 
   const startRecording = useStartRecording(courseSlug ?? '', lessonSlug ?? '');
   const stopRecording = useStopRecording(courseSlug ?? '', lessonSlug ?? '');
   const uploadRecordingPdf = useUploadRecordingPdf(courseSlug ?? '', lessonSlug ?? '');
+  const uploadFinalPdf = useUploadFinalPdf(courseSlug ?? '', lessonSlug ?? '');
   const stopWebinar = useStopWebinar(courseSlug ?? '', lessonSlug ?? '');
 
   const isTeacher = session?.role === 'teacher';
@@ -66,20 +72,15 @@ export default function WebinarPage() {
     return screenshots;
   }, []);
 
-  const stopRecordingWithPdfUpload = useCallback(async () => {
+  const stopRecordingWithPdfUpload = useCallback(async (screenshots: Blob[]) => {
     const stopResponse = await stopRecording.mutateAsync();
     setActiveRecordingId(null);
-
-    const screenshots = await captureWhiteboardScreenshots();
-    if (!screenshots || screenshots.length === 0) {
-      return;
-    }
 
     await uploadRecordingPdf.mutateAsync({
       recordingId: stopResponse.recording_id,
       screenshots,
     });
-  }, [captureWhiteboardScreenshots, stopRecording, uploadRecordingPdf]);
+  }, [stopRecording, uploadRecordingPdf]);
 
   const handleStartRecording = useCallback(() => {
     startRecording.mutate(undefined, {
@@ -88,8 +89,14 @@ export default function WebinarPage() {
   }, [startRecording]);
 
   const handleStopRecording = useCallback(() => {
-    void stopRecordingWithPdfUpload();
-  }, [stopRecordingWithPdfUpload]);
+    void (async () => {
+      const screenshots = await captureWhiteboardScreenshots();
+      if (!screenshots || screenshots.length === 0) {
+        return;
+      }
+      await stopRecordingWithPdfUpload(screenshots);
+    })();
+  }, [captureWhiteboardScreenshots, stopRecordingWithPdfUpload]);
 
   const handleLeave = useCallback(() => {
     navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
@@ -98,10 +105,38 @@ export default function WebinarPage() {
   const handleStop = useCallback(async () => {
     setIsFinishing(true);
     try {
-      if (activeRecordingId) {
-        await stopRecordingWithPdfUpload();
+      const screenshots = await captureWhiteboardScreenshots();
+      if (!screenshots || screenshots.length === 0) {
+        setIsExitWithoutRecordingDialogOpen(true);
+        return;
       }
+      if (activeRecordingId) {
+        await stopRecordingWithPdfUpload(screenshots);
+      }
+      await uploadFinalPdf.mutateAsync({ screenshots });
       await stopWebinar.mutateAsync();
+      navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
+    } catch {
+      setIsExitWithoutRecordingDialogOpen(true);
+    } finally {
+      setIsFinishing(false);
+    }
+  }, [
+    activeRecordingId,
+    stopRecordingWithPdfUpload,
+    captureWhiteboardScreenshots,
+    uploadFinalPdf,
+    stopWebinar,
+    navigate,
+    courseSlug,
+    lessonSlug,
+  ]);
+
+  const handleStopWithoutRecording = useCallback(async () => {
+    setIsFinishing(true);
+    try {
+      await stopWebinar.mutateAsync();
+      setIsExitWithoutRecordingDialogOpen(false);
       navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
     } catch {
       notifyError({
@@ -111,14 +146,51 @@ export default function WebinarPage() {
     } finally {
       setIsFinishing(false);
     }
-  }, [
-    activeRecordingId,
-    stopRecordingWithPdfUpload,
-    stopWebinar,
-    navigate,
-    courseSlug,
-    lessonSlug,
-  ]);
+  }, [courseSlug, lessonSlug, navigate, stopWebinar]);
+
+  const closeExitDialog = useCallback(() => {
+    if (isFinishing) return;
+    setIsExitWithoutRecordingDialogOpen(false);
+  }, [isFinishing]);
+
+  const webinarIdFromMeta =
+    lessonQuery.data?.meta &&
+    typeof lessonQuery.data.meta === 'object' &&
+    typeof lessonQuery.data.meta.webinar_id === 'string'
+      ? lessonQuery.data.meta.webinar_id
+      : null;
+  const webinarId = session?.webinar_id ?? webinarIdFromMeta;
+
+  useEffect(() => {
+    if (!webinarId) return;
+
+    const disconnect = connectWebinarSSE({
+      webinarId,
+      onEvent: (event) => {
+        if (event.type === 'recording_started') {
+          setActiveRecordingId((prev) =>
+            prev === event.recording_id ? prev : event.recording_id,
+          );
+          return;
+        }
+        if (event.type === 'recording_stopped') {
+          setActiveRecordingId((prev) => (prev === null ? prev : null));
+          return;
+        }
+        if (event.type === 'webinar_ended') {
+          navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
+        }
+      },
+      onError: (message) => {
+        notifyWarning({
+          title: 'онлайн-обновления недоступны',
+          description: message,
+        });
+      },
+    });
+
+    return disconnect;
+  }, [courseSlug, lessonSlug, navigate, webinarId]);
 
   useEffect(() => {
     if (activeRecordingId != null) return;
@@ -129,6 +201,17 @@ export default function WebinarPage() {
       setActiveRecordingId(recording.recording_id);
     }
   }, [activeRecordingId, lessonQuery.data?.recordings]);
+
+  useEffect(() => {
+    if (!isExitWithoutRecordingDialogOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeExitDialog();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [closeExitDialog, isExitWithoutRecordingDialogOpen]);
 
   if (isLoading) {
     return (
@@ -169,6 +252,7 @@ export default function WebinarPage() {
             roomToken={session.whiteboard_room_token}
             region={session.whiteboard_region}
             uid={String(session.uid)}
+            userName={session.user_name}
             isWritable={true}
           />
         </div>
@@ -194,7 +278,9 @@ export default function WebinarPage() {
         stopRecordingPending={
           stopRecording.isPending || uploadRecordingPdf.isPending
         }
-        stopWebinarPending={isFinishing || stopWebinar.isPending}
+        stopWebinarPending={
+          isFinishing || stopWebinar.isPending || uploadFinalPdf.isPending
+        }
         onToggleMic={toggleMic}
         onToggleCamera={toggleCamera}
         onStartRecording={handleStartRecording}
@@ -202,6 +288,48 @@ export default function WebinarPage() {
         onLeave={handleLeave}
         onStopWebinar={() => void handleStop()}
       />
+
+      {isExitWithoutRecordingDialogOpen ? (
+        <>
+          <div
+            className={styles.exitDialogOverlay}
+            onClick={closeExitDialog}
+            aria-hidden
+          />
+          <div
+            className={styles.exitDialogContent}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exit-dialog-title"
+            aria-describedby="exit-dialog-description">
+            {!isFinishing ? (
+              <button
+                type="button"
+                className={styles.exitDialogClose}
+                onClick={closeExitDialog}
+                aria-label="Close">
+                <XIcon />
+              </button>
+            ) : null}
+            <div className={styles.exitDialogHeader}>
+              <h2 id="exit-dialog-title" className={styles.exitDialogTitle}>
+                Не удалось сохранить доску
+              </h2>
+              <p id="exit-dialog-description" className={styles.exitDialogDescription}>
+                Можно завершить урок без сохранения доски или остаться и попробовать снова.
+              </p>
+            </div>
+            <div className={styles.exitDialogFooter}>
+              <Button variant="outline" disabled={isFinishing} onClick={closeExitDialog}>
+                Остаться
+              </Button>
+              <Button disabled={isFinishing} onClick={() => void handleStopWithoutRecording()}>
+                Выйти без сохранения
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : null}
     </PageFrame>
   );
 }

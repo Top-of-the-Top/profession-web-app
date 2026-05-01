@@ -14,6 +14,7 @@ interface WhiteboardPanelProps {
   roomToken: string;
   region: string;
   uid: string;
+  userName?: string;
   isWritable: boolean;
 }
 
@@ -101,9 +102,14 @@ export const WhiteboardPanel = forwardRef<
   WhiteboardPanelHandle,
   WhiteboardPanelProps
 >(function WhiteboardPanel(
-  { appIdentifier, roomUUID, roomToken, region, uid, isWritable },
+  { appIdentifier, roomUUID, roomToken, region, uid, userName, isWritable },
   ref,
 ) {
+  const userPayload =
+    userName && userName.trim().length > 0
+      ? { name: userName, user_name: userName }
+      : undefined;
+
   const fastboard = useFastboard(() => ({
     sdkConfig: {
       appIdentifier,
@@ -113,6 +119,7 @@ export const WhiteboardPanel = forwardRef<
       uid,
       uuid: roomUUID,
       roomToken,
+      userPayload,
       isWritable,
     },
     managerConfig: {
@@ -139,14 +146,18 @@ export const WhiteboardPanel = forwardRef<
           try {
             const blob = await captureScene(room, scenePath);
             if (blob) blobs.push(blob);
-          } catch {}
+          } catch (error) {
+            void error;
+          }
         }
 
         if (blobs.length === 0 && sceneState.scenePath) {
           try {
             const fallbackBlob = await captureScene(room, sceneState.scenePath);
             if (fallbackBlob) blobs.push(fallbackBlob);
-          } catch {}
+          } catch (error) {
+            void error;
+          }
         }
 
         return blobs;

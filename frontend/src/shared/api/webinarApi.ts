@@ -7,11 +7,13 @@ export interface WebinarJoinResponse {
   agora_app_id: string;
   channel_name: string;
   uid: number;
+  user_name: string;
   whiteboard_app_id: string;
   whiteboard_room_uuid: string;
   whiteboard_room_token: string;
   whiteboard_region: string;
   role: WebinarRole;
+  webinar_id?: string;
 }
 
 export interface WebinarStartResponse {
@@ -25,6 +27,10 @@ export interface WebinarDetailResponse {
 
 export interface WebinarRecordingResponse extends WebinarDetailResponse {
   recording_id: string;
+}
+
+export interface WebinarFinalPdfResponse extends WebinarRecordingResponse {
+  whiteboard_pdf_url: string;
 }
 
 function webinarBase(courseSlug: string, lessonSlug: string) {
@@ -84,6 +90,23 @@ export const webinarApi = {
 
     return apiClient.request<WebinarDetailResponse>(
       `${lessonBase(courseSlug, lessonSlug)}/recordings/${recordingId}/pdf/`,
+      { method: 'POST', body: fd },
+    );
+  },
+
+  uploadFinalPdf(
+    courseSlug: string,
+    lessonSlug: string,
+    screenshots: Blob[],
+  ): Promise<WebinarFinalPdfResponse> {
+    const fd = new FormData();
+    screenshots.forEach((blob, index) => {
+      const name = `scene-${index + 1}.png`;
+      fd.append('screenshots', blob, name);
+    });
+
+    return apiClient.request<WebinarFinalPdfResponse>(
+      `${webinarBase(courseSlug, lessonSlug)}/final-pdf/`,
       { method: 'POST', body: fd },
     );
   },

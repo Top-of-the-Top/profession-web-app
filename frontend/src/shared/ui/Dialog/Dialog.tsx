@@ -4,9 +4,10 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 
 export function Dialog({
+  modal = false,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+  return <DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} />;
 }
 
 export function DialogTrigger({

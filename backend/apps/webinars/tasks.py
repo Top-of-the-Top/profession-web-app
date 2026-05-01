@@ -92,7 +92,11 @@ def upload_recording_to_kinescope(self, recording_id):
     recording_url = recording.recording_url
     if not recording_url.startswith('http'):
         bucket = os.getenv('AWS_S3_BUCKET_NAME', 'profession-web-app')
+        if not recording_url.startswith('recordings/'):
+            recording_url = f'recordings/webinars/{recording_url}'
         recording_url = f'{S3_BASE_URL}/{bucket}/{recording_url}'
+
+    logger.info('Recording %s: URL для Kinescope: %s', recording_id, recording_url)
 
     course = recording.webinar.lesson.section.course
     if not course.kinescope_folder_id:

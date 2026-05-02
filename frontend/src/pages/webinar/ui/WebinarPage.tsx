@@ -279,6 +279,14 @@ export default function WebinarPage() {
           setActiveRecordingId((prev) =>
             prev === event.recording_id ? prev : event.recording_id,
           );
+          if (recordingStartedByThisClientRef.current === event.recording_id) {
+            recordingStartedByThisClientRef.current = null;
+          } else {
+            notifyInfo({
+              title: 'Запись началась',
+              description: 'Сейчас ведётся запись урока.',
+            });
+          }
           return;
         }
         if (event.type === 'recording_stopped') {
@@ -392,6 +400,16 @@ export default function WebinarPage() {
 
   return (
     <PageFrame className={styles.shell}>
+      {isRecording ? (
+        <div
+          className={styles.recordingNotice}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true">
+          <span className={styles.recordingNoticeDot} aria-hidden />
+          <span className={styles.recordingNoticeText}>Идёт запись урока</span>
+        </div>
+      ) : null}
       <div className={styles.body}>
         <div className={styles.whiteboardArea}>
           <WhiteboardPanel

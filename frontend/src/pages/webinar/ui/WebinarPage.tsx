@@ -20,7 +20,7 @@ import {
   buildRtcUidLabelMap,
   type WhiteboardPanelHandle,
 } from '../../../features/webinar';
-import { notifyError, notifyWarning } from '@shared/lib/sileo/notify';
+import { notifyError, notifyInfo, notifyWarning } from '@shared/lib/sileo/notify';
 import styles from './WebinarPage.module.css';
 
 export default function WebinarPage() {
@@ -50,6 +50,8 @@ export default function WebinarPage() {
   const [isExitWithoutRecordingDialogOpen, setIsExitWithoutRecordingDialogOpen] =
     useState(false);
   const hasWarnedAboutMissingWebinarIdRef = useRef(false);
+  const recordingStartedByThisClientRef = useRef<string | null>(null);
+  const recordingStoppedByThisClientRef = useRef(false);
 
   const whiteboardRef = useRef<WhiteboardPanelHandle>(null);
 
@@ -86,6 +88,7 @@ export default function WebinarPage() {
 
   const stopRecordingWithOptionalPdfUpload = useCallback(async (screenshots?: Blob[] | null) => {
     const stopResponse = await stopRecording.mutateAsync();
+    recordingStoppedByThisClientRef.current = true;
     setActiveRecordingId(null);
 
     const screenshotsToUpload =
@@ -116,7 +119,10 @@ export default function WebinarPage() {
 
   const handleStartRecording = useCallback(() => {
     startRecording.mutate(undefined, {
-      onSuccess: (response) => setActiveRecordingId(response.recording_id),
+      onSuccess: (response) => {
+        recordingStartedByThisClientRef.current = response.recording_id;
+        setActiveRecordingId(response.recording_id);
+      },
     });
   }, [startRecording]);
 
@@ -214,10 +220,26 @@ export default function WebinarPage() {
           setActiveRecordingId((prev) =>
             prev === event.recording_id ? prev : event.recording_id,
           );
+          if (recordingStartedByThisClientRef.current === event.recording_id) {
+            recordingStartedByThisClientRef.current = null;
+          } else {
+            notifyInfo({
+              title: 'Запись началась',
+              description: 'Сейчас ведётся запись урока.',
+            });
+          }
           return;
         }
         if (event.type === 'recording_stopped') {
           setActiveRecordingId((prev) => (prev === null ? prev : null));
+          if (recordingStoppedByThisClientRef.current) {
+            recordingStoppedByThisClientRef.current = false;
+          } else {
+            notifyInfo({
+              title: 'Запись остановлена',
+              description: 'Запись эфира завершена.',
+            });
+          }
           return;
         }
         if (event.type === 'webinar_ended') {
@@ -286,6 +308,16 @@ export default function WebinarPage() {
 
   return (
     <PageFrame className={styles.shell}>
+      {isRecording ? (
+        <div
+          className={styles.recordingNotice}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true">
+          <span className={styles.recordingNoticeDot} aria-hidden />
+          <span className={styles.recordingNoticeText}>Идёт запись урока</span>
+        </div>
+      ) : null}
       <div className={styles.body}>
         <div className={styles.whiteboardArea}>
           <WhiteboardPanel

@@ -34,7 +34,10 @@ export function useStartRecording(courseSlug: string, lessonSlug: string) {
   return useMutation({
     mutationFn: () => webinarApi.startRecording(courseSlug, lessonSlug),
     onSuccess: () => {
-      notifySuccess({ title: 'Запись началась' });
+      notifySuccess({
+        title: 'Запись началась',
+        description: 'На экране у всех участников отображается индикатор записи.',
+      });
       void queryClient.invalidateQueries({
         queryKey: courseKeys.lesson(courseSlug, lessonSlug),
       });

@@ -1,5 +1,52 @@
 @import url('https://fonts.googleapis.com/css2?family=Golos+Text:wght@400..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Onest:wght@100..900&display=swap');
 
+.recordingNotice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg, 10px);
+  border: 1px solid color-mix(in oklch, var(--destructive, #dc2626) 35%, var(--border));
+  background: color-mix(in oklch, var(--destructive, #dc2626) 12%, var(--card));
+  color: var(--foreground);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.recordingNoticeDot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--destructive, #dc2626);
+  animation: recordingPulse 1.25s ease-in-out infinite;
+}
+
+.recordingNoticeText {
+  letter-spacing: 0.02em;
+}
+
+@keyframes recordingPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recordingNoticeDot {
+    animation: none;
+    opacity: 0.85;
+  }
+}
+
 .shell {
   display: flex;
   flex-direction: column;

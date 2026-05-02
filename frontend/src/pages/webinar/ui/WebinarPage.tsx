@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { XIcon } from 'lucide-react';
 import { Button, PageFrame, Spinner } from '@shared/ui';
@@ -17,6 +17,7 @@ import {
   WebinarControls,
   connectWebinarSSE,
   useMediaControls,
+  buildRtcUidLabelMap,
   type WhiteboardPanelHandle,
 } from '../../../features/webinar';
 import { notifyError, notifyWarning } from '@shared/lib/sileo/notify';
@@ -32,6 +33,15 @@ export default function WebinarPage() {
   const joinQuery = useWebinarJoin(courseSlug, lessonSlug);
   const { data: session, isLoading, isError } = joinQuery;
   const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
+
+  const rtcUidToLabel = useMemo(() => {
+    if (!session) return undefined;
+    return buildRtcUidLabelMap({
+      uid: session.uid,
+      userName: session.user_name,
+      includeRecorderSlot: true,
+    });
+  }, [session]);
 
   const { micOn, cameraOn, toggleMic, toggleCamera } = useMediaControls();
 
@@ -296,6 +306,7 @@ export default function WebinarPage() {
             token={session.rtc_token}
             channel={session.channel_name}
             uid={session.uid}
+            rtcUidToLabel={rtcUidToLabel}
             micOn={micOn}
             cameraOn={cameraOn}
           />

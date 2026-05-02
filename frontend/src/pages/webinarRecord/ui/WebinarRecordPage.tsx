@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Spinner } from '@shared/ui';
 import { useRecorderJoin } from '@shared/api/queries/webinar';
 import type { WebinarJoinResponse } from '@shared/api/webinarApi';
 import { cn } from '@shared/lib/utils';
 import { notifyError, notifySuccess } from '@shared/lib/sileo/notify';
-import { VideoGrid, WhiteboardPanel } from '../../../features/webinar';
+import {
+  VideoGrid,
+  WhiteboardPanel,
+  buildRtcUidLabelMap,
+} from '../../../features/webinar';
 import styles from './WebinarRecordPage.module.css';
 
 function isRecorderSandboxMode(searchParams: URLSearchParams): boolean {
@@ -275,6 +279,14 @@ export default function WebinarRecordPage() {
   const joinQuery = useRecorderJoin(courseSlug, lessonSlug, token);
   const { data: session, isLoading, isError } = joinQuery;
 
+  const rtcUidToLabel = useMemo(() => {
+    if (!session) return undefined;
+    return buildRtcUidLabelMap({
+      uid: session.uid,
+      userName: session.user_name,
+    });
+  }, [session]);
+
   if (!token && !showAuxPanel) {
     const sandboxTo = {
       pathname: location.pathname,
@@ -394,6 +406,7 @@ export default function WebinarRecordPage() {
             token={session.rtc_token}
             channel={session.channel_name}
             uid={session.uid}
+            rtcUidToLabel={rtcUidToLabel}
             subscribeOnly
           />
         </div>

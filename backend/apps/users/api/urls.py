@@ -21,6 +21,6 @@ urlpatterns = [
     path('profile/verify-phone/', VerifyPhoneChangeView.as_view(), name='verify-phone'),
     path('auth/yandex/callback/', YandexCallbackAPIView.as_view(), name='yandex-callback'),
     path('auth/vk/callback/', VKCallbackAPIView.as_view(), name='vk-callback'),
-    path('api/auth/yandex/exchange/', YandexOauth2APIView.as_view(), name='yandex-exchange'),
-    path('api/auth/vk/exchange/', VKOAauth2APIView.as_view(), name='vk-exchange'),
+    path('auth/yandex/exchange/', YandexOauth2APIView.as_view(), name='yandex-exchange'),
+    path('auth/vk/exchange/', VKOAauth2APIView.as_view(), name='vk-exchange'),
 ]

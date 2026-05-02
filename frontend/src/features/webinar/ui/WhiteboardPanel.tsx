@@ -21,6 +21,16 @@ interface WhiteboardPanelProps {
 const CAPTURE_WIDTH = 1280;
 const CAPTURE_HEIGHT = 720;
 
+const WB_CAPTURE_LOG = '[whiteboard capture]';
+
+function logCapture(...args: unknown[]) {
+  console.log(WB_CAPTURE_LOG, ...args);
+}
+
+function warnCapture(...args: unknown[]) {
+  console.warn(WB_CAPTURE_LOG, ...args);
+}
+
 function buildScenePath(contextPath: string, sceneName: string): string {
   if (!contextPath || contextPath === '/') return `/${sceneName}`;
   return contextPath.endsWith('/')
@@ -66,17 +76,25 @@ type RoomLike = {
   ) => Promise<void>;
 };
 
-async function captureScene(room: RoomLike, scenePath: string): Promise<Blob | null> {
+async function captureScene(
+  room: RoomLike,
+  scenePath: string,
+): Promise<Blob | null> {
   const cameraState = room.state.cameraState;
-  const width = cameraState.width && cameraState.width > 0 ? cameraState.width : CAPTURE_WIDTH;
-  const height = cameraState.height && cameraState.height > 0 ? cameraState.height : CAPTURE_HEIGHT;
+  const width =
+    cameraState.width && cameraState.width > 0 ? cameraState.width : CAPTURE_WIDTH;
+  const height =
+    cameraState.height && cameraState.height > 0 ? cameraState.height : CAPTURE_HEIGHT;
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
 
   const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
+  if (!ctx) {
+    warnCapture('captureScene: no canvas 2d context', { scenePath });
+    return null;
+  }
 
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
@@ -131,13 +149,27 @@ export const WhiteboardPanel = forwardRef<
     ref,
     () => ({
       async captureSceneScreenshots(): Promise<Blob[]> {
-        if (!fastboard) return [];
+        logCapture('captureSceneScreenshots: start');
+        if (!fastboard) {
+          warnCapture('captureSceneScreenshots: fastboard is null');
+          return [];
+        }
         const room = fastboard.room as unknown as RoomLike;
         const sceneState = room.state.sceneState;
         const scenes = sceneState.scenes;
         const contextPath = sceneState.contextPath;
 
-        if (!scenes || scenes.length === 0) return [];
+        logCapture('captureSceneScreenshots: sceneState', {
+          contextPath,
+          scenePath: sceneState.scenePath,
+          sceneCount: scenes?.length ?? 0,
+          sceneNames: scenes?.map((s) => s.name) ?? [],
+        });
+
+        if (!scenes || scenes.length === 0) {
+          warnCapture('captureSceneScreenshots: no scenes in state');
+          return [];
+        }
 
         const blobs: Blob[] = [];
 
@@ -145,20 +177,39 @@ export const WhiteboardPanel = forwardRef<
           const scenePath = buildScenePath(contextPath, scene.name);
           try {
             const blob = await captureScene(room, scenePath);
-            if (blob) blobs.push(blob);
+            if (blob) {
+              blobs.push(blob);
+              logCapture('scene ok', { scenePath, blobSize: blob.size });
+            } else {
+              warnCapture('scene returned null blob', { scenePath });
+            }
           } catch (error) {
-            void error;
+            warnCapture('scene failed', { scenePath, error });
           }
         }
 
         if (blobs.length === 0 && sceneState.scenePath) {
+          logCapture('fallback: current scenePath', {
+            scenePath: sceneState.scenePath,
+          });
           try {
             const fallbackBlob = await captureScene(room, sceneState.scenePath);
-            if (fallbackBlob) blobs.push(fallbackBlob);
+            if (fallbackBlob) {
+              blobs.push(fallbackBlob);
+              logCapture('fallback ok', { blobSize: fallbackBlob.size });
+            } else {
+              warnCapture('fallback returned null blob');
+            }
           } catch (error) {
-            void error;
+            warnCapture('fallback failed', { error });
           }
         }
+
+        const totalBytes = blobs.reduce((n, b) => n + b.size, 0);
+        logCapture('captureSceneScreenshots: done', {
+          blobCount: blobs.length,
+          totalBytes,
+        });
 
         return blobs;
       },

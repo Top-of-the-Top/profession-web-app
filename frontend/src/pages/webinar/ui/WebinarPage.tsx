@@ -88,7 +88,9 @@ export default function WebinarPage() {
   }, []);
 
   const captureWhiteboardScreenshots = useCallback(async () => {
+    console.log('[whiteboard capture]', 'WebinarPage: captureWhiteboardScreenshots start');
     if (!whiteboardRef.current) {
+      console.warn('[whiteboard capture]', 'WebinarPage: whiteboardRef is null');
       notifyError({
         title: 'доска не готова',
         description: 'Подождите, пока доска загрузится, и попробуйте снова.',
@@ -97,6 +99,10 @@ export default function WebinarPage() {
     }
 
     const screenshots = await whiteboardRef.current.captureSceneScreenshots();
+    console.log('[whiteboard capture]', 'WebinarPage: captureSceneScreenshots result', {
+      count: screenshots.length,
+      bytes: screenshots.reduce((n, b) => n + b.size, 0),
+    });
     if (screenshots.length === 0) {
       notifyWarning({
         title: 'доска не сохранена',

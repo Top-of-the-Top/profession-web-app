@@ -53,6 +53,7 @@ class WebinarTokenSerializerTest(BaseWebinarTestCase):
 
     def test_all_required_fields_present(self):
         data = {
+            'webinar_id': '00000000-0000-0000-0000-000000000001',
             'rtc_token': 'tok',
             'agora_app_id': 'app',
             'channel_name': 'ch',
@@ -73,6 +74,7 @@ class WebinarTokenSerializerTest(BaseWebinarTestCase):
 
     def test_uid_must_be_integer(self):
         serializer = WebinarTokenSerializer(data={
+            'webinar_id': '00000000-0000-0000-0000-000000000001',
             'rtc_token': 'tok',
             'agora_app_id': 'app',
             'channel_name': 'ch',

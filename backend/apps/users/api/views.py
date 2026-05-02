@@ -757,7 +757,7 @@ class YandexCallbackAPIView(APIView):
         else:
             params['error'] = 'invalid_callback_payload'
 
-        target_url = f"{settings.FRONTEND_OAUTH_REDIRECT_URI}?{urlencode(params)}"
+        target_url = f"{settings.FRONTEND_OAUTH_YANDEX_REDIRECT_URI}?{urlencode(params)}"
         return redirect(target_url)
 
 

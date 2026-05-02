@@ -48,12 +48,15 @@ export default function WebinarPage() {
   const { micOn, cameraOn, toggleMic, toggleCamera } = useMediaControls();
 
   const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null);
+  const [recorderBotInChannel, setRecorderBotInChannel] = useState(false);
+  const [awaitingRecorderBot, setAwaitingRecorderBot] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isExitWithoutRecordingDialogOpen, setIsExitWithoutRecordingDialogOpen] =
     useState(false);
   const hasWarnedAboutMissingWebinarIdRef = useRef(false);
   const recordingStartedByThisClientRef = useRef<string | null>(null);
   const didSyncRecordingFromLessonRef = useRef(false);
+  const recorderBotInChannelRef = useRef(false);
 
   const whiteboardRef = useRef<WhiteboardPanelHandle>(null);
 
@@ -65,10 +68,29 @@ export default function WebinarPage() {
 
   const canManageWebinar =
     session?.role === 'teacher' || session?.role === 'moderator';
-  const isRecording = !!activeRecordingId;
+  const teacherRecordingLive = !!activeRecordingId && recorderBotInChannel;
+  const studentRecordingVisible = !!activeRecordingId || recorderBotInChannel;
+  const recordingSessionActive =
+    !!activeRecordingId || recorderBotInChannel || awaitingRecorderBot;
+
+  useEffect(() => {
+    recorderBotInChannelRef.current = recorderBotInChannel;
+  }, [recorderBotInChannel]);
+
+  useEffect(() => {
+    if (recorderBotInChannel && awaitingRecorderBot) {
+      setAwaitingRecorderBot(false);
+    }
+  }, [recorderBotInChannel, awaitingRecorderBot]);
+
+  const handleRecorderChannelPresence = useCallback((present: boolean) => {
+    setRecorderBotInChannel(present);
+  }, []);
 
   const captureWhiteboardScreenshots = useCallback(async () => {
+    console.log('[whiteboard capture]', 'WebinarPage: captureWhiteboardScreenshots start');
     if (!whiteboardRef.current) {
+      console.warn('[whiteboard capture]', 'WebinarPage: whiteboardRef is null');
       notifyError({
         title: 'доска не готова',
         description: 'Подождите, пока доска загрузится, и попробуйте снова.',
@@ -77,6 +99,10 @@ export default function WebinarPage() {
     }
 
     const screenshots = await whiteboardRef.current.captureSceneScreenshots();
+    console.log('[whiteboard capture]', 'WebinarPage: captureSceneScreenshots result', {
+      count: screenshots.length,
+      bytes: screenshots.reduce((n, b) => n + b.size, 0),
+    });
     if (screenshots.length === 0) {
       notifyWarning({
         title: 'доска не сохранена',
@@ -90,6 +116,7 @@ export default function WebinarPage() {
 
   const stopRecordingWithOptionalPdfUpload = useCallback(async (screenshots?: Blob[] | null) => {
     const stopResponse = await stopRecording.mutateAsync();
+    setAwaitingRecorderBot(false);
     setActiveRecordingId(null);
 
     const screenshotsToUpload =
@@ -123,7 +150,11 @@ export default function WebinarPage() {
       onSuccess: (response) => {
         recordingStartedByThisClientRef.current = response.recording_id;
         setActiveRecordingId(response.recording_id);
+        if (!recorderBotInChannelRef.current) {
+          setAwaitingRecorderBot(true);
+        }
       },
+      onError: () => setAwaitingRecorderBot(false),
     });
   }, [startRecording]);
 
@@ -141,7 +172,7 @@ export default function WebinarPage() {
     setIsFinishing(true);
     try {
       const screenshots = await captureWhiteboardScreenshots();
-      if (activeRecordingId) {
+      if (recordingSessionActive) {
         await stopRecordingWithOptionalPdfUpload(screenshots);
       }
       if (!screenshots || screenshots.length === 0) {
@@ -157,7 +188,7 @@ export default function WebinarPage() {
       setIsFinishing(false);
     }
   }, [
-    activeRecordingId,
+    recordingSessionActive,
     stopRecordingWithOptionalPdfUpload,
     captureWhiteboardScreenshots,
     uploadFinalPdf,
@@ -232,6 +263,7 @@ export default function WebinarPage() {
           return;
         }
         if (event.type === 'recording_stopped') {
+          setAwaitingRecorderBot(false);
           setActiveRecordingId((prev) => (prev === null ? prev : null));
           if (courseSlug && lessonSlug) {
             void queryClient.invalidateQueries({
@@ -268,6 +300,9 @@ export default function WebinarPage() {
     );
     if (recording?.recording_id) {
       setActiveRecordingId(recording.recording_id);
+      if (!recorderBotInChannelRef.current) {
+        setAwaitingRecorderBot(true);
+      }
     }
   }, [lessonQuery.isSuccess, lessonQuery.data]);
 
@@ -333,6 +368,7 @@ export default function WebinarPage() {
             channel={session.channel_name}
             uid={session.uid}
             rtcUidToLabel={rtcUidToLabel}
+            onRecorderChannelPresence={handleRecorderChannelPresence}
             micOn={micOn}
             cameraOn={cameraOn}
           />
@@ -343,8 +379,9 @@ export default function WebinarPage() {
         micOn={micOn}
         cameraOn={cameraOn}
         canManageWebinar={canManageWebinar}
-        isRecording={isRecording}
-        recordingPending={startRecording.isPending}
+        teacherRecordingLive={teacherRecordingLive}
+        studentRecordingVisible={studentRecordingVisible}
+        recordingPending={startRecording.isPending || awaitingRecorderBot}
         stopRecordingPending={
           stopRecording.isPending || uploadRecordingPdf.isPending
         }

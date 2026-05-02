@@ -13,6 +13,21 @@
   min-height: 0;
 }
 
+.bodyRecorderNoRemoteVideo .whiteboardArea {
+  flex: 1;
+}
+
+.bodyRecorderNoRemoteVideo .videoSidebar {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  border: none;
+  pointer-events: none;
+}
+
 .whiteboardArea {
   flex: 3;
   min-width: 0;

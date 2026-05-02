@@ -24,7 +24,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #000;
+  /* background: #000; */
 }
 
 .stateCenter {
@@ -52,4 +52,172 @@
 .errorText {
   font-size: 1rem;
   color: var(--muted-foreground);
+}
+
+.errorActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.errorFootnote {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  margin: 16px 0 0;
+  line-height: 1.45;
+}
+
+.shellDebugPad {
+  padding-bottom: min(200px, 28vh);
+}
+
+.debugBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  background: color-mix(in oklch, var(--background, #0a0a0a) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
+  color: var(--foreground);
+  box-shadow: 0 -8px 32px color-mix(in oklch, #000 45%, transparent);
+}
+
+.debugBar[data-expanded='false'] {
+  padding-bottom: 4px;
+}
+
+.debugBarTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3, 12px);
+  padding: 10px 16px 6px;
+}
+
+.debugBarTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.debugBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--destructive, #f87171);
+}
+
+.debugHint {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.debugCode {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--muted) 35%, transparent);
+}
+
+.debugToggle {
+  flex-shrink: 0;
+}
+
+.debugBody {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px 24px;
+  padding: 0 16px 14px;
+}
+
+.debugCol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.debugSectionLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.debugMuted {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.debugActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.debugDl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+}
+
+.debugDl dt {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+
+.debugDl dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+.debugMono {
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+}
+
+.debugPlaceholder {
+  flex: 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+  background: color-mix(in oklch, var(--card) 88%, #fff);
+  color: var(--foreground);
+}
+
+.debugPlaceholderTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.debugPlaceholderText {
+  font-size: 0.95rem;
+  color: var(--muted-foreground);
+  margin: 0;
+  max-width: 420px;
+  line-height: 1.5;
+}
+
+.inlineCode {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--muted) 35%, transparent);
 }

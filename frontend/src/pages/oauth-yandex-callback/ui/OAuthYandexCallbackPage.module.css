@@ -1,0 +1,32 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f7f9fc;
+  padding: 24px;
+}
+
+.card {
+  width: min(480px, 100%);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.description {
+  margin: 12px 0 0;
+  color: #475569;
+  font-size: 15px;
+}

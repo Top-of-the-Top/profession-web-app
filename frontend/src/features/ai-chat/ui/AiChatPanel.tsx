@@ -379,7 +379,7 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
                   <Menu size={16} />
                 </Button>
                 <h3 className={styles.title}>
-                  <BotMessageSquare size={16} /> <span>ИИ-помощник</span>
+                  <BotMessageSquare size={20} style={{ transform: 'translateY(1px)' }}/> <span>ИИ-помощник</span>
                 </h3>
               </div>
 

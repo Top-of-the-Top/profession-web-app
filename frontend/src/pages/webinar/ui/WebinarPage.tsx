@@ -400,16 +400,6 @@ export default function WebinarPage() {
 
   return (
     <PageFrame className={styles.shell}>
-      {isRecording ? (
-        <div
-          className={styles.recordingNotice}
-          role="status"
-          aria-live="polite"
-          aria-atomic="true">
-          <span className={styles.recordingNoticeDot} aria-hidden />
-          <span className={styles.recordingNoticeText}>Идёт запись урока</span>
-        </div>
-      ) : null}
       <div className={styles.body}>
         <div className={styles.whiteboardArea}>
           <WhiteboardPanel

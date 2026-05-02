@@ -175,7 +175,7 @@ def check_kinescope_processing(self, recording_id):
 
     video_status = video_data.get('status', '')
 
-    if video_status == Recording.READY_STATUS:
+    if video_status == 'done':
         recording.kinescope_upload_status = Recording.READY_STATUS
         recording.status = Recording.READY_STATUS
         recording.save(update_fields=['kinescope_upload_status', 'status', 'updated_at'])

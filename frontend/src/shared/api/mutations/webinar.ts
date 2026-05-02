@@ -34,7 +34,10 @@ export function useStartRecording(courseSlug: string, lessonSlug: string) {
   return useMutation({
     mutationFn: () => webinarApi.startRecording(courseSlug, lessonSlug),
     onSuccess: () => {
-      notifySuccess({ title: 'Запись началась' });
+      notifySuccess({
+        title: 'Запись началась',
+        description: 'Остальные участники получат уведомление по каналу событий.',
+      });
       void queryClient.invalidateQueries({
         queryKey: courseKeys.lesson(courseSlug, lessonSlug),
       });
@@ -51,7 +54,6 @@ export function useStopRecording(courseSlug: string, lessonSlug: string) {
       void queryClient.invalidateQueries({
         queryKey: courseKeys.lesson(courseSlug, lessonSlug),
       });
-      notifySuccess({ title: 'Запись остановлена' });
     },
     onError: (err) => handleWebinarError(err, 'webinarRecordingStop'),
   });

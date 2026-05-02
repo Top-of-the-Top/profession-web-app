@@ -82,6 +82,13 @@ export function WebinarControls({
         </>
       )}
 
+      {!canManageWebinar && isRecording ? (
+        <span className={styles.recordingBadge}>
+          <span className={styles.recordingDot} />
+          Запись идёт
+        </span>
+      ) : null}
+
       <div className={styles.spacer} />
 
       <button

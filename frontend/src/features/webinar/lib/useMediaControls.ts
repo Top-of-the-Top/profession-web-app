@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-export function useMediaControls(initialMic = true, initialCamera = true) {
+export function useMediaControls(initialMic = false, initialCamera = false) {
   const [micOn, setMicOn] = useState(initialMic);
   const [cameraOn, setCameraOn] = useState(initialCamera);
 

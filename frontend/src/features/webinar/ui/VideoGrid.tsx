@@ -11,6 +11,7 @@ import AgoraRTC, {
 } from 'agora-rtc-react';
 import { cn } from '@shared/lib/utils';
 import { MicOff, VideoOff } from 'lucide-react';
+import { rtcTileLabel } from '../lib/rtcUidLabels';
 import styles from './VideoGrid.module.css';
 
 interface VideoGridBaseProps {
@@ -18,6 +19,7 @@ interface VideoGridBaseProps {
   token: string;
   channel: string;
   uid: number;
+  rtcUidToLabel?: Record<number, string>;
 }
 
 interface VideoGridPublisherProps extends VideoGridBaseProps {
@@ -44,6 +46,7 @@ function PublisherInner({
   token,
   channel,
   uid,
+  rtcUidToLabel,
   micOn,
   cameraOn,
 }: PublisherInnerProps) {
@@ -55,6 +58,7 @@ function PublisherInner({
   usePublish([localMicrophoneTrack, localCameraTrack]);
 
   const remoteUsers = useRemoteUsers();
+  const selfLabel = rtcTileLabel(uid, rtcUidToLabel, 'Вы');
 
   return (
     <div className={styles.grid}>
@@ -74,7 +78,7 @@ function PublisherInner({
                 className={cn(styles.cameraOffIcon, styles.icon)}
               />
               {micOn ? (
-                <span className={styles.label}>Вы</span>
+                <span className={styles.label}>{selfLabel}</span>
               ) : (
                 <span className={styles.label}>
                   <MicOff className={cn(styles.micOffIcon, styles.icon)} />
@@ -85,7 +89,7 @@ function PublisherInner({
         </LocalUser>
 
         {micOn ? (
-          <span className={styles.label}>Вы</span>
+          <span className={styles.label}>{selfLabel}</span>
         ) : (
           <span className={styles.label}>
             <MicOff className={cn(styles.micOffIcon, styles.icon)} />
@@ -96,7 +100,9 @@ function PublisherInner({
       {remoteUsers.map((user) => (
         <div key={user.uid} className={styles.tile}>
           <RemoteUser user={user} style={{ width: '100%', height: '100%' }} />
-          <span className={styles.label}>{user.uid}</span>
+          <span className={styles.label}>
+            {rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
+          </span>
         </div>
       ))}
     </div>
@@ -108,6 +114,7 @@ function SubscribeOnlyInner({
   token,
   channel,
   uid,
+  rtcUidToLabel,
 }: VideoGridBaseProps) {
   useJoin({ appid: appId, channel, token, uid }, true);
 
@@ -118,7 +125,9 @@ function SubscribeOnlyInner({
       {remoteUsers.map((user) => (
         <div key={user.uid} className={styles.tile}>
           <RemoteUser user={user} style={{ width: '100%', height: '100%' }} />
-          <span className={styles.label}>{user.uid}</span>
+          <span className={styles.label}>
+            {rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
+          </span>
         </div>
       ))}
     </div>
@@ -139,6 +148,7 @@ export function VideoGrid(props: VideoGridProps) {
           token={props.token}
           channel={props.channel}
           uid={props.uid}
+          rtcUidToLabel={props.rtcUidToLabel}
         />
       ) : (
         <PublisherInner
@@ -146,6 +156,7 @@ export function VideoGrid(props: VideoGridProps) {
           token={props.token}
           channel={props.channel}
           uid={props.uid}
+          rtcUidToLabel={props.rtcUidToLabel}
           micOn={props.micOn}
           cameraOn={props.cameraOn}
         />

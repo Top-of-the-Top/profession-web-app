@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { XIcon } from 'lucide-react';
 import { Button, PageFrame, Spinner } from '@shared/ui';
 import { useWebinarJoin } from '@shared/api/queries/webinar';
-import { useLessonBySlug } from '@shared/api/queries/courses';
+import { courseKeys, useLessonBySlug } from '@shared/api/queries/courses';
 import {
   useStopRecording,
   useUploadRecordingPdf,
@@ -17,9 +18,10 @@ import {
   WebinarControls,
   connectWebinarSSE,
   useMediaControls,
+  buildRtcUidLabelMap,
   type WhiteboardPanelHandle,
 } from '../../../features/webinar';
-import { notifyError, notifyWarning } from '@shared/lib/sileo/notify';
+import { notifyError, notifyInfo, notifyWarning } from '@shared/lib/sileo/notify';
 import styles from './WebinarPage.module.css';
 
 export default function WebinarPage() {
@@ -28,10 +30,20 @@ export default function WebinarPage() {
     lessonSlug: string;
   }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const joinQuery = useWebinarJoin(courseSlug, lessonSlug);
   const { data: session, isLoading, isError } = joinQuery;
   const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
+
+  const rtcUidToLabel = useMemo(() => {
+    if (!session) return undefined;
+    return buildRtcUidLabelMap({
+      uid: session.uid,
+      userName: session.user_name,
+      includeRecorderSlot: true,
+    });
+  }, [session]);
 
   const { micOn, cameraOn, toggleMic, toggleCamera } = useMediaControls();
 
@@ -40,6 +52,8 @@ export default function WebinarPage() {
   const [isExitWithoutRecordingDialogOpen, setIsExitWithoutRecordingDialogOpen] =
     useState(false);
   const hasWarnedAboutMissingWebinarIdRef = useRef(false);
+  const recordingStartedByThisClientRef = useRef<string | null>(null);
+  const didSyncRecordingFromLessonRef = useRef(false);
 
   const whiteboardRef = useRef<WhiteboardPanelHandle>(null);
 
@@ -106,7 +120,10 @@ export default function WebinarPage() {
 
   const handleStartRecording = useCallback(() => {
     startRecording.mutate(undefined, {
-      onSuccess: (response) => setActiveRecordingId(response.recording_id),
+      onSuccess: (response) => {
+        recordingStartedByThisClientRef.current = response.recording_id;
+        setActiveRecordingId(response.recording_id);
+      },
     });
   }, [startRecording]);
 
@@ -204,10 +221,27 @@ export default function WebinarPage() {
           setActiveRecordingId((prev) =>
             prev === event.recording_id ? prev : event.recording_id,
           );
+          if (recordingStartedByThisClientRef.current === event.recording_id) {
+            recordingStartedByThisClientRef.current = null;
+          } else {
+            notifyInfo({
+              title: 'Запись началась',
+              description: 'Сейчас ведётся запись урока.',
+            });
+          }
           return;
         }
         if (event.type === 'recording_stopped') {
           setActiveRecordingId((prev) => (prev === null ? prev : null));
+          if (courseSlug && lessonSlug) {
+            void queryClient.invalidateQueries({
+              queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+            });
+          }
+          notifyInfo({
+            title: 'Запись остановлена',
+            description: 'Запись эфира завершена.',
+          });
           return;
         }
         if (event.type === 'webinar_ended') {
@@ -223,17 +257,19 @@ export default function WebinarPage() {
     });
 
     return disconnect;
-  }, [courseSlug, lessonSlug, navigate, webinarId]);
+  }, [courseSlug, lessonSlug, navigate, queryClient, webinarId]);
 
   useEffect(() => {
-    if (activeRecordingId != null) return;
-    const recording = lessonQuery.data?.recordings.find(
+    if (didSyncRecordingFromLessonRef.current) return;
+    if (!lessonQuery.isSuccess || !lessonQuery.data) return;
+    didSyncRecordingFromLessonRef.current = true;
+    const recording = lessonQuery.data.recordings.find(
       (item) => item.status === 'recording' && item.recording_id,
     );
     if (recording?.recording_id) {
       setActiveRecordingId(recording.recording_id);
     }
-  }, [activeRecordingId, lessonQuery.data?.recordings]);
+  }, [lessonQuery.isSuccess, lessonQuery.data]);
 
   useEffect(() => {
     if (!isExitWithoutRecordingDialogOpen) return;
@@ -296,6 +332,7 @@ export default function WebinarPage() {
             token={session.rtc_token}
             channel={session.channel_name}
             uid={session.uid}
+            rtcUidToLabel={rtcUidToLabel}
             micOn={micOn}
             cameraOn={cameraOn}
           />

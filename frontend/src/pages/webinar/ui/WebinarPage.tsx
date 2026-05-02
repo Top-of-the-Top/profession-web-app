@@ -51,7 +51,6 @@ export default function WebinarPage() {
     useState(false);
   const hasWarnedAboutMissingWebinarIdRef = useRef(false);
   const recordingStartedByThisClientRef = useRef<string | null>(null);
-  const recordingStoppedByThisClientRef = useRef(false);
 
   const whiteboardRef = useRef<WhiteboardPanelHandle>(null);
 
@@ -88,7 +87,6 @@ export default function WebinarPage() {
 
   const stopRecordingWithOptionalPdfUpload = useCallback(async (screenshots?: Blob[] | null) => {
     const stopResponse = await stopRecording.mutateAsync();
-    recordingStoppedByThisClientRef.current = true;
     setActiveRecordingId(null);
 
     const screenshotsToUpload =
@@ -232,14 +230,10 @@ export default function WebinarPage() {
         }
         if (event.type === 'recording_stopped') {
           setActiveRecordingId((prev) => (prev === null ? prev : null));
-          if (recordingStoppedByThisClientRef.current) {
-            recordingStoppedByThisClientRef.current = false;
-          } else {
-            notifyInfo({
-              title: 'Запись остановлена',
-              description: 'Запись эфира завершена.',
-            });
-          }
+          notifyInfo({
+            title: 'Запись остановлена',
+            description: 'Запись эфира завершена.',
+          });
           return;
         }
         if (event.type === 'webinar_ended') {
@@ -308,16 +302,6 @@ export default function WebinarPage() {
 
   return (
     <PageFrame className={styles.shell}>
-      {isRecording ? (
-        <div
-          className={styles.recordingNotice}
-          role="status"
-          aria-live="polite"
-          aria-atomic="true">
-          <span className={styles.recordingNoticeDot} aria-hidden />
-          <span className={styles.recordingNoticeText}>Идёт запись урока</span>
-        </div>
-      ) : null}
       <div className={styles.body}>
         <div className={styles.whiteboardArea}>
           <WhiteboardPanel

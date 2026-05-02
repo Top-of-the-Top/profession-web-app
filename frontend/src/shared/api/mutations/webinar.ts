@@ -36,7 +36,7 @@ export function useStartRecording(courseSlug: string, lessonSlug: string) {
     onSuccess: () => {
       notifySuccess({
         title: 'Запись началась',
-        description: 'На экране у всех участников отображается индикатор записи.',
+        description: 'Остальные участники получат уведомление по каналу событий.',
       });
       void queryClient.invalidateQueries({
         queryKey: courseKeys.lesson(courseSlug, lessonSlug),
@@ -54,7 +54,6 @@ export function useStopRecording(courseSlug: string, lessonSlug: string) {
       void queryClient.invalidateQueries({
         queryKey: courseKeys.lesson(courseSlug, lessonSlug),
       });
-      notifySuccess({ title: 'Запись остановлена' });
     },
     onError: (err) => handleWebinarError(err, 'webinarRecordingStop'),
   });

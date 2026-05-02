@@ -400,6 +400,13 @@ class CourseHomePageView(APIView):
         vis = course_content_visibility(user, course)
 
         if not vis.has_course_home_access():
+            logger.warning(
+                'course_home_access denied: user=%s role=%s course=%s '
+                'is_enrolled=%s purchased_ids=%s',
+                user.id, user.role, course_slug,
+                user.is_enrolled(course),
+                user.get_purchased_courses_ids(),
+            )
             return Response(
                 {'detail': 'Вы не записаны на этот курс'},
                 status=status.HTTP_403_FORBIDDEN

@@ -513,8 +513,7 @@ const LessonRecordingCard: React.FC<{
         </div>
       ) : (
         <div className={styles.recordingStatus}>
-          <Spinner />
-          <span>Запись обрабатывается…</span>
+          <span>Запись скоро появится</span>
         </div>
       )}
 

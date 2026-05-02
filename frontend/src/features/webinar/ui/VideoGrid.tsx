@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import AgoraRTC, {
   AgoraRTCProvider,
   LocalUser,
@@ -10,6 +10,7 @@ import AgoraRTC, {
   useRemoteUsers,
 } from 'agora-rtc-react';
 import { Mic, MicOff, VideoOff } from 'lucide-react';
+import { cn } from '@shared/lib/utils';
 import { WEBINAR_RECORDER_RTC_UID, rtcTileLabel } from '../lib/rtcUidLabels';
 import styles from './VideoGrid.module.css';
 
@@ -58,23 +59,18 @@ function RemoteNoVideoCover() {
   );
 }
 
-function ObserverRemoteAudioStrip({
-  user,
+function ParticipantStripChrome({
   name,
+  micMuted,
+  audioMount,
 }: {
-  user: AgoraRemoteUser;
   name: string;
+  micMuted: boolean;
+  audioMount: ReactNode;
 }) {
-  const micMuted = user.hasAudio === false;
   return (
     <div className={styles.observerStrip}>
-      <div className={styles.observerStripAudioMount}>
-        <RemoteUser
-          user={user}
-          playVideo={false}
-          style={{ width: '100%', height: '100%' }}
-        />
-      </div>
+      {audioMount}
       <div className={styles.observerStripIcons} aria-hidden>
         <VideoOff size={18} className={styles.observerStripIcon} strokeWidth={2} />
         {micMuted ? (
@@ -85,6 +81,64 @@ function ObserverRemoteAudioStrip({
       </div>
       <span className={styles.observerStripName}>{name}</span>
     </div>
+  );
+}
+
+function LocalParticipantStrip({
+  name,
+  micOn,
+  cameraOn,
+  localMicrophoneTrack,
+  localCameraTrack,
+}: {
+  name: string;
+  micOn: boolean;
+  cameraOn: boolean;
+  localMicrophoneTrack: ReturnType<typeof useLocalMicrophoneTrack>['localMicrophoneTrack'];
+  localCameraTrack: ReturnType<typeof useLocalCameraTrack>['localCameraTrack'];
+}) {
+  return (
+    <ParticipantStripChrome
+      name={name}
+      micMuted={!micOn}
+      audioMount={
+        <div className={styles.observerStripAudioMount}>
+          <LocalUser
+            audioTrack={localMicrophoneTrack}
+            videoTrack={localCameraTrack}
+            cameraOn={cameraOn}
+            micOn={micOn}
+            playAudio={false}
+            style={{ width: '100%', height: '100%' }}
+          />
+        </div>
+      }
+    />
+  );
+}
+
+function ObserverRemoteAudioStrip({
+  user,
+  name,
+}: {
+  user: AgoraRemoteUser;
+  name: string;
+}) {
+  const micMuted = user.hasAudio === false;
+  return (
+    <ParticipantStripChrome
+      name={name}
+      micMuted={micMuted}
+      audioMount={
+        <div className={styles.observerStripAudioMount}>
+          <RemoteUser
+            user={user}
+            playVideo={false}
+            style={{ width: '100%', height: '100%' }}
+          />
+        </div>
+      }
+    />
   );
 }
 
@@ -135,38 +189,82 @@ function PublisherInner({
       ),
     [remoteUsers],
   );
+  const remotesWithVideo = useMemo(
+    () => visibleRemoteUsers.filter((u) => u.hasVideo),
+    [visibleRemoteUsers],
+  );
+  const remotesWithoutVideo = useMemo(
+    () => visibleRemoteUsers.filter((u) => !u.hasVideo),
+    [visibleRemoteUsers],
+  );
+  const videoTileCount = (cameraOn ? 1 : 0) + remotesWithVideo.length;
+  const videoGridDense = videoTileCount > 3;
   const selfLabel = rtcTileLabel(uid, rtcUidToLabel, 'Вы');
 
   return (
     <div className={styles.grid}>
-      <div className={styles.tile}>
-        <LocalUser
-          audioTrack={localMicrophoneTrack}
-          videoTrack={localCameraTrack}
-          cameraOn={cameraOn}
-          micOn={micOn}
-          playAudio={false}
-          style={{ width: '100%', height: '100%' }}
-        >
-          {!cameraOn ? <RemoteNoVideoCover /> : null}
-        </LocalUser>
+      <div
+        className={
+          videoGridDense ? styles.videoTilesGrid : styles.videoTilesStack
+        }
+      >
+        {cameraOn ? (
+          <div
+            className={cn(
+              styles.tile,
+              videoGridDense && styles.tileCompact,
+            )}
+          >
+            <LocalUser
+              audioTrack={localMicrophoneTrack}
+              videoTrack={localCameraTrack}
+              cameraOn={cameraOn}
+              micOn={micOn}
+              playAudio={false}
+              style={{ width: '100%', height: '100%' }}
+            />
+            <TileNameplate name={selfLabel} micMuted={!micOn} />
+          </div>
+        ) : null}
 
-        <TileNameplate name={selfLabel} micMuted={!micOn} />
+        {remotesWithVideo.map((user) => (
+          <div
+            key={user.uid}
+            className={cn(
+              styles.tile,
+              videoGridDense && styles.tileCompact,
+            )}
+          >
+            <RemoteUser
+              user={user}
+              playVideo
+              cover={() => <RemoteNoVideoCover />}
+              style={{ width: '100%', height: '100%' }}
+            />
+            <TileNameplate
+              name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
+              micMuted={user.hasAudio === false}
+            />
+          </div>
+        ))}
       </div>
 
-      {visibleRemoteUsers.map((user) => (
-        <div key={user.uid} className={styles.tile}>
-          <RemoteUser
-            user={user}
-            playVideo={user.hasVideo}
-            cover={() => <RemoteNoVideoCover />}
-            style={{ width: '100%', height: '100%' }}
-          />
-          <TileNameplate
-            name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
-            micMuted={user.hasAudio === false}
-          />
-        </div>
+      {!cameraOn ? (
+        <LocalParticipantStrip
+          name={selfLabel}
+          micOn={micOn}
+          cameraOn={cameraOn}
+          localMicrophoneTrack={localMicrophoneTrack}
+          localCameraTrack={localCameraTrack}
+        />
+      ) : null}
+
+      {remotesWithoutVideo.map((user) => (
+        <ObserverRemoteAudioStrip
+          key={user.uid}
+          user={user}
+          name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
+        />
       ))}
     </div>
   );
@@ -200,6 +298,16 @@ function SubscribeOnlyInner({
     [visibleRemoteUsers],
   );
 
+  const remotesWithVideoOnly = useMemo(
+    () => visibleRemoteUsers.filter((u) => u.hasVideo),
+    [visibleRemoteUsers],
+  );
+  const remotesWithoutVideoOnly = useMemo(
+    () => visibleRemoteUsers.filter((u) => !u.hasVideo),
+    [visibleRemoteUsers],
+  );
+  const observerVideoGridDense = remotesWithVideoOnly.length > 3;
+
   useEffect(() => {
     onSubscribeOnlyAnyRemoteVideo?.(anyRemoteHasVideo);
   }, [anyRemoteHasVideo, onSubscribeOnlyAnyRemoteVideo]);
@@ -222,11 +330,27 @@ function SubscribeOnlyInner({
 
   return (
     <div className={styles.gridObserver}>
-      {visibleRemoteUsers.map((user) => {
-        const name = rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid));
-        if (user.hasVideo) {
+      <div
+        className={
+          observerVideoGridDense
+            ? styles.videoTilesGrid
+            : styles.videoTilesStack
+        }
+      >
+        {remotesWithVideoOnly.map((user) => {
+          const name = rtcTileLabel(
+            user.uid,
+            rtcUidToLabel,
+            String(user.uid),
+          );
           return (
-            <div key={user.uid} className={styles.tile}>
+            <div
+              key={user.uid}
+              className={cn(
+                styles.tile,
+                observerVideoGridDense && styles.tileCompact,
+              )}
+            >
               <RemoteUser
                 user={user}
                 playVideo
@@ -239,11 +363,15 @@ function SubscribeOnlyInner({
               />
             </div>
           );
-        }
-        return (
-          <ObserverRemoteAudioStrip key={user.uid} user={user} name={name} />
-        );
-      })}
+        })}
+      </div>
+      {remotesWithoutVideoOnly.map((user) => (
+        <ObserverRemoteAudioStrip
+          key={user.uid}
+          user={user}
+          name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
+        />
+      ))}
     </div>
   );
 }

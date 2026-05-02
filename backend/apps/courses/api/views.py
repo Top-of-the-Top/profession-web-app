@@ -170,6 +170,7 @@ class CourseDetailView(APIView):
             500: {"schema": SCHEMA_DETAIL},
         }
     )
+    @require_course_enrollment
     def get(self, request, slug):
         cache = caches["default"]
         key = course_detail_cache_key(slug)

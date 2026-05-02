@@ -287,6 +287,11 @@ export default function WebinarRecordPage() {
     });
   }, [session]);
 
+  const [recorderAnyRemoteVideo, setRecorderAnyRemoteVideo] = useState(false);
+  const onSubscribeOnlyAnyRemoteVideo = useCallback((v: boolean) => {
+    setRecorderAnyRemoteVideo(v);
+  }, []);
+
   if (!token && !showAuxPanel) {
     const sandboxTo = {
       pathname: location.pathname,
@@ -387,7 +392,12 @@ export default function WebinarRecordPage() {
           lessonSlug={lessonSlug ?? ''}
         />
       ) : null}
-      <div className={styles.body}>
+      <div
+        className={cn(
+          styles.body,
+          !recorderAnyRemoteVideo && styles.bodyRecorderNoRemoteVideo,
+        )}
+      >
         <div className={styles.whiteboardArea}>
           <WhiteboardPanel
             appIdentifier={session.whiteboard_app_id}
@@ -408,6 +418,7 @@ export default function WebinarRecordPage() {
             uid={session.uid}
             rtcUidToLabel={rtcUidToLabel}
             subscribeOnly
+            onSubscribeOnlyAnyRemoteVideo={onSubscribeOnlyAnyRemoteVideo}
           />
         </div>
       </div>

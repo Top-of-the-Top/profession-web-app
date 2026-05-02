@@ -9,7 +9,7 @@ import AgoraRTC, {
   usePublish,
   useRemoteUsers,
 } from 'agora-rtc-react';
-import { MicOff, VideoOff } from 'lucide-react';
+import { Mic, MicOff, VideoOff } from 'lucide-react';
 import { WEBINAR_RECORDER_RTC_UID, rtcTileLabel } from '../lib/rtcUidLabels';
 import styles from './VideoGrid.module.css';
 
@@ -32,9 +32,12 @@ interface VideoGridSubscribeOnlyProps extends VideoGridBaseProps {
   subscribeOnly: true;
   micOn?: never;
   cameraOn?: never;
+  onSubscribeOnlyAnyRemoteVideo?: (anyHasVideo: boolean) => void;
 }
 
 type VideoGridProps = VideoGridPublisherProps | VideoGridSubscribeOnlyProps;
+
+type AgoraRemoteUser = ReturnType<typeof useRemoteUsers>[number];
 
 function TileNameplate({ name, micMuted }: { name: string; micMuted: boolean }) {
   return (
@@ -51,6 +54,36 @@ function RemoteNoVideoCover() {
   return (
     <div className={styles.cameraOff}>
       <VideoOff size={32} className={styles.icon} strokeWidth={2} aria-hidden />
+    </div>
+  );
+}
+
+function ObserverRemoteAudioStrip({
+  user,
+  name,
+}: {
+  user: AgoraRemoteUser;
+  name: string;
+}) {
+  const micMuted = user.hasAudio === false;
+  return (
+    <div className={styles.observerStrip}>
+      <div className={styles.observerStripAudioMount}>
+        <RemoteUser
+          user={user}
+          playVideo={false}
+          style={{ width: '100%', height: '100%' }}
+        />
+      </div>
+      <div className={styles.observerStripIcons} aria-hidden>
+        <VideoOff size={18} className={styles.observerStripIcon} strokeWidth={2} />
+        {micMuted ? (
+          <MicOff size={18} className={styles.observerStripIcon} strokeWidth={2} />
+        ) : (
+          <Mic size={18} className={styles.observerStripIconOn} strokeWidth={2} />
+        )}
+      </div>
+      <span className={styles.observerStripName}>{name}</span>
     </div>
   );
 }
@@ -146,7 +179,10 @@ function SubscribeOnlyInner({
   uid,
   rtcUidToLabel,
   onRecorderChannelPresence,
-}: VideoGridBaseProps) {
+  onSubscribeOnlyAnyRemoteVideo,
+}: VideoGridBaseProps & {
+  onSubscribeOnlyAnyRemoteVideo?: (anyHasVideo: boolean) => void;
+}) {
   useJoin({ appid: appId, channel, token, uid }, true);
 
   const remoteUsers = useRemoteUsers();
@@ -159,22 +195,55 @@ function SubscribeOnlyInner({
     [remoteUsers],
   );
 
+  const anyRemoteHasVideo = useMemo(
+    () => visibleRemoteUsers.some((u) => u.hasVideo),
+    [visibleRemoteUsers],
+  );
+
+  useEffect(() => {
+    onSubscribeOnlyAnyRemoteVideo?.(anyRemoteHasVideo);
+  }, [anyRemoteHasVideo, onSubscribeOnlyAnyRemoteVideo]);
+
+  if (!anyRemoteHasVideo) {
+    return (
+      <div className={styles.gridObserverAudioOnly}>
+        {visibleRemoteUsers.map((user) => (
+          <div key={user.uid} className={styles.observerHiddenAudioMount}>
+            <RemoteUser
+              user={user}
+              playVideo={false}
+              style={{ width: '100%', height: '100%' }}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className={styles.grid}>
-      {visibleRemoteUsers.map((user) => (
-        <div key={user.uid} className={styles.tile}>
-          <RemoteUser
-            user={user}
-            playVideo={user.hasVideo}
-            cover={() => <RemoteNoVideoCover />}
-            style={{ width: '100%', height: '100%' }}
-          />
-          <TileNameplate
-            name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
-            micMuted={user.hasAudio === false}
-          />
-        </div>
-      ))}
+    <div className={styles.gridObserver}>
+      {visibleRemoteUsers.map((user) => {
+        const name = rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid));
+        if (user.hasVideo) {
+          return (
+            <div key={user.uid} className={styles.tile}>
+              <RemoteUser
+                user={user}
+                playVideo
+                cover={() => <RemoteNoVideoCover />}
+                style={{ width: '100%', height: '100%' }}
+              />
+              <TileNameplate
+                name={name}
+                micMuted={user.hasAudio === false}
+              />
+            </div>
+          );
+        }
+        return (
+          <ObserverRemoteAudioStrip key={user.uid} user={user} name={name} />
+        );
+      })}
     </div>
   );
 }
@@ -195,6 +264,7 @@ export function VideoGrid(props: VideoGridProps) {
           uid={props.uid}
           rtcUidToLabel={props.rtcUidToLabel}
           onRecorderChannelPresence={props.onRecorderChannelPresence}
+          onSubscribeOnlyAnyRemoteVideo={props.onSubscribeOnlyAnyRemoteVideo}
         />
       ) : (
         <PublisherInner

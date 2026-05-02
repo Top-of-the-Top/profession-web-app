@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import AgoraRTC, {
   AgoraRTCProvider,
   LocalUser,
@@ -11,7 +11,7 @@ import AgoraRTC, {
 } from 'agora-rtc-react';
 import { cn } from '@shared/lib/utils';
 import { MicOff, VideoOff } from 'lucide-react';
-import { rtcTileLabel } from '../lib/rtcUidLabels';
+import { WEBINAR_RECORDER_RTC_UID, rtcTileLabel } from '../lib/rtcUidLabels';
 import styles from './VideoGrid.module.css';
 
 interface VideoGridBaseProps {
@@ -20,6 +20,7 @@ interface VideoGridBaseProps {
   channel: string;
   uid: number;
   rtcUidToLabel?: Record<number, string>;
+  onRecorderChannelPresence?: (present: boolean) => void;
 }
 
 interface VideoGridPublisherProps extends VideoGridBaseProps {
@@ -36,6 +37,22 @@ interface VideoGridSubscribeOnlyProps extends VideoGridBaseProps {
 
 type VideoGridProps = VideoGridPublisherProps | VideoGridSubscribeOnlyProps;
 
+function useNotifyRecorderPresence(
+  remoteUsers: ReturnType<typeof useRemoteUsers>,
+  onRecorderChannelPresence: VideoGridBaseProps['onRecorderChannelPresence'],
+) {
+  const prevRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!onRecorderChannelPresence) return;
+    const present = remoteUsers.some(
+      (u) => Number(u.uid) === WEBINAR_RECORDER_RTC_UID,
+    );
+    if (prevRef.current === present) return;
+    prevRef.current = present;
+    onRecorderChannelPresence(present);
+  }, [remoteUsers, onRecorderChannelPresence]);
+}
+
 interface PublisherInnerProps extends VideoGridBaseProps {
   micOn: boolean;
   cameraOn: boolean;
@@ -47,6 +64,7 @@ function PublisherInner({
   channel,
   uid,
   rtcUidToLabel,
+  onRecorderChannelPresence,
   micOn,
   cameraOn,
 }: PublisherInnerProps) {
@@ -58,6 +76,14 @@ function PublisherInner({
   usePublish([localMicrophoneTrack, localCameraTrack]);
 
   const remoteUsers = useRemoteUsers();
+  useNotifyRecorderPresence(remoteUsers, onRecorderChannelPresence);
+  const visibleRemoteUsers = useMemo(
+    () =>
+      remoteUsers.filter(
+        (u) => Number(u.uid) !== WEBINAR_RECORDER_RTC_UID,
+      ),
+    [remoteUsers],
+  );
   const selfLabel = rtcTileLabel(uid, rtcUidToLabel, 'Вы');
 
   return (
@@ -97,7 +123,7 @@ function PublisherInner({
         )}
       </div>
 
-      {remoteUsers.map((user) => (
+      {visibleRemoteUsers.map((user) => (
         <div key={user.uid} className={styles.tile}>
           <RemoteUser user={user} style={{ width: '100%', height: '100%' }} />
           <span className={styles.label}>
@@ -115,14 +141,23 @@ function SubscribeOnlyInner({
   channel,
   uid,
   rtcUidToLabel,
+  onRecorderChannelPresence,
 }: VideoGridBaseProps) {
   useJoin({ appid: appId, channel, token, uid }, true);
 
   const remoteUsers = useRemoteUsers();
+  useNotifyRecorderPresence(remoteUsers, onRecorderChannelPresence);
+  const visibleRemoteUsers = useMemo(
+    () =>
+      remoteUsers.filter(
+        (u) => Number(u.uid) !== WEBINAR_RECORDER_RTC_UID,
+      ),
+    [remoteUsers],
+  );
 
   return (
     <div className={styles.grid}>
-      {remoteUsers.map((user) => (
+      {visibleRemoteUsers.map((user) => (
         <div key={user.uid} className={styles.tile}>
           <RemoteUser user={user} style={{ width: '100%', height: '100%' }} />
           <span className={styles.label}>
@@ -149,6 +184,7 @@ export function VideoGrid(props: VideoGridProps) {
           channel={props.channel}
           uid={props.uid}
           rtcUidToLabel={props.rtcUidToLabel}
+          onRecorderChannelPresence={props.onRecorderChannelPresence}
         />
       ) : (
         <PublisherInner
@@ -157,6 +193,7 @@ export function VideoGrid(props: VideoGridProps) {
           channel={props.channel}
           uid={props.uid}
           rtcUidToLabel={props.rtcUidToLabel}
+          onRecorderChannelPresence={props.onRecorderChannelPresence}
           micOn={props.micOn}
           cameraOn={props.cameraOn}
         />

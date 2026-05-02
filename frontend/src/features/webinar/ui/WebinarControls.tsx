@@ -6,7 +6,8 @@ interface WebinarControlsProps {
   micOn: boolean;
   cameraOn: boolean;
   canManageWebinar: boolean;
-  isRecording: boolean;
+  teacherRecordingLive: boolean;
+  studentRecordingVisible: boolean;
   recordingPending: boolean;
   stopRecordingPending: boolean;
   stopWebinarPending: boolean;
@@ -22,7 +23,8 @@ export function WebinarControls({
   micOn,
   cameraOn,
   canManageWebinar,
-  isRecording,
+  teacherRecordingLive,
+  studentRecordingVisible,
   recordingPending,
   stopRecordingPending,
   stopWebinarPending,
@@ -53,7 +55,7 @@ export function WebinarControls({
         {cameraOn ? 'Камера' : 'Камера выкл'}
       </button>
 
-      {canManageWebinar && !isRecording && (
+      {canManageWebinar && !teacherRecordingLive && (
         <button
           type="button"
           className={styles.btn}
@@ -65,7 +67,7 @@ export function WebinarControls({
         </button>
       )}
 
-      {canManageWebinar && isRecording && (
+      {canManageWebinar && teacherRecordingLive && (
         <>
           <span className={styles.recordingBadge}>
             <span className={styles.recordingDot} />
@@ -82,7 +84,7 @@ export function WebinarControls({
         </>
       )}
 
-      {!canManageWebinar && isRecording ? (
+      {!canManageWebinar && studentRecordingVisible ? (
         <span className={styles.recordingBadge}>
           <span className={styles.recordingDot} />
           Запись идёт

@@ -1,6 +1,6 @@
 import { apiClient } from './interceptor';
 
-export type WebinarRole = 'teacher' | 'student' | 'recorder';
+export type WebinarRole = 'teacher' | 'student' | 'moderator' | 'recorder';
 
 export interface WebinarJoinResponse {
   rtc_token: string;

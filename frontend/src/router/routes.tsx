@@ -4,7 +4,6 @@ import {
   RegistrationPage,
   RecoverPage,
   ResetPage,
-  ProfilePage,
   AppHomePage,
   CourseStorePage,
   CoursePreviewPage,
@@ -19,6 +18,7 @@ import {
   WebinarRecordPage,
   AppLayout,
 } from './lazyPages';
+import ProfileRoutePage from '@pages/profile/ui/ProfileRoutePage';
 
 import type { AppRoute } from './types';
 
@@ -58,7 +58,7 @@ export const routes: AppRoute[] = [
     protected: true,
     children: [
       { index: true, element: <AppHomePage /> },
-      { path: 'profile', element: <ProfilePage /> },
+      { path: 'profile', element: <ProfileRoutePage /> },
       { path: 'store', element: <CourseStorePage /> },
       {
         path: 'store/:slug',

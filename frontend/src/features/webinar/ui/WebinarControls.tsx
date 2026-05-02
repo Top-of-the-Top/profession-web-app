@@ -5,7 +5,7 @@ import styles from './WebinarControls.module.css';
 interface WebinarControlsProps {
   micOn: boolean;
   cameraOn: boolean;
-  isTeacher: boolean;
+  canManageWebinar: boolean;
   isRecording: boolean;
   recordingPending: boolean;
   stopRecordingPending: boolean;
@@ -21,7 +21,7 @@ interface WebinarControlsProps {
 export function WebinarControls({
   micOn,
   cameraOn,
-  isTeacher,
+  canManageWebinar,
   isRecording,
   recordingPending,
   stopRecordingPending,
@@ -53,7 +53,7 @@ export function WebinarControls({
         {cameraOn ? 'Камера' : 'Камера выкл'}
       </button>
 
-      {isTeacher && !isRecording && (
+      {canManageWebinar && !isRecording && (
         <button
           type="button"
           className={styles.btn}
@@ -65,7 +65,7 @@ export function WebinarControls({
         </button>
       )}
 
-      {isTeacher && isRecording && (
+      {canManageWebinar && isRecording && (
         <>
           <span className={styles.recordingBadge}>
             <span className={styles.recordingDot} />
@@ -84,7 +84,15 @@ export function WebinarControls({
 
       <div className={styles.spacer} />
 
-      {isTeacher ? (
+      <button
+        type="button"
+        className={cn(styles.btn, styles.btnDanger)}
+        onClick={onLeave}
+      >
+        <LogOut size={18} />
+        Покинуть
+      </button>
+      {canManageWebinar && (
         <button
           type="button"
           className={cn(styles.btn, styles.btnDanger)}
@@ -93,15 +101,6 @@ export function WebinarControls({
         >
           <PhoneOff size={18} />
           {stopWebinarPending ? 'Завершение...' : 'Завершить вебинар'}
-        </button>
-      ) : (
-        <button
-          type="button"
-          className={cn(styles.btn, styles.btnDanger)}
-          onClick={onLeave}
-        >
-          <LogOut size={18} />
-          Покинуть
         </button>
       )}
     </div>

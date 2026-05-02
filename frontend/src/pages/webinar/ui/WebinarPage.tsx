@@ -39,6 +39,7 @@ export default function WebinarPage() {
   const [isFinishing, setIsFinishing] = useState(false);
   const [isExitWithoutRecordingDialogOpen, setIsExitWithoutRecordingDialogOpen] =
     useState(false);
+  const hasWarnedAboutMissingWebinarIdRef = useRef(false);
 
   const whiteboardRef = useRef<WhiteboardPanelHandle>(null);
 
@@ -48,7 +49,8 @@ export default function WebinarPage() {
   const uploadFinalPdf = useUploadFinalPdf(courseSlug ?? '', lessonSlug ?? '');
   const stopWebinar = useStopWebinar(courseSlug ?? '', lessonSlug ?? '');
 
-  const isTeacher = session?.role === 'teacher';
+  const canManageWebinar =
+    session?.role === 'teacher' || session?.role === 'moderator';
   const isRecording = !!activeRecordingId;
 
   const captureWhiteboardScreenshots = useCallback(async () => {
@@ -178,6 +180,21 @@ export default function WebinarPage() {
   const webinarId = session?.webinar_id ?? webinarIdFromMeta;
 
   useEffect(() => {
+    if (!session) return;
+    if (webinarId) {
+      hasWarnedAboutMissingWebinarIdRef.current = false;
+      return;
+    }
+    if (hasWarnedAboutMissingWebinarIdRef.current) return;
+    hasWarnedAboutMissingWebinarIdRef.current = true;
+    notifyWarning({
+      title: 'SSE не подключен',
+      description:
+        'Сервер не вернул webinar_id, поэтому авто-синхронизация событий временно недоступна.',
+    });
+  }, [session, webinarId]);
+
+  useEffect(() => {
     if (!webinarId) return;
 
     const disconnect = connectWebinarSSE({
@@ -267,7 +284,7 @@ export default function WebinarPage() {
             roomUUID={session.whiteboard_room_uuid}
             roomToken={session.whiteboard_room_token}
             region={session.whiteboard_region}
-            uid={String(session.uid)}
+            uid={session.user_name?.trim() || String(session.uid)}
             userName={session.user_name}
             isWritable={true}
           />
@@ -288,7 +305,7 @@ export default function WebinarPage() {
       <WebinarControls
         micOn={micOn}
         cameraOn={cameraOn}
-        isTeacher={isTeacher}
+        canManageWebinar={canManageWebinar}
         isRecording={isRecording}
         recordingPending={startRecording.isPending}
         stopRecordingPending={

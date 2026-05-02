@@ -11,7 +11,6 @@ import {
   AvatarFallback,
   AvatarImage,
   PageFrame,
-  Skeleton,
 } from '@shared/ui';
 import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars } from 'lucide-react';
 import styles from './ProfilePage.module.css';
@@ -31,6 +30,7 @@ import {
   notifySuccess,
 } from '@shared/lib/sileo/notify';
 import { validateEmailOrPhone } from '@shared/utils/validation';
+import { ProfilePageSkeleton } from './ProfilePageSkeleton';
 
 function notifyProfileSaveError(err: unknown) {
   if (err instanceof Error && err.message === 'AUTH_EXPIRED') {
@@ -78,62 +78,6 @@ const ProfileField = ({
     </div>
     <div className={styles.profileFieldAction}>{actionButton}</div>
   </div>
-);
-
-const ProfileSkeleton = () => (
-  <PageFrame>
-    <div className={styles.body}>
-    <Skeleton className={styles.skeletonProfileTitle} />
-    <Card className={styles.profilePageCard}>
-      <CardContent className={styles.profilePageContent}>
-        <div className={styles.profileSection}>
-          <div className={styles.profileField}>
-            <div className={styles.profileFieldContent}>
-              <Skeleton shape="circle" className={styles.skeletonAvatar} />
-              <div className={styles.profileFieldInfo}>
-                <Skeleton className={styles.skeletonLabel} />
-                <Skeleton className={styles.skeletonValueWide} />
-              </div>
-            </div>
-            <Skeleton shape="circle" className={styles.skeletonActionIcon} />
-          </div>
-        </div>
-
-        <div className={styles.profileSection}>
-          <Skeleton className={styles.skeletonSectionTitle} />
-          {Array.from({ length: 2 }).map((_, idx) => (
-            <div key={idx} className={styles.profileField}>
-              <div className={styles.profileFieldContent}>
-                <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
-                <div className={styles.profileFieldInfo}>
-                  <Skeleton className={styles.skeletonLabel} />
-                  <Skeleton className={styles.skeletonValue} />
-                </div>
-              </div>
-              <Skeleton shape="circle" className={styles.skeletonActionIcon} />
-            </div>
-          ))}
-        </div>
-
-        <div className={styles.profileSection}>
-          <Skeleton className={styles.skeletonSectionTitle} />
-          {Array.from({ length: 2 }).map((_, idx) => (
-            <div key={idx} className={styles.profileField}>
-              <div className={styles.profileFieldContent}>
-                <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
-                <div className={styles.profileFieldInfo}>
-                  <Skeleton className={styles.skeletonLabel} />
-                  <Skeleton className={styles.skeletonValue} />
-                </div>
-              </div>
-              <Skeleton shape="circle" className={styles.skeletonActionIcon} />
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-    </div>
-  </PageFrame>
 );
 
 export default function ProfilePage() {
@@ -186,7 +130,7 @@ export default function ProfilePage() {
     setPhoneMenuOpen((prev) => !prev);
   };
 
-  if (isLoading && !profile) return <ProfileSkeleton />;
+  if (isLoading && !profile) return <ProfilePageSkeleton />;
   if (!profile) return <div>Профиль недоступен</div>;
 
   const handleNameSave = async (data: {

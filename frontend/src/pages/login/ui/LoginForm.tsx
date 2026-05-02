@@ -147,7 +147,7 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                   <FieldLabel htmlFor="email">Почта или номер телефона</FieldLabel>
                   <Input
                     id="email"
-                    type="text"
+                    type="email"
                     autoComplete="email"
                     placeholder="Почта/телефон"
                     className={styles.input}

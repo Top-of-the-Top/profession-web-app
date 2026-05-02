@@ -1,5 +1,6 @@
 import { forwardRef, useImperativeHandle } from 'react';
 import { useFastboard, Fastboard } from '@netless/fastboard-react';
+import type { View } from 'white-web-sdk';
 import styles from './WhiteboardPanel.module.css';
 
 type WhiteboardRegion = 'cn-hz' | 'us-sv' | 'sg' | 'in-mum' | 'eu';
@@ -50,41 +51,24 @@ async function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-type RoomLike = {
+type RoomSceneState = {
   state: {
     sceneState: {
       scenes: Array<{ name: string }>;
       contextPath: string;
       scenePath: string;
     };
-    cameraState: {
-      centerX: number;
-      centerY: number;
-      scale: number;
-      width?: number;
-      height?: number;
-    };
   };
-  screenshotToCanvasAsync: (
-    context: CanvasRenderingContext2D,
-    scenePath: string,
-    width: number,
-    height: number,
-    camera: { centerX: number; centerY: number; scale: number },
-    ratio?: number,
-    timeout?: number,
-  ) => Promise<void>;
 };
 
 async function captureScene(
-  room: RoomLike,
+  mainView: View,
   scenePath: string,
 ): Promise<Blob | null> {
-  const cameraState = room.state.cameraState;
-  const width =
-    cameraState.width && cameraState.width > 0 ? cameraState.width : CAPTURE_WIDTH;
-  const height =
-    cameraState.height && cameraState.height > 0 ? cameraState.height : CAPTURE_HEIGHT;
+  const camera = mainView.camera;
+  const { width: viewW, height: viewH } = mainView.size;
+  const width = viewW > 0 ? viewW : CAPTURE_WIDTH;
+  const height = viewH > 0 ? viewH : CAPTURE_HEIGHT;
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -99,15 +83,15 @@ async function captureScene(
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
 
-  await room.screenshotToCanvasAsync(
+  await mainView.screenshotToCanvasAsync(
     ctx,
     scenePath,
     width,
     height,
     {
-      centerX: cameraState.centerX,
-      centerY: cameraState.centerY,
-      scale: cameraState.scale,
+      centerX: camera.centerX,
+      centerY: camera.centerY,
+      scale: camera.scale,
     },
     1,
     5_000,
@@ -154,7 +138,8 @@ export const WhiteboardPanel = forwardRef<
           warnCapture('captureSceneScreenshots: fastboard is null');
           return [];
         }
-        const room = fastboard.room as unknown as RoomLike;
+        const mainView = fastboard.manager.mainView;
+        const room = fastboard.room as unknown as RoomSceneState;
         const sceneState = room.state.sceneState;
         const scenes = sceneState.scenes;
         const contextPath = sceneState.contextPath;
@@ -164,6 +149,7 @@ export const WhiteboardPanel = forwardRef<
           scenePath: sceneState.scenePath,
           sceneCount: scenes?.length ?? 0,
           sceneNames: scenes?.map((s) => s.name) ?? [],
+          viaMainView: true,
         });
 
         if (!scenes || scenes.length === 0) {
@@ -176,7 +162,7 @@ export const WhiteboardPanel = forwardRef<
         for (const scene of scenes) {
           const scenePath = buildScenePath(contextPath, scene.name);
           try {
-            const blob = await captureScene(room, scenePath);
+            const blob = await captureScene(mainView, scenePath);
             if (blob) {
               blobs.push(blob);
               logCapture('scene ok', { scenePath, blobSize: blob.size });
@@ -193,7 +179,10 @@ export const WhiteboardPanel = forwardRef<
             scenePath: sceneState.scenePath,
           });
           try {
-            const fallbackBlob = await captureScene(room, sceneState.scenePath);
+            const fallbackBlob = await captureScene(
+              mainView,
+              sceneState.scenePath,
+            );
             if (fallbackBlob) {
               blobs.push(fallbackBlob);
               logCapture('fallback ok', { blobSize: fallbackBlob.size });

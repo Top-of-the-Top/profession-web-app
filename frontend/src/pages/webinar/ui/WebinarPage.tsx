@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { XIcon } from 'lucide-react';
 import { Button, PageFrame, Spinner } from '@shared/ui';
 import { useWebinarJoin } from '@shared/api/queries/webinar';
-import { useLessonBySlug } from '@shared/api/queries/courses';
+import { courseKeys, useLessonBySlug } from '@shared/api/queries/courses';
 import {
   useStopRecording,
   useUploadRecordingPdf,
@@ -29,6 +30,7 @@ export default function WebinarPage() {
     lessonSlug: string;
   }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const joinQuery = useWebinarJoin(courseSlug, lessonSlug);
   const { data: session, isLoading, isError } = joinQuery;
@@ -51,6 +53,7 @@ export default function WebinarPage() {
     useState(false);
   const hasWarnedAboutMissingWebinarIdRef = useRef(false);
   const recordingStartedByThisClientRef = useRef<string | null>(null);
+  const didSyncRecordingFromLessonRef = useRef(false);
 
   const whiteboardRef = useRef<WhiteboardPanelHandle>(null);
 
@@ -230,6 +233,11 @@ export default function WebinarPage() {
         }
         if (event.type === 'recording_stopped') {
           setActiveRecordingId((prev) => (prev === null ? prev : null));
+          if (courseSlug && lessonSlug) {
+            void queryClient.invalidateQueries({
+              queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+            });
+          }
           notifyInfo({
             title: 'Запись остановлена',
             description: 'Запись эфира завершена.',
@@ -249,17 +257,19 @@ export default function WebinarPage() {
     });
 
     return disconnect;
-  }, [courseSlug, lessonSlug, navigate, webinarId]);
+  }, [courseSlug, lessonSlug, navigate, queryClient, webinarId]);
 
   useEffect(() => {
-    if (activeRecordingId != null) return;
-    const recording = lessonQuery.data?.recordings.find(
+    if (didSyncRecordingFromLessonRef.current) return;
+    if (!lessonQuery.isSuccess || !lessonQuery.data) return;
+    didSyncRecordingFromLessonRef.current = true;
+    const recording = lessonQuery.data.recordings.find(
       (item) => item.status === 'recording' && item.recording_id,
     );
     if (recording?.recording_id) {
       setActiveRecordingId(recording.recording_id);
     }
-  }, [activeRecordingId, lessonQuery.data?.recordings]);
+  }, [lessonQuery.isSuccess, lessonQuery.data]);
 
   useEffect(() => {
     if (!isExitWithoutRecordingDialogOpen) return;

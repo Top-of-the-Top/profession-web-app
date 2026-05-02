@@ -2,7 +2,7 @@ const VK_AUTHORIZE_URL = 'https://id.vk.ru/authorize';
 
 const VK_CLIENT_ID = (import.meta.env.VITE_VK_CLIENT_ID as string | undefined)?.trim();
 const VK_REDIRECT_URI = (import.meta.env.VITE_VK_REDIRECT_URI as string | undefined)?.trim();
-const VK_SCOPE = (import.meta.env.VITE_VK_SCOPE as string | undefined)?.trim();
+const VK_SCOPE = (import.meta.env.VITE_VK_SCOPE as string | undefined);
 
 const VK_OAUTH_SESSION_STORAGE_KEY = 'vk_oauth_session';
 

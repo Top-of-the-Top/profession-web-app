@@ -9,7 +9,6 @@ import AgoraRTC, {
   usePublish,
   useRemoteUsers,
 } from 'agora-rtc-react';
-import { cn } from '@shared/lib/utils';
 import { MicOff, VideoOff } from 'lucide-react';
 import { WEBINAR_RECORDER_RTC_UID, rtcTileLabel } from '../lib/rtcUidLabels';
 import styles from './VideoGrid.module.css';
@@ -36,6 +35,25 @@ interface VideoGridSubscribeOnlyProps extends VideoGridBaseProps {
 }
 
 type VideoGridProps = VideoGridPublisherProps | VideoGridSubscribeOnlyProps;
+
+function TileNameplate({ name, micMuted }: { name: string; micMuted: boolean }) {
+  return (
+    <span className={styles.label}>
+      {micMuted ? (
+        <MicOff className={styles.labelMicIcon} size={14} strokeWidth={2} aria-hidden />
+      ) : null}
+      <span className={styles.labelText}>{name}</span>
+    </span>
+  );
+}
+
+function RemoteNoVideoCover() {
+  return (
+    <div className={styles.cameraOff}>
+      <VideoOff size={32} className={styles.icon} strokeWidth={2} aria-hidden />
+    </div>
+  );
+}
 
 function useNotifyRecorderPresence(
   remoteUsers: ReturnType<typeof useRemoteUsers>,
@@ -97,38 +115,24 @@ function PublisherInner({
           playAudio={false}
           style={{ width: '100%', height: '100%' }}
         >
-          {!cameraOn && (
-            <div className={styles.cameraOff}>
-              <VideoOff
-                size={32}
-                className={cn(styles.cameraOffIcon, styles.icon)}
-              />
-              {micOn ? (
-                <span className={styles.label}>{selfLabel}</span>
-              ) : (
-                <span className={styles.label}>
-                  <MicOff className={cn(styles.micOffIcon, styles.icon)} />
-                </span>
-              )}
-            </div>
-          )}
+          {!cameraOn ? <RemoteNoVideoCover /> : null}
         </LocalUser>
 
-        {micOn ? (
-          <span className={styles.label}>{selfLabel}</span>
-        ) : (
-          <span className={styles.label}>
-            <MicOff className={cn(styles.micOffIcon, styles.icon)} />
-          </span>
-        )}
+        <TileNameplate name={selfLabel} micMuted={!micOn} />
       </div>
 
       {visibleRemoteUsers.map((user) => (
         <div key={user.uid} className={styles.tile}>
-          <RemoteUser user={user} style={{ width: '100%', height: '100%' }} />
-          <span className={styles.label}>
-            {rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
-          </span>
+          <RemoteUser
+            user={user}
+            playVideo={user.hasVideo}
+            cover={() => <RemoteNoVideoCover />}
+            style={{ width: '100%', height: '100%' }}
+          />
+          <TileNameplate
+            name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
+            micMuted={user.hasAudio === false}
+          />
         </div>
       ))}
     </div>
@@ -159,10 +163,16 @@ function SubscribeOnlyInner({
     <div className={styles.grid}>
       {visibleRemoteUsers.map((user) => (
         <div key={user.uid} className={styles.tile}>
-          <RemoteUser user={user} style={{ width: '100%', height: '100%' }} />
-          <span className={styles.label}>
-            {rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
-          </span>
+          <RemoteUser
+            user={user}
+            playVideo={user.hasVideo}
+            cover={() => <RemoteNoVideoCover />}
+            style={{ width: '100%', height: '100%' }}
+          />
+          <TileNameplate
+            name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
+            micMuted={user.hasAudio === false}
+          />
         </div>
       ))}
     </div>

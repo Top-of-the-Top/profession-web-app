@@ -32,18 +32,32 @@
   bottom: 6px;
   left: 8px;
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  max-width: calc(100% - 16px);
   font-size: 0.75rem;
   font-weight: 500;
-  line-height: 1;
+  line-height: 1.2;
   color: #fff;
   background: rgba(0, 0, 0, 0.55);
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   pointer-events: none;
-  height: 20px;
+  min-height: 22px;
   box-sizing: border-box;
+}
+
+.labelText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.labelMicIcon {
+  flex-shrink: 0;
+  opacity: 0.95;
 }
 
 .cameraOff {
@@ -55,12 +69,7 @@
   background: var(--muted);
 }
 
-/* .icon {
-  color: var(--muted-foreground);
-	
-} */
-.micOffIcon {
-  width: 18px;
-  height: 18px;
-  display: block;
+.icon {
+  color: color-mix(in oklch, var(--foreground) 65%, transparent);
+  opacity: 0.9;
 }

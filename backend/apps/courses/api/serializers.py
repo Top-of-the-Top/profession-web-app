@@ -1,4 +1,4 @@
-from .utils.rbac_utils import filter_homework_queryset_for_visibility
+from .permissions import filter_homework_queryset_for_visibility
 import json
 
 from ..models import (

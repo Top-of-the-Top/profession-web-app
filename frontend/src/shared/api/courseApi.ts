@@ -257,13 +257,6 @@ export interface CourseLessonDetail {
   meta: Record<string, unknown>;
 }
 
-export interface PurchasedCourseItem {
-  id: string | number;
-  course: CourseDTO;
-  payment: number;
-  access_expires_at: string | null;
-  is_active: boolean;
-}
 
 export interface SectionCreatePayload {
   title: string;
@@ -776,13 +769,13 @@ export const courseApi = {
       .then(normalizeLessonDetailRead);
   },
 
-  getMyCourses(): Promise<PurchasedCourseItem[]> {
-    return apiClient.request<PurchasedCourseItem[]>('/api/my-courses/', {
+  getMyCourses(): Promise<CourseDTO[]> {
+    return apiClient.request<CourseDTO[]>('/api/my-courses/', {
       method: 'GET',
     });
   },
 
-  getCoursesForAppHome(): Promise<PurchasedCourseItem[]> {
+  getCoursesForAppHome(): Promise<CourseDTO[]> {
     return this.getMyCourses();
   },
 

@@ -20,7 +20,9 @@ def landing_courses_cache_key():
     return "default:landing:courses:list"
 
 
-def course_list_cache_key():
+def course_list_cache_key(user_id=None):
+    if user_id is not None:
+        return f"default:app:courses:list:{int(user_id)}"
     return "default:app:courses:list"
 
 
@@ -77,7 +79,6 @@ def invalidate_on_course_model_change(slug):
     delete_cache_keys(
         DEFAULT_CACHE_ALIAS,
         landing_courses_cache_key(),
-        course_list_cache_key(),
         course_detail_cache_key(slug),
     )
 

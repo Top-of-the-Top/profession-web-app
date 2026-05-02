@@ -4,17 +4,10 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from apps.webinars.models import Webinar
-from ..models import (
-    Course,
-    PurchasedCourse,
-    Section,
-    Task,
-    Question,
-)
+from ..models import Course, Section, Task, Question
 from .serializers import (
     CourseDTOSerializer,
     CourseSerializer,
-    PurchasedCourseSerializer,
     CourseListResponseSerializer,
     LessonSerializer,
     LessonSimpleCreateSerializer,
@@ -31,8 +24,7 @@ from .serializers import (
 from rest_framework import generics
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
-from apps.users.api.decorators import require_moderator, require_course_author, require_course_enrollment
-from rest_framework.parsers import MultiPartParser
+from apps.core.api.permissions import require_moderator
 from django.core.cache import caches
 from django.db.models import F, Q
 from .schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
@@ -47,7 +39,13 @@ from .utils.cache_utils import (
     purchased_courses_cache_key,
 )
 from .utils.queryset_utils import get_homework_or_404, get_lesson_or_404
-from .utils.rbac_utils import course_content_visibility, published_lesson_hierarchy_q
+from .permissions import (
+    course_content_visibility,
+    get_courses_for_user,
+    published_lesson_hierarchy_q,
+    require_course_author,
+    require_course_enrollment,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -103,12 +101,11 @@ class CourseListView(APIView):
     )
     def get(self, request):
         cache = caches["default"]
-        key = course_list_cache_key()
+        key = course_list_cache_key(request.user.id)
         cached = cache.get(key)
         if cached is not None:
             return Response(cached)
-        queryset = Course.objects.all()
-        serializer = CourseSerializer(queryset, many=True)
+        serializer = CourseSerializer(get_courses_for_user(request.user), many=True)
         cache.set(key, serializer.data)
         return Response(serializer.data)
 
@@ -153,6 +150,7 @@ class CourseDetailView(APIView):
             500: {"schema": SCHEMA_DETAIL},
         }
     )
+    @require_course_enrollment
     def get(self, request, slug):
         cache = caches["default"]
         key = course_detail_cache_key(slug)
@@ -217,14 +215,14 @@ class CourseDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class PurchasedCoursesView(APIView):
+class MyCourses(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Мои покупки",
+        summary="Мои курсы",
         tags=["Home"],
         responses={
-            200: PurchasedCourseSerializer(many=True),
+            200: CourseDTOSerializer(many=True),
             401: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         },
@@ -235,16 +233,7 @@ class PurchasedCoursesView(APIView):
         cached = cache.get(key)
         if cached is not None:
             return Response(cached, status=status.HTTP_200_OK)
-        purchased = (
-            PurchasedCourse.objects.filter(user=request.user)
-            .filter(
-                Q(course__type=Course.PUBLISHED_STATUS)
-                | Q(course__authors=request.user)
-            )
-            .distinct()
-            .select_related('course', 'payment')
-        )
-        serializer = PurchasedCourseSerializer(purchased, many=True)
+        serializer = CourseDTOSerializer(get_courses_for_user(request.user), many=True)
         cache.set(key, serializer.data)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

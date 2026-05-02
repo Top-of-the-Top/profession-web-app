@@ -1,4 +1,5 @@
 from apps.courses.models import Lesson
+from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from ..models import Webinar, Recording
 from .utils.agora_utils import (
     generate_rtc_token, user_uid_from_uuid, create_whiteboard_room,
@@ -161,20 +162,13 @@ def _stop_recording(recording):
 class WebinarStartView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может запускать вебинар'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         webinar, _ = Webinar.objects.get_or_create(
             lesson=lesson,
@@ -239,20 +233,13 @@ class WebinarStartView(APIView):
 class WebinarStopView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может останавливать вебинар'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         webinar = get_object_or_404(Webinar, lesson=lesson)
 
@@ -310,6 +297,7 @@ class WebinarStopView(APIView):
 class WebinarJoinView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_enrollment
     def get(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
@@ -318,17 +306,10 @@ class WebinarJoinView(APIView):
         )
         course = lesson.section.course
 
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        is_teacher = is_author or is_moderator
-        is_student = request.user.is_enrolled(course)
+        is_teacher = request.user.is_moderator() or (
+            request.user.is_teacher() and request.user.is_course_author(course)
+        )
 
-        if not is_teacher and not is_student:
-            return Response(
-                {'detail': 'Нет доступа к вебинару'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
         try:
             webinar = Webinar.objects.get(lesson=lesson, status='live')
         except Webinar.DoesNotExist:
@@ -471,17 +452,13 @@ class WebinarRecorderJoinView(APIView):
 class WebinarRecordingStartView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(status=status.HTTP_403_FORBIDDEN)
 
         webinar = get_object_or_404(Webinar, lesson=lesson, status=Webinar.LIVE_STATUS)
         
@@ -558,21 +535,14 @@ class WebinarRecordingStartView(APIView):
 class WebinarRecordingStopView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может останавливать запись'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
+
         webinar = get_object_or_404(Webinar, lesson=lesson, status=Webinar.LIVE_STATUS)
         recording = webinar.recordings.filter(status=Recording.RECORDING_STATUS).first()
         if not recording:
@@ -646,17 +616,13 @@ class RecordingPdfView(APIView):
     permission_classes = (IsAuthenticated,)
     parser_classes = (MultiPartParser,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug, recording_id):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(status=status.HTTP_403_FORBIDDEN)
 
         recording = get_object_or_404(
             Recording,
@@ -684,21 +650,14 @@ class RecordingPdfView(APIView):
 
         return Response({'detail': 'pdf доски сохранен'})
 
+    @require_course_author
     def delete(self, request, course_slug, lesson_slug, recording_id):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может удалять pdf доски'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
+
         recording = get_object_or_404(
             Recording,
             recording_id=recording_id,
@@ -740,20 +699,13 @@ class WebinarFinalPdfView(APIView):
     permission_classes = (IsAuthenticated,)
     parser_classes = (MultiPartParser,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может сохранять финальный PDF доски'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         webinar = get_object_or_404(Webinar, lesson=lesson)
 
@@ -838,21 +790,14 @@ class WebinarFinalPdfView(APIView):
 class RecordingDeleteView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_author
     def delete(self, request, course_slug, lesson_slug, recording_id):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может удалять запись'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
+
         recording = get_object_or_404(
             Recording,
             recording_id=recording_id,

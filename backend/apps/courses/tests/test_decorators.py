@@ -7,11 +7,8 @@ import tempfile
 from django.utils import timezone
 from datetime import timedelta
 
-from apps.users.api.decorators import (
-    require_moderator,
-    require_course_author,
-    require_course_enrollment,
-)
+from apps.core.api.permissions import require_moderator
+from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from ..models import Course, PurchasedCourse
 from apps.payments.models import Payment
 from .test_models import (
@@ -154,7 +151,7 @@ class RequireCourseAuthorUnitTest(SimpleTestCase):
         mock_user = create_mock_user(is_moderator=False, is_teacher=True)
         request = create_authenticated_request(self.factory, user=mock_user)
 
-        with patch('apps.users.api.decorators.Course.objects.get', side_effect=Course.DoesNotExist):
+        with patch('apps.courses.api.permissions.Course.objects.get', side_effect=Course.DoesNotExist):
             response = test_view(request, course_id=999)
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -193,7 +190,7 @@ class RequireCourseEnrollmentUnitTest(SimpleTestCase):
         mock_user = create_mock_user(is_moderator=False)
         request = create_authenticated_request(self.factory, user=mock_user)
 
-        with patch('apps.users.api.decorators.Course.objects.get', side_effect=Course.DoesNotExist):
+        with patch('apps.courses.api.permissions.Course.objects.get', side_effect=Course.DoesNotExist):
             response = test_view(request, course_slug='nonexistent')
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

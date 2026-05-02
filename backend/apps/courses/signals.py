@@ -204,6 +204,7 @@ def get_reminder_task_id_for_lesson(lesson_id, reminder_type, task_type):
 
 
 from .api.utils.cache_utils import (
+    course_list_cache_key,
     invalidate_on_course_model_change,
     invalidate_on_homework_tree_change,
     invalidate_on_lesson_model_change,
@@ -266,7 +267,9 @@ def invalidate_cold_question_cache(sender, instance, **kwargs):
 
 @receiver((pre_save, pre_delete), sender=PurchasedCourse)
 def invalidate_default_purchased_cache(sender, instance, **kwargs):
-    caches["default"].delete(purchased_courses_cache_key(instance.user_id))
+    cache = caches["default"]
+    cache.delete(purchased_courses_cache_key(instance.user_id))
+    cache.delete(course_list_cache_key(instance.user_id))
 
 
 @receiver((pre_save, pre_delete), sender=Webinar)

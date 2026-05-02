@@ -787,6 +787,55 @@ class YandexOauth2APIView(APIView):
             return None
         return None
 
+    def _get_yandex_user_info(self, token):
+        headers = {"Authorization": f"OAuth {token}"}
+        try:
+            resp = httpx.get("https://login.yandex.ru/info?format=json", headers=headers, timeout=5.0)
+            return resp.json() if resp.status_code == 200 else {}
+        except httpx.RequestError:
+            return {}
+
+    def _sync_user_profile(self, user, user_info, *, is_new):
+        user_fields_changed = []
+
+        first_name = (user_info.get('first_name') or '').strip()
+        last_name = (user_info.get('last_name') or '').strip()
+
+        if first_name and (is_new or not user.first_name):
+            user.first_name = first_name
+            user_fields_changed.append('first_name')
+        if last_name and (is_new or not user.last_name):
+            user.last_name = last_name
+            user_fields_changed.append('last_name')
+
+        if user_fields_changed:
+            user.save(update_fields=user_fields_changed)
+
+        profile, _ = Profile.objects.get_or_create(user=user)
+        profile_fields_changed = []
+
+        birthday_raw = user_info.get('birthday')
+        if birthday_raw and (is_new or not profile.birthday):
+            from datetime import date
+            try:
+                parsed_birthday = date.fromisoformat(birthday_raw)
+                if parsed_birthday.year > 0:
+                    profile.birthday = parsed_birthday
+                    profile_fields_changed.append('birthday')
+            except (ValueError, AttributeError):
+                pass
+
+        sex = user_info.get('sex')
+        if sex and (is_new or not profile.gender):
+            gender_map = {'male': 'М', 'female': 'Ж'}
+            mapped = gender_map.get(sex)
+            if mapped:
+                profile.gender = mapped
+                profile_fields_changed.append('gender')
+
+        if profile_fields_changed:
+            profile.save(update_fields=profile_fields_changed)
+
     def post(self, request):
         code = request.data.get('code')
         state = request.data.get('state')
@@ -800,11 +849,38 @@ class YandexOauth2APIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        yandex_data = self._exchange_code_for_token(code)
-        if not yandex_data:
+        yandex_tokens = self._exchange_code_for_token(code)
+        if not yandex_tokens:
             return Response({"error": "invalid_code"}, status=400)
 
-        return Response({"status": "success", "data": yandex_data})
+        user_info = self._get_yandex_user_info(yandex_tokens['access_token'])
+        email = user_info.get('default_email')
+        default_phone = user_info.get('default_phone') or {}
+        phone = default_phone.get('number') if isinstance(default_phone, dict) else None
+
+        if not email and not phone:
+            return Response({"error": "missing_required_profile_data"}, status=400)
+
+        email_enc = encrypt_data(str(email)) if email else None
+        phone_enc = encrypt_data(str(phone)) if phone else None
+
+        user = None
+        if email_enc:
+            user = User.objects.filter(email_cipher=email_enc).first()
+        if not user and phone_enc:
+            user = User.objects.filter(phone_cipher=phone_enc).first()
+
+        is_new = user is None
+        if is_new:
+            user = User.objects.create(
+                email_cipher=email_enc,
+                phone_cipher=phone_enc,
+                role='student',
+            )
+
+        self._sync_user_profile(user, user_info, is_new=is_new)
+
+        return Response(get_tokens_for_user(user), status=200)
 
 
 class VKCallbackAPIView(APIView):
@@ -820,6 +896,7 @@ class VKCallbackAPIView(APIView):
         params = {"provider": "vk"}
 
         if code:
+            cache.set(f"oauth:vk:state:{state}", 1, timeout=600)
             params.update({
                 'code': code,
                 'state': state,

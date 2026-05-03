@@ -27,6 +27,10 @@ function isLessonEditorPage(pathname: string) {
   return pathname.includes('/courses/') && pathname.endsWith('/edit');
 }
 
+function isLessonEditorPage(pathname: string) {
+  return pathname.includes('/courses/') && pathname.endsWith('/edit');
+}
+
 export default function AppLayout() {
   const { pathname } = useLocation();
   const lessonEditorLayout = isLessonEditorPage(pathname);

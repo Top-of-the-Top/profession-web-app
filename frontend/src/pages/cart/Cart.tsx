@@ -27,6 +27,17 @@ const formatPrice = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+function formatCourseCountLabel(count: number): string {
+  const m100 = count % 100;
+  if (m100 >= 11 && m100 <= 14) {
+    return `${count} курсов`;
+  }
+  const m = count % 10;
+  if (m === 1) return `${count} курс`;
+  if (m >= 2 && m <= 4) return `${count} курса`;
+  return `${count} курсов`;
+}
+
 function isAuthLike(err: unknown) {
   const msg = err instanceof Error ? err.message : '';
   return msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401');

@@ -17,6 +17,7 @@ import { useUserStore } from '@entities/user/model/userStore';
 import { loginUser } from '../api';
 import { Link, useNavigate } from 'react-router-dom';
 import { ZodError } from 'zod';
+import { Eye, EyeOff } from 'lucide-react';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import { messageForApiFailure, notifyError } from '@shared/lib/sileo/notify';
 import { preloadRegisterRoute, preloadResetRoute } from '@router/lazyPages';
@@ -51,6 +52,7 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
   const navigate = useNavigate();
   const login = useUserStore((s) => s.login);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const {
     register,
     handleSubmit,
@@ -131,15 +133,26 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                   <div className={styles.passwordHeader}>
                     <FieldLabel htmlFor="password">Пароль</FieldLabel>
                   </div>
-                  <Input
-                    id="password"
-                    type="password"
-                    autoComplete="password"
-                    placeholder="Пароль"
-                    className={styles.input}
-                    disabled={loading}
-                    {...register('password')}
-                  />
+                  <div className={styles.passwordInputWrap}>
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="password"
+                      placeholder="Пароль"
+                      className={styles.input}
+                      disabled={loading}
+                      {...register('password')}
+                    />
+                    <button
+                      type="button"
+                      className={styles.passwordToggle}
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                      disabled={loading}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                   {errors.password?.message ? (
                     <CardDescription>{errors.password.message}</CardDescription>
                   ) : null}

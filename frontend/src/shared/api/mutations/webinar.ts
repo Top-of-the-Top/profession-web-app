@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CourseLessonDetail } from '../courseApi';
 import { webinarApi } from '../webinarApi';
 import { courseKeys } from '../queries/courses';
-import { notifySuccess, notifyError } from '@shared/lib/sileo/notify';
+import { notifyError, notifySuccess } from '@shared/lib/sileo/notify';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import { messageForApiFailure } from '@shared/lib/sileo/notify';
 import type { ApiFailureScene } from '@shared/lib/api/backendApiMessages';
@@ -35,10 +35,6 @@ export function useStartRecording(courseSlug: string, lessonSlug: string) {
   return useMutation({
     mutationFn: () => webinarApi.startRecording(courseSlug, lessonSlug),
     onSuccess: () => {
-      notifySuccess({
-        title: 'Запись началась',
-        description: 'Остальные участники получат уведомление по каналу событий.',
-      });
       void queryClient.invalidateQueries({
         queryKey: courseKeys.lesson(courseSlug, lessonSlug),
       });

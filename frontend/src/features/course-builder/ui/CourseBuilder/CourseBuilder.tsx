@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ImageUp, PictureInPicture, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ImageUp, PictureInPicture, Trash2 } from 'lucide-react';
 import GridLayout from 'react-grid-layout';
 import type { Layout, LayoutItem } from 'react-grid-layout';
 import { useLessonBuilderStore } from '../../model/store';
@@ -395,6 +395,16 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
 
   return (
     <div className={styles.courseBuilder} dir="ltr">
+      <div className={styles.builderTopBar}>
+        <Link
+          to={`/app/courses/${courseSlug}/${lessonSlug}`}
+          className={styles.backToLesson}
+          aria-label="Назад к странице урока"
+        >
+          <ArrowLeft size={18} strokeWidth={2} aria-hidden />
+          <span>к уроку</span>
+        </Link>
+      </div>
       <div className={styles.lessonHeader}>
         <div className={styles.lessonHeaderTrapezoid}>
           <svg

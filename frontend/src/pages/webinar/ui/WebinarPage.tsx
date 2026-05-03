@@ -21,7 +21,7 @@ import {
   buildRtcUidLabelMap,
   type WhiteboardPanelHandle,
 } from '../../../features/webinar';
-import { notifyError, notifyInfo, notifyWarning } from '@shared/lib/sileo/notify';
+import { notifyError, notifySuccess, notifyWarning } from '@shared/lib/sileo/notify';
 import styles from './WebinarPage.module.css';
 
 export default function WebinarPage() {
@@ -50,13 +50,16 @@ export default function WebinarPage() {
   const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null);
   const [recorderBotInChannel, setRecorderBotInChannel] = useState(false);
   const [awaitingRecorderBot, setAwaitingRecorderBot] = useState(false);
+  const [awaitingRecordingSessionEnd, setAwaitingRecordingSessionEnd] =
+    useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isExitWithoutRecordingDialogOpen, setIsExitWithoutRecordingDialogOpen] =
     useState(false);
   const hasWarnedAboutMissingWebinarIdRef = useRef(false);
-  const recordingStartedByThisClientRef = useRef<string | null>(null);
   const didSyncRecordingFromLessonRef = useRef(false);
   const recorderBotInChannelRef = useRef(false);
+  const recordingLiveToastShownForIdRef = useRef<string | null>(null);
+  const prevRecordingBroadcastLiveRef = useRef(false);
 
   const whiteboardRef = useRef<WhiteboardPanelHandle>(null);
 
@@ -68,8 +71,9 @@ export default function WebinarPage() {
 
   const canManageWebinar =
     session?.role === 'teacher' || session?.role === 'moderator';
-  const teacherRecordingLive = !!activeRecordingId && recorderBotInChannel;
-  const studentRecordingVisible = !!activeRecordingId || recorderBotInChannel;
+  const recordingBroadcastLive = !!activeRecordingId && recorderBotInChannel;
+  const teacherRecordingLive = recordingBroadcastLive;
+  const studentRecordingVisible = recordingBroadcastLive;
   const recordingSessionActive =
     !!activeRecordingId || recorderBotInChannel || awaitingRecorderBot;
 
@@ -115,9 +119,13 @@ export default function WebinarPage() {
   }, []);
 
   const stopRecordingWithOptionalPdfUpload = useCallback(async (screenshots?: Blob[] | null) => {
-    const stopResponse = await stopRecording.mutateAsync();
-    setAwaitingRecorderBot(false);
-    setActiveRecordingId(null);
+    let stopResponse: Awaited<ReturnType<typeof stopRecording.mutateAsync>>;
+    try {
+      stopResponse = await stopRecording.mutateAsync();
+    } catch {
+      return;
+    }
+    setAwaitingRecordingSessionEnd(true);
 
     const screenshotsToUpload =
       screenshots && screenshots.length > 0
@@ -148,7 +156,6 @@ export default function WebinarPage() {
   const handleStartRecording = useCallback(() => {
     startRecording.mutate(undefined, {
       onSuccess: (response) => {
-        recordingStartedByThisClientRef.current = response.recording_id;
         setActiveRecordingId(response.recording_id);
         if (!recorderBotInChannelRef.current) {
           setAwaitingRecorderBot(true);
@@ -252,28 +259,14 @@ export default function WebinarPage() {
           setActiveRecordingId((prev) =>
             prev === event.recording_id ? prev : event.recording_id,
           );
-          if (recordingStartedByThisClientRef.current === event.recording_id) {
-            recordingStartedByThisClientRef.current = null;
-          } else {
-            notifyInfo({
-              title: 'Запись началась',
-              description: 'Сейчас ведётся запись урока.',
-            });
-          }
           return;
         }
         if (event.type === 'recording_stopped') {
-          setAwaitingRecorderBot(false);
-          setActiveRecordingId((prev) => (prev === null ? prev : null));
           if (courseSlug && lessonSlug) {
             void queryClient.invalidateQueries({
               queryKey: courseKeys.lesson(courseSlug, lessonSlug),
             });
           }
-          notifyInfo({
-            title: 'Запись остановлена',
-            description: 'Запись эфира завершена.',
-          });
           return;
         }
         if (event.type === 'webinar_ended') {
@@ -290,6 +283,38 @@ export default function WebinarPage() {
 
     return disconnect;
   }, [courseSlug, lessonSlug, navigate, queryClient, webinarId]);
+
+  useEffect(() => {
+    if (!activeRecordingId) {
+      recordingLiveToastShownForIdRef.current = null;
+      return;
+    }
+    if (!recorderBotInChannel) return;
+    if (recordingLiveToastShownForIdRef.current === activeRecordingId) return;
+    recordingLiveToastShownForIdRef.current = activeRecordingId;
+    notifySuccess({
+      title: 'Запись началась',
+    });
+  }, [activeRecordingId, recorderBotInChannel]);
+
+  useEffect(() => {
+    const prev = prevRecordingBroadcastLiveRef.current;
+    if (prev && !recordingBroadcastLive) {
+      notifySuccess({
+        title: 'Запись остановлена',
+      });
+      setActiveRecordingId(null);
+      setAwaitingRecorderBot(false);
+      setAwaitingRecordingSessionEnd(false);
+      recordingLiveToastShownForIdRef.current = null;
+      if (courseSlug && lessonSlug) {
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+        });
+      }
+    }
+    prevRecordingBroadcastLiveRef.current = recordingBroadcastLive;
+  }, [recordingBroadcastLive, courseSlug, lessonSlug, queryClient]);
 
   useEffect(() => {
     if (didSyncRecordingFromLessonRef.current) return;
@@ -383,7 +408,9 @@ export default function WebinarPage() {
         studentRecordingVisible={studentRecordingVisible}
         recordingPending={startRecording.isPending || awaitingRecorderBot}
         stopRecordingPending={
-          stopRecording.isPending || uploadRecordingPdf.isPending
+          stopRecording.isPending ||
+          uploadRecordingPdf.isPending ||
+          awaitingRecordingSessionEnd
         }
         stopWebinarPending={
           isFinishing || stopWebinar.isPending || uploadFinalPdf.isPending

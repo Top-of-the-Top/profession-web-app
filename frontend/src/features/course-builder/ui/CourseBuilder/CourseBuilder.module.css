@@ -426,7 +426,7 @@
 }
 
 .paletteBar {
-  margin-top: 12px;
+  margin-top: 5px;
   padding: 8px 10px;
   box-sizing: border-box;
   border-radius: 999px;
@@ -511,9 +511,29 @@
   }
 }
 
+.builderTopBar {
+  flex-shrink: 0;
+  padding: 2px 16px 8px 45px;
+}
+
 .lessonHeader {
   display: flex;
   padding-left: 45px;
+}
+
+.backToLesson {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #191970;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.backToLesson:hover {
+  text-decoration: underline;
 }
 
 .lessonHeaderTrapezoid {

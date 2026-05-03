@@ -11,7 +11,7 @@ import {
   Input,
 } from '@shared/ui';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@shared/lib/utils';
 import styles from './RegistrationPage.module.css';
 import { completeRegisterWithCode, requestRegisterCode } from '../api';
@@ -93,6 +93,8 @@ export default function RegistrationForm({
   const [pendingKind, setPendingKind] = useState<'email' | 'phone' | null>(null);
   const [pendingContact, setPendingContact] = useState<string | null>(null);
   const [otp, setOtp] = useState<OtpValue>(() => [...EMPTY_OTP]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
 
   const login = useUserStore((s) => s.login);
   const navigate = useNavigate();
@@ -283,15 +285,26 @@ export default function RegistrationForm({
                     <div className={styles.passwordHeader}>
                       <FieldLabel htmlFor="password">Пароль</FieldLabel>
                     </div>
-                    <Input
-                      id="password"
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder="Пароль"
-                      className={styles.input}
-                      disabled={loading}
-                      {...register('password')}
-                    />
+                    <div className={styles.passwordInputWrap}>
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        placeholder="Пароль"
+                        className={styles.input}
+                        disabled={loading}
+                        {...register('password')}
+                      />
+                      <button
+                        type="button"
+                        className={styles.passwordToggle}
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                        disabled={loading}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                     <CardDescription>
                       Не меньше 8 символов
                     </CardDescription>
@@ -306,15 +319,26 @@ export default function RegistrationForm({
                         Повторите пароль
                       </FieldLabel>
                     </div>
-                    <Input
-                      id="repeatPassword"
-                      type="password"
-                      placeholder="Пароль"
-                      autoComplete="new-password"
-                      className={styles.input}
-                      disabled={loading}
-                      {...register('repeatPassword')}
-                    />
+                    <div className={styles.passwordInputWrap}>
+                      <Input
+                        id="repeatPassword"
+                        type={showRepeatPassword ? 'text' : 'password'}
+                        placeholder="Пароль"
+                        autoComplete="new-password"
+                        className={styles.input}
+                        disabled={loading}
+                        {...register('repeatPassword')}
+                      />
+                      <button
+                        type="button"
+                        className={styles.passwordToggle}
+                        onClick={() => setShowRepeatPassword((prev) => !prev)}
+                        aria-label={showRepeatPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                        disabled={loading}
+                      >
+                        {showRepeatPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                     {errors.repeatPassword?.message ? (
                       <CardDescription>{errors.repeatPassword.message}</CardDescription>
                     ) : null}

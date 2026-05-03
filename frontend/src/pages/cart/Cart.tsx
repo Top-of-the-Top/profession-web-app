@@ -295,7 +295,7 @@ export default function CartPage() {
             </div>
           </div>
 
-          <div className={styles.payDialogMerchant}>
+          {/* <div className={styles.payDialogMerchant}>
             <div className={styles.payDialogMerchantIcon} aria-hidden>
               P
             </div>
@@ -305,7 +305,7 @@ export default function CartPage() {
                 {formatCourseCountLabel(courses.length)} в заказе
               </span>
             </div>
-          </div>
+          </div> */}
 
           <Button
             type="button"

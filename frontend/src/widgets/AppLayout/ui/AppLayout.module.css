@@ -99,6 +99,7 @@
   min-height: 100%;
   padding: var(--app-shell-pad-y) var(--app-shell-pad-x)
     var(--app-shell-pad-bottom);
+		padding-bottom: 0 !important;
 }
 
 .pageShellBleed {

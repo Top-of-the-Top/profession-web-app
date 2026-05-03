@@ -92,6 +92,22 @@
   padding: 14px;
 }
 
+@keyframes recordingCardExitDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+.recordingCardLeaving {
+  pointer-events: none;
+  animation: recordingCardExitDown 0.32s ease forwards;
+}
+
 .recordingCardHead {
   display: flex;
   align-items: center;

@@ -73,6 +73,36 @@
   margin-bottom: 8px;
 }
 
+.passwordInputWrap {
+  position: relative;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.passwordToggle:hover:not(:disabled) {
+  color: #374151;
+}
+
+.passwordToggle:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .submitButton {
   width: 100%;
   padding: 12px;

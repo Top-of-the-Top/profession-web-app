@@ -279,14 +279,6 @@ export default function WebinarPage() {
           setActiveRecordingId((prev) =>
             prev === event.recording_id ? prev : event.recording_id,
           );
-          if (recordingStartedByThisClientRef.current === event.recording_id) {
-            recordingStartedByThisClientRef.current = null;
-          } else {
-            notifyInfo({
-              title: 'Запись началась',
-              description: 'Сейчас ведётся запись урока.',
-            });
-          }
           return;
         }
         if (event.type === 'recording_stopped') {

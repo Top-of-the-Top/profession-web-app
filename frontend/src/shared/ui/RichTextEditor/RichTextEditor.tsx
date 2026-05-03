@@ -47,7 +47,6 @@ import {
   Bold,
   Heading1,
   Heading2,
-  Italic,
   List,
   ListOrdered,
   Pilcrow,
@@ -202,7 +201,6 @@ function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   const [editor] = useLexicalComposerContext();
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
-    italic: false,
     underline: false,
   });
   const [blockType, setBlockType] = useState<BlockType>('paragraph');
@@ -212,7 +210,6 @@ function ToolbarPlugin({ disabled }: { disabled: boolean }) {
     if ($isRangeSelection(selection)) {
       setActiveFormats({
         bold: selection.hasFormat('bold'),
-        italic: selection.hasFormat('italic'),
         underline: selection.hasFormat('underline'),
       });
     }
@@ -281,15 +278,6 @@ function ToolbarPlugin({ disabled }: { disabled: boolean }) {
         aria-label="Жирный"
       >
         <Bold size={16} />
-      </button>
-      <button
-        type="button"
-        className={cn(styles.toolbarButton, activeFormats.italic && styles.toolbarButtonActive)}
-        disabled={disabled}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
-        aria-label="Курсив"
-      >
-        <Italic size={16} />
       </button>
       <button
         type="button"

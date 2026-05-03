@@ -11,29 +11,24 @@ export interface CartResponse {
 }
 
 export const cartApi = {
-  /**
-   * Получить текущую корзину пользователя
-   */
   getCart(): Promise<CartResponse> {
     return apiClient.request<CartResponse>('/api/carts/', { method: 'GET' });
   },
 
-  /**
-   * Добавить курс в корзину по slug
-   */
   addCourse(slug: string) {
     return apiClient.request('/api/carts/add/' + slug + '/', {
       method: 'POST',
     });
   },
 
-  /**
-   * Удалить курс из корзины по slug
-   */
   removeCourse(slug: string) {
     return apiClient.request('/api/carts/remove/' + slug + '/', {
       method: 'DELETE',
     });
+  },
+
+  payCart() {
+    return apiClient.request('/api/carts/pay/', { method: 'POST' });
   },
 };
 

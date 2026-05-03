@@ -3,6 +3,14 @@ import { useQueries } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Home, Clock3, Video, CircleCheck, FileDown, Trash2 } from 'lucide-react';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -464,18 +472,26 @@ const LessonEditWidget: React.FC<{
   );
 };
 
+type RecordingDeleteConfirm =
+  | null
+  | { kind: 'recording'; recordingId: string; dateLabel: string }
+  | { kind: 'pdf'; recordingId: string; dateLabel: string };
+
 const LessonRecordingCard: React.FC<{
   recording: LessonRecording;
   isTeacher: boolean;
-  onDeletePdf: (recordingId: string) => void;
-  onDeleteRecording: (recordingId: string) => void;
+  onRequestDeletePdf: (payload: { recordingId: string; dateLabel: string }) => void;
+  onRequestDeleteRecording: (payload: {
+    recordingId: string;
+    dateLabel: string;
+  }) => void;
   deletePdfPending: boolean;
   deleteRecordingPending: boolean;
 }> = ({
   recording,
   isTeacher,
-  onDeletePdf,
-  onDeleteRecording,
+  onRequestDeletePdf,
+  onRequestDeleteRecording,
   deletePdfPending,
   deleteRecordingPending,
 }) => {
@@ -537,7 +553,12 @@ const LessonRecordingCard: React.FC<{
           <button
             type="button"
             className={styles.recordingActionButton}
-            onClick={() => onDeleteRecording(recording.recording_id)}
+            onClick={() =>
+              onRequestDeleteRecording({
+                recordingId: recording.recording_id,
+                dateLabel,
+              })
+            }
             disabled={deleteRecordingPending}
           >
             <Trash2 size={16} />
@@ -547,7 +568,12 @@ const LessonRecordingCard: React.FC<{
             <button
               type="button"
               className={styles.recordingActionButton}
-              onClick={() => onDeletePdf(recording.recording_id)}
+              onClick={() =>
+                onRequestDeletePdf({
+                  recordingId: recording.recording_id,
+                  dateLabel,
+                })
+              }
               disabled={deletePdfPending}
             >
               <FileDown size={16} />
@@ -580,6 +606,8 @@ export default function LessonViewPage() {
   const lessonDetail = lessonQuery.data;
   const deleteRecordingPdf = useDeleteRecordingPdf(courseSlug ?? '', lessonSlug ?? '');
   const deleteRecording = useDeleteRecording(courseSlug ?? '', lessonSlug ?? '');
+  const [recordingDeleteConfirm, setRecordingDeleteConfirm] =
+    useState<RecordingDeleteConfirm>(null);
 
   const lessonLayout = useMemo<LessonLayout | null>(() => {
     if (!lessonDetail?.document) return null;
@@ -683,14 +711,28 @@ export default function LessonViewPage() {
                       key={`${recording.recording_id}-${recording.started_at ?? 'recording'}`}
                       recording={recording}
                       isTeacher={isTeacher}
-                      onDeletePdf={(recordingId) => {
-                        deleteRecordingPdf.mutate(recordingId);
+                      onRequestDeletePdf={({ recordingId, dateLabel }) => {
+                        setRecordingDeleteConfirm({
+                          kind: 'pdf',
+                          recordingId,
+                          dateLabel,
+                        });
                       }}
-                      onDeleteRecording={(recordingId) => {
-                        deleteRecording.mutate(recordingId);
+                      onRequestDeleteRecording={({ recordingId, dateLabel }) => {
+                        setRecordingDeleteConfirm({
+                          kind: 'recording',
+                          recordingId,
+                          dateLabel,
+                        });
                       }}
-                      deletePdfPending={deleteRecordingPdf.isPending}
-                      deleteRecordingPending={deleteRecording.isPending}
+                      deletePdfPending={
+                        deleteRecordingPdf.isPending &&
+                        deleteRecordingPdf.variables === recording.recording_id
+                      }
+                      deleteRecordingPending={
+                        deleteRecording.isPending &&
+                        deleteRecording.variables === recording.recording_id
+                      }
                     />
                   ))}
                 </div>
@@ -728,6 +770,51 @@ export default function LessonViewPage() {
         </aside>
       </div>
       </div>
+
+      <AlertDialog
+        open={recordingDeleteConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open) setRecordingDeleteConfirm(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {recordingDeleteConfirm?.kind === 'pdf'
+                ? 'Удалить PDF доски?'
+                : 'Удалить запись?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {recordingDeleteConfirm?.kind === 'pdf'
+                ? `PDF для записи «${recordingDeleteConfirm.dateLabel}» будет удалён без возможности восстановления.`
+                : `Запись «${recordingDeleteConfirm?.dateLabel ?? ''}» будет удалена без возможности восстановления.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRecordingDeleteConfirm(null)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                recordingDeleteConfirm?.kind === 'pdf'
+                  ? deleteRecordingPdf.isPending
+                  : deleteRecording.isPending
+              }
+              onClick={() => {
+                if (!recordingDeleteConfirm) return;
+                if (recordingDeleteConfirm.kind === 'pdf') {
+                  deleteRecordingPdf.mutate(recordingDeleteConfirm.recordingId);
+                } else {
+                  deleteRecording.mutate(recordingDeleteConfirm.recordingId);
+                }
+                setRecordingDeleteConfirm(null);
+              }}
+            >
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageFrame>
   );
 }

@@ -22,6 +22,7 @@ export type ApiFailureScene =
   | 'cartLoad'
   | 'cartAdd'
   | 'cartRemove'
+  | 'cartPay'
   | 'courseDetail'
   | 'webinarStart'
   | 'webinarJoin'
@@ -283,6 +284,10 @@ const SCENE_FALLBACK: Record<ApiFailureScene, UserFacingMessage> = {
     title: 'не удалось удалить',
     description: 'Повторите попытку.',
   },
+  cartPay: {
+    title: 'не удалось оплатить',
+    description: 'Повторите попытку.',
+  },
   courseDetail: {
     title: 'не удалось загрузить курс',
     description: 'Обновите страницу или откройте курс из каталога.',
@@ -460,6 +465,12 @@ const SCENE_STATUS_FALLBACK: Partial<
     404: {
       title: 'не удалось удалить',
       description: 'Курс не найден в корзине или в каталоге.',
+    },
+  },
+  cartPay: {
+    401: {
+      title: 'сессия устарела',
+      description: 'Войдите снова и повторите действие.',
     },
   },
   courseDetail: {
@@ -734,6 +745,10 @@ export function resolveApiFailureMessage(
           };
         }
       }
+      break;
+    }
+    case 'cartPay': {
+      if (status === 401) mapped = messageFromAuthDetail(body);
       break;
     }
     case 'courseDetail': {

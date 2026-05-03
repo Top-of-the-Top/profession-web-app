@@ -1,8 +1,9 @@
 .dialog-overlay {
   position: fixed;
   z-index: 200;
-  animation-duration: var(--default-transition-duration);
-  animation-timing-function: var(--ease-out);
+  animation-duration: var(--dialog-motion-duration);
+  animation-timing-function: var(--dialog-motion-ease);
+  animation-fill-mode: both;
   background-color: rgb(0 0 0 / 50%);
   inset: 0;
 
@@ -25,10 +26,10 @@
   max-width: calc(100% - 2rem);
   padding: calc(var(--spacing) * 6);
   transform: translate(-50%, -50%);
-  transition: all var(--default-transition-duration)
-    var(--default-transition-timing-function);
-  animation-duration: var(--default-transition-duration);
-  animation-timing-function: var(--ease-out);
+  transition: all var(--dialog-motion-duration) var(--dialog-motion-ease);
+  animation-duration: var(--dialog-motion-duration);
+  animation-timing-function: var(--dialog-motion-ease);
+  animation-fill-mode: both;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background-color: var(--color-background);
@@ -125,5 +126,13 @@
       flex-direction: row;
       justify-content: end;
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-overlay,
+  .dialog-content {
+    animation-duration: 0.01ms;
+    transition-duration: 0.01ms;
   }
 }

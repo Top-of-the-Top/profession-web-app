@@ -386,6 +386,8 @@
   --aspect-video: 16 / 9;
   --default-transition-duration: 0.15s;
   --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  --dialog-motion-duration: 0.38s;
+  --dialog-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --animation-delay-0: 0s;
   --animation-delay-75: 75ms;
   --animation-delay-100: 0.1s;
@@ -827,6 +829,8 @@
   --aspect-video: 16 / 9;
   --default-transition-duration: 0.15s;
   --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  --dialog-motion-duration: 0.38s;
+  --dialog-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --animation-delay-0: 0s;
   --animation-delay-75: 75ms;
   --animation-delay-100: 0.1s;

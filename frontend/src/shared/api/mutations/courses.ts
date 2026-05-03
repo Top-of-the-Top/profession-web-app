@@ -149,19 +149,37 @@ export function usePatchSection(courseSlug: string) {
 
 export function useDeleteSection(courseSlug: string) {
   const qc = useQueryClient();
+  const homeKey = courseKeys.courseHome(courseSlug);
 
   return useMutation({
     mutationFn: (sectionSlug: string) =>
       courseApi.deleteSection(courseSlug, sectionSlug),
-    onSuccess: () => {
-      notifySuccess({ title: 'Раздел удалён' });
-      void qc.invalidateQueries({ queryKey: courseKeys.courseHome(courseSlug) });
+    onMutate: async (sectionSlug) => {
+      await qc.cancelQueries({ queryKey: homeKey });
+      const prev = qc.getQueryData<CourseHomeResponse>(homeKey);
+      qc.setQueryData<CourseHomeResponse>(homeKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          content: old.content.filter((s) => s.slug !== sectionSlug),
+        };
+      });
+      return { prev };
     },
-    onError: (err) => {
+    onError: (err, _sectionSlug, context) => {
+      if (context?.prev !== undefined) {
+        qc.setQueryData(homeKey, context.prev);
+      }
       notifyError({
         title: 'Не удалось удалить раздел',
         description: errMsg(err),
       });
+    },
+    onSuccess: () => {
+      notifySuccess({ title: 'Раздел удалён' });
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: homeKey });
     },
   });
 }
@@ -372,19 +390,40 @@ export function useToggleLessonType(courseSlug: string) {
 
 export function useDeleteLesson(courseSlug: string) {
   const qc = useQueryClient();
+  const homeKey = courseKeys.courseHome(courseSlug);
 
   return useMutation({
     mutationFn: (lessonSlug: string) =>
       courseApi.deleteLesson(courseSlug, lessonSlug),
-    onSuccess: () => {
-      notifySuccess({ title: 'Урок удалён' });
-      void qc.invalidateQueries({ queryKey: courseKeys.courseHome(courseSlug) });
+    onMutate: async (lessonSlug) => {
+      await qc.cancelQueries({ queryKey: homeKey });
+      const prev = qc.getQueryData<CourseHomeResponse>(homeKey);
+      qc.setQueryData<CourseHomeResponse>(homeKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          content: old.content.map((section) => ({
+            ...section,
+            lessons: section.lessons.filter((l) => l.slug !== lessonSlug),
+          })),
+        };
+      });
+      return { prev };
     },
-    onError: (err) => {
+    onError: (err, _lessonSlug, context) => {
+      if (context?.prev !== undefined) {
+        qc.setQueryData(homeKey, context.prev);
+      }
       notifyError({
         title: 'Не удалось удалить урок',
         description: errMsg(err),
       });
+    },
+    onSuccess: () => {
+      notifySuccess({ title: 'Урок удалён' });
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: homeKey });
     },
   });
 }
@@ -598,21 +637,39 @@ export function useDeleteHomework(
   lessonSlug: string,
 ) {
   const qc = useQueryClient();
+  const lessonKey = courseKeys.lesson(courseSlug, lessonSlug);
 
   return useMutation({
     mutationFn: (homeworkSlug: string) =>
       courseApi.deleteHomework(courseSlug, lessonSlug, homeworkSlug),
-    onSuccess: () => {
-      notifySuccess({ title: 'Домашнее задание удалено' });
-      void qc.invalidateQueries({
-        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+    onMutate: async (homeworkSlug) => {
+      await qc.cancelQueries({ queryKey: lessonKey });
+      const prev = qc.getQueryData<CourseLessonDetail>(lessonKey);
+      qc.setQueryData<CourseLessonDetail>(lessonKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          homeworks: old.homeworks.filter(
+            (hw) => hw.homework_slug !== homeworkSlug,
+          ),
+        };
       });
+      return { prev };
     },
-    onError: (err) => {
+    onError: (err, _homeworkSlug, context) => {
+      if (context?.prev !== undefined) {
+        qc.setQueryData(lessonKey, context.prev);
+      }
       notifyError({
         title: 'Не удалось удалить домашнее задание',
         description: errMsg(err),
       });
+    },
+    onSuccess: () => {
+      notifySuccess({ title: 'Домашнее задание удалено' });
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: lessonKey });
     },
   });
 }

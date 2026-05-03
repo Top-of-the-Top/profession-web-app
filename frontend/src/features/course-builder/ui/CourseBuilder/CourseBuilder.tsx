@@ -7,7 +7,12 @@ import { useLessonBuilderStore } from '../../model/store';
 import type { SubmitPayload } from '../../model/store';
 import type { Block, BlockType } from '../../model/types';
 import { serializeCoursePage } from '../../model/types';
-import { GRID_CELL_SIZE, GRID_COLS } from '../../lib/constants';
+import {
+  DEFAULT_FONT_SIZE_INDEX,
+  FONT_SIZE_STEPS,
+  GRID_CELL_SIZE,
+  GRID_COLS,
+} from '../../lib/constants';
 import { HomeworkBuilder } from '../HomeworkBuilder';
 import { useHomeworkStore } from '../../model/homeworkStore';
 import type { LessonHomework } from '@shared/api/courseApi';
@@ -265,6 +270,9 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   const renderBlockBody = (block: Block) => {
     if (block.type === 'text') {
       const collapsed = collapsedEditors[block.id] ?? true;
+      const lessonTextFontPx =
+        FONT_SIZE_STEPS[block.fontSizeIndex ?? DEFAULT_FONT_SIZE_INDEX] ??
+        FONT_SIZE_STEPS[DEFAULT_FONT_SIZE_INDEX];
       return (
         <div className={`${styles.blockBody} ${styles.blockBodyText}`} dir="ltr">
           <div
@@ -277,6 +285,8 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
               onChange={(html) => handleTextChange(block.id, html)}
               variant="compact"
               placeholder="Введите текст"
+              contentFontSizePx={lessonTextFontPx}
+              contentLineHeight={1.7}
             />
           </div>
         </div>

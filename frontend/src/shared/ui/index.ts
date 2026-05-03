@@ -122,4 +122,6 @@ export { Skeleton } from './Skeleton'
   DialogTrigger,
 } from './Dialog'
 
+	export { Modal, type ModalProps } from './Modal'
+
 	export { RootErrorFallback, ContentErrorFallback } from './ErrorFallback'

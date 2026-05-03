@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { MutableRefObject } from 'react';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
 import {
@@ -67,6 +67,8 @@ interface RichTextEditorProps {
   className?: string;
   variant?: RichTextEditorVariant;
   hideToolbar?: boolean;
+  contentFontSizePx?: number;
+  contentLineHeight?: CSSProperties['lineHeight'];
 }
 
 const editorTheme = {
@@ -359,8 +361,17 @@ export function RichTextEditor({
   className,
   variant = 'default',
   hideToolbar = false,
+  contentFontSizePx,
+  contentLineHeight,
 }: RichTextEditorProps) {
   const latestHtmlRef = useRef(value);
+  const contentTypographyStyle = useMemo((): CSSProperties | undefined => {
+    if (contentFontSizePx == null && contentLineHeight == null) return undefined;
+    return {
+      ...(contentFontSizePx != null ? { fontSize: `${contentFontSizePx}px` } : {}),
+      ...(contentLineHeight != null ? { lineHeight: contentLineHeight } : {}),
+    };
+  }, [contentFontSizePx, contentLineHeight]);
   const initialConfig = useMemo(
     () => ({
       namespace: 'RichTextEditor',
@@ -398,8 +409,13 @@ export function RichTextEditor({
               contentEditable={
                 <ContentEditable
                   className={styles.contentEditable}
+                  style={contentTypographyStyle}
                   aria-placeholder={placeholder}
-                  placeholder={<span className={styles.placeholder}>{placeholder}</span>}
+                  placeholder={
+                    <span className={styles.placeholder} style={contentTypographyStyle}>
+                      {placeholder}
+                    </span>
+                  }
                 />
               }
               ErrorBoundary={LexicalErrorBoundary}

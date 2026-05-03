@@ -441,6 +441,10 @@
   pointer-events: none;
 }
 
+.blockBodyText {
+  overflow: visible;
+}
+
 .textEditorToolbar {
   display: flex;
   gap: 4px;

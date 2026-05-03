@@ -423,8 +423,6 @@ const WebinarWidget: React.FC<{
     navigate(webinarUrl);
   };
 
-  
-
   if (webinarStatus === 'live') {
     return (
       <div className={styles.linksRow}>
@@ -434,13 +432,29 @@ const WebinarWidget: React.FC<{
           onClick={handleJoinLive}
         >
           <Video size={20} />
-          <span>Вернуться в звонок</span>
+          <span>{isTeacher ? 'Вернуться в звонок' : 'Войти в вебинар'}</span>
         </button>
       </div>
     );
   }
 
-  if (!isTeacher) return null;
+  if (!isTeacher) {
+    if (webinarStatus === 'pending') {
+      return (
+        <div className={styles.linksRow}>
+          <button
+            type="button"
+            className={styles.quickLinkButton}
+            onClick={handleJoinLive}
+          >
+            <Video size={20} />
+            <span>Войти в вебинар</span>
+          </button>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className={styles.linksRow}>

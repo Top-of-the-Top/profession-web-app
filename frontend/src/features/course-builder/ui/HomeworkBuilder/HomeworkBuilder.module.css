@@ -1,10 +1,12 @@
 .homeworkLayout {
   width: 100%;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  flex: 1;
+  flex: 1 1 0;
+  overflow: hidden;
 }
 
 .homeworkMain {
@@ -12,25 +14,30 @@
   gap: 14px;
   min-height: 0;
   width: 100%;
-  flex: 1;
+  flex: 1 1 0;
+  overflow: hidden;
 }
 
 .homeworkCanvasColumn {
   min-width: 0;
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .homeworkSidebar {
   width: 280px;
   flex-shrink: 0;
+  align-self: stretch;
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 0 8px rgba(15, 23, 42, 0.12);
   padding: 12px;
   box-sizing: border-box;
-  max-height: 75vh;
+  min-height: 0;
+  max-height: 100%;
   overflow: auto;
 }
 
@@ -145,14 +152,14 @@
   color: #64748b;
   font-size: 12px;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .homeworkWrapper {
-  flex: 1;
+  flex: 1 1 0;
   width: 100%;
   min-width: 0;
-  min-height: 75vh;
-  max-height: 75vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   border-radius: 12px;
@@ -160,12 +167,11 @@
   position: relative;
   overflow-y: auto;
   overflow-x: hidden;
-  max-height: 75vh;
 }
 
 .homeworkList {
-  flex: 1;
-  min-height: 100%;
+  flex: 1 1 0;
+  min-height: 0;
   padding: 8px 0 12px;
   display: flex;
   flex-direction: column;
@@ -174,11 +180,11 @@
 .homeworkInner {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 auto;
   gap: 10px;
   width: min(920px, 100%);
   min-width: 0;
-  min-height: 100%;
+  min-height: 0;
   margin: 0 auto;
   padding: 0 8px;
   box-sizing: border-box;
@@ -426,7 +432,10 @@
 }
 
 .homeworkActionsBar {
-  margin-top: 12px;
+  flex: 0 0 12%;
+  min-height: 52px;
+  max-height: 120px;
+  margin-top: 6px;
   width: 100%;
   min-width: 0;
   padding: 8px 10px;
@@ -437,6 +446,7 @@
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .homeworkAddButtons {
@@ -514,17 +524,13 @@
     overflow: visible;
   }
 
-  .homeworkWrapper {
-    min-height: 65vh;
-    max-height: 65vh;
+  .homeworkActionsBar {
+    flex-basis: 14%;
+    align-items: stretch;
   }
 
   .homeworkInner {
     padding: 0 4px;
-  }
-
-  .homeworkActionsBar {
-    align-items: stretch;
   }
 
   .homeworkAddButtons,

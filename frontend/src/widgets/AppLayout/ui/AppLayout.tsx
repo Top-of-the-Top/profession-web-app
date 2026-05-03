@@ -32,8 +32,13 @@ function isFullBleedAppPage(pathname: string) {
   );
 }
 
+function isLessonEditorPage(pathname: string) {
+  return pathname.includes('/courses/') && pathname.endsWith('/edit');
+}
+
 export default function AppLayout() {
   const { pathname } = useLocation();
+  const lessonEditorLayout = isLessonEditorPage(pathname);
   const user = useUserStore((state) => state.user);
   const hasToken = tokenService.hasToken();
 
@@ -179,11 +184,14 @@ export default function AppLayout() {
           </div> */}
         </div>
 
-        <main className={styles.main}>
+        <main
+          className={cn(styles.main, lessonEditorLayout && styles.mainLessonEditor)}
+        >
           <div
             className={cn(
               styles.pageShell,
               isFullBleedAppPage(pathname) && styles.pageShellBleed,
+              lessonEditorLayout && styles.pageShellLessonEditor,
             )}
           >
             <QueryErrorResetBoundary>

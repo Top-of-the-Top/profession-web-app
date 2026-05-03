@@ -10,6 +10,7 @@ import {
   BreadcrumbSeparator,
   Button,
   PageFrame,
+  RichTextEditor,
   Spinner,
 } from '@shared/ui';
 import {
@@ -64,6 +65,22 @@ function extractApiMessage(err: unknown): string {
     return issue;
   }
   return `Ошибка запроса (${parsed.status})`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatAnswerHtml(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '<p>Ответ не заполнен</p>';
+  if (/<[a-z][\s\S]*>/i.test(trimmed)) return trimmed;
+  return `<p>${escapeHtml(trimmed).replace(/\r?\n/g, '<br>')}</p>`;
 }
 
 export default function HomeworkSubmissionPage() {
@@ -410,19 +427,29 @@ export default function HomeworkSubmissionPage() {
             </div>
           ) : (
             <div className={styles.taskAnswerWrap}>
-              <textarea
-                className={styles.answerArea}
-                rows={6}
-                value={answers[answerKey('task', currentItem.task_id)] ?? ''}
-                disabled={!isDraft}
-                onChange={(event) =>
-                  setAnswers((prev) => ({
-                    ...prev,
-                    [answerKey('task', currentItem.task_id)]: event.target.value,
-                  }))
-                }
-                placeholder="Введите ответ"
-              />
+              {isDraft ? (
+                <RichTextEditor
+                  key={currentItem.task_id}
+                  className={styles.answerEditor}
+                  value={answers[answerKey('task', currentItem.task_id)] ?? ''}
+                  onChange={(html) =>
+                    setAnswers((prev) => ({
+                      ...prev,
+                      [answerKey('task', currentItem.task_id)]: html,
+                    }))
+                  }
+                  placeholder="Введите ответ"
+                />
+              ) : (
+                <div
+                  className={styles.answerPreview}
+                  dangerouslySetInnerHTML={{
+                    __html: formatAnswerHtml(
+                      answers[answerKey('task', currentItem.task_id)] ?? '',
+                    ),
+                  }}
+                />
+              )}
               <div className={styles.attachmentsBlock}>
                 <label className={styles.uploadButton}>
                   <input

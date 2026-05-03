@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DefaultEditor } from 'react-simple-wysiwyg';
 import { ImageUp, PictureInPicture, Trash2 } from 'lucide-react';
 import GridLayout from 'react-grid-layout';
 import type { Layout, LayoutItem } from 'react-grid-layout';
@@ -21,6 +20,7 @@ import {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
+  RichTextEditor,
 } from '@shared/ui';
 import styles from './CourseBuilder.module.css';
 import 'react-grid-layout/css/styles.css';
@@ -59,21 +59,14 @@ function blocksToLayout(blocks: Block[]): Layout {
   }));
 }
 
-/**
- * react-simple-wysiwyg при вставке из clipboard/Figma может тащить служебные поля
- * (`data-buffer`, `data-metadata` и т.п.), которые раздувают JSON черновика.
- * Чистим это перед сохранением в состоянии.
- */
-function sanitizeWysiwygHtml(html: string): string {
+function sanitizeRichTextHtml(html: string): string {
   if (!html) return html;
 
   return html
-    // Убираем span-ы со служебными атрибутами
     .replace(
       /<span[^>]*(?:data-metadata|data-buffer)="[^"]*"[^>]*>[\s\S]*?<\/span>/g,
       '',
     )
-    // На всякий случай — убираем figma-комментарии, если они попали в HTML
     .replace(/<!--\s*\(figmeta\)[\s\S]*?\(\/figmeta\)\s*-->/g, '')
     .replace(/<!--\s*\(figma\)[\s\S]*?\(\/figma\)\s*-->/g, '');
 }
@@ -235,7 +228,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
 
   const handleCourseTitleChange = (title: string) => setTitle(title);
   const handleTextChange = (blockId: string, html: string) => {
-    const cleaned = sanitizeWysiwygHtml(html);
+    const cleaned = sanitizeRichTextHtml(html);
     updateBlock(blockId, { html: cleaned } as Block);
   };
 
@@ -273,16 +266,17 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     if (block.type === 'text') {
       const collapsed = collapsedEditors[block.id] ?? true;
       return (
-        <div className={styles.blockBody} dir="ltr">
+        <div className={`${styles.blockBody} ${styles.blockBodyText}`} dir="ltr">
           <div
-            className={`${styles.wysiwygEditor} ${
-              collapsed ? styles.wysiwygEditorCollapsed : ''
+            className={`${styles.richTextEditor} ${
+              collapsed ? styles.richTextEditorCollapsed : ''
             }`}
           >
-            <DefaultEditor
+            <RichTextEditor
               value={block.html || ''}
-              onChange={(e) => handleTextChange(block.id, e.target.value)}
-              tagName="p"
+              onChange={(html) => handleTextChange(block.id, html)}
+              variant="compact"
+              placeholder="Введите текст"
             />
           </div>
         </div>
@@ -507,7 +501,11 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
                       {layout.blocks.map((block) => (
                         <div
                           key={block.id}
-                          className={`${styles.gridBlock} ${deletingBlocks[block.id] ? styles.gridBlockDeleting : ''}`}
+                          className={`${styles.gridBlock} ${deletingBlocks[block.id] ? styles.gridBlockDeleting : ''} ${
+                            block.type === 'text' && !(collapsedEditors[block.id] ?? true)
+                              ? styles.gridBlockToolbarAbove
+                              : ''
+                          }`}
                           dir="ltr"
                         >
                           <div className={`${styles.blockHeader} block-drag-handle`}>

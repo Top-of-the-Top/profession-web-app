@@ -251,7 +251,7 @@
   /* border: 1px solid #acacac; */
   background: #ffffff;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   min-height: 320px;
   max-height: 75vh;
 }
@@ -296,6 +296,7 @@
 
 .gridBlock {
   position: absolute;
+  z-index: 0;
   border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   background-color: #ffffff;
@@ -384,6 +385,10 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.blockBodyText {
+  overflow: visible;
 }
 
 .textEditorToolbar {
@@ -721,40 +726,18 @@
 .textEditorContent u {
   text-decoration: underline;
 }
-/* Стили для WYSIWYG редактора */
-.wysiwygEditor {
+.richTextEditor {
   width: 100%;
   flex: 1;
   min-height: 0;
   overflow: visible;
   display: flex;
   flex-direction: column;
-  direction: ltr !important;
-  text-align: left !important;
 }
 
-.wysiwygEditor :global(.rsw-editor) {
-  display: flex;
-  flex-direction: column;
+.richTextEditor > :global(div) {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-  border: none !important;
-  direction: ltr !important;
-}
-
-.wysiwygEditor :global(.rsw-toolbar) {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 4px;
-  background-color: #f9fafb;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 6px 6px 0 0;
-  direction: ltr !important;
-  transform: translateY(-80px);
-  position: absolute;
-  z-index: 150;
 }
 
 @media (max-width: 768px) {
@@ -786,116 +769,12 @@
   }
 }
 
-.wysiwygEditorCollapsed :global(.rsw-toolbar) {
+.richTextEditorCollapsed :global([data-rich-text-toolbar]) {
   display: none;
 }
 
-.wysiwygEditor :global(.rsw-btn) {
-  background: transparent;
-  border: none;
-  padding: 6px 8px;
-  cursor: pointer;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #374151;
-  min-width: 32px;
-  transition: background-color 0.2s;
-}
-
-.wysiwygEditor :global(.rsw-btn:hover) {
-  background-color: #e5e7eb;
-}
-
-.wysiwygEditor :global(.rsw-btn[data-active='true']) {
-  background-color: #2563eb;
-  color: white;
-}
-
-.wysiwygEditor :global(.rsw-dd) {
-  background: transparent;
-  border: none;
-  padding: 6px 8px;
-  cursor: pointer;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #374151;
-}
-
-.wysiwygEditor :global(.rsw-dd:hover) {
-  background-color: #e5e7eb;
-}
-
-.wysiwygEditor :global(.rsw-content-editor) {
-  flex: 1;
-  min-height: 0;
-  padding: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-top: none;
-  border-radius: 0 0 6px 6px;
-  overflow: hidden;
-  outline: none;
-  font-size: 13px;
-  line-height: 1.5;
-  background-color: white;
-  direction: ltr !important;
-  text-align: left !important;
-}
-
-.wysiwygEditor :global(.rsw-content-editor:focus) {
-  border-color: #2563eb;
+.richTextEditor :global([contenteditable='true']:focus) {
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.wysiwygEditor :global(.rsw-content-editor p) {
-  margin: 0 0 8px 0;
-}
-
-.wysiwygEditor :global(.rsw-content-editor blockquote) {
-  margin: 8px 0;
-  padding-left: 16px;
-  border-left: 3px solid #2563eb;
-  background-color: rgba(37, 99, 235, 0.04);
-  font-style: italic;
-}
-
-.wysiwygEditor :global(.rsw-content-editor strong) {
-  font-weight: 600;
-}
-
-.wysiwygEditor :global(.rsw-content-editor em) {
-  font-style: italic;
-}
-
-.wysiwygEditor :global(.rsw-content-editor u) {
-  text-decoration: underline;
-}
-
-.wysiwygEditor :global(.rsw-content-editor h1) {
-  font-size: 2em;
-  margin: 0.67em 0;
-  font-weight: bold;
-}
-
-.wysiwygEditor :global(.rsw-content-editor h2) {
-  font-size: 1.5em;
-  margin: 0.75em 0;
-  font-weight: bold;
-}
-
-.wysiwygEditor :global(.rsw-content-editor h3) {
-  font-size: 1.17em;
-  margin: 0.83em 0;
-  font-weight: bold;
-}
-
-.wysiwygEditor :global(.rsw-content-editor ul),
-.wysiwygEditor :global(.rsw-content-editor ol) {
-  margin: 8px 0;
-  padding-left: 24px;
-}
-
-.wysiwygEditor :global(.rsw-content-editor li) {
-  margin: 4px 0;
 }
 
 /* Загрузка файла: надпись + иконка */
@@ -1001,24 +880,22 @@
 }
 
 /* Блок при перетаскивании */
+.gridBlockToolbarAbove {
+  z-index: 200;
+}
+
 .gridBlock.dragging {
   opacity: 0.8;
   box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
-  z-index: 100;
+  z-index: 500;
 }
 
 /* Убедимся, что все текстове элементы имеют правильное направление */
 .gridBlock,
 .blockBody,
 .textEditorContent,
-.wysiwygEditor,
-.wysiwygEditor * {
+.richTextEditor,
+.richTextEditor * {
   direction: ltr !important;
   text-align: left !important;
-}
-
-.wysiwygEditor :global(.rsw-ce:focus) {
-  outline: none !important;
-  border: none !important;
-  box-shadow: none !important;
 }

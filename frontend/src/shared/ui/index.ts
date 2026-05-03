@@ -74,6 +74,7 @@
 	export { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs'
 	export { Label } from './Label'
 	export { Alert, AlertTitle, AlertDescription } from './Alert'
+	export { RichTextEditor } from './RichTextEditor'
 	export  {
 		Select,
 		SelectContent,

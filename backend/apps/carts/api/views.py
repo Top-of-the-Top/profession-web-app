@@ -121,6 +121,7 @@ class AddToCartView(APIView):
             course_id=course.course_id,
         )
 
+        caches["hot"].delete(cart_hot_cache_key(request.user.id))
         serializer = CartItemSerializer(cart_item)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -162,4 +163,5 @@ class CartItemView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         cart_item.delete()
+        caches["hot"].delete(cart_hot_cache_key(request.user.id))
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -39,7 +39,6 @@ class AssetUploadInitiateView(BaseAssetView):
         serializer.is_valid(raise_exception=True)
         
         try:
-            # Возвращает Asset + upload_url
             result = self.upload_api.initiate_upload(
                 user=request.user,
                 **serializer.validated_data

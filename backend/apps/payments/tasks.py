@@ -35,7 +35,7 @@ def process_payment_task(self, payment_id: int):
 
     yookassa_result = MockYooKassaService.fetch_payment_status(
         str(payment.mock_yookassa_id),
-    )  # Получаем статус платежа из (мок) ЮKassa.
+    )
 
     if yookassa_result['paid']:
         return _handle_success(payment)
@@ -43,20 +43,20 @@ def process_payment_task(self, payment_id: int):
         return _handle_failure(self, payment)
 
 
-def _handle_success(payment):  # Это метод - обработка успешного платежа.
+def _handle_success(payment):
     from ..courses.models import PurchasedCourse
-    from ..carts.models import Cart, CartItem
+    from django.core.cache import caches
+    from apps.courses.api.utils.cache_utils import purchased_courses_cache_key
 
     payment.status = 'success'
     payment.paid_at = timezone.now()
     payment.save(update_fields=['status', 'paid_at', 'updated_at'])
 
     access_expires = timezone.now() + timedelta(days=ACCESS_DURATION_DAYS)
-
     payment_items = payment.items.select_related('course').all()
 
     created_count = 0
-    for item in payment_items:  # Для каждого курса в платеже создаем объект в PurchasedCourse.
+    for item in payment_items:
         _, created = PurchasedCourse.objects.get_or_create(
             user=payment.user,
             course=item.course,
@@ -68,8 +68,8 @@ def _handle_success(payment):  # Это метод - обработка успе
         if created:
             created_count += 1
 
-    # Очищаем текущую корзину пользователя.
-    CartItem.objects.filter(cart_id__user=payment.user).delete()
+    cache = caches["default"]
+    cache.delete(purchased_courses_cache_key(payment.user_id))
 
     logger.info(
         'Payment %s успешен: %d курсов добавлено пользователю %s',
@@ -83,7 +83,6 @@ def _handle_success(payment):  # Это метод - обработка успе
     }
 
 
-# Это метод - обработка неудачного платежа.
 def _handle_failure(task_instance, payment):
     payment.status = 'failed'
     payment.save(update_fields=['status', 'updated_at'])

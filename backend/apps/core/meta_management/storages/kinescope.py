@@ -19,7 +19,6 @@ API_BASE = 'https://api.kinescope.io/v1'
 UPLOADER_BASE = 'https://uploader.kinescope.io/v2'
 EMBED_URL_TEMPLATE = 'https://kinescope.io/embed/{video_id}'
 
-# Видео загружено когда Kinescope вернул processing или ready
 UPLOADED_STATUSES = {'processing', 'ready'}
 
 

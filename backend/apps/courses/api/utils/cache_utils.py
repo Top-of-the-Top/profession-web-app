@@ -82,7 +82,6 @@ def invalidate_on_course_model_change(slug):
         course_detail_cache_key(slug),
         course_list_cache_key(),
     )
-    # Инвалидируем per-user ключи списка курсов (только django_redis поддерживает delete_pattern)
     cache = caches[DEFAULT_CACHE_ALIAS]
     if hasattr(cache, 'delete_pattern'):
         cache.delete_pattern('default:app:courses:list:*')

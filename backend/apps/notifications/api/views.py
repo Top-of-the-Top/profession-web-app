@@ -67,9 +67,6 @@ def get_notifications_for_user(request):
     },
 )
 async def sse_notifications(request):
-    # async - функция корутина, которая умеет приостанавливать свое выполнение ( замораживаться в ожидании )
-    # Под капотом async создает state machine, которая умеет сохранять локальные переменные и контекст и соответственно состояние
-
     if request.method != 'GET':
         return HttpResponseNotAllowed(['GET'])
 

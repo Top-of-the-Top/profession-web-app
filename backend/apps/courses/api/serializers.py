@@ -16,6 +16,7 @@ from django.db.models import Prefetch
 from apps.users.models import User
 from apps.core.meta_management.factory import build_access_api
 from apps.core.meta_management.mixins import AssetsSerializerMixin
+from apps.core.meta_management.errors import AssetError
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
@@ -28,15 +29,25 @@ class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
     authors = serializers.PrimaryKeyRelatedField(
         many=True, read_only=False, required=False, queryset=User.objects.all()
     )
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
         exclude = ('image',)
         read_only_fields = ('course_id', 'created_at', 'updated_at', 'last_modified_by')
 
+    def get_image_url(self, obj):
+        assets = self.get_assets(obj)
+        covers = assets.get('course_cover', [])
+        if covers:
+            return covers[0].get('url')
+        return obj.image_url
+
 
 class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
     asset_roles = ['course_cover']
+
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -46,7 +57,15 @@ class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
             'sub_title',
             'price',
             'slug',
+            'image_url',
         ]
+
+    def get_image_url(self, obj):
+        assets = self.get_assets(obj)
+        covers = assets.get('course_cover', [])
+        if covers:
+            return covers[0].get('url')
+        return obj.image_url
 
 
 class CourseListResponseSerializer(serializers.Serializer):

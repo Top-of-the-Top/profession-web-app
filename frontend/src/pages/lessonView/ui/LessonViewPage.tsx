@@ -49,6 +49,7 @@ import { useToggleHomeworkType } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac';
 import { cn } from '@shared/lib/utils';
 import { AiChatPanel } from '../../../features/ai-chat';
+import { preloadWebinarRoute } from '@router/lazyPages';
 import styles from './LessonViewPage.module.css';
 
 const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
@@ -407,16 +408,26 @@ const WebinarWidget: React.FC<{
 }> = ({ courseSlug, lessonSlug, isTeacher, webinarStatus }) => {
   const navigate = useNavigate();
   const startWebinar = useStartWebinar(courseSlug, lessonSlug);
+  const [isJoiningWebinar, setIsJoiningWebinar] = useState(false);
 
   const webinarUrl = `/app/courses/${courseSlug}/${lessonSlug}/webinar`;
 
   const handleStartWebinar = () => {
     startWebinar.mutate(undefined, {
-      onSuccess: () => navigate(webinarUrl),
+      onSuccess: async () => {
+        setIsJoiningWebinar(true);
+        await preloadWebinarRoute();
+        navigate(webinarUrl);
+      },
+      onSettled: () => {
+        setIsJoiningWebinar(false);
+      },
     });
   };
 
-  const handleJoinLive = () => {
+  const handleJoinLive = async () => {
+    setIsJoiningWebinar(true);
+    await preloadWebinarRoute();
     navigate(webinarUrl);
   };
 
@@ -426,10 +437,25 @@ const WebinarWidget: React.FC<{
         <button
           type="button"
           className={styles.quickLinkButton}
-          onClick={handleJoinLive}
+          onPointerEnter={() => {
+            void preloadWebinarRoute();
+          }}
+          onFocus={() => {
+            void preloadWebinarRoute();
+          }}
+          onClick={() => {
+            void handleJoinLive();
+          }}
+          disabled={isJoiningWebinar}
         >
           <Video size={20} />
-          <span>{isTeacher ? 'Вернуться в звонок' : 'Войти в вебинар'}</span>
+          <span>
+            {isJoiningWebinar
+              ? 'Переход...'
+              : isTeacher
+                ? 'Вернуться в звонок'
+                : 'Войти в вебинар'}
+          </span>
         </button>
       </div>
     );
@@ -442,10 +468,19 @@ const WebinarWidget: React.FC<{
           <button
             type="button"
             className={styles.quickLinkButton}
-            onClick={handleJoinLive}
+            onPointerEnter={() => {
+              void preloadWebinarRoute();
+            }}
+            onFocus={() => {
+              void preloadWebinarRoute();
+            }}
+            onClick={() => {
+              void handleJoinLive();
+            }}
+            disabled={isJoiningWebinar}
           >
             <Video size={20} />
-            <span>Войти в вебинар</span>
+            <span>{isJoiningWebinar ? 'Переход...' : 'Войти в вебинар'}</span>
           </button>
         </div>
       );
@@ -458,11 +493,23 @@ const WebinarWidget: React.FC<{
       <button
         type="button"
         className={styles.quickLinkButton}
+        onPointerEnter={() => {
+          void preloadWebinarRoute();
+        }}
+        onFocus={() => {
+          void preloadWebinarRoute();
+        }}
         onClick={handleStartWebinar}
-        disabled={startWebinar.isPending}
+        disabled={startWebinar.isPending || isJoiningWebinar}
       >
         <Video size={20} />
-        <span>{startWebinar.isPending ? 'Запуск...' : 'Начать вебинар'}</span>
+        <span>
+          {startWebinar.isPending
+            ? 'Запуск...'
+            : isJoiningWebinar
+              ? 'Переход...'
+              : 'Начать вебинар'}
+        </span>
       </button>
     </div>
   );

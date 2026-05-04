@@ -1,5 +1,5 @@
-import { Button } from '@shared/ui';
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -22,7 +22,7 @@ import { parseApiError } from '@shared/lib/api/parseApiError';
 import { messageForApiFailure, notifyError, notifySuccess } from '@shared/lib/sileo/notify';
 import { validateEmailOrPhone } from '@shared/utils/validation';
 import { OtpInput, EMPTY_OTP, type OtpValue } from '@components/OtpInput';
-import { preloadLoginRoute } from '@router/lazyPages';
+import { preloadLoginRoute, warmAppAfterAuth } from '@router/lazyPages';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -143,6 +143,7 @@ export default function RegistrationForm({
         await login(loginPayload);
         verifySucceededRef.current = true;
         setOtp([...EMPTY_OTP]);
+        await warmAppAfterAuth();
         navigate('/app', { replace: true });
       } catch (err) {
         if (verifySucceededRef.current) return;
@@ -187,6 +188,7 @@ export default function RegistrationForm({
           description: 'Сейчас выполняется вход…',
         });
         await login(res.loginPayload);
+        await warmAppAfterAuth();
         navigate('/app', { replace: true });
         return;
       }

@@ -1,13 +1,16 @@
-import { Button } from '@shared/ui';
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  Field,
+  FieldGroup,
+  FieldLabel,
+  Input,
 } from '@shared/ui';
 import { useEffect, useRef, useState } from 'react';
-import { Field, FieldGroup, FieldLabel, Input } from '@shared/ui';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import styles from './RecoverPage.module.css';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';

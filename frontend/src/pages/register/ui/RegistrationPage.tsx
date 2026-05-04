@@ -1,18 +1,14 @@
-import { lazy, Suspense, useLayoutEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import styles from './RegistrationPage.module.css';
-import { preloadAppCore } from '@router/lazyPages';
+import { Spinner } from '@shared/ui';
 
 const RegistrationForm = lazy(() => import('./RegistrationForm'));
 
 export default function RegistrationPage() {
-  useLayoutEffect(() => {
-    preloadAppCore();
-  }, []);
-
   return (
     <div className={styles.container}>
       <div className={styles.wrapper}>
-        <Suspense fallback={null}>
+        <Suspense fallback={<Spinner size="lg" />}>
           <RegistrationForm />
         </Suspense>
       </div>

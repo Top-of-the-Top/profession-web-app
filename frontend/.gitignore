@@ -26,4 +26,6 @@ dist-ssr
 # скрипт инициализации структуры папок
 init-fsd.ps1
 
-.env.local
+.env
+.env.*
+!.env.example

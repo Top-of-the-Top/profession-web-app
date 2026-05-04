@@ -1,5 +1,5 @@
-import { Button } from '@shared/ui';
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -15,12 +15,20 @@ import styles from './LoginPage.module.css';
 import { useState } from 'react';
 import { useUserStore } from '@entities/user/model/userStore';
 import { loginUser } from '../api';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ZodError } from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
 import { parseApiError } from '@shared/lib/api/parseApiError';
+import {
+  consumeAuthLogoutReason,
+  type AuthLogoutReason,
+} from '@shared/lib/auth/logoutReason';
 import { messageForApiFailure, notifyError } from '@shared/lib/sileo/notify';
-import { preloadRegisterRoute, preloadResetRoute } from '@router/lazyPages';
+import {
+  preloadRegisterRoute,
+  preloadResetRoute,
+  warmAppAfterAuth,
+} from '@router/lazyPages';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginFormSchema, type LoginFormValues } from '@shared/utils/formSchemas';
@@ -48,11 +56,39 @@ function notifyLoginFailure(err: unknown) {
   notifyError({ title: msg.title, description: msg.description });
 }
 
+function getLogoutReasonText(reason: AuthLogoutReason | null): string | null {
+  if (reason === 'refresh_token_expired') {
+    return 'Сессия истекла: refresh-токен просрочен. Войдите снова.';
+  }
+  if (reason === 'refresh_token_invalid') {
+    return 'Сессия сброшена: refresh-токен невалиден. Войдите снова.';
+  }
+  if (reason === 'refresh_token_missing') {
+    return 'Сессия завершена: refresh-токен отсутствует. Войдите снова.';
+  }
+  return null;
+}
+
+type LoginLocationState = {
+  from?: {
+    pathname?: string;
+    search?: string;
+    hash?: string;
+  };
+  authReason?: AuthLogoutReason | null;
+};
+
 export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as LoginLocationState | null;
   const login = useUserStore((s) => s.login);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [logoutReasonText] = useState<string | null>(() => {
+    const reason = locationState?.authReason ?? consumeAuthLogoutReason();
+    return getLogoutReasonText(reason ?? null);
+  });
   const {
     register,
     handleSubmit,
@@ -67,7 +103,14 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
     try {
       const payload = await loginUser({ emailOrPhone, password });
       await login(payload);
-      navigate('/app', { replace: true });
+      await warmAppAfterAuth();
+      const from = locationState?.from;
+      const fromPath = from?.pathname
+        ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`
+        : null;
+      const redirectTo =
+        fromPath && fromPath.startsWith('/app') ? fromPath : '/app';
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       if (err instanceof ZodError) {
         notifyError({
@@ -110,6 +153,11 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
           <CardHeader className={styles.cardHeader}>
             <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>Войти</CardTitle>
             <CardDescription>Введите данные ниже, чтобы войти в систему</CardDescription>
+            {logoutReasonText ? (
+              <CardDescription className={styles.authNotice}>
+                {logoutReasonText}
+              </CardDescription>
+            ) : null}
           </CardHeader>
           <CardContent className={styles.cardContent}>
             <form onSubmit={handleSubmit(onSubmit)}>

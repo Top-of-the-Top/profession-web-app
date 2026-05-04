@@ -15,7 +15,7 @@ type NotifyBase = {
   duration?: number | null;
 };
 
-function titleOk(t: string) {
+function titleOk(t: string): string {
   return capitalizeFirst(t);
 }
 
@@ -29,7 +29,6 @@ export function notifySuccess({ title, description, duration = DURATION_OK }: No
 
 const CART_TOAST_BUTTON_SHIFT_CLASS = 'sileo-cart-toast-button-shift';
 
-/** Успех добавления в корзину: кнопка перехода; сдвиг кнопки — только у этого тоста (класс в sileo-tokens.css). */
 export function notifyCartCourseAdded({
   title,
   description,
@@ -70,7 +69,6 @@ export function notifyInfo({ title, description, duration = DURATION_OK }: Notif
   });
 }
 
-/** Сообщение для тоста по сцене и ответу API (каталог backendApiMessages). */
 export function messageForApiFailure(
   scene: ApiFailureScene,
   status: number,

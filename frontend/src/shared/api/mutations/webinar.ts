@@ -2,9 +2,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CourseLessonDetail } from '../courseApi';
 import { webinarApi } from '../webinarApi';
 import { courseKeys } from '../queries/courses';
-import { notifyError, notifySuccess } from '@shared/lib/sileo/notify';
 import { parseApiError } from '@shared/lib/api/parseApiError';
-import { messageForApiFailure } from '@shared/lib/sileo/notify';
+import {
+  messageForApiFailure,
+  notifyError,
+  notifySuccess,
+} from '@shared/lib/sileo/notify';
 import type { ApiFailureScene } from '@shared/lib/api/backendApiMessages';
 
 function handleWebinarError(err: unknown, scene: ApiFailureScene) {

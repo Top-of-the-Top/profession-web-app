@@ -2,10 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserStore } from '@entities/user/model/userStore';
 import { consumeVkOAuthSession } from '@shared/lib/auth/vkOAuth';
-import { notifyError } from '@shared/lib/sileo/notify';
 import { parseApiError } from '@shared/lib/api/parseApiError';
-import { messageForApiFailure } from '@shared/lib/sileo/notify';
+import { messageForApiFailure, notifyError } from '@shared/lib/sileo/notify';
 import { exchangeVkCode } from '../api';
+import { warmAppAfterAuth } from '@router/lazyPages';
 import styles from './OAuthVkCallbackPage.module.css';
 
 function readErrorDescription(rawError: string | null, rawDescription: string | null) {
@@ -63,6 +63,7 @@ export default function OAuthVkCallbackPage() {
           deviceId,
         });
         await login(payload);
+        await warmAppAfterAuth();
         navigate('/app', { replace: true });
       } catch (err) {
         const parsed = parseApiError(err);

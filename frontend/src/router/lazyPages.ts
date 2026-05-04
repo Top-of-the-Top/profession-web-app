@@ -51,12 +51,56 @@ export const LessonPreviewPage = lazy(importMap.lessonPreview);
 export const WebinarPage = lazy(importMap.webinar);
 export const WebinarRecordPage = lazy(importMap.webinarRecord);
 
-export function preloadAppCore() {
-  void importMap.appLayout();
-  void importMap.appHome();
+export function runWhenIdle(fn: () => void, timeoutMs = 2500): void {
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => {
+      fn();
+    }, { timeout: timeoutMs });
+    return;
+  }
+  window.setTimeout(fn, 1);
+}
+
+export function preloadAppShell(): Promise<void> {
+  return Promise.all([importMap.appLayout(), importMap.appHome()]).then(() => undefined);
+}
+
+export function preloadAppRest(): void {
   void importMap.courseStore();
   void importMap.profile();
   void importMap.cart();
+}
+
+export async function warmAppAfterAuth(): Promise<void> {
+  await preloadAppShell();
+  runWhenIdle(() => {
+    preloadAppRest();
+  });
+}
+
+export function preloadAppCore(): void {
+  void preloadAppShell();
+  preloadAppRest();
+}
+
+export function prefetchAppSidebarHref(href: string): void {
+  if (href === '/app') {
+    void importMap.appHome();
+    return;
+  }
+  if (href === '/app/store') {
+    void importMap.courseStore();
+    return;
+  }
+}
+
+export function preloadCourseDetailsRoutes(): void {
+  void importMap.coursePreview();
+  void importMap.courseLessons();
+}
+
+export function preloadWebinarRoute(): Promise<void> {
+  return importMap.webinar().then(() => undefined);
 }
 
 export function preloadAuthFormBundles() {

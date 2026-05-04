@@ -1,10 +1,9 @@
 import styles from './LandingPage.module.css';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowUpRight, Menu, X } from 'lucide-react';
 import { cn } from '@shared/lib/utils';
-import { Menu, X } from 'lucide-react';
 import { Button, Card, CardTitle, Skeleton } from '@shared/ui';
-import { ArrowUpRight } from 'lucide-react';
 import {
   Pagination,
   PaginationContent,
@@ -17,7 +16,7 @@ import {
 import CollapsibleSection from './CollapsibleSection';
 import Footer from './Footer';
 import { useLandingCourses } from '@shared/api/queries/landing';
-import { preloadAuthFormBundles } from '@router/lazyPages';
+import { preloadAuthFormBundles, runWhenIdle } from '@router/lazyPages';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -45,7 +44,9 @@ export default function LandingPage() {
 
   useEffect(() => {
     if (loading) return;
-    preloadAuthFormBundles();
+    runWhenIdle(() => {
+      preloadAuthFormBundles();
+    });
   }, [loading]);
 
   const visiblePageNumbers = (() => {

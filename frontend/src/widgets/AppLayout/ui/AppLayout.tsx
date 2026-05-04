@@ -21,6 +21,7 @@ import {
   connectNotificationSSE,
   disconnectNotificationSSE,
 } from '../../../features/notification/model/notification.sse';
+import { prefetchAppSidebarHref } from '@router/lazyPages';
 
 import styles from './AppLayout.module.css';
 
@@ -126,6 +127,12 @@ export default function AppLayout() {
                     key={href}
                     to={href}
                     end={href === '/app'}
+                    onPointerEnter={() => {
+                      prefetchAppSidebarHref(href);
+                    }}
+                    onFocus={() => {
+                      prefetchAppSidebarHref(href);
+                    }}
                     className={({ isActive }) =>
                       cn(
                         styles.navLink,
@@ -200,7 +207,13 @@ export default function AppLayout() {
                   onReset={reset}
                   FallbackComponent={ContentErrorFallback}
                 >
-                  <Suspense fallback={<Spinner full />}>
+                  <Suspense
+                    fallback={
+                      <div className={styles.outletSuspenseFallback}>
+                        <Spinner size="lg" />
+                      </div>
+                    }
+                  >
                     <Outlet />
                   </Suspense>
                 </ErrorBoundary>

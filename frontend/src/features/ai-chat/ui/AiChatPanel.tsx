@@ -23,19 +23,6 @@ function formatDateTime(value: string): string {
   }).format(date);
 }
 
-function statusLabel(status: string): string {
-  switch (status) {
-    case 'connecting':
-      return 'Подключение...';
-    case 'connected':
-      return 'Подключено';
-    case 'error':
-      return 'Ошибка соединения';
-    default:
-      return 'Отключено';
-  }
-}
-
 function formatMarkdownForDisplay(value: string): string {
   return value.replace(/([^\n])(\s*)(#{1,6}\s+)/g, '$1\n\n$3');
 }
@@ -43,7 +30,6 @@ function formatMarkdownForDisplay(value: string): string {
 export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
   const {
     status,
-    error,
     chats,
     activeChatId,
     fullHistory,
@@ -114,20 +100,6 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
 
   const onCreateChat = () => {
     startNewChat();
-  };
-
-  const onDeleteChat = () => {
-    if (!activeChatId || chats.length <= 1 || deletingChatId) {
-      return;
-    }
-    setDeletingChatId(activeChatId);
-    if (deleteDelayRef.current) {
-      window.clearTimeout(deleteDelayRef.current);
-    }
-    deleteDelayRef.current = window.setTimeout(() => {
-      deleteChat(activeChatId);
-      deleteDelayRef.current = null;
-    }, 180);
   };
 
   const onSendMessage = () => {

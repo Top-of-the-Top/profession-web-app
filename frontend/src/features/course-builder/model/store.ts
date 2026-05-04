@@ -209,7 +209,8 @@ export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
 
   removeBlock: (blockId) =>
     set((state) => {
-      const { [blockId]: _removed, ...remainingFiles } = state.pendingFiles;
+      const remainingFiles = { ...state.pendingFiles };
+      delete remainingFiles[blockId];
       return {
         pendingFiles: remainingFiles,
         layout: {

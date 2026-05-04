@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type { MutableRefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MutableRefObject,
+} from 'react';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
 import {
   INSERT_ORDERED_LIST_COMMAND,
@@ -370,7 +377,7 @@ export function RichTextEditor({
         throw error;
       },
     }),
-    [],
+    [disabled, value],
   );
 
   return (

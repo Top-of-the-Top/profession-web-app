@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '@entities/user/model/userStore';
+import { peekAuthLogoutReason } from '@shared/lib/auth/logoutReason';
 import { tokenService } from '@shared/lib/auth/tokenService';
 import { Spinner } from '@shared/ui';
 
@@ -12,30 +13,21 @@ export const ProtectedRoute = ({ children }: { children: React.JSX.Element }) =>
 
   useEffect(() => {
     if (hasToken && !isAuthChecked && !isLoading) {
-      console.info('[route] ProtectedRoute -> fetchUser');
       void fetchUser();
     }
   }, [fetchUser, hasToken, isAuthChecked, isLoading]);
 
-  useEffect(() => {
-    console.info('[route] ProtectedRoute state', {
-      hasToken,
-      isAuthChecked,
-      isLoading,
-      hasUser: Boolean(user),
-      pathname: location.pathname,
-    });
-  }, [hasToken, isAuthChecked, isLoading, location.pathname, user]);
 
   if (hasToken && (!isAuthChecked || isLoading)) {
     return <Spinner full />;
   }
 
   if (!hasToken || !user) {
+    const authReason = peekAuthLogoutReason();
     return (
       <Navigate
         to="/login"
-        state={{ from: location }}
+        state={{ from: location, authReason }}
         replace
       />
     );

@@ -1,13 +1,16 @@
-import { Button } from '@shared/ui';
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  Field,
+  FieldGroup,
+  FieldLabel,
+  Input,
 } from '@shared/ui';
 import { useState } from 'react';
-import { Field, FieldGroup, FieldLabel, Input } from '@shared/ui';
 import { ArrowLeft } from 'lucide-react';
 import styles from './ResetPage.module.css';
 import { Link, useNavigate } from 'react-router-dom';

@@ -41,6 +41,11 @@
 	font-size: 40px;
 }
 
+.authNotice {
+  margin-top: 6px;
+  color: #b45309;
+}
+
 .cardContent {
   padding: 0;
 }

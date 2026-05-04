@@ -14,9 +14,9 @@ import {
   ContentErrorFallback,
 } from '@shared/ui';
 import { cn } from '@shared/lib/utils';
-import { useUserStore } from '@entities/user/model/userStore';
 import { tokenService } from '@shared/lib/auth/tokenService';
 import { useCart } from '@shared/api/queries/cart';
+import { useProfile } from '@shared/api/queries/profile';
 import {
   connectNotificationSSE,
   disconnectNotificationSSE,
@@ -40,8 +40,8 @@ function isLessonEditorPage(pathname: string) {
 export default function AppLayout() {
   const { pathname } = useLocation();
   const lessonEditorLayout = isLessonEditorPage(pathname);
-  const user = useUserStore((state) => state.user);
   const hasToken = tokenService.hasToken();
+  const { data: user } = useProfile(hasToken);
 
   const { data: cart } = useCart();
   const cartHasItems = (cart?.courses?.length ?? 0) > 0;

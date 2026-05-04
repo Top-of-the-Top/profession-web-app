@@ -198,6 +198,91 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
 
   const blocker = useBlocker(hasUnsavedChanges && !allowNavigation);
 
+  const currentSignature = JSON.stringify({
+    lesson: layout,
+    homework: homeworkLayout,
+    pendingFileIds: Object.keys(pendingFiles).sort(),
+  });
+
+  const currentSignatureRef = useRef(currentSignature);
+  useEffect(() => {
+    currentSignatureRef.current = currentSignature;
+  }, [currentSignature]);
+
+  useEffect(() => {
+    setBaselineSignature((prev) =>
+      prev === null ? currentSignatureRef.current : prev,
+    );
+  }, []);
+
+  useEffect(() => {
+    if (savedRevision === 0) return;
+    setBaselineSignature(currentSignatureRef.current);
+  }, [savedRevision]);
+
+  const hasUnsavedChanges =
+    baselineSignature !== null && baselineSignature !== currentSignature;
+  const isSavedStatus =
+    baselineSignature === null || (!hasUnsavedChanges && !saving);
+
+  const blocker = useBlocker(hasUnsavedChanges && !allowNavigation);
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    setLeaveDialogOpen(true);
+    setPendingNavigationAction(() => blocker.proceed);
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const requestNavigation = useCallback(
+    (action: () => void) => {
+      if (!hasUnsavedChanges) {
+        action();
+        return;
+      }
+      setPendingNavigationAction(() => action);
+      setLeaveDialogOpen(true);
+    },
+    [hasUnsavedChanges],
+  );
+
+  const handleConfirmLeave = useCallback(() => {
+    const action = pendingNavigationAction;
+    setLeaveDialogOpen(false);
+    setPendingNavigationAction(null);
+    setConfirmedNavigationAction(() => action ?? null);
+    setAllowNavigation(true);
+  }, [pendingNavigationAction]);
+
+  const handleCancelLeave = useCallback(() => {
+    setLeaveDialogOpen(false);
+    setPendingNavigationAction(null);
+    if (blocker.state === 'blocked') {
+      blocker.reset();
+    }
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!allowNavigation || !confirmedNavigationAction) return;
+    confirmedNavigationAction();
+    setConfirmedNavigationAction(null);
+  }, [allowNavigation, confirmedNavigationAction]);
+
+  useEffect(() => {
+    if (blocker.state === 'unblocked') {
+      setAllowNavigation(false);
+    }
+  }, [blocker.state]);
+
   useEffect(() => {
     if (blocker.state !== 'blocked') return;
     setLeaveDialogOpen(true);

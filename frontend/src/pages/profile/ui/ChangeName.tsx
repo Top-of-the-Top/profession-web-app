@@ -175,7 +175,7 @@ export default function ChangeName({
             type="file"
             accept="image/*"
             onChange={handleFileSelect}
-            style={{ display: 'none' }}
+            className={styles.hiddenFileInput}
           />
 
           <Button

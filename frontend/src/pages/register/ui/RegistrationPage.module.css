@@ -68,7 +68,6 @@
   display: flex;
   align-items: center;
   width: 100%;
-  margin-bottom: 8px;
 }
 
 .passwordInputWrap {
@@ -108,10 +107,15 @@
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 14px !important;
   font-weight: 500;
   margin-bottom: 0px;
   transition: background-color 0.2s;
+}
+
+.formTitleOverride {
+  font-size: 23px !important;
+  font-weight: 800 !important;
 }
 
 .submitButton:hover {

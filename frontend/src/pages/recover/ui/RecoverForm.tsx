@@ -110,7 +110,7 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
           <img className={styles.logo} src="landing/profession-logo-blue.svg" alt="" />
           <Card className={styles.card}>
             <CardHeader className={styles.cardHeader}>
-              <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>
+              <CardTitle className={styles.formTitleOverride}>
                 Пароль успешно изменен!
               </CardTitle>
               <CardDescription>
@@ -122,13 +122,12 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
                 <div className={styles.successIcon}>
                   <CheckCircle2 size={48} />
                 </div>
-                <p style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <p className={styles.successRedirectText}>
                   Перенаправляем…
                 </p>
                 <Button
-                  style={{ fontSize: '14px', marginTop: '20px' }}
                   type="button"
-                  className={styles.submitButton}
+                  className={`${styles.submitButton} ${styles.actionButtonOffset}`}
                   onClick={() => navigate('/app', { replace: true })}
                 >
                   Перейти сейчас
@@ -148,7 +147,7 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
         <img className={styles.logo} src="/profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
-            <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>
+            <CardTitle className={styles.formTitleOverride}>
               Установите новый пароль
             </CardTitle>
             <CardDescription>Введите новый пароль для вашего аккаунта</CardDescription>
@@ -169,7 +168,7 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
                     disabled={loading || !token}
                     {...register('password')}
                   />
-                  <CardDescription style={{ fontSize: '12px', marginTop: '4px' }}>
+                  <CardDescription className={styles.inputHintText}>
                     Должен содержать минимум 8 символов
                   </CardDescription>
                   {errors.password?.message ? (
@@ -202,7 +201,6 @@ export default function RecoverForm({ ...props }: React.ComponentProps<'div'>) {
                   </div>
                 )}
                 <Button
-                  style={{ fontSize: '14px' }}
                   type="submit"
                   className={styles.submitButton}
                   disabled={loading || !token}

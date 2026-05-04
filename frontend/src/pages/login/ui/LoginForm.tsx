@@ -154,7 +154,7 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
         <img className={styles.logo} src="profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
-            <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>Войти</CardTitle>
+            <CardTitle className={styles.formTitleOverride}>Войти</CardTitle>
             <CardDescription>Введите данные ниже, чтобы войти в систему</CardDescription>
             {logoutReasonText ? (
               <CardDescription className={styles.authNotice}>
@@ -210,7 +210,6 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                 </Field>
                 <Field>
                   <Button
-                    style={{ fontSize: '14px' }}
                     type="submit"
                     className={styles.submitButton}
                     disabled={loading}

@@ -251,7 +251,7 @@ export default function RegistrationForm({
         <img className={styles.logo} src="profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
-            <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>
+            <CardTitle className={styles.formTitleOverride}>
               {step === 'credentials' ? 'Создать аккаунт' : 'Подтверждение'}
             </CardTitle>
             <CardDescription>
@@ -348,7 +348,6 @@ export default function RegistrationForm({
 
                   <Field>
                     <Button
-                      style={{ fontSize: '14px' }}
                       type="submit"
                       className={styles.submitButton}
                       disabled={loading}

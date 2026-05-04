@@ -16,7 +16,12 @@ import {
 import CollapsibleSection from './CollapsibleSection';
 import Footer from './Footer';
 import { useLandingCourses } from '@shared/api/queries/landing';
-import { preloadAuthFormBundles, runWhenIdle } from '@router/lazyPages';
+import {
+  preloadAuthFormBundles,
+  preloadLoginRoute,
+  preloadRegisterRoute,
+  runWhenIdle,
+} from '@router/lazyPages';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -43,11 +48,27 @@ export default function LandingPage() {
   }, [currentPage, totalPages]);
 
   useEffect(() => {
+    runWhenIdle(() => {
+      preloadAuthFormBundles();
+    });
+  }, []);
+
+  useEffect(() => {
     if (loading) return;
     runWhenIdle(() => {
       preloadAuthFormBundles();
     });
   }, [loading]);
+
+  const goToLogin = () => {
+    preloadLoginRoute();
+    navigate('/login');
+  };
+
+  const goToRegister = () => {
+    preloadRegisterRoute();
+    navigate('/register');
+  };
 
   const visiblePageNumbers = (() => {
     if (totalPages <= 1) return [];
@@ -154,18 +175,18 @@ export default function LandingPage() {
 
           <div className={styles.desktopAuth}>
             <Button
-              onClick={() => navigate('/login')}
-              onPointerEnter={preloadAuthFormBundles}
-              onFocus={preloadAuthFormBundles}
+              onClick={goToLogin}
+              onPointerEnter={preloadLoginRoute}
+              onFocus={preloadLoginRoute}
               variant="outline"
               size="lg"
             >
               Войти
             </Button>
             <Button
-              onClick={() => navigate('/register')}
-              onPointerEnter={preloadAuthFormBundles}
-              onFocus={preloadAuthFormBundles}
+              onClick={goToRegister}
+              onPointerEnter={preloadRegisterRoute}
+              onFocus={preloadRegisterRoute}
               variant="primary"
               size="lg"
             >
@@ -204,18 +225,18 @@ export default function LandingPage() {
         </nav>
         <div className={styles.mobileAuth}>
           <Button
-            onClick={() => navigate('/login')}
-            onPointerEnter={preloadAuthFormBundles}
-            onFocus={preloadAuthFormBundles}
+            onClick={goToLogin}
+            onPointerEnter={preloadLoginRoute}
+            onFocus={preloadLoginRoute}
             variant="outline"
             size="lg"
           >
             Войти
           </Button>
           <Button
-            onClick={() => navigate('/register')}
-            onPointerEnter={preloadAuthFormBundles}
-            onFocus={preloadAuthFormBundles}
+            onClick={goToRegister}
+            onPointerEnter={preloadRegisterRoute}
+            onFocus={preloadRegisterRoute}
             variant="primary"
             size="lg"
           >
@@ -238,9 +259,9 @@ export default function LandingPage() {
               </p>
               <div className={styles.heroCta}>
                 <Button
-                  onClick={() => navigate('/register')}
-                  onPointerEnter={preloadAuthFormBundles}
-                  onFocus={preloadAuthFormBundles}
+                  onClick={goToRegister}
+                  onPointerEnter={preloadRegisterRoute}
+                  onFocus={preloadRegisterRoute}
                   asChild
                   size="lg"
                   className={styles.buttonInline}
@@ -275,8 +296,9 @@ export default function LandingPage() {
                     key={track.id}
                     className={styles.trackCard}
                     style={{ backgroundColor: track.bgColor }}
-                    onClick={() => navigate('/register')}
-                    onPointerEnter={preloadAuthFormBundles}
+                    onClick={goToRegister}
+                    onPointerEnter={preloadRegisterRoute}
+                    onFocus={preloadRegisterRoute}
                   >
                     <div className={styles.trackCardLayout}>
                       <div className={styles.trackCardLeft}>
@@ -306,7 +328,7 @@ export default function LandingPage() {
                             variant="ghost"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate('/register');
+                              goToRegister();
                             }}
                           >
                             <div

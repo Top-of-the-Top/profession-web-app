@@ -156,7 +156,7 @@ export default function ResetForm({
         <img className={styles.logo} src="/profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
-            <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>
+            <CardTitle className={styles.formTitleOverride}>
               Сброс пароля
             </CardTitle>
             <CardDescription>
@@ -172,9 +172,8 @@ export default function ResetForm({
             {phase === 'emailSent' ? (
               <div className={styles.successMessage}>
                 <Button
-                  style={{ fontSize: '14px', marginTop: '20px' }}
                   type="button"
-                  className={styles.submitButton}
+                  className={`${styles.submitButton} ${styles.actionButtonOffset}`}
                   onClick={() => navigate('/login')}
                 >
                   Вернуться ко входу
@@ -200,7 +199,6 @@ export default function ResetForm({
                     ) : null}
                   </Field>
                   <Button
-                    style={{ fontSize: '14px' }}
                     type="submit"
                     className={styles.submitButton}
                     disabled={loading}
@@ -242,15 +240,12 @@ export default function ResetForm({
                     {requestErrors.emailOrPhone?.message ? (
                       <CardDescription>{requestErrors.emailOrPhone.message}</CardDescription>
                     ) : null}
-                    <CardDescription
-                      style={{ fontSize: '12px', marginTop: '4px' }}
-                    >
+                    <CardDescription className={styles.inputHintText}>
                       Например: example@email.com или +79991234567
                     </CardDescription>
                   </Field>
 
                   <Button
-                    style={{ fontSize: '14px' }}
                     type="submit"
                     className={styles.submitButton}
                     disabled={loading}

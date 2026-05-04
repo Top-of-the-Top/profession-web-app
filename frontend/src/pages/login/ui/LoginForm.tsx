@@ -66,6 +66,9 @@ function getLogoutReasonText(reason: AuthLogoutReason | null): string | null {
   if (reason === 'refresh_token_missing') {
     return 'Сессия завершена: refresh-токен отсутствует. Войдите снова.';
   }
+  if (reason === 'refresh_token_unavailable') {
+    return 'Сеанс завершен: сервер авторизации недоступен. Войдите снова.';
+  }
   return null;
 }
 

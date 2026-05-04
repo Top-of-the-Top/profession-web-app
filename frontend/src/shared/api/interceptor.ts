@@ -104,14 +104,14 @@ export class ApiClient {
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
     } catch {
-      return { tokens: null };
+      return { tokens: null, reason: 'refresh_token_unavailable' };
     }
 
     if (!response.ok) {
       if (response.status === 400 || response.status === 401) {
         return { tokens: null, reason: 'refresh_token_invalid' };
       }
-      return { tokens: null };
+      return { tokens: null, reason: 'refresh_token_unavailable' };
     }
 
     const tokens: Tokens = await response.json();

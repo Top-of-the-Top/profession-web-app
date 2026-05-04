@@ -1,4 +1,3 @@
-import re
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
@@ -7,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.courses.models import Homework
+from apps.courses.api.schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
 from apps.homeworks.models import Attempt
 
 from ..services.attempt_service import AttemptService
@@ -43,6 +43,10 @@ class HomeworkAttemptView(APIView):
 
     @extend_schema(
         summary='Получить текущую попытку по домашке',
+        description=(
+            '**404**: домашка с таким slug не найдена (стандартный ответ DRF с полем detail). '
+            'Ошибки сервиса — тело вида ErrorResponse (**status**, **code**, **message**, **details**).'
+        ),
         tags=['Homework'],
         parameters=[HOMEWORK_SLUG_PARAM],
         responses={
@@ -50,7 +54,7 @@ class HomeworkAttemptView(APIView):
             400: ErrorResponseSerializer,
             401: ErrorResponseSerializer,
             403: ErrorResponseSerializer,
-            404: ErrorResponseSerializer,
+            404: SCHEMA_DETAIL,
             500: ErrorResponseSerializer,
         },
     )
@@ -74,10 +78,7 @@ class HomeworkAttemptListView(APIView):
         tags=['Home'],
         responses={
             200: AttemptListSerializer(many=True),
-            400: OpenApiTypes.OBJECT,
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            500: OpenApiTypes.OBJECT,
+            401: SCHEMA_DETAIL,
         },
     )
     def get(self, request):
@@ -89,10 +90,7 @@ class HomeworkAttemptListView(APIView):
             .prefetch_related('homework__question_set', 'homework__task_set')
             .order_by('-created_at')
         )
-        try:
-            data = AttemptListSerializer(attempts, many=True).data
-        except Exception as exc:
-            return _error_response(exc)
+        data = AttemptListSerializer(attempts, many=True).data
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -101,17 +99,23 @@ class HomeworkAttemptSubmitView(APIView):
 
     @extend_schema(
         summary='Отправить домашку на проверку',
+        description=(
+            '**400**: либо ошибки валидации тела (**AttemptSubmitSerializer**, формат полей DRF), '
+            'либо ошибка сервиса в форме ErrorResponse. **404**: домашка не найдена.'
+        ),
         tags=['Homework'],
         parameters=[HOMEWORK_SLUG_PARAM],
         request=AttemptSubmitSerializer,
         responses={
             201: AttemptSerializer,
-            400: ErrorResponseSerializer,
+            400: SCHEMA_VALIDATION,
             401: ErrorResponseSerializer,
             403: ErrorResponseSerializer,
+            404: SCHEMA_DETAIL,
             409: ErrorResponseSerializer,
             413: ErrorResponseSerializer,
             500: ErrorResponseSerializer,
+            503: ErrorResponseSerializer,
         },
     )
     def post(self, request, homework_slug):

@@ -31,6 +31,7 @@ class AssetUploadInitiateView(BaseAssetView):
         responses={
             201: InitiateUploadResponseSerializer,
             400: AssetErrorResponseSerializer,
+            403: AssetErrorResponseSerializer,
         },
     )
     def post(self, request):
@@ -58,6 +59,7 @@ class AssetUploadStatusView(BaseAssetView):
         tags=['Assets'],
         responses={
             200: UploadStatusResponseSerializer,
+            403: AssetErrorResponseSerializer,
             404: AssetErrorResponseSerializer,
         },
     )

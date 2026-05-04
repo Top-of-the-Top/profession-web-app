@@ -33,6 +33,7 @@ class UploadStatusResponseSerializer(serializers.Serializer):
     asset_id = serializers.UUIDField()
     status = serializers.CharField()
     storage_backend = serializers.CharField()
+    storage_key = serializers.CharField()
     visibility = serializers.CharField()
     mime_type = serializers.CharField(allow_blank=True)
     size_bytes = serializers.IntegerField()

@@ -15,6 +15,7 @@ from ..api.utils.agora_utils import (
     recording_start_web,
     recording_stop,
     recording_stop_web,
+    generate_rtm_token,
     ROLE_PUBLISHER,
     ROLE_SUBSCRIBER,
 )
@@ -233,3 +234,40 @@ class RecordingApiTest(SimpleTestCase):
         payload = {'serverResponse': {}}
         mock_post.return_value = self._resp(payload)
         self.assertEqual(recording_stop_web('ch', '1', 'res', 'sid'), payload)
+
+
+@patch.dict('os.environ', {
+    'AGORA_APP_ID': 'app-id-test',
+    'AGORA_APP_CERTIFICATE': 'app-cert-test',
+})
+class GenerateRtmTokenTest(SimpleTestCase):
+
+    @patch('apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken', return_value='rtm-token')
+    def test_returns_token_from_builder(self, mock_build):
+        self.assertEqual(generate_rtm_token(12345), 'rtm-token')
+
+    @patch('apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken', return_value='rtm-token')
+    def test_passes_app_id_and_certificate(self, mock_build):
+        generate_rtm_token(12345)
+        args = mock_build.call_args[0]
+        self.assertEqual(args[0], 'app-id-test')
+        self.assertEqual(args[1], 'app-cert-test')
+
+    @patch('apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken', return_value='rtm-token')
+    def test_passes_user_account_as_string(self, mock_build):
+        generate_rtm_token(12345)
+        args = mock_build.call_args[0]
+        self.assertEqual(args[2], '12345')
+
+    @patch('apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken', return_value='rtm-token')
+    def test_passes_role_rtm_user(self, mock_build):
+        generate_rtm_token(12345)
+        args = mock_build.call_args[0]
+        self.assertEqual(args[3], 1)
+
+    @patch('apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken', return_value='rtm-token')
+    def test_expiration_in_future(self, mock_build):
+        generate_rtm_token(12345)
+        args = mock_build.call_args[0]
+        privilege_expired_ts = args[4]
+        self.assertGreater(privilege_expired_ts, int(time.time()))

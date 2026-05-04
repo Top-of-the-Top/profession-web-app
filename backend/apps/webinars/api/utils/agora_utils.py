@@ -2,7 +2,7 @@ import os
 import requests
 import base64
 import hmac, hashlib, time
-from agora_token_builder import RtcTokenBuilder
+from agora_token_builder import RtcTokenBuilder, RtmTokenBuilder
 from django.conf import settings
 
 ROLE_PUBLISHER = 1 # может отправлять видео и аудио
@@ -25,6 +25,16 @@ def generate_rtc_token(channel_name, uid, role=ROLE_PUBLISHER):
 
 def user_uid_from_uuid(user_uuid):
   return hash(str(user_uuid)) % (2**31) + 1
+
+def generate_rtm_token(user_account):
+  app_id = os.getenv('AGORA_APP_ID')
+  app_certificate = os.getenv('AGORA_APP_CERTIFICATE')
+
+  token_expiration_in_seconds = 24 * 3600
+  privilege_expired_ts = int(time.time()) + token_expiration_in_seconds
+
+  token = RtmTokenBuilder.buildToken(app_id, app_certificate, str(user_account), 1, privilege_expired_ts)
+  return token
 
 # Функции для работы с доской
 def _get_whiteboard_sdk_token():

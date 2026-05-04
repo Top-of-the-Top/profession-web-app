@@ -426,7 +426,7 @@ class RecoverPasswordView(APIView):
     )
     def patch(self, request):
         token = request.data.get('token')
-        password = request.data.get('password_hash')
+        password = request.data.get('password')
         if not token or not password:
             return Response(
                 {'detail': 'token и password обязательны'},

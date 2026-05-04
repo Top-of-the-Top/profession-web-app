@@ -11,7 +11,6 @@ from .constants import (
     MSG_INVALID_CREDENTIALS,
     MSG_WRONG_PHONE_FORMAT,
 )
-from apps.core.meta_management.factory import build_access_api
 import re
 
 PHONE_REGEX = re.compile(r'^\+?[1-9]\d{6,14}$')

@@ -40,11 +40,6 @@ urlpatterns = [
         name='courses-detail',
     ),
     path(
-        'app/courses/<slug:slug>/cover/',
-        views.CourseCoverView.as_view(),
-        name='course-cover',
-    ),
-    path(
         'courses/<slug:course_slug>/sections/',
         views.SectionCreateView.as_view(),
         name='course-sections-list',

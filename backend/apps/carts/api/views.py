@@ -71,11 +71,7 @@ class CartView(APIView):
             return Response(cached, status=status.HTTP_200_OK)
 
         cart, _ = Cart.objects.get_or_create(user=request.user)
-        courses = list(cart.courses.all())
-        context = {
-            COURSE_COVER_CONTEXT_KEY: build_course_cover_map(courses),
-        }
-        serializer = CartSerializer(cart, context=context)
+        serializer = CartSerializer(cart, context={'request': request})
         data = serializer.data
         hot_cache.set(cache_key, data)
         return Response(data, status=status.HTTP_200_OK)

@@ -95,7 +95,7 @@ export default function ProfilePage() {
   const [gender, setGender] = useState<string | null>(null);
 
   useEffect(() => {
-    setProfile(user);
+    setProfile(user ?? null);
     setGender(user?.gender || null);
     setAvatarUrl(user?.avatar || null);
   }, [user]);

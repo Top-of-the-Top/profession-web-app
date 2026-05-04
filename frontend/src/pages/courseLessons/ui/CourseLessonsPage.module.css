@@ -457,6 +457,7 @@
 
 .lessonRowStaff {
   background: #fff;
+  cursor: pointer;
 }
 
 .lessonRowStaff:hover,

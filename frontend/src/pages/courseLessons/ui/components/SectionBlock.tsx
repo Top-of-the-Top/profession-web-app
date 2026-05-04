@@ -138,11 +138,27 @@ export function SectionBlock({
     setAddingLesson(false);
   };
 
+  const toggleSectionFromHeader = () => {
+    if (editingTitle) return;
+    onOpenChange(!open);
+  };
+
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
       <div className={styles.sectionCard}>
         <div className={styles.sectionCardWrapper}>
-          <div className={styles.sectionHeader}>
+          <div
+            className={styles.sectionHeader}
+            role="button"
+            tabIndex={0}
+            onClick={toggleSectionFromHeader}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleSectionFromHeader();
+              }
+            }}
+          >
             <span className={styles.dragHandleSlot} aria-hidden>
               {isStaff ? (
                 <span className={styles.dragHandle}>
@@ -187,13 +203,18 @@ export function SectionBlock({
                 </Button>
               </div>
             ) : (
-              <CollapsibleTrigger asChild>
-                <button type="button" className={styles.sectionTitleBtn}>
-                  <span className={styles.sectionTitleText}>
-                    {section.section_number}. {section.title}
-                  </span>
-                </button>
-              </CollapsibleTrigger>
+              <button
+                type="button"
+                className={styles.sectionTitleBtn}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleSectionFromHeader();
+                }}
+              >
+                <span className={styles.sectionTitleText}>
+                  {section.section_number}. {section.title}
+                </span>
+              </button>
             )}
 
             {isStaff ? (
@@ -217,6 +238,9 @@ export function SectionBlock({
                 type="button"
                 className={styles.chevronBtn}
                 aria-label={open ? 'Свернуть раздел' : 'Развернуть раздел'}
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
               >
                 <ChevronDown
                   size={22}

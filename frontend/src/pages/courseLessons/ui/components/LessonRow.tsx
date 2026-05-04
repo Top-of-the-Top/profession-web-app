@@ -45,18 +45,28 @@ export function LessonRow({
 
   if (isStaff) {
     return (
-      <div className={cn(styles.lessonRow, styles.lessonRowStaff)}>
+      <div
+        className={cn(styles.lessonRow, styles.lessonRowStaff)}
+        role="button"
+        tabIndex={0}
+        onClick={() => {
+          navigate(lessonViewTo);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            navigate(lessonViewTo);
+          }
+        }}
+      >
         <span className={styles.lessonDragHandleSlot}>
           <span className={styles.lessonDragHandle} aria-hidden>
             <GripVertical size={16} strokeWidth={2} />
           </span>
         </span>
-        <Link
-          to={lessonViewTo}
-          className={cn(styles.lessonTitle, styles.lessonTitleLink)}
-        >
+        <span className={cn(styles.lessonTitle, styles.lessonTitleLink)}>
           {lessonLabel}
-        </Link>
+        </span>
         <div className={styles.staffLessonActions}>
           <Button
             type="button"
@@ -64,12 +74,13 @@ export function LessonRow({
             size="sm"
             className={styles.publishBtn}
             disabled={lessonCreatePending || toggleType.isPending}
-            onClick={() =>
+            onClick={(event) => {
+              event.stopPropagation();
               toggleType.mutate({
                 lessonSlug: lesson.slug,
                 currentType: lesson.type,
-              })
-            }
+              });
+            }}
           >
             {published ? 'Отозвать' : 'Опубликовать'}
           </Button>
@@ -92,11 +103,12 @@ export function LessonRow({
             size="icon-sm"
             className={styles.staffIconEditBtn}
             disabled={lessonCreatePending}
-            onClick={() =>
+            onClick={(event) => {
+              event.stopPropagation();
               navigate(
                 `/app/courses/${courseSlug}/${encodeURIComponent(lesson.slug)}/edit`
-              )
-            }
+              );
+            }}
           >
             <Pencil size={21} strokeWidth={2} />
           </Button>
@@ -107,7 +119,10 @@ export function LessonRow({
             className={styles.staffIconDeleteBtn}
             disabled={lessonCreatePending || deleteLesson.isPending}
             title="Удалить урок"
-            onClick={requestDeleteLesson}
+            onClick={(event) => {
+              event.stopPropagation();
+              requestDeleteLesson();
+            }}
           >
             <Trash2 size={21} strokeWidth={2} />
           </Button>

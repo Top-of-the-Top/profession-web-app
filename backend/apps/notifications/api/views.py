@@ -1,3 +1,4 @@
+import asyncio
 import json
 import aio_pika
 import logging
@@ -16,6 +17,9 @@ from drf_spectacular.types import OpenApiTypes
 from .serializers import NotificationSerializer
 from ..models import Notification
 from apps.users.models import User
+
+RABBITMQ_CONNECT_RETRIES = 5
+RABBITMQ_RETRY_DELAY = 2
 
 logger = logging.getLogger(__name__)
 
@@ -85,42 +89,56 @@ async def sse_notifications(request):
     webinar_id = request.GET.get('webinar_id')
     
     async def event_stream():
-        # В этой точке await сигнализирует что операция занимает какое-то время
-        # В этой точке мы идем заниматься своими вещами, когда мы получаем отсюда сообщение что "готово", то продолжаем с этого места
-        connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
-        channel = await connection.channel()
+        connection = None
 
-        exchange = await channel.declare_exchange(
-            'notifications',
-            aio_pika.ExchangeType.TOPIC,
-            durable=True,
-        )
-
-        queue = await channel.declare_queue(exclusive=True)
-
-        await queue.bind(exchange, routing_key=f"user.{user.pk}")
-
-        user_course_ids = await user.aget_purchased_course_ids()
-
-        for c_id in user_course_ids:
-            await queue.bind(exchange, routing_key=f"course.{c_id}")
-
-        await queue.bind(exchange, routing_key="system.all")
-
-        if webinar_id:
-            await queue.bind(exchange, routing_key=f"webinar.{webinar_id}")
+        for attempt in range(1, RABBITMQ_CONNECT_RETRIES + 1):
+            try:
+                connection = await aio_pika.connect_robust(
+                    settings.RABBITMQ_URL,
+                    timeout=10,
+                )
+                break
+            except Exception as exc:
+                logger.warning('SSE: RabbitMQ подключение #%d не удалось: %s', attempt, exc)
+                if attempt < RABBITMQ_CONNECT_RETRIES:
+                    await asyncio.sleep(RABBITMQ_RETRY_DELAY)
+                else:
+                    logger.error('SSE: RabbitMQ недоступен после %d попыток', RABBITMQ_CONNECT_RETRIES)
+                    yield b"event: error\ndata: {\"detail\": \"broker_unavailable\"}\n\n"
+                    return
 
         try:
+            channel = await connection.channel()
+
+            exchange = await channel.declare_exchange(
+                'notifications',
+                aio_pika.ExchangeType.TOPIC,
+                durable=True,
+            )
+
+            queue = await channel.declare_queue(exclusive=True)
+            await queue.bind(exchange, routing_key=f"user.{user.pk}")
+
+            user_course_ids = await user.aget_purchased_course_ids()
+            for c_id in user_course_ids:
+                await queue.bind(exchange, routing_key=f"course.{c_id}")
+
+            await queue.bind(exchange, routing_key="system.all")
+
+            if webinar_id:
+                await queue.bind(exchange, routing_key=f"webinar.{webinar_id}")
+
             async with queue.iterator() as queue_iter:
                 yield b": heartbeat\n\n"
-
                 async for message in queue_iter:
                     async with message.process():
-                        # Как только в RabbitMQ пришло сообщение — оно тут же летит в SSE
                         data = json.loads(message.body.decode())
                         yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n".encode('utf-8')
+
+        except Exception as exc:
+            logger.warning('SSE: ошибка в потоке уведомлений для user=%s: %s', user.pk, exc)
         finally:
-            # При закрытии вкладки браузером — очередь в RabbitMQ удалится сама
-            await connection.close()
+            if connection and not connection.is_closed:
+                await connection.close()
 
     return StreamingHttpResponse(event_stream(), content_type='text/event-stream')

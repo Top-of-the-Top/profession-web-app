@@ -110,7 +110,18 @@ class CourseListView(APIView):
         cached = cache.get(key)
         if cached is not None:
             return Response(cached)
-        serializer = CourseSerializer(Course.objects.all(), many=True)
+
+        user = request.user
+        if user.is_moderator():
+            qs = Course.objects.all()
+        elif user.is_teacher():
+            qs = Course.objects.filter(
+                Q(type=Course.PUBLISHED_STATUS) | Q(authors=user)
+            ).distinct()
+        else:
+            qs = Course.objects.filter(type=Course.PUBLISHED_STATUS)
+
+        serializer = CourseSerializer(qs, many=True, context={'request': request})
         cache.set(key, serializer.data)
         return Response(serializer.data)
 

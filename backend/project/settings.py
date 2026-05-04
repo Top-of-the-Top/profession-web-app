@@ -135,7 +135,15 @@ else:
             'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', 'localhost'),
             'PORT': os.getenv('DB_PORT', '5432'),
-            'CONN_MAX_AGE': 1000,
+            # ASGI (Daphne) запускает каждый запрос в отдельном потоке.
+            # CONN_MAX_AGE > 0 при ASGI приводит к тому что каждый поток держит
+            # своё соединение открытым — быстро исчерпывает max_connections PostgreSQL.
+            'CONN_MAX_AGE': 0,
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': {
+                'connect_timeout': 10,
+                'options': '-c statement_timeout=30000',
+            },
         }
     }
 
@@ -260,7 +268,7 @@ else:
 
 CELERY_BEAT_SCHEDULE = {
     'check-idle-webinars': {
-        'task': 'apps.courses.tasks.check_idle_webinars',
+        'task': 'apps.webinars.tasks.check_idle_webinars',
         'schedule': 60.0,
     },
     'assets-poll-s3-events': {
@@ -291,15 +299,6 @@ else:
     CELERY_RESULT_SERIALIZER = 'json'
     CELERY_TIMEZONE = TIME_ZONE
     CELERY_TASK_TRACK_STARTED = True
-
-    from celery.schedules import crontab
-
-    CELERY_BEAT_SCHEDULE = {
-        "Обновление контекста курсов" : {
-            "task": "synchronize_course_context",
-            "schedule": crontab(hour = 4, minute = 0),
-        }
-    }
 
 
 
@@ -415,6 +414,41 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [("redis", 6379)],
+        },
+    },
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'filters': {
+        'ignore_cancelled': {
+            '()': 'django.utils.log.CallbackFilter',
+            # CancelledError — штатное поведение когда SSE-клиент отключается.
+            # Daphne логирует это как ERROR, но это не ошибка приложения.
+            'callback': lambda record: 'CancelledError' not in record.getMessage(),
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'filters': ['ignore_cancelled'],
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
 }

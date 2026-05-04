@@ -15,6 +15,9 @@ function CourseCard({
   onOpen: (slug: string) => void;
 }) {
   const course = item.course;
+  if (!course) {
+    return null;
+  }
   return (
     <button
       type="button"

@@ -131,7 +131,7 @@ export function buildRegisterVerifyPayload(
 export const prepareResetPasswordData = (
   password: string,
   token: string,
-): { password_hash: string; token: string } => ({
-  password_hash: password,
+): { password: string; token: string } => ({
+  password,
   token,
 });

@@ -3,6 +3,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from apps.core.meta_management.factory import build_access_api, build_binding_api
+from apps.core.meta_management.errors import AssetError
+from apps.core.processors.error_processor import process_error_response
 from apps.webinars.models import Webinar
 from ..models import (
     Course,
@@ -31,14 +34,6 @@ from .serializers import (
     QuestionSerializer,
     UserWebinarListItemSerializer,
     build_course_cover_map,
-)
-from apps.core.api.responses import asset_error_response
-from apps.core.services.errors import AssetError
-from apps.core.services.factory import build_access_api, build_binding_api
-from .utils.agora_utils import (
-    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room, generate_whiteboard_room_token, 
-    recording_acquire, recording_start, recording_start_web, recording_stop, recording_stop_web,
-    verify_recorder_token, make_recorder_token,ban_whiteboard_room, ROLE_PUBLISHER, ROLE_SUBSCRIBER,
 )
 from rest_framework import generics
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
@@ -232,6 +227,79 @@ class CourseDetailView(APIView):
         course = get_object_or_404(Course, slug=slug)
         course.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CourseCoverView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def _resolve_cover_url(self, course):
+        try:
+            url = build_access_api().resolve_bound_url(course, role='course_cover')
+        except Exception:
+            url = None
+        return url or course.image_url
+
+    @extend_schema(
+        summary='Установить обложку курса',
+        description='Привязывает ранее загруженный ассет к курсу в роли course_cover.',
+        tags=['Course'],
+        parameters=[OpenApiParameter(name='slug', type=OpenApiTypes.STR, location=OpenApiParameter.PATH)],
+        request=CourseCoverBindRequestSerializer,
+        responses={
+            200: CourseCoverResponseSerializer,
+            400: {"schema": SCHEMA_VALIDATION},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            409: {"schema": SCHEMA_DETAIL},
+        },
+    )
+    @require_course_author
+    def put(self, request, slug):
+        course = get_object_or_404(Course, slug=slug)
+        serializer = CourseCoverBindRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            build_binding_api().sync_single(
+                content_object=course,
+                role='course_cover',
+                asset_id=serializer.validated_data['asset_id'],
+                owner=request.user,
+            )
+        except AssetError as exc:
+            return process_error_response(exc)
+
+        invalidate_on_course_model_change(course.slug)
+        return Response({'cover': self._resolve_cover_url(course)}, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        summary='Сбросить обложку курса',
+        tags=['Course'],
+        parameters=[OpenApiParameter(name='slug', type=OpenApiTypes.STR, location=OpenApiParameter.PATH)],
+        responses={
+            200: CourseCoverResponseSerializer,
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+        },
+    )
+    @require_course_author
+    def delete(self, request, slug):
+        course = get_object_or_404(Course, slug=slug)
+        try:
+            build_binding_api().sync_single(
+                content_object=course,
+                role='course_cover',
+                asset_id=None,
+                owner=request.user,
+            )
+        except AssetError as exc:
+            return process_error_response(exc)
+
+        invalidate_on_course_model_change(course.slug)
+        return Response({'cover': self._resolve_cover_url(course)}, status=status.HTTP_200_OK)
 
 
 class MyCourses(APIView):

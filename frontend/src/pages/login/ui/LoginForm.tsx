@@ -9,8 +9,8 @@ import {
   FieldGroup,
   FieldLabel,
   Input,
+  OAuthButtons,
 } from '@shared/ui';
-import { cn } from '@shared/lib/utils';
 import styles from './LoginPage.module.css';
 import { useState } from 'react';
 import { useUserStore } from '@entities/user/model/userStore';
@@ -32,8 +32,6 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginFormSchema, type LoginFormValues } from '@shared/utils/formSchemas';
-import { startYandexOAuth } from '@shared/lib/auth/yandexOAuth';
-import { startVkOAuth } from '@shared/lib/auth/vkOAuth';
 
 function notifyLoginFailure(err: unknown) {
   if (err instanceof Error && err.message === 'Invalid email or phone number') {
@@ -128,26 +126,6 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
     }
   };
 
-  const handleYandexLogin = () => {
-    try {
-      startYandexOAuth();
-    } catch (err) {
-      notifyError({
-        title: 'не удалось запустить вход через Яндекс',
-        description: err instanceof Error ? err.message : 'Проверьте настройки OAuth.',
-      });
-    }
-  };
-
-  const handleVkLogin = () => {
-    void startVkOAuth().catch((err) => {
-      notifyError({
-        title: 'не удалось запустить вход через VK',
-        description: err instanceof Error ? err.message : 'Проверьте настройки OAuth.',
-      });
-    });
-  };
-
   return (
     <div className={styles.loginPage} {...props}>
       <div className={styles.loginWrapper}>
@@ -219,30 +197,13 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                   <div className={styles.divider}>
                     <span>или</span>
                   </div>
-                  <div className={styles.socialButtons}>
-                    <Button
-                      variant="outline"
-                      type="button"
-                      className={cn(styles.socialButton, styles.loginVk)}
-                      onClick={handleVkLogin}
-                    >
-                      <span className={styles.socialIcon}>
-                        <img src="login/vk.svg" alt="" />
-                      </span>
-                      Войти с VK ID
-                    </Button>
-                    <Button
-                      variant="outline"
-                      type="button"
-                      className={cn(styles.socialButton, styles.loginYa)}
-                      onClick={handleYandexLogin}
-                    >
-                      <span className={styles.socialIcon}>
-                        <img src="login/ya.svg" alt="" />
-                      </span>
-                      Войти с Яндекс ID
-                    </Button>
-                  </div>
+                  <OAuthButtons
+                    containerClassName={styles.socialButtons}
+                    buttonClassName={styles.socialButton}
+                    vkButtonClassName={styles.loginVk}
+                    yandexButtonClassName={styles.loginYa}
+                    iconClassName={styles.socialIcon}
+                  />
                   <div className={styles.linksContainer}>
                     <div className={styles.linkRow}>
                       <span>Нет аккаунта? </span>

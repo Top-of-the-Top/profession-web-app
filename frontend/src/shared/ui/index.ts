@@ -94,6 +94,7 @@ export { SafeHtml } from './SafeHtml'
 	export { PageFrame } from './PageFrame'
 	export { Spinner } from './Spinner'
 export { Skeleton } from './Skeleton'
+export { OAuthButtons } from './OAuthButtons'
 
 	export {
 		Breadcrumb,

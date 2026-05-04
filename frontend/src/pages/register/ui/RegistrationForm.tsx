@@ -10,6 +10,7 @@ import {
   FieldLabel,
   Input,
   OAuthButtons,
+  VerificationCodeInput,
 } from '@shared/ui';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
@@ -22,7 +23,7 @@ import { ZodError } from 'zod';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import { messageForApiFailure, notifyError, notifySuccess } from '@shared/lib/sileo/notify';
 import { validateEmailOrPhone } from '@shared/utils/validation';
-import { OtpInput, EMPTY_OTP, type OtpValue } from '@components/OtpInput';
+import { EMPTY_OTP, type OtpValue } from '@components/OtpInput';
 import { preloadLoginRoute, warmAppAfterAuth } from '@router/lazyPages';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -365,11 +366,14 @@ export default function RegistrationForm({
             ) : (
               <FieldGroup className={styles.fieldGroup}>
                 <Field className={styles.field}>
-                  <FieldLabel>Код из письма или SMS</FieldLabel>
-                  <OtpInput value={otp} onChange={setOtp} disabled={loading} />
-                  <p className={styles.otpHint}>
-                    После ввода всех 6 цифр подтверждение отправится автоматически
-                  </p>
+                  <VerificationCodeInput
+                    value={otp}
+                    onChange={setOtp}
+                    disabled={loading}
+                    label="Код из письма или SMS"
+                    hint="После ввода всех 6 цифр подтверждение отправится автоматически"
+                    hintClassName={styles.otpHint}
+                  />
                 </Field>
                 <Field>
                   <Button

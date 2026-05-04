@@ -287,6 +287,7 @@ export default function ProfilePage() {
         type="email"
         isVisible={isEmailMenuOpen}
         onClose={toggleEmailMenu}
+        initialContact={profile.email}
         onRequestChange={(c) => handleContactRequest(c, 'email')}
         onVerify={(code) => handleContactVerify(code, 'email')}
       />
@@ -294,6 +295,7 @@ export default function ProfilePage() {
         type="phone"
         isVisible={isPhoneMenuOpen}
         onClose={togglePhoneMenu}
+        initialContact={profile.phone_number}
         onRequestChange={(c) => handleContactRequest(c, 'phone')}
         onVerify={(code) => handleContactVerify(code, 'phone')}
       />

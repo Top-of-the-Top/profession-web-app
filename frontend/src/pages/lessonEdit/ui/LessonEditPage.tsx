@@ -22,6 +22,7 @@ export default function LessonEditPage() {
 
   const saveMutation = useSaveLessonContent(courseSlug ?? '', lessonSlug ?? '');
   const [initialized, setInitialized] = useState(false);
+  const [savedRevision, setSavedRevision] = useState(0);
 
   useEffect(() => {
     setInitialized(false);
@@ -44,11 +45,18 @@ export default function LessonEditPage() {
 
   const handleSave = (payload: SubmitPayload) => {
     const title = useLessonBuilderStore.getState().layout.title;
-    saveMutation.mutate({
-      title,
-      document: payload.document,
-      files: payload.files,
-    });
+    saveMutation.mutate(
+      {
+        title,
+        document: payload.document,
+        files: payload.files,
+      },
+      {
+        onSuccess: () => {
+          setSavedRevision((prev) => prev + 1);
+        },
+      },
+    );
   };
 
   if (isError) {
@@ -85,6 +93,7 @@ export default function LessonEditPage() {
         lessonHomeworks={lessonDetail.homeworks}
         onSave={handleSave}
         saving={saveMutation.isPending}
+        savedRevision={savedRevision}
       />
     </PageFrame>
   );

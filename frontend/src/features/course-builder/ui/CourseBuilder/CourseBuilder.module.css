@@ -225,6 +225,26 @@
 .ctaWrapper {
   display: flex;
   gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.unsavedIndicatorDirty,
+.unsavedIndicatorSaved {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.unsavedIndicatorDirty {
+  color: #92400e;
+  background-color: #fef3c7;
+}
+
+.unsavedIndicatorSaved {
+  color: #065f46;
+  background-color: #d1fae5;
 }
 
 .emptyState {
@@ -538,10 +558,42 @@
   font-size: 14px;
   font-weight: 600;
   line-height: 1.2;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }
 
 .backToLesson:hover {
   text-decoration: underline;
+}
+
+.leaveDialog {
+  width: min(92vw, 430px);
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.leaveDialogTitle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.leaveDialogDescription {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #4b5563;
+}
+
+.leaveDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .lessonHeaderTrapezoid {

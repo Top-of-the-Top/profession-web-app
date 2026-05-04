@@ -765,6 +765,34 @@
   text-align: center;
 }
 
+.deleteLessonDialog {
+  width: min(92vw, 420px);
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.deleteLessonDialogTitle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.deleteLessonDialogDescription {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #4b5563;
+}
+
+.deleteLessonDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 @media (max-width: 640px) {
   .staffLessonActions {
     flex-wrap: wrap;

@@ -2,17 +2,8 @@ import { Suspense, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
-import {
-  House,
-  ShoppingBag,
-  CalendarDays,
-  ClipboardList,
-} from 'lucide-react';
-import {
-  Button,
-  Spinner,
-  ContentErrorFallback,
-} from '@shared/ui';
+import { House, ShoppingBag, CalendarDays, ClipboardList } from 'lucide-react';
+import { Button, Spinner, ContentErrorFallback } from '@shared/ui';
 import { cn } from '@shared/lib/utils';
 import { tokenService } from '@shared/lib/auth/tokenService';
 import { useCart } from '@shared/api/queries/cart';
@@ -52,15 +43,10 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (hasToken && user) {
-      console.info('[layout] SSE connect', { hasUser: true });
       connectNotificationSSE();
       return;
     }
 
-    console.info('[layout] SSE disconnect', {
-      hasToken,
-      hasUser: Boolean(user),
-    });
     disconnectNotificationSSE();
     return () => {
       disconnectNotificationSSE();
@@ -92,7 +78,11 @@ export default function AppLayout() {
   return (
     <div className={styles.container}>
       <header className={styles.topbar}>
-        <img src="/profession-logo-blue.svg" alt="Logo" className={styles.logo} />
+        <img
+          src="/profession-logo-blue.svg"
+          alt="Logo"
+          className={styles.logo}
+        />
         <div className={styles.topbarItem}>
           <Link className={styles.headerLink} to="cart" aria-label="Корзина">
             <img
@@ -109,9 +99,7 @@ export default function AppLayout() {
               {user?.avatar ? (
                 <img src={user.avatar} alt="Profile" />
               ) : (
-                <span className={styles.pfpFallback}>
-                  {initials || 'U'}
-                </span>
+                <span className={styles.pfpFallback}>{initials || 'U'}</span>
               )}
             </div>
           </Link>
@@ -137,7 +125,7 @@ export default function AppLayout() {
                       cn(
                         styles.navLink,
                         styles[id],
-                        isActive && styles.navLinkActive,
+                        isActive && styles.navLinkActive
                       )
                     }
                   >
@@ -192,13 +180,16 @@ export default function AppLayout() {
         </div>
 
         <main
-          className={cn(styles.main, lessonEditorLayout && styles.mainLessonEditor)}
+          className={cn(
+            styles.main,
+            lessonEditorLayout && styles.mainLessonEditor
+          )}
         >
           <div
             className={cn(
               styles.pageShell,
               isFullBleedAppPage(pathname) && styles.pageShellBleed,
-              lessonEditorLayout && styles.pageShellLessonEditor,
+              lessonEditorLayout && styles.pageShellLessonEditor
             )}
           >
             <QueryErrorResetBoundary>

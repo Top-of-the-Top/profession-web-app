@@ -92,6 +92,22 @@
   padding: 14px;
 }
 
+@keyframes recordingCardExitDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+.recordingCardLeaving {
+  pointer-events: none;
+  animation: recordingCardExitDown 0.32s ease forwards;
+}
+
 .recordingCardHead {
   display: flex;
   align-items: center;
@@ -128,7 +144,6 @@
   aspect-ratio: 16 / 9;
   border-radius: 10px;
   overflow: hidden;
-  background: #000;
 }
 
 .recordingIframe {
@@ -263,6 +278,10 @@
   font-size: 1.17em;
   font-weight: 700;
   margin: 0.83em 0;
+}
+
+.textBlock strong {
+	font-weight: 650;
 }
 
 /* ── Photo block ── */
@@ -415,13 +434,15 @@
   justify-content: center;
 	cursor: pointer;
   gap: 8px;
+  box-sizing: border-box;
+  min-height: 38px;
   background: #fff;
   color: #191970;
   border-radius: 8px;
   padding: 8px 20px;
   text-decoration: none;
   font-size: 16px;
-  line-height: 1;
+  line-height: 1.25;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.14);
   transition: 0.2s;

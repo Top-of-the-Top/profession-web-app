@@ -15,7 +15,11 @@ const TOKEN_KEYS = [
 export const tokenService = {
   getAccessToken: (): string | null => localStorage.getItem('access_token'),
 
+  getAccessExpiresAt: (): string | null => localStorage.getItem('access_expires_at'),
+
   getRefreshToken: (): string | null => localStorage.getItem('refresh_token'),
+
+  getRefreshExpiresAt: (): string | null => localStorage.getItem('refresh_expires_at'),
 
   hasToken: (): boolean => Boolean(localStorage.getItem('access_token')),
 

@@ -2,25 +2,17 @@ import { Suspense, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
-import {
-  House,
-  ShoppingBag,
-  CalendarDays,
-  ClipboardList,
-} from 'lucide-react';
-import {
-  Button,
-  Spinner,
-  ContentErrorFallback,
-} from '@shared/ui';
+import { House, ShoppingBag, CalendarDays, ClipboardList } from 'lucide-react';
+import { Button, Spinner, ContentErrorFallback } from '@shared/ui';
 import { cn } from '@shared/lib/utils';
-import { useUserStore } from '@entities/user/model/userStore';
 import { tokenService } from '@shared/lib/auth/tokenService';
 import { useCart } from '@shared/api/queries/cart';
+import { useProfile } from '@shared/api/queries/profile';
 import {
   connectNotificationSSE,
   disconnectNotificationSSE,
 } from '../../../features/notification/model/notification.sse';
+import { prefetchAppSidebarHref } from '@router/lazyPages';
 
 import styles from './AppLayout.module.css';
 
@@ -32,10 +24,15 @@ function isFullBleedAppPage(pathname: string) {
   );
 }
 
+function isLessonEditorPage(pathname: string) {
+  return pathname.includes('/courses/') && pathname.endsWith('/edit');
+}
+
 export default function AppLayout() {
   const { pathname } = useLocation();
-  const user = useUserStore((state) => state.user);
+  const lessonEditorLayout = isLessonEditorPage(pathname);
   const hasToken = tokenService.hasToken();
+  const { data: user } = useProfile(hasToken);
 
   const { data: cart } = useCart();
   const cartHasItems = (cart?.courses?.length ?? 0) > 0;
@@ -46,15 +43,10 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (hasToken && user) {
-      console.info('[layout] SSE connect', { hasUser: true });
       connectNotificationSSE();
       return;
     }
 
-    console.info('[layout] SSE disconnect', {
-      hasToken,
-      hasUser: Boolean(user),
-    });
     disconnectNotificationSSE();
     return () => {
       disconnectNotificationSSE();
@@ -86,7 +78,11 @@ export default function AppLayout() {
   return (
     <div className={styles.container}>
       <header className={styles.topbar}>
-        <img src="/profession-logo-blue.svg" alt="Logo" className={styles.logo} />
+        <img
+          src="/profession-logo-blue.svg"
+          alt="Logo"
+          className={styles.logo}
+        />
         <div className={styles.topbarItem}>
           <Link className={styles.headerLink} to="cart" aria-label="Корзина">
             <img
@@ -103,9 +99,7 @@ export default function AppLayout() {
               {user?.avatar ? (
                 <img src={user.avatar} alt="Profile" />
               ) : (
-                <span className={styles.pfpFallback}>
-                  {initials || 'U'}
-                </span>
+                <span className={styles.pfpFallback}>{initials || 'U'}</span>
               )}
             </div>
           </Link>
@@ -121,11 +115,17 @@ export default function AppLayout() {
                     key={href}
                     to={href}
                     end={href === '/app'}
+                    onPointerEnter={() => {
+                      prefetchAppSidebarHref(href);
+                    }}
+                    onFocus={() => {
+                      prefetchAppSidebarHref(href);
+                    }}
                     className={({ isActive }) =>
                       cn(
                         styles.navLink,
                         styles[id],
-                        isActive && styles.navLinkActive,
+                        isActive && styles.navLinkActive
                       )
                     }
                   >
@@ -179,11 +179,17 @@ export default function AppLayout() {
           </div> */}
         </div>
 
-        <main className={styles.main}>
+        <main
+          className={cn(
+            styles.main,
+            lessonEditorLayout && styles.mainLessonEditor
+          )}
+        >
           <div
             className={cn(
               styles.pageShell,
               isFullBleedAppPage(pathname) && styles.pageShellBleed,
+              lessonEditorLayout && styles.pageShellLessonEditor
             )}
           >
             <QueryErrorResetBoundary>
@@ -192,7 +198,13 @@ export default function AppLayout() {
                   onReset={reset}
                   FallbackComponent={ContentErrorFallback}
                 >
-                  <Suspense fallback={<Spinner full />}>
+                  <Suspense
+                    fallback={
+                      <div className={styles.outletSuspenseFallback}>
+                        <Spinner size="lg" />
+                      </div>
+                    }
+                  >
                     <Outlet />
                   </Suspense>
                 </ErrorBoundary>

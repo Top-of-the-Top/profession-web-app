@@ -1,3 +1,4 @@
+import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Card,
@@ -5,8 +6,10 @@ import {
   CardHeader,
   CardTitle,
   Button,
+  Modal,
   PageFrame,
   Skeleton,
+  Spinner,
 } from '@shared/ui';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
@@ -15,7 +18,7 @@ import {
   notifyWarning,
 } from '@shared/lib/sileo/notify';
 import { useCart } from '@shared/api/queries/cart';
-import { useRemoveFromCart } from '@shared/api/mutations/cart';
+import { usePayCart, useRemoveFromCart } from '@shared/api/mutations/cart';
 import styles from './Cart.module.css';
 
 import { X } from 'lucide-react';
@@ -72,6 +75,10 @@ function CartSkeleton() {
 export default function CartPage() {
   const { data: cart, isLoading: loading, error, refetch } = useCart();
   const removeFromCart = useRemoveFromCart();
+  const payCart = usePayCart();
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const payModalTitleId = useId();
+  const payModalDescId = useId();
 
   const handleRemove = (slug: string) => {
     removeFromCart.mutate(slug, {
@@ -197,11 +204,112 @@ export default function CartPage() {
               <span className={styles.summaryAmount}>{formattedTotal}</span>
             </CardHeader>
             <CardContent className={styles.summaryContent}>
-              <Button className={styles.payButton}>Перейти к оплате</Button>
+              <Button
+                type="button"
+                className={styles.payButton}
+                disabled={payCart.isPending}
+                onClick={() => setPayDialogOpen(true)}
+              >
+                {payCart.isPending ? 'Оформление…' : 'Перейти к оплате'}
+              </Button>
             </CardContent>
           </Card>
         </aside>
       </div>
+
+      <Modal
+        open={payDialogOpen}
+        onClose={() => {
+          if (!payCart.isPending) setPayDialogOpen(false);
+        }}
+        backdropClassName={styles.payDialogOverlay}
+        panelClassName={styles.payDialog}
+        closeOnBackdrop={!payCart.isPending}
+        labelledBy={payModalTitleId}
+        describedBy={payModalDescId}
+      >
+        <div className={styles.payDialogRoot}>
+          {payCart.isPending ? (
+            <div className={styles.payDialogLoadingLayer}>
+              <Spinner />
+              <span className={styles.payDialogLoadingText}>
+                Обрабатываем оплату…
+              </span>
+            </div>
+          ) : null}
+
+          <h2 id={payModalTitleId} className={styles.payVisuallyHidden}>
+            Оплата заказа через T‑Pay
+          </h2>
+          <p id={payModalDescId} className={styles.payVisuallyHidden}>
+            Сумма {formattedTotal}, позиций в заказе: {courses.length}
+          </p>
+
+          <header className={styles.payDialogHeader}>
+            <button
+              type="button"
+              className={styles.payDialogClose}
+              disabled={payCart.isPending}
+              onClick={() => {
+                if (!payCart.isPending) setPayDialogOpen(false);
+              }}
+              aria-label="Закрыть"
+            >
+              <X aria-hidden />
+            </button>
+            <div className={styles.payDialogBrand}>
+              <span className={styles.payDialogBrandBadge} aria-hidden>
+                T
+              </span>
+              <span className={styles.payDialogBrandPay}>Pay</span>
+            </div>
+            <span className={styles.payDialogHeaderSpacer} aria-hidden />
+          </header>
+
+          <p className={styles.payDialogCashbackHint}>Кэшбэк до 30%</p>
+
+          <div className={styles.payDialogCardStrip}>
+            <div className={styles.payDialogCardTop}>
+              <span className={styles.payDialogCardName}>Основная карта</span>
+              <span className={styles.payDialogCardAmount}>
+                {formattedTotal}
+              </span>
+            </div>
+            <div className={styles.payDialogCardDots} aria-hidden>
+              <span className={styles.payDialogCardDot} />
+              <span
+                className={`${styles.payDialogCardDot} ${styles.payDialogCardDotActive}`}
+              />
+              <span className={styles.payDialogCardDot} />
+            </div>
+          </div>
+
+          {/* <div className={styles.payDialogMerchant}>
+            <div className={styles.payDialogMerchantIcon} aria-hidden>
+              P
+            </div>
+            <div className={styles.payDialogMerchantText}>
+              <span className={styles.payDialogMerchantName}>Profession</span>
+              <span className={styles.payDialogMerchantMeta}>
+                {formatCourseCountLabel(courses.length)} в заказе
+              </span>
+            </div>
+          </div> */}
+
+          <Button
+            type="button"
+            className={styles.payConfirmButton}
+            disabled={payCart.isPending}
+            onClick={() =>
+              payCart.mutate(undefined, {
+                onSuccess: () => setPayDialogOpen(false),
+              })
+            }
+          >
+            Оплатить {formattedTotal}
+          </Button>
+        </div>
+      </Modal>
     </PageFrame>
   );
 }

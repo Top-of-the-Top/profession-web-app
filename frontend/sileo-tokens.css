@@ -21,6 +21,10 @@
   text-transform: none;
 }
 
+[data-sileo-viewport] [data-sileo-description] {
+  color: #000;
+}
+
 .dark {
   --sileo-state-success: var(--color-green-500);
   --sileo-state-loading: var(--color-neutral-400);

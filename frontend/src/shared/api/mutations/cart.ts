@@ -3,6 +3,12 @@ import { cartApi, type CartResponse } from '../cartApi';
 import { cartKeys } from '../queries/cart';
 import { courseKeys } from '../queries/courses';
 import type { Course, CourseApiAnswer, CourseDTO } from '../courseApi';
+import { parseApiError } from '@shared/lib/api/parseApiError';
+import {
+  messageForApiFailure,
+  notifyError,
+  notifySuccess,
+} from '@shared/lib/sileo/notify';
 
 export function useAddToCart() {
   const qc = useQueryClient();
@@ -18,7 +24,8 @@ export function useAddToCart() {
           return old;
         }
 
-        const storeCourses = qc.getQueryData<CourseApiAnswer>(courseKeys.store())?.data ?? [];
+        const storeCourses =
+          qc.getQueryData<CourseApiAnswer>(courseKeys.store())?.data ?? [];
         const courseBySlug = qc.getQueryData<Course>(courseKeys.bySlug(slug));
         const candidate: CourseDTO | undefined =
           storeCourses.find((course) => course.slug === slug) ?? courseBySlug;
@@ -70,6 +77,33 @@ export function useRemoveFromCart() {
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: cartKeys.all });
+    },
+  });
+}
+
+export function usePayCart() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => cartApi.payCart(),
+    onError: (err) => {
+      const parsed = parseApiError(err);
+      if (parsed) {
+        const m = messageForApiFailure('cartPay', parsed.status, parsed.body);
+        notifyError({ title: m.title, description: m.description });
+        return;
+      }
+      notifyError({ title: 'Ошибка', description: 'Повторите попытку.' });
+    },
+    onSuccess: () => {
+      notifySuccess({
+        title: 'Оплата прошла',
+        description: 'Курсы появятся в вашем профиле.',
+      });
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: cartKeys.all });
+      void qc.invalidateQueries({ queryKey: courseKeys.all });
     },
   });
 }

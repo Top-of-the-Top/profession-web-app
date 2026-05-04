@@ -10,30 +10,31 @@ export interface CartResponse {
   courses: CourseDTO[];
 }
 
+export interface CartActionResponse {
+  status?: string;
+  detail?: string;
+  [key: string]: unknown;
+}
+
 export const cartApi = {
-  /**
-   * Получить текущую корзину пользователя
-   */
   getCart(): Promise<CartResponse> {
     return apiClient.request<CartResponse>('/api/carts/', { method: 'GET' });
   },
 
-  /**
-   * Добавить курс в корзину по slug
-   */
   addCourse(slug: string) {
-    return apiClient.request('/api/carts/add/' + slug + '/', {
+    return apiClient.request<CartActionResponse>('/api/carts/add/' + slug + '/', {
       method: 'POST',
     });
   },
 
-  /**
-   * Удалить курс из корзины по slug
-   */
   removeCourse(slug: string) {
-    return apiClient.request('/api/carts/remove/' + slug + '/', {
+    return apiClient.request<CartActionResponse>('/api/carts/remove/' + slug + '/', {
       method: 'DELETE',
     });
+  },
+
+  payCart() {
+    return apiClient.request<CartActionResponse>('/api/carts/pay/', { method: 'POST' });
   },
 };
 

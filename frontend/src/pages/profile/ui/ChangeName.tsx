@@ -73,10 +73,13 @@ export default function ChangeName({
     }
   }, [open, currentFirstName, currentLastName, currentAvatar, reset]);
 
-  const handleDialogOpenChange = (next: boolean) => {
-    if (!next) cleanup();
-    onOpenChange(next);
-  };
+  const handleDialogOpenChange = useCallback(
+    (next: boolean) => {
+      if (!next) cleanup();
+      onOpenChange(next);
+    },
+    [cleanup, onOpenChange],
+  );
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -172,7 +175,7 @@ export default function ChangeName({
             type="file"
             accept="image/*"
             onChange={handleFileSelect}
-            style={{ display: 'none' }}
+            className={styles.hiddenFileInput}
           />
 
           <Button

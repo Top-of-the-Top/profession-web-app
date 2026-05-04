@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Card,
   CardContent,
@@ -22,7 +23,8 @@ import {
   type ProfileData,
   type UpdateProfilePayload,
 } from '@shared/api/profileApi';
-import { useUserStore } from '@entities/user/model/userStore';
+import { useProfile, profileKeys } from '@shared/api/queries/profile';
+import { useUpdateProfile } from '@shared/api/mutations/profile';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import {
   messageForApiFailure,
@@ -81,10 +83,10 @@ const ProfileField = ({
 );
 
 export default function ProfilePage() {
-  const user = useUserStore((state) => state.user);
-  const isLoading = useUserStore((state) => state.isLoading);
-  const setUser = useUserStore((state) => state.setUser);
-  const [profile, setProfile] = useState<ProfileData | null>(user);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading } = useProfile();
+  const updateProfile = useUpdateProfile();
+  const [profile, setProfile] = useState<ProfileData | null>(user ?? null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const [isChangeNameMenuOpen, setChangeMenuOpen] = useState(false);
@@ -103,13 +105,9 @@ export default function ProfilePage() {
     const previous = gender;
     setGender(value);
     try {
-      await profileApi.updateProfile({ gender: value });
+      await updateProfile.mutateAsync({ gender: value });
       setProfile((prev) => {
-        const next = prev ? { ...prev, gender: value } : prev;
-        if (next) {
-          setUser(next);
-        }
-        return next;
+        return prev ? { ...prev, gender: value } : prev;
       });
     } catch (err) {
       notifyProfileSaveError(err);
@@ -161,30 +159,34 @@ export default function ProfilePage() {
 
       setProfile(optimistic);
       setAvatarUrl(blobUrl ?? prevAvatar);
-      setUser(optimistic);
 
-      await profileApi.updateProfile(updateData);
+      await updateProfile.mutateAsync(updateData);
 
-      const fresh = await profileApi.getProfile();
+      const fresh = await queryClient.fetchQuery({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getProfile(),
+      });
 
       if (blobUrl && fresh.avatar === prevAvatar) {
         const merged = { ...fresh, avatar: blobUrl };
         setProfile(merged);
         setAvatarUrl(blobUrl);
-        setUser(merged);
       } else {
         setProfile(fresh);
         setAvatarUrl(fresh.avatar);
-        setUser(fresh);
         if (blobUrl) URL.revokeObjectURL(blobUrl);
       }
     } catch (err) {
       notifyProfileSaveError(err);
       setAvatarUrl(prevAvatar);
-      const reverted = await profileApi.getProfile().catch(() => null);
+      const reverted = await queryClient
+        .fetchQuery({
+          queryKey: profileKeys.me(),
+          queryFn: () => profileApi.getProfile(),
+        })
+        .catch(() => null);
       if (reverted) {
         setProfile(reverted);
-        setUser(reverted);
       }
       throw err;
     }
@@ -196,7 +198,7 @@ export default function ProfilePage() {
   ) => {
     try {
       if (type === 'email') {
-        await profileApi.updateProfile({ email: rawContact.trim() });
+        await updateProfile.mutateAsync({ email: rawContact.trim() });
       } else {
         const v = validateEmailOrPhone(rawContact);
         if (!v.isValid) {
@@ -206,7 +208,7 @@ export default function ProfilePage() {
           });
           throw new Error('invalid_phone');
         }
-        await profileApi.updateProfile({ phone_number: v.normalized });
+        await updateProfile.mutateAsync({ phone_number: v.normalized });
       }
       notifySuccess({
         title: 'код отправлен',
@@ -231,9 +233,11 @@ export default function ProfilePage() {
       } else {
         await profileApi.verifyPhoneChange(code);
       }
-      const fresh = await profileApi.getProfile();
+      const fresh = await queryClient.fetchQuery({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getProfile(),
+      });
       setProfile(fresh);
-      setUser(fresh);
       notifySuccess({
         title: 'готово',
         description:
@@ -283,6 +287,7 @@ export default function ProfilePage() {
         type="email"
         isVisible={isEmailMenuOpen}
         onClose={toggleEmailMenu}
+        initialContact={profile.email}
         onRequestChange={(c) => handleContactRequest(c, 'email')}
         onVerify={(code) => handleContactVerify(code, 'email')}
       />
@@ -290,6 +295,7 @@ export default function ProfilePage() {
         type="phone"
         isVisible={isPhoneMenuOpen}
         onClose={togglePhoneMenu}
+        initialContact={profile.phone_number}
         onRequestChange={(c) => handleContactRequest(c, 'phone')}
         onVerify={(code) => handleContactVerify(code, 'phone')}
       />

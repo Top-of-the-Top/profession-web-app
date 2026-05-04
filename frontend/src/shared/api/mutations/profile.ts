@@ -1,14 +1,17 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { profileApi, type UpdateProfilePayload } from '../profileApi';
-import { useUserStore } from '@entities/user/model/userStore';
+import { profileKeys } from '../queries/profile';
 
 export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (payload: UpdateProfilePayload) =>
       profileApi.updateProfile(payload),
     onSuccess: async () => {
-      const fresh = await profileApi.getProfile();
-      useUserStore.getState().setUser(fresh);
+      await queryClient.invalidateQueries({
+        queryKey: profileKeys.me(),
+      });
     },
   });
 }

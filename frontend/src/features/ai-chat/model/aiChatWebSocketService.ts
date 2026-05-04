@@ -42,7 +42,7 @@ function mapHistoryMessage(dto: {
   };
 }
 
-function deriveChatTitle(chats: AiChatSummary[], chatId: string): string {
+function deriveChatTitle(chats: AiChatSummary[]): string {
   const maxIndex = chats.length + 1;
   return `Новый чат ${maxIndex}`;
 }
@@ -199,7 +199,7 @@ class AiChatWebSocketService {
           break;
         }
         case AI_CHAT_SERVER_MESSAGE_TYPES.CHAT_CREATED: {
-          const title = deriveChatTitle(store.chats, message.chat_id);
+          const title = deriveChatTitle(store.chats);
           store.addChat({
             chat_id: message.chat_id,
             title,

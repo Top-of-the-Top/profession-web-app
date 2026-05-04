@@ -1,9 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { CourseLessonDetail } from '../courseApi';
 import { webinarApi } from '../webinarApi';
 import { courseKeys } from '../queries/courses';
-import { notifySuccess, notifyError } from '@shared/lib/sileo/notify';
 import { parseApiError } from '@shared/lib/api/parseApiError';
-import { messageForApiFailure } from '@shared/lib/sileo/notify';
+import {
+  messageForApiFailure,
+  notifyError,
+  notifySuccess,
+} from '@shared/lib/sileo/notify';
 import type { ApiFailureScene } from '@shared/lib/api/backendApiMessages';
 
 function handleWebinarError(err: unknown, scene: ApiFailureScene) {
@@ -34,10 +38,6 @@ export function useStartRecording(courseSlug: string, lessonSlug: string) {
   return useMutation({
     mutationFn: () => webinarApi.startRecording(courseSlug, lessonSlug),
     onSuccess: () => {
-      notifySuccess({
-        title: 'Запись началась',
-        description: 'Остальные участники получат уведомление по каналу событий.',
-      });
       void queryClient.invalidateQueries({
         queryKey: courseKeys.lesson(courseSlug, lessonSlug),
       });
@@ -100,31 +100,71 @@ export function useUploadFinalPdf(courseSlug: string, lessonSlug: string) {
 
 export function useDeleteRecordingPdf(courseSlug: string, lessonSlug: string) {
   const queryClient = useQueryClient();
+  const lessonKey = courseKeys.lesson(courseSlug, lessonSlug);
+
   return useMutation({
     mutationFn: (recordingId: string) =>
       webinarApi.deleteRecordingPdf(courseSlug, lessonSlug, recordingId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+    onMutate: async (recordingId) => {
+      await queryClient.cancelQueries({ queryKey: lessonKey });
+      const prev = queryClient.getQueryData<CourseLessonDetail>(lessonKey);
+      queryClient.setQueryData<CourseLessonDetail>(lessonKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          recordings: old.recordings.map((r) =>
+            r.recording_id === recordingId ? { ...r, whiteboard_pdf_url: '' } : r,
+          ),
+        };
       });
+      return { prev };
+    },
+    onError: (err, _recordingId, context) => {
+      if (context?.prev !== undefined) {
+        queryClient.setQueryData(lessonKey, context.prev);
+      }
+      handleWebinarError(err, 'recordingPdfDelete');
+    },
+    onSuccess: () => {
       notifySuccess({ title: 'PDF удален' });
     },
-    onError: (err) => handleWebinarError(err, 'recordingPdfDelete'),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: lessonKey });
+    },
   });
 }
 
 export function useDeleteRecording(courseSlug: string, lessonSlug: string) {
   const queryClient = useQueryClient();
+  const lessonKey = courseKeys.lesson(courseSlug, lessonSlug);
+
   return useMutation({
     mutationFn: (recordingId: string) =>
       webinarApi.deleteRecording(courseSlug, lessonSlug, recordingId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+    onMutate: async (recordingId) => {
+      await queryClient.cancelQueries({ queryKey: lessonKey });
+      const prev = queryClient.getQueryData<CourseLessonDetail>(lessonKey);
+      queryClient.setQueryData<CourseLessonDetail>(lessonKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          recordings: old.recordings.filter((r) => r.recording_id !== recordingId),
+        };
       });
+      return { prev };
+    },
+    onError: (err, _recordingId, context) => {
+      if (context?.prev !== undefined) {
+        queryClient.setQueryData(lessonKey, context.prev);
+      }
+      handleWebinarError(err, 'recordingDelete');
+    },
+    onSuccess: () => {
       notifySuccess({ title: 'Запись удалена' });
     },
-    onError: (err) => handleWebinarError(err, 'recordingDelete'),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: lessonKey });
+    },
   });
 }
 

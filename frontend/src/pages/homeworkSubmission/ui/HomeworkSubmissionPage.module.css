@@ -112,15 +112,53 @@
   gap: 14px;
 }
 
-.answerArea {
+.answerEditor {
   width: 100%;
+  min-height: 180px;
+}
+
+.answerEditor :global([contenteditable='true']) {
+  min-height: 136px;
+  font-size: 28px;
+}
+
+.answerPreview {
+  width: 100%;
+  min-height: 120px;
   border: 1px solid #d0d5dd;
   border-radius: 12px;
   padding: 10px 12px;
-  min-height: 120px;
+  color: #101828;
   font-size: 28px;
-  font-family: inherit;
-  resize: vertical;
+  line-height: 1.45;
+  background: #f8fafc;
+}
+
+.answerPreview p,
+.answerPreview h1,
+.answerPreview h2,
+.answerPreview h3,
+.answerPreview blockquote,
+.answerPreview ul,
+.answerPreview ol {
+  margin-top: 0;
+}
+
+.answerPreview ul,
+.answerPreview ol {
+  padding-left: 1.6em;
+}
+
+.answerPreview li {
+  margin: 4px 0;
+}
+
+.answerPreview blockquote {
+  padding: 8px 12px 8px 14px;
+  border-left: 3px solid #211c84;
+  background: rgba(33, 28, 132, 0.06);
+  color: #344054;
+  font-style: italic;
 }
 
 .attachmentsBlock {

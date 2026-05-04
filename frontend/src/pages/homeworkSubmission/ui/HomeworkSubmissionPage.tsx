@@ -10,6 +10,8 @@ import {
   BreadcrumbSeparator,
   Button,
   PageFrame,
+  RichTextEditor,
+  SafeHtml,
   Spinner,
 } from '@shared/ui';
 import {
@@ -64,6 +66,12 @@ function extractApiMessage(err: unknown): string {
     return issue;
   }
   return `Ошибка запроса (${parsed.status})`;
+}
+
+function formatAnswerHtml(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '<p>Ответ не заполнен</p>';
+  return trimmed;
 }
 
 export default function HomeworkSubmissionPage() {
@@ -410,19 +418,27 @@ export default function HomeworkSubmissionPage() {
             </div>
           ) : (
             <div className={styles.taskAnswerWrap}>
-              <textarea
-                className={styles.answerArea}
-                rows={6}
-                value={answers[answerKey('task', currentItem.task_id)] ?? ''}
-                disabled={!isDraft}
-                onChange={(event) =>
-                  setAnswers((prev) => ({
-                    ...prev,
-                    [answerKey('task', currentItem.task_id)]: event.target.value,
-                  }))
-                }
-                placeholder="Введите ответ"
-              />
+              {isDraft ? (
+                <RichTextEditor
+                  key={currentItem.task_id}
+                  className={styles.answerEditor}
+                  value={answers[answerKey('task', currentItem.task_id)] ?? ''}
+                  onChange={(html) =>
+                    setAnswers((prev) => ({
+                      ...prev,
+                      [answerKey('task', currentItem.task_id)]: html,
+                    }))
+                  }
+                  placeholder="Введите ответ"
+                />
+              ) : (
+                <SafeHtml
+                  className={styles.answerPreview}
+                  html={formatAnswerHtml(
+                    answers[answerKey('task', currentItem.task_id)] ?? '',
+                  )}
+                />
+              )}
               <div className={styles.attachmentsBlock}>
                 <label className={styles.uploadButton}>
                   <input

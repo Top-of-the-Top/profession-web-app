@@ -1,14 +1,18 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { DefaultEditor } from 'react-simple-wysiwyg';
-import { ImageUp, PictureInPicture, Trash2 } from 'lucide-react';
+import { useBlocker, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ImageUp, PictureInPicture, Trash2 } from 'lucide-react';
 import GridLayout from 'react-grid-layout';
 import type { Layout, LayoutItem } from 'react-grid-layout';
 import { useLessonBuilderStore } from '../../model/store';
 import type { SubmitPayload } from '../../model/store';
 import type { Block, BlockType } from '../../model/types';
 import { serializeCoursePage } from '../../model/types';
-import { GRID_CELL_SIZE, GRID_COLS } from '../../lib/constants';
+import {
+  DEFAULT_FONT_SIZE_INDEX,
+  FONT_SIZE_STEPS,
+  GRID_CELL_SIZE,
+  GRID_COLS,
+} from '../../lib/constants';
 import { HomeworkBuilder } from '../HomeworkBuilder';
 import { useHomeworkStore } from '../../model/homeworkStore';
 import type { LessonHomework } from '@shared/api/courseApi';
@@ -21,7 +25,11 @@ import {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
+  Button,
+  Modal,
+  RichTextEditor,
 } from '@shared/ui';
+import { sanitizeEditorHtml } from '@shared/lib/html/sanitizeEditorHtml';
 import styles from './CourseBuilder.module.css';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -32,6 +40,7 @@ interface CourseBuilderProps {
   lessonHomeworks: LessonHomework[];
   onSave: (payload: SubmitPayload) => void;
   saving?: boolean;
+  savedRevision?: number;
 }
 
 const BLOCK_LABELS: Record<BlockType, string> = {
@@ -57,25 +66,6 @@ function blocksToLayout(blocks: Block[]): Layout {
     w: b.w,
     h: b.h,
   }));
-}
-
-/**
- * react-simple-wysiwyg при вставке из clipboard/Figma может тащить служебные поля
- * (`data-buffer`, `data-metadata` и т.п.), которые раздувают JSON черновика.
- * Чистим это перед сохранением в состоянии.
- */
-function sanitizeWysiwygHtml(html: string): string {
-  if (!html) return html;
-
-  return html
-    // Убираем span-ы со служебными атрибутами
-    .replace(
-      /<span[^>]*(?:data-metadata|data-buffer)="[^"]*"[^>]*>[\s\S]*?<\/span>/g,
-      '',
-    )
-    // На всякий случай — убираем figma-комментарии, если они попали в HTML
-    .replace(/<!--\s*\(figmeta\)[\s\S]*?\(\/figmeta\)\s*-->/g, '')
-    .replace(/<!--\s*\(figma\)[\s\S]*?\(\/figma\)\s*-->/g, '');
 }
 
 const SideTabChrome: React.FC = () => (
@@ -130,10 +120,12 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   lessonHomeworks,
   onSave,
   saving,
+  savedRevision = 0,
 }) => {
   const navigate = useNavigate();
   const {
     layout,
+    pendingFiles,
     setTitle,
     addBlockAt,
     updateBlock,
@@ -142,7 +134,10 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     toJSON,
     toSubmitPayload,
   } = useLessonBuilderStore();
-  const { initialize: initHomework, toJSON: homeworkToJSON } = useHomeworkStore();
+  const {
+    initialize: initHomework,
+    layout: homeworkLayout,
+  } = useHomeworkStore();
 
   const [mounted, setMounted] = useState(false);
   const [collapsedEditors, setCollapsedEditors] = useState<
@@ -152,7 +147,101 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deletingBlocks, setDeletingBlocks] = useState<Record<string, boolean>>({});
   const [titleCenterWidth, setTitleCenterWidth] = useState(TITLE_CENTER_MIN_WIDTH);
+  const [isLeaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [pendingNavigationAction, setPendingNavigationAction] = useState<null | (() => void)>(
+    null,
+  );
+  const [confirmedNavigationAction, setConfirmedNavigationAction] = useState<null | (() => void)>(
+    null,
+  );
+  const [baselineSignature, setBaselineSignature] = useState<string | null>(null);
+  const [allowNavigation, setAllowNavigation] = useState(false);
   const titleMeasureRef = useRef<HTMLSpanElement | null>(null);
+
+  const currentSignature = JSON.stringify({
+    lesson: layout,
+    homework: homeworkLayout,
+    pendingFileIds: Object.keys(pendingFiles).sort(),
+  });
+
+  const currentSignatureRef = useRef(currentSignature);
+  useEffect(() => {
+    currentSignatureRef.current = currentSignature;
+  }, [currentSignature]);
+
+  useEffect(() => {
+    setBaselineSignature((prev) =>
+      prev === null ? currentSignatureRef.current : prev,
+    );
+  }, []);
+
+  useEffect(() => {
+    if (savedRevision === 0) return;
+    setBaselineSignature(currentSignatureRef.current);
+  }, [savedRevision]);
+
+  const hasUnsavedChanges =
+    baselineSignature !== null && baselineSignature !== currentSignature;
+  const isSavedStatus =
+    baselineSignature === null || (!hasUnsavedChanges && !saving);
+
+  const blocker = useBlocker(hasUnsavedChanges && !allowNavigation);
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    setLeaveDialogOpen(true);
+    setPendingNavigationAction(() => blocker.proceed);
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const requestNavigation = useCallback(
+    (action: () => void) => {
+      if (!hasUnsavedChanges) {
+        action();
+        return;
+      }
+      setPendingNavigationAction(() => action);
+      setLeaveDialogOpen(true);
+    },
+    [hasUnsavedChanges],
+  );
+
+  const handleConfirmLeave = useCallback(() => {
+    const action = pendingNavigationAction;
+    setLeaveDialogOpen(false);
+    setPendingNavigationAction(null);
+    setConfirmedNavigationAction(() => action ?? null);
+    setAllowNavigation(true);
+  }, [pendingNavigationAction]);
+
+  const handleCancelLeave = useCallback(() => {
+    setLeaveDialogOpen(false);
+    setPendingNavigationAction(null);
+    if (blocker.state === 'blocked') {
+      blocker.reset();
+    }
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!allowNavigation || !confirmedNavigationAction) return;
+    confirmedNavigationAction();
+    setConfirmedNavigationAction(null);
+  }, [allowNavigation, confirmedNavigationAction]);
+
+  useEffect(() => {
+    if (blocker.state === 'unblocked') {
+      setAllowNavigation(false);
+    }
+  }, [blocker.state]);
 
   useEffect(() => {
     setMounted(true);
@@ -235,8 +324,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
 
   const handleCourseTitleChange = (title: string) => setTitle(title);
   const handleTextChange = (blockId: string, html: string) => {
-    const cleaned = sanitizeWysiwygHtml(html);
-    updateBlock(blockId, { html: cleaned } as Block);
+    updateBlock(blockId, { html: sanitizeEditorHtml(html) } as Block);
   };
 
   const createDragImage = (type: BlockType) => {
@@ -272,17 +360,23 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   const renderBlockBody = (block: Block) => {
     if (block.type === 'text') {
       const collapsed = collapsedEditors[block.id] ?? true;
+      const lessonTextFontPx =
+        FONT_SIZE_STEPS[block.fontSizeIndex ?? DEFAULT_FONT_SIZE_INDEX] ??
+        FONT_SIZE_STEPS[DEFAULT_FONT_SIZE_INDEX];
       return (
-        <div className={styles.blockBody} dir="ltr">
+        <div className={`${styles.blockBody} ${styles.blockBodyText}`} dir="ltr">
           <div
-            className={`${styles.wysiwygEditor} ${
-              collapsed ? styles.wysiwygEditorCollapsed : ''
+            className={`${styles.richTextEditor} ${
+              collapsed ? styles.richTextEditorCollapsed : ''
             }`}
           >
-            <DefaultEditor
+            <RichTextEditor
               value={block.html || ''}
-              onChange={(e) => handleTextChange(block.id, e.target.value)}
-              tagName="p"
+              onChange={(html) => handleTextChange(block.id, html)}
+              variant="compact"
+              placeholder="Введите текст"
+              contentFontSizePx={lessonTextFontPx}
+              contentLineHeight={1.7}
             />
           </div>
         </div>
@@ -391,6 +485,21 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
 
   return (
     <div className={styles.courseBuilder} dir="ltr">
+      <div className={styles.builderTopBar}>
+        <button
+          type="button"
+          className={styles.backToLesson}
+          aria-label="Назад к странице урока"
+          onClick={() =>
+            requestNavigation(() => {
+              navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
+            })
+          }
+        >
+          <ArrowLeft size={18} strokeWidth={2} aria-hidden />
+          <span>к уроку</span>
+        </button>
+      </div>
       <div className={styles.lessonHeader}>
         <div className={styles.lessonHeaderTrapezoid}>
           <svg
@@ -507,7 +616,11 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
                       {layout.blocks.map((block) => (
                         <div
                           key={block.id}
-                          className={`${styles.gridBlock} ${deletingBlocks[block.id] ? styles.gridBlockDeleting : ''}`}
+                          className={`${styles.gridBlock} ${deletingBlocks[block.id] ? styles.gridBlockDeleting : ''} ${
+                            block.type === 'text' && !(collapsedEditors[block.id] ?? true)
+                              ? styles.gridBlockToolbarAbove
+                              : ''
+                          }`}
                           dir="ltr"
                         >
                           <div className={`${styles.blockHeader} block-drag-handle`}>
@@ -580,24 +693,33 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
                 <div className={styles.ctaWrapper}>
                   <button
                     type="button"
+                    className={`${styles.button} ${styles.buttonPrimary}`}
+                    onClick={() =>
+                      requestNavigation(() => {
+                        const lessonData = toJSON();
+                        const homeworkData = homeworkLayout;
+                        const hw = homeworkData.questions.length > 0 ? homeworkData : null;
+                        const page = serializeCoursePage(lessonData, hw);
+                        navigate('/app/lesson/preview', { state: page });
+                      })
+                    }
+                  >
+                    Предпросмотр
+                  </button>
+                  <span
+                    className={
+                      isSavedStatus ? styles.unsavedIndicatorSaved : styles.unsavedIndicatorDirty
+                    }
+                  >
+                    {isSavedStatus ? 'Сохранено' : 'Не сохранено'}
+                  </span>
+                  <button
+                    type="button"
                     className={`${styles.button} ${styles.buttonSecondary}`}
                     disabled={saving}
                     onClick={() => onSave(toSubmitPayload())}
                   >
                     {saving ? 'Сохранение…' : 'Сохранить черновик'}
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.button} ${styles.buttonPrimary}`}
-                    onClick={() => {
-                      const lessonData = toJSON();
-                      const homeworkData = homeworkToJSON();
-                      const hw = homeworkData.questions.length > 0 ? homeworkData : null;
-                      const page = serializeCoursePage(lessonData, hw);
-                      navigate('/app/lesson/preview', { state: page });
-                    }}
-                  >
-                    Предпросмотр
                   </button>
                 </div>
               </div>
@@ -635,6 +757,24 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Modal
+        open={isLeaveDialogOpen}
+        onClose={handleCancelLeave}
+        panelClassName={styles.leaveDialog}
+      >
+        <h3 className={styles.leaveDialogTitle}>Есть несохранённые изменения</h3>
+        <p className={styles.leaveDialogDescription}>
+          Если выйдете сейчас, несохранённые изменения будут потеряны.
+        </p>
+        <div className={styles.leaveDialogActions}>
+          <Button type="button" variant="outline" onClick={handleCancelLeave}>
+            Остаться
+          </Button>
+          <Button type="button" onClick={handleConfirmLeave}>
+            Выйти без сохранения
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };

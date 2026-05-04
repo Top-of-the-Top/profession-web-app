@@ -1,8 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Home, Clock3, Video, CircleCheck, FileDown, Trash2 } from 'lucide-react';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -11,6 +19,7 @@ import {
   BreadcrumbSeparator,
   Button,
   PageFrame,
+  SafeHtml,
   Spinner,
 } from '@shared/ui';
 import type { LessonLayout, Block } from '../../../features/course-builder';
@@ -38,7 +47,9 @@ import {
 } from '@shared/api/mutations/webinar';
 import { useToggleHomeworkType } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac';
+import { cn } from '@shared/lib/utils';
 import { AiChatPanel } from '../../../features/ai-chat';
+import { preloadWebinarRoute } from '@router/lazyPages';
 import styles from './LessonViewPage.module.css';
 
 const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
@@ -50,11 +61,7 @@ const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
     FONT_SIZE_STEPS[DEFAULT_FONT_SIZE_INDEX];
 
   return (
-    <div
-      className={styles.textBlock}
-      style={{ fontSize }}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <SafeHtml className={styles.textBlock} style={{ fontSize }} html={html} />
   );
 };
 
@@ -401,20 +408,28 @@ const WebinarWidget: React.FC<{
 }> = ({ courseSlug, lessonSlug, isTeacher, webinarStatus }) => {
   const navigate = useNavigate();
   const startWebinar = useStartWebinar(courseSlug, lessonSlug);
+  const [isJoiningWebinar, setIsJoiningWebinar] = useState(false);
 
   const webinarUrl = `/app/courses/${courseSlug}/${lessonSlug}/webinar`;
 
   const handleStartWebinar = () => {
     startWebinar.mutate(undefined, {
-      onSuccess: () => navigate(webinarUrl),
+      onSuccess: async () => {
+        setIsJoiningWebinar(true);
+        await preloadWebinarRoute();
+        navigate(webinarUrl);
+      },
+      onSettled: () => {
+        setIsJoiningWebinar(false);
+      },
     });
   };
 
-  const handleJoinLive = () => {
+  const handleJoinLive = async () => {
+    setIsJoiningWebinar(true);
+    await preloadWebinarRoute();
     navigate(webinarUrl);
   };
-
-  
 
   if (webinarStatus === 'live') {
     return (
@@ -422,27 +437,79 @@ const WebinarWidget: React.FC<{
         <button
           type="button"
           className={styles.quickLinkButton}
-          onClick={handleJoinLive}
+          onPointerEnter={() => {
+            void preloadWebinarRoute();
+          }}
+          onFocus={() => {
+            void preloadWebinarRoute();
+          }}
+          onClick={() => {
+            void handleJoinLive();
+          }}
+          disabled={isJoiningWebinar}
         >
           <Video size={20} />
-          <span>Вернуться в звонок</span>
+          <span>
+            {isJoiningWebinar
+              ? 'Переход...'
+              : isTeacher
+                ? 'Вернуться в звонок'
+                : 'Войти в вебинар'}
+          </span>
         </button>
       </div>
     );
   }
 
-  if (!isTeacher) return null;
+  if (!isTeacher) {
+    if (webinarStatus === 'pending') {
+      return (
+        <div className={styles.linksRow}>
+          <button
+            type="button"
+            className={styles.quickLinkButton}
+            onPointerEnter={() => {
+              void preloadWebinarRoute();
+            }}
+            onFocus={() => {
+              void preloadWebinarRoute();
+            }}
+            onClick={() => {
+              void handleJoinLive();
+            }}
+            disabled={isJoiningWebinar}
+          >
+            <Video size={20} />
+            <span>{isJoiningWebinar ? 'Переход...' : 'Войти в вебинар'}</span>
+          </button>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className={styles.linksRow}>
       <button
         type="button"
         className={styles.quickLinkButton}
+        onPointerEnter={() => {
+          void preloadWebinarRoute();
+        }}
+        onFocus={() => {
+          void preloadWebinarRoute();
+        }}
         onClick={handleStartWebinar}
-        disabled={startWebinar.isPending}
+        disabled={startWebinar.isPending || isJoiningWebinar}
       >
         <Video size={20} />
-        <span>{startWebinar.isPending ? 'Запуск...' : 'Начать вебинар'}</span>
+        <span>
+          {startWebinar.isPending
+            ? 'Запуск...'
+            : isJoiningWebinar
+              ? 'Переход...'
+              : 'Начать вебинар'}
+        </span>
       </button>
     </div>
   );
@@ -464,21 +531,49 @@ const LessonEditWidget: React.FC<{
   );
 };
 
+type RecordingDeleteConfirm =
+  | null
+  | { kind: 'recording'; recordingId: string; dateLabel: string }
+  | { kind: 'pdf'; recordingId: string; dateLabel: string };
+
 const LessonRecordingCard: React.FC<{
   recording: LessonRecording;
   isTeacher: boolean;
-  onDeletePdf: (recordingId: string) => void;
-  onDeleteRecording: (recordingId: string) => void;
+  onRequestDeletePdf: (payload: { recordingId: string; dateLabel: string }) => void;
+  onRequestDeleteRecording: (payload: {
+    recordingId: string;
+    dateLabel: string;
+  }) => void;
   deletePdfPending: boolean;
   deleteRecordingPending: boolean;
+  isLeaving?: boolean;
+  onLeavingRemoveComplete?: () => void;
 }> = ({
   recording,
   isTeacher,
-  onDeletePdf,
-  onDeleteRecording,
+  onRequestDeletePdf,
+  onRequestDeleteRecording,
   deletePdfPending,
   deleteRecordingPending,
+  isLeaving,
+  onLeavingRemoveComplete,
 }) => {
+  const leaveExitDoneRef = useRef(false);
+
+  useEffect(() => {
+    if (!isLeaving || !onLeavingRemoveComplete) {
+      leaveExitDoneRef.current = false;
+      return;
+    }
+    leaveExitDoneRef.current = false;
+    const timerId = window.setTimeout(() => {
+      if (leaveExitDoneRef.current) return;
+      leaveExitDoneRef.current = true;
+      onLeavingRemoveComplete();
+    }, 450);
+    return () => window.clearTimeout(timerId);
+  }, [isLeaving, onLeavingRemoveComplete]);
+
   const pdfLink = recording.whiteboard_pdf_url?.trim();
   const hasPdf = !!pdfLink && /^https?:\/\//i.test(pdfLink);
   const dateLabel = recording.started_at
@@ -491,7 +586,16 @@ const LessonRecordingCard: React.FC<{
     : 'Запись без даты';
 
   return (
-    <article className={styles.recordingCard}>
+    <article
+      className={cn(styles.recordingCard, isLeaving && styles.recordingCardLeaving)}
+      onAnimationEnd={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (!isLeaving || !onLeavingRemoveComplete) return;
+        if (leaveExitDoneRef.current) return;
+        leaveExitDoneRef.current = true;
+        onLeavingRemoveComplete();
+      }}
+    >
       <div className={styles.recordingCardHead}>
         <h3 className={styles.recordingCardTitle}>{dateLabel}</h3>
       </div>
@@ -537,17 +641,27 @@ const LessonRecordingCard: React.FC<{
           <button
             type="button"
             className={styles.recordingActionButton}
-            onClick={() => onDeleteRecording(recording.recording_id)}
-            disabled={deleteRecordingPending}
+            onClick={() =>
+              onRequestDeleteRecording({
+                recordingId: recording.recording_id,
+                dateLabel,
+              })
+            }
+            disabled={deleteRecordingPending || isLeaving}
           >
             <Trash2 size={16} />
-            {deleteRecordingPending ? 'Удаление...' : 'Удалить запись'}
+            {deleteRecordingPending || isLeaving ? 'Удаление...' : 'Удалить запись'}
           </button>
           {hasPdf && (
             <button
               type="button"
               className={styles.recordingActionButton}
-              onClick={() => onDeletePdf(recording.recording_id)}
+              onClick={() =>
+                onRequestDeletePdf({
+                  recordingId: recording.recording_id,
+                  dateLabel,
+                })
+              }
               disabled={deletePdfPending}
             >
               <FileDown size={16} />
@@ -580,6 +694,18 @@ export default function LessonViewPage() {
   const lessonDetail = lessonQuery.data;
   const deleteRecordingPdf = useDeleteRecordingPdf(courseSlug ?? '', lessonSlug ?? '');
   const deleteRecording = useDeleteRecording(courseSlug ?? '', lessonSlug ?? '');
+  const [recordingDeleteConfirm, setRecordingDeleteConfirm] =
+    useState<RecordingDeleteConfirm>(null);
+  const [leavingRecordingId, setLeavingRecordingId] = useState<string | null>(null);
+  const leavingRecordingIdRef = useRef<string | null>(null);
+
+  const completeRecordingLeaveAnimation = useCallback(() => {
+    const id = leavingRecordingIdRef.current;
+    if (!id) return;
+    leavingRecordingIdRef.current = null;
+    deleteRecording.mutate(id);
+    setLeavingRecordingId(null);
+  }, [deleteRecording]);
 
   const lessonLayout = useMemo<LessonLayout | null>(() => {
     if (!lessonDetail?.document) return null;
@@ -683,14 +809,34 @@ export default function LessonViewPage() {
                       key={`${recording.recording_id}-${recording.started_at ?? 'recording'}`}
                       recording={recording}
                       isTeacher={isTeacher}
-                      onDeletePdf={(recordingId) => {
-                        deleteRecordingPdf.mutate(recordingId);
+                      onRequestDeletePdf={({ recordingId, dateLabel }) => {
+                        setRecordingDeleteConfirm({
+                          kind: 'pdf',
+                          recordingId,
+                          dateLabel,
+                        });
                       }}
-                      onDeleteRecording={(recordingId) => {
-                        deleteRecording.mutate(recordingId);
+                      onRequestDeleteRecording={({ recordingId, dateLabel }) => {
+                        setRecordingDeleteConfirm({
+                          kind: 'recording',
+                          recordingId,
+                          dateLabel,
+                        });
                       }}
-                      deletePdfPending={deleteRecordingPdf.isPending}
-                      deleteRecordingPending={deleteRecording.isPending}
+                      deletePdfPending={
+                        deleteRecordingPdf.isPending &&
+                        deleteRecordingPdf.variables === recording.recording_id
+                      }
+                      deleteRecordingPending={
+                        deleteRecording.isPending &&
+                        deleteRecording.variables === recording.recording_id
+                      }
+                      isLeaving={leavingRecordingId === recording.recording_id}
+                      onLeavingRemoveComplete={
+                        leavingRecordingId === recording.recording_id
+                          ? completeRecordingLeaveAnimation
+                          : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -728,6 +874,52 @@ export default function LessonViewPage() {
         </aside>
       </div>
       </div>
+
+      <AlertDialog
+        open={recordingDeleteConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open) setRecordingDeleteConfirm(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {recordingDeleteConfirm?.kind === 'pdf'
+                ? 'Удалить PDF доски?'
+                : 'Удалить запись?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {recordingDeleteConfirm?.kind === 'pdf'
+                ? `PDF для записи «${recordingDeleteConfirm.dateLabel}» будет удалён без возможности восстановления.`
+                : `Запись «${recordingDeleteConfirm?.dateLabel ?? ''}» будет удалена без возможности восстановления.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRecordingDeleteConfirm(null)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                recordingDeleteConfirm?.kind === 'pdf'
+                  ? deleteRecordingPdf.isPending
+                  : deleteRecording.isPending
+              }
+              onClick={() => {
+                if (!recordingDeleteConfirm) return;
+                if (recordingDeleteConfirm.kind === 'pdf') {
+                  deleteRecordingPdf.mutate(recordingDeleteConfirm.recordingId);
+                } else {
+                  leavingRecordingIdRef.current = recordingDeleteConfirm.recordingId;
+                  setLeavingRecordingId(recordingDeleteConfirm.recordingId);
+                }
+                setRecordingDeleteConfirm(null);
+              }}
+            >
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageFrame>
   );
 }

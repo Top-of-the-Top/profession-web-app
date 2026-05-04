@@ -74,6 +74,8 @@
 	export { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs'
 	export { Label } from './Label'
 	export { Alert, AlertTitle, AlertDescription } from './Alert'
+	export { RichTextEditor } from './RichTextEditor'
+export { SafeHtml } from './SafeHtml'
 	export  {
 		Select,
 		SelectContent,
@@ -92,6 +94,8 @@
 	export { PageFrame } from './PageFrame'
 	export { Spinner } from './Spinner'
 export { Skeleton } from './Skeleton'
+export { OAuthButtons } from './OAuthButtons'
+export { VerificationCodeInput } from './VerificationCodeInput'
 
 	export {
 		Breadcrumb,
@@ -120,5 +124,7 @@ export { Skeleton } from './Skeleton'
   DialogTitle,
   DialogTrigger,
 } from './Dialog'
+
+	export { Modal, type ModalProps } from './Modal'
 
 	export { RootErrorFallback, ContentErrorFallback } from './ErrorFallback'

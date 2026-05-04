@@ -10,25 +10,31 @@ export interface CartResponse {
   courses: CourseDTO[];
 }
 
+export interface CartActionResponse {
+  status?: string;
+  detail?: string;
+  [key: string]: unknown;
+}
+
 export const cartApi = {
   getCart(): Promise<CartResponse> {
     return apiClient.request<CartResponse>('/api/carts/', { method: 'GET' });
   },
 
   addCourse(slug: string) {
-    return apiClient.request('/api/carts/add/' + slug + '/', {
+    return apiClient.request<CartActionResponse>('/api/carts/add/' + slug + '/', {
       method: 'POST',
     });
   },
 
   removeCourse(slug: string) {
-    return apiClient.request('/api/carts/remove/' + slug + '/', {
+    return apiClient.request<CartActionResponse>('/api/carts/remove/' + slug + '/', {
       method: 'DELETE',
     });
   },
 
   payCart() {
-    return apiClient.request('/api/carts/pay/', { method: 'POST' });
+    return apiClient.request<CartActionResponse>('/api/carts/pay/', { method: 'POST' });
   },
 };
 

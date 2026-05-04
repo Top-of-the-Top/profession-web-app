@@ -2,8 +2,8 @@ from apps.courses.models import Lesson
 from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from ..models import Webinar, Recording
 from .utils.agora_utils import (
-    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room,
-    generate_whiteboard_room_token, recording_acquire,
+    generate_rtc_token, generate_rtm_token, user_uid_from_uuid,
+    create_whiteboard_room, generate_whiteboard_room_token, recording_acquire,
     recording_start_web, recording_stop_web,
     verify_recorder_token, make_recorder_token, ban_whiteboard_room,
     ROLE_PUBLISHER, ROLE_SUBSCRIBER,
@@ -336,6 +336,9 @@ class WebinarJoinView(APIView):
             role=whiteboard_role,
         )
 
+        rtm_token = generate_rtm_token(uid)
+        chat_channel_name = f'chat-{webinar.whiteboard_room_uuid}'
+
         full_name = f"{request.user.last_name} {request.user.first_name}".strip()
         if not full_name:
             full_name = 'Пользователь'
@@ -343,8 +346,10 @@ class WebinarJoinView(APIView):
         return Response({
             'webinar_id': str(webinar.webinar_id),
             'rtc_token': rtc_token,
+            'rtm_token': rtm_token,
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,
+            'chat_channel_name': chat_channel_name,
             'uid': uid,
             'user_name': full_name,
             'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),
@@ -413,8 +418,10 @@ class WebinarRecorderJoinView(APIView):
         return Response({
             'webinar_id': str(webinar.webinar_id),
             'rtc_token': rtc_token,
+            'rtm_token': '',
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,
+            'chat_channel_name': '',
             'uid': recorder_uid,
             'user_name': 'Recorder',
             'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),

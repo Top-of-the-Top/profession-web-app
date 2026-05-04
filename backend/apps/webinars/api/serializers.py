@@ -31,8 +31,10 @@ class WebinarSerializer(serializers.ModelSerializer):
 class WebinarTokenSerializer(serializers.Serializer):
     webinar_id = serializers.UUIDField()
     rtc_token = serializers.CharField()
+    rtm_token = serializers.CharField()
     agora_app_id = serializers.CharField()
     channel_name = serializers.CharField()
+    chat_channel_name = serializers.CharField()
     uid = serializers.IntegerField()
     user_name = serializers.CharField()
     whiteboard_app_id = serializers.CharField()

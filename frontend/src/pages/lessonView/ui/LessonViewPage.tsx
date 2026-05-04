@@ -19,6 +19,7 @@ import {
   BreadcrumbSeparator,
   Button,
   PageFrame,
+  SafeHtml,
   Spinner,
 } from '@shared/ui';
 import type { LessonLayout, Block } from '../../../features/course-builder';
@@ -59,11 +60,7 @@ const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
     FONT_SIZE_STEPS[DEFAULT_FONT_SIZE_INDEX];
 
   return (
-    <div
-      className={styles.textBlock}
-      style={{ fontSize }}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <SafeHtml className={styles.textBlock} style={{ fontSize }} html={html} />
   );
 };
 

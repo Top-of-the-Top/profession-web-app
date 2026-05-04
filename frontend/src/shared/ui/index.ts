@@ -75,6 +75,7 @@
 	export { Label } from './Label'
 	export { Alert, AlertTitle, AlertDescription } from './Alert'
 	export { RichTextEditor } from './RichTextEditor'
+export { SafeHtml } from './SafeHtml'
 	export  {
 		Select,
 		SelectContent,

@@ -11,6 +11,7 @@ import {
   Button,
   PageFrame,
   RichTextEditor,
+  SafeHtml,
   Spinner,
 } from '@shared/ui';
 import {
@@ -67,20 +68,10 @@ function extractApiMessage(err: unknown): string {
   return `Ошибка запроса (${parsed.status})`;
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 function formatAnswerHtml(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return '<p>Ответ не заполнен</p>';
-  if (/<[a-z][\s\S]*>/i.test(trimmed)) return trimmed;
-  return `<p>${escapeHtml(trimmed).replace(/\r?\n/g, '<br>')}</p>`;
+  return trimmed;
 }
 
 export default function HomeworkSubmissionPage() {
@@ -441,13 +432,11 @@ export default function HomeworkSubmissionPage() {
                   placeholder="Введите ответ"
                 />
               ) : (
-                <div
+                <SafeHtml
                   className={styles.answerPreview}
-                  dangerouslySetInnerHTML={{
-                    __html: formatAnswerHtml(
-                      answers[answerKey('task', currentItem.task_id)] ?? '',
-                    ),
-                  }}
+                  html={formatAnswerHtml(
+                    answers[answerKey('task', currentItem.task_id)] ?? '',
+                  )}
                 />
               )}
               <div className={styles.attachmentsBlock}>

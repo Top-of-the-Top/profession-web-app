@@ -2,6 +2,7 @@ import React from 'react';
 import type { CoursePage } from '../../model/types';
 import type { HomeworkQuestion } from '../../model/homeworkTypes';
 import { FONT_SIZE_STEPS, DEFAULT_FONT_SIZE_INDEX } from '../../lib/constants';
+import { SafeHtml } from '@shared/ui';
 import styles from './CourseRenderer.module.css';
 
 interface CourseRendererProps {
@@ -15,11 +16,7 @@ const TextBlockView: React.FC<{
   const fontSize = FONT_SIZE_STEPS[fontSizeIndex ?? DEFAULT_FONT_SIZE_INDEX] ?? FONT_SIZE_STEPS[DEFAULT_FONT_SIZE_INDEX];
 
   return (
-    <div
-      className={styles.textBlock}
-      style={{ fontSize }}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <SafeHtml className={styles.textBlock} style={{ fontSize }} html={html} />
   );
 };
 

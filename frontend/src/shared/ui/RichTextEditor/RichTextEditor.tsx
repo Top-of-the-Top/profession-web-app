@@ -53,6 +53,7 @@ import {
   Quote,
   Underline,
 } from 'lucide-react';
+import { sanitizeEditorHtml } from '@shared/lib/html/sanitizeEditorHtml';
 import { cn } from '@shared/lib/utils';
 import styles from './RichTextEditor.module.css';
 
@@ -94,26 +95,10 @@ const editorTheme = {
   },
 };
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function normalizeHtml(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return '<p></p>';
-  if (/<[a-z][\s\S]*>/i.test(trimmed)) return trimmed;
-  return `<p>${escapeHtml(trimmed).replace(/\r?\n/g, '<br>')}</p>`;
-}
-
 function loadHtmlIntoEditor(editor: LexicalEditor, html: string) {
   editor.update(() => {
     const parser = new DOMParser();
-    const dom = parser.parseFromString(normalizeHtml(html), 'text/html');
+    const dom = parser.parseFromString(sanitizeEditorHtml(html), 'text/html');
     const nodes = $generateNodesFromDOM(editor, dom);
     const root = $getRoot();
     root.clear();
@@ -432,8 +417,9 @@ export function RichTextEditor({
         onChange={(_, editor) => {
           editor.getEditorState().read(() => {
             const nextHtml = $generateHtmlFromNodes(editor, null);
-            latestHtmlRef.current = nextHtml;
-            onChange?.(nextHtml);
+            const sanitizedHtml = sanitizeEditorHtml(nextHtml);
+            latestHtmlRef.current = sanitizedHtml;
+            onChange?.(sanitizedHtml);
           });
         }}
       />

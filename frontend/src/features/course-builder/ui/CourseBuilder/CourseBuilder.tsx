@@ -27,6 +27,7 @@ import {
   AlertDialogCancel,
   RichTextEditor,
 } from '@shared/ui';
+import { sanitizeEditorHtml } from '@shared/lib/html/sanitizeEditorHtml';
 import styles from './CourseBuilder.module.css';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -62,18 +63,6 @@ function blocksToLayout(blocks: Block[]): Layout {
     w: b.w,
     h: b.h,
   }));
-}
-
-function sanitizeRichTextHtml(html: string): string {
-  if (!html) return html;
-
-  return html
-    .replace(
-      /<span[^>]*(?:data-metadata|data-buffer)="[^"]*"[^>]*>[\s\S]*?<\/span>/g,
-      '',
-    )
-    .replace(/<!--\s*\(figmeta\)[\s\S]*?\(\/figmeta\)\s*-->/g, '')
-    .replace(/<!--\s*\(figma\)[\s\S]*?\(\/figma\)\s*-->/g, '');
 }
 
 const SideTabChrome: React.FC = () => (
@@ -233,8 +222,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
 
   const handleCourseTitleChange = (title: string) => setTitle(title);
   const handleTextChange = (blockId: string, html: string) => {
-    const cleaned = sanitizeRichTextHtml(html);
-    updateBlock(blockId, { html: cleaned } as Block);
+    updateBlock(blockId, { html: sanitizeEditorHtml(html) } as Block);
   };
 
   const createDragImage = (type: BlockType) => {

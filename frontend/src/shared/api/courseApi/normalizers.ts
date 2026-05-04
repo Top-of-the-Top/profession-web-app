@@ -1,6 +1,7 @@
 import type {
   Course,
   CourseApiAnswer,
+  CourseDTO,
   CourseHomeResponse,
   CourseLessonDetail,
   HomeworkAttempt,
@@ -85,6 +86,35 @@ export function normalizeCoursesResponse(raw: RawCoursesResponse): CourseApiAnsw
         }))
       : [],
   };
+}
+
+function toCourseDTOFromRecord(c: Record<string, unknown>): CourseDTO | null {
+  if (typeof c.slug !== 'string' || typeof c.title !== 'string') return null;
+  return {
+    course_id: String(c.course_id ?? ''),
+    title: c.title,
+    sub_title: String(c.sub_title ?? ''),
+    image_url: String(c.image_url ?? ''),
+    price: Number(c.price ?? 0),
+    slug: c.slug,
+  };
+}
+
+export function normalizeMyCoursesList(raw: unknown): CourseDTO[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CourseDTO[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    if (o.course && typeof o.course === 'object') {
+      const nested = toCourseDTOFromRecord(o.course as Record<string, unknown>);
+      if (nested) out.push(nested);
+      continue;
+    }
+    const flat = toCourseDTOFromRecord(o);
+    if (flat) out.push(flat);
+  }
+  return out;
 }
 
 export function normalizeCourseBySlugResponse(raw: RawCourseBySlugResponse): Course {

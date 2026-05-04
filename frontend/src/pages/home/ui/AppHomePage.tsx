@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, PageFrame, Skeleton } from '@shared/ui';
-import type { PurchasedCourseItem } from '@shared/api/courseApi';
+import type { CourseDTO } from '@shared/api/courseApi';
 import { useCoursesForHome } from '@shared/api/queries/courses';
 import styles from './AppHomePage.module.css';
 
@@ -11,27 +11,23 @@ function CourseCard({
   item,
   onOpen,
 }: {
-  item: PurchasedCourseItem;
+  item: CourseDTO;
   onOpen: (slug: string) => void;
 }) {
-  const course = item.course;
-  if (!course) {
-    return null;
-  }
   return (
     <button
       type="button"
       className={styles.card}
-      onClick={() => onOpen(course.slug)}
+      onClick={() => onOpen(item.slug)}
     >
       <div className={styles.cardBody}>
-        <h3 className={styles.cardTitle}>{course.title}</h3>
-        <p className={styles.cardDescription}>{course.sub_title}</p>
+        <h3 className={styles.cardTitle}>{item.title}</h3>
+        <p className={styles.cardDescription}>{item.sub_title}</p>
       </div>
 
       <div className={styles.imageWrap}>
         <img
-          src={course.image_url || PLACEHOLDER_IMG}
+          src={item.image_url || PLACEHOLDER_IMG}
           alt=""
           className={styles.image}
           loading="lazy"
@@ -73,7 +69,6 @@ function HomeSkeleton() {
 export default function AppHomePage() {
   const navigate = useNavigate();
   const { data: items = [], isLoading, error, refetch } = useCoursesForHome();
-  const safeItems = items.filter((item) => item?.course != null);
 
   const openCourse = (slug: string) => {
     navigate(`/app/courses/${slug}`);
@@ -109,7 +104,7 @@ export default function AppHomePage() {
         <h1 className={styles.title}>Курсы</h1>
       </div>
 
-      {safeItems.length === 0 ? (
+      {items.length === 0 ? (
         <div className={styles.emptyState}>
           <p className={styles.emptyTitle}>Пока нет курсов</p>
           <p className={styles.emptyHint}>
@@ -119,8 +114,8 @@ export default function AppHomePage() {
         </div>
       ) : (
         <div className={styles.grid}>
-          {safeItems.map((item) => (
-            <CourseCard key={String(item.id)} item={item} onOpen={openCourse} />
+          {items.map((item) => (
+            <CourseCard key={item.course_id} item={item} onOpen={openCourse} />
           ))}
         </div>
       )}

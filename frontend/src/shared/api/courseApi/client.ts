@@ -6,10 +6,12 @@ import {
   normalizeCoursesResponse,
   normalizeHomeworkAttempt,
   normalizeLessonDetailRead,
+  normalizeMyCoursesList,
 } from './normalizers';
 import type {
   Course,
   CourseApiAnswer,
+  CourseDTO,
   CourseItemWriteResponse,
   CourseLessonDetail,
   CoursePatchPayload,
@@ -21,7 +23,6 @@ import type {
   Lesson,
   LessonCreatePayload,
   LessonPatchPayload,
-  PurchasedCourseItem,
   QuestionCreatePayload,
   QuestionPatchPayload,
   RawCourseBySlugResponse,
@@ -185,13 +186,15 @@ export const courseApi = {
       .then(normalizeLessonDetailRead);
   },
 
-  getMyCourses(): Promise<PurchasedCourseItem[]> {
-    return apiClient.request<PurchasedCourseItem[]>('/api/my-courses/', {
-      method: 'GET',
-    });
+  getMyCourses(): Promise<CourseDTO[]> {
+    return apiClient
+      .request<unknown>('/api/my-courses/', {
+        method: 'GET',
+      })
+      .then(normalizeMyCoursesList);
   },
 
-  getCoursesForAppHome(): Promise<PurchasedCourseItem[]> {
+  getCoursesForAppHome(): Promise<CourseDTO[]> {
     return courseApi.getMyCourses();
   },
 

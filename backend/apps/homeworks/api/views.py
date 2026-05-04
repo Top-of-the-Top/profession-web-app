@@ -396,7 +396,7 @@ class HomeworkAttemptSubmitView(APIView):
         request=AttemptSubmitSerializer,
         responses={
             201: AttemptSerializer,
-            400: ErrorResponseSerializer,
+            400: SCHEMA_VALIDATION,
             401: ErrorResponseSerializer,
             403: ErrorResponseSerializer,
             404: SCHEMA_DETAIL,

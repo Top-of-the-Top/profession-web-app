@@ -9,7 +9,6 @@ from .constants import (
     MSG_INVALID_CREDENTIALS,
     MSG_WRONG_PHONE_FORMAT,
 )
-from apps.core.meta_management.factory import build_access_api
 import re
 
 PHONE_REGEX = re.compile(r'^\+?[1-9]\d{6,14}$')
@@ -114,23 +113,16 @@ class UserProfileSerializer(serializers.Serializer):
         source='profile.birthday',
         required=False,
         allow_null=True)
-    avatar = serializers.SerializerMethodField()
+    assets = serializers.SerializerMethodField()
 
-    def get_avatar(self, obj):
+    def get_assets(self, obj):
+        from apps.core.meta_management.mixins import _build_assets_for_object
         profile = getattr(obj, 'profile', None)
         if not profile:
-            return None
-
-        access = build_access_api()
-        try:
-            url = access.resolve_bound_url(profile, role='user_avatar')
-        except Exception:
-            url = None
-
-        if url:
-            return url
-
-        return profile.avatar_url
+            return {'user_avatar': []}
+        request = self.context.get('request')
+        viewer = getattr(request, 'user', None) if request is not None else None
+        return _build_assets_for_object(profile, ['user_avatar'], viewer=viewer)
 
     def get_email(self, obj):
         if hasattr(obj, 'user') and obj.user and obj.user.email_cipher:
@@ -150,6 +142,7 @@ class UpdateProfileSerializer(serializers.Serializer):
     phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     gender = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     birthday = serializers.DateField(required=False, allow_null=True)
+    avatar_asset_id = serializers.UUIDField(required=False, allow_null=True)
 
     def validate(self, attrs):
         email = (attrs.get('email') or '').strip()

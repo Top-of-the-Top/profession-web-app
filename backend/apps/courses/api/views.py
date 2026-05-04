@@ -3,24 +3,16 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from apps.core.meta_management.factory import build_access_api, build_binding_api
-from apps.core.meta_management.errors import AssetError
-from apps.core.processors.error_processor import process_error_response
 from apps.webinars.models import Webinar
 from ..models import (
     Course,
-    PurchasedCourse,
     Section,
     Task,
     Question,
 )
 from .serializers import (
-    COURSE_COVER_CONTEXT_KEY,
     CourseDTOSerializer,
     CourseSerializer,
-    CourseCoverBindRequestSerializer,
-    CourseCoverResponseSerializer,
-    PurchasedCourseSerializer,
     CourseListResponseSerializer,
     LessonSerializer,
     LessonSimpleCreateSerializer,
@@ -33,7 +25,6 @@ from .serializers import (
     TaskSerializer,
     QuestionSerializer,
     UserWebinarListItemSerializer,
-    build_course_cover_map,
 )
 from rest_framework import generics
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
@@ -47,7 +38,6 @@ from .utils.cache_utils import (
     course_detail_cache_key,
     course_list_cache_key,
     homework_detail_cache_key,
-    invalidate_on_course_model_change,
     landing_courses_cache_key,
     lesson_detail_cache_key,
     my_schedule_cache_key,
@@ -120,7 +110,7 @@ class CourseListView(APIView):
         cached = cache.get(key)
         if cached is not None:
             return Response(cached)
-        serializer = CourseSerializer(get_courses_for_user(request.user), many=True)
+        serializer = CourseSerializer(Course.objects.all(), many=True)
         cache.set(key, serializer.data)
         return Response(serializer.data)
 
@@ -227,79 +217,6 @@ class CourseDetailView(APIView):
         course = get_object_or_404(Course, slug=slug)
         course.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class CourseCoverView(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    def _resolve_cover_url(self, course):
-        try:
-            url = build_access_api().resolve_bound_url(course, role='course_cover')
-        except Exception:
-            url = None
-        return url or course.image_url
-
-    @extend_schema(
-        summary='Установить обложку курса',
-        description='Привязывает ранее загруженный ассет к курсу в роли course_cover.',
-        tags=['Course'],
-        parameters=[OpenApiParameter(name='slug', type=OpenApiTypes.STR, location=OpenApiParameter.PATH)],
-        request=CourseCoverBindRequestSerializer,
-        responses={
-            200: CourseCoverResponseSerializer,
-            400: {"schema": SCHEMA_VALIDATION},
-            401: {"schema": SCHEMA_DETAIL},
-            403: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
-            409: {"schema": SCHEMA_DETAIL},
-        },
-    )
-    @require_course_author
-    def put(self, request, slug):
-        course = get_object_or_404(Course, slug=slug)
-        serializer = CourseCoverBindRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            build_binding_api().sync_single(
-                content_object=course,
-                role='course_cover',
-                asset_id=serializer.validated_data['asset_id'],
-                owner=request.user,
-            )
-        except AssetError as exc:
-            return process_error_response(exc)
-
-        invalidate_on_course_model_change(course.slug)
-        return Response({'cover': self._resolve_cover_url(course)}, status=status.HTTP_200_OK)
-
-    @extend_schema(
-        summary='Сбросить обложку курса',
-        tags=['Course'],
-        parameters=[OpenApiParameter(name='slug', type=OpenApiTypes.STR, location=OpenApiParameter.PATH)],
-        responses={
-            200: CourseCoverResponseSerializer,
-            401: {"schema": SCHEMA_DETAIL},
-            403: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
-        },
-    )
-    @require_course_author
-    def delete(self, request, slug):
-        course = get_object_or_404(Course, slug=slug)
-        try:
-            build_binding_api().sync_single(
-                content_object=course,
-                role='course_cover',
-                asset_id=None,
-                owner=request.user,
-            )
-        except AssetError as exc:
-            return process_error_response(exc)
-
-        invalidate_on_course_model_change(course.slug)
-        return Response({'cover': self._resolve_cover_url(course)}, status=status.HTTP_200_OK)
 
 
 class MyCourses(APIView):
@@ -956,4 +873,5 @@ class QuestionDetailView(APIView):
     def delete(self, request, course_slug, lesson_slug, homework_slug, question_id):
         question = _get_question_or_404(course_slug, lesson_slug, homework_slug, question_id)
         question.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT
+        )

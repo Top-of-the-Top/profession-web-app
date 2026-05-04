@@ -33,8 +33,6 @@ from .serializers import (
     EmailRegisterSerializer,
     VerifyRegisterSerializer,
     RecoverPasswordPhoneSerializer,
-    AvatarBindRequestSerializer,
-    AvatarResponseSerializer,
 )
 
 from .utils.token_utils import get_tokens_for_user, set_reset_token
@@ -606,6 +604,20 @@ class ProfileView(APIView):
             profile.birthday = data['birthday']
         profile.save()
 
+        if 'avatar_asset_id' in data:
+            from apps.core.meta_management.factory import build_binding_api
+            from apps.core.meta_management.errors import AssetError
+            from apps.core.processors.error_processor import process_error_response
+            try:
+                build_binding_api().sync_single(
+                    content_object=profile,
+                    role='user_avatar',
+                    asset_id=data['avatar_asset_id'],
+                    owner=user,
+                )
+            except AssetError as exc:
+                return process_error_response(exc)
+
         return Response(
             {'status': 'success'},
             status=status.HTTP_200_OK
@@ -735,88 +747,6 @@ class VerifyPhoneChangeView(APIView):
             )
 
         return Response({'status': 'success'}, status=status.HTTP_200_OK)
-
-
-class AvatarView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def _resolve_avatar_url(self, profile, access=None):
-        from apps.core.meta_management.factory import build_access_api
-        access = access or build_access_api()
-        try:
-            url = access.resolve_bound_url(profile, role='user_avatar')
-        except Exception:
-            url = None
-        return url or profile.avatar_url
-
-    @extend_schema(
-        summary='Установить аватар пользователя',
-        description='Привязывает ранее загруженный ассет к профилю в роли user_avatar.',
-        tags=['Users'],
-        request=AvatarBindRequestSerializer,
-        responses={
-            200: AvatarResponseSerializer,
-            400: {'description': 'Ошибка валидации.'},
-            401: {'description': 'Токен отсутствует или недействителен.'},
-            403: {'description': 'Доступ запрещён.'},
-        },
-    )
-    def put(self, request):
-        from apps.core.meta_management.factory import build_binding_api
-        from apps.core.meta_management.errors import AssetError
-        from apps.core.processors.error_processor import process_error_response
-
-        serializer = AvatarBindRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        asset_id = serializer.validated_data['asset_id']
-        profile, _ = Profile.objects.get_or_create(user=request.user)
-
-        binding = build_binding_api()
-        try:
-            binding.sync_single(
-                content_object=profile,
-                role='user_avatar',
-                asset_id=asset_id,
-                owner=request.user,
-            )
-        except AssetError as exc:
-            return process_error_response(exc)
-
-        url = self._resolve_avatar_url(profile)
-        return Response({'avatar': url}, status=status.HTTP_200_OK)
-
-    @extend_schema(
-        summary='Сбросить аватар пользователя',
-        description='Снимает привязку ассета в роли user_avatar.',
-        tags=['Users'],
-        responses={
-            200: AvatarResponseSerializer,
-            401: {'description': 'Токен отсутствует или недействителен.'},
-        },
-    )
-    def delete(self, request):
-        from apps.core.meta_management.factory import build_binding_api
-        from apps.core.meta_management.errors import AssetError
-        from apps.core.processors.error_processor import process_error_response
-
-        profile, _ = Profile.objects.get_or_create(user=request.user)
-
-        binding = build_binding_api()
-        try:
-            binding.sync_single(
-                content_object=profile,
-                role='user_avatar',
-                asset_id=None,
-                owner=request.user,
-            )
-        except AssetError as exc:
-            return process_error_response(exc)
-
-        url = self._resolve_avatar_url(profile)
-        return Response({'avatar': url}, status=status.HTTP_200_OK)
 
 
 class YandexCallbackAPIView(APIView):
@@ -1025,8 +955,9 @@ class VKOAauth2APIView(APIView):
 
         profile, _ = Profile.objects.get_or_create(user=user)
 
-        if is_new or not profile.avatar:
-            profile.avatar = vk_user.get('avatar')
+        vk_avatar = vk_user.get('avatar')
+        if vk_avatar and (is_new or not profile.avatar_url):
+            profile.avatar_url = str(vk_avatar).strip()
 
         vk_sex = vk_user.get('sex')
         if vk_sex and (is_new or not profile.gender):

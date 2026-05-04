@@ -15,40 +15,16 @@ from ..lesson_content import extract_asset_ids, parse_content_value, substitute_
 from django.db.models import Prefetch
 from apps.users.models import User
 from apps.core.meta_management.factory import build_access_api
-from apps.core.meta_management.errors import AssetError
+from apps.core.meta_management.mixins import AssetsSerializerMixin
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 
 
-COURSE_COVER_CONTEXT_KEY = 'cover_url_by_course_id'
+class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
+    asset_roles = ['course_cover']
 
-
-def _resolve_course_cover_url(course, context=None, access=None):
-    context = context or {}
-    cover_map = context.get(COURSE_COVER_CONTEXT_KEY)
-    if cover_map is not None:
-        url = cover_map.get(str(course.course_id))
-        return url or course.image_url
-
-    access = access or build_access_api()
-    try:
-        url = access.resolve_bound_url(course, role='course_cover')
-    except Exception:
-        url = None
-    return url or course.image_url
-
-
-def build_course_cover_map(courses, access=None):
-    access = access or build_access_api()
-    try:
-        return access.resolve_bound_urls_map(courses, role='course_cover')
-    except Exception:
-        return {}
-
-
-class CourseSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
+    cover_asset_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     authors = serializers.PrimaryKeyRelatedField(
         many=True, read_only=False, required=False, queryset=User.objects.all()
     )
@@ -58,13 +34,9 @@ class CourseSerializer(serializers.ModelSerializer):
         exclude = ('image',)
         read_only_fields = ('course_id', 'created_at', 'updated_at', 'last_modified_by')
 
-    @extend_schema_field(OpenApiTypes.URI)
-    def get_image_url(self, obj):
-        return _resolve_course_cover_url(obj, self.context)
 
-
-class CourseDTOSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
+class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
+    asset_roles = ['course_cover']
 
     class Meta:
         model = Course
@@ -72,22 +44,9 @@ class CourseDTOSerializer(serializers.ModelSerializer):
             'course_id',
             'title',
             'sub_title',
-            'image_url',
             'price',
             'slug',
         ]
-
-    @extend_schema_field(OpenApiTypes.URI)
-    def get_image_url(self, obj):
-        return _resolve_course_cover_url(obj, self.context)
-
-
-class CourseCoverBindRequestSerializer(serializers.Serializer):
-    asset_id = serializers.UUIDField(required=True)
-
-
-class CourseCoverResponseSerializer(serializers.Serializer):
-    cover = serializers.URLField(allow_null=True)
 
 
 class CourseListResponseSerializer(serializers.Serializer):
@@ -481,7 +440,12 @@ class HomeworkItemsListSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
 
 
-class HomeworkDetailSerializer(serializers.ModelSerializer):
+class HomeworkDetailSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
+    asset_roles = ['homework_material']
+
+    material_asset_ids = serializers.ListField(
+        child=serializers.UUIDField(), write_only=True, required=False,
+    )
     items = serializers.SerializerMethodField()
     lesson_id = serializers.UUIDField(source='lesson.lesson_id', read_only=True)
 
@@ -497,6 +461,7 @@ class HomeworkDetailSerializer(serializers.ModelSerializer):
             'type',
             'created_at',
             'updated_at',
+            'material_asset_ids',
             'items',
         ]
         read_only_fields = (
@@ -539,7 +504,13 @@ class HomeworkDetailSerializer(serializers.ModelSerializer):
         return items
 
 
-class HomeworkSerializer(serializers.ModelSerializer):
+class HomeworkSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
+    asset_roles = ['homework_material']
+
+    material_asset_ids = serializers.ListField(
+        child=serializers.UUIDField(), write_only=True, required=False,
+    )
+
     class Meta:
         model = Homework
         fields = '__all__'

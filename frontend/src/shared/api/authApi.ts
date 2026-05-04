@@ -88,15 +88,15 @@ export const authApi = {
     });
   },
 
-  recoverEmail(data: { token: string; password_hash: string }) {
-    return apiClient.request<AuthTokenBundleResponse>('/api/auth/recover/email/', {
+  recoverEmail(data: { token: string; password: string }) {
+    return apiClient.request<AuthTokenBundleResponse>('/api/auth/recover/set/', {
       method: 'PATCH',
       body: JSON.stringify(data),
       ...publicAuth,
     });
   },
 
-  recoverSet(data: { token: string; password_hash: string }) {
+  recoverSet(data: { token: string; password: string }) {
     return apiClient.request<AuthTokenBundleResponse>('/api/auth/recover/set/', {
       method: 'PATCH',
       body: JSON.stringify(data),

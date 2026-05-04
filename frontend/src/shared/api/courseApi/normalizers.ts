@@ -239,8 +239,8 @@ export function buildLessonFormData(
   if ('lesson_num' in payload && (payload as LessonCreatePayload).lesson_num != null)
     fd.set('lesson_num', String((payload as LessonCreatePayload).lesson_num));
 
-  const files = payload.files;
-  const assetIds = files ? Object.keys(files) : [];
+  const files = payload.files ?? {};
+  const assetIds = Object.keys(files);
   const assets = assetIds.map((id) => ({
     asset_id: Number(id),
     asset_type: guessAssetType(files[id]),

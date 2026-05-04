@@ -48,6 +48,6 @@ const router = createBrowserRouter([
 
 export const AppRouter = () => (
   <Suspense fallback={<Spinner full />}>
-    <RouterProvider router={router} fallbackElement={<Spinner full />} />
+    <RouterProvider router={router} />
   </Suspense>
 );

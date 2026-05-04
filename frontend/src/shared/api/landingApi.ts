@@ -185,10 +185,14 @@ export const internalLandingApi = {
   }> {
     try {
       const apiData = await landingApi.getCourses();
+      const normalizedApiData: ApiLandingResponse = apiData ?? {
+        number_of_courses: 0,
+        data: [],
+      };
 
       return {
-        number_of_courses: apiData?.number_of_courses || 0,
-        data: transformApiCourses(apiData || { data: [] } as ApiLandingResponse),
+        number_of_courses: normalizedApiData.number_of_courses || 0,
+        data: transformApiCourses(normalizedApiData),
       };
     } catch {
       return getFallbackCourses();

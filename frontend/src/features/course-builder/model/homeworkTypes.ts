@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const HOMEWORK_FILE_TASK_TEXT_PREFIX = 'FILE::';
+
 export const homeworkQuestionTypes = ['single', 'file', 'text'] as const;
 
 export type HomeworkQuestionType = (typeof homeworkQuestionTypes)[number];

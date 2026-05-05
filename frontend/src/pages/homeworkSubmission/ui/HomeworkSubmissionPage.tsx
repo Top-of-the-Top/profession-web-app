@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Paperclip } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Paperclip, FileText, X } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,22 +18,23 @@ import {
   useHomeworkAttempt,
   useHomeworkDetail,
 } from '@shared/api/queries/courses';
-import {
-  useSubmitHomeworkAttempt,
-} from '@shared/api/mutations/courses';
+import { useSubmitHomeworkAttempt } from '@shared/api/mutations/courses';
 import type {
   HomeworkAttemptAttachment,
-  HomeworkAttemptTaskItem,
+  HomeworkDetailItem,
   SubmitHomeworkAttemptItemPayload,
 } from '@shared/api/courseApi';
 import { uploadMediaAsset } from '@shared/lib/uploads/uploadMediaAsset';
 import { parseApiError } from '@shared/lib/api/parseApiError';
-import { notifyError, notifyInfo, notifySuccess } from '@shared/lib/sileo/notify';
+import { notifyError } from '@shared/lib/sileo/notify';
+import {
+  useHomeworkDraft,
+  readDraft,
+  clearDraft,
+  fromAttachmentMeta,
+} from '../lib/useHomeworkDraft';
+import { HOMEWORK_FILE_TASK_TEXT_PREFIX } from '../../../features/course-builder/model/homeworkTypes';
 import styles from './HomeworkSubmissionPage.module.css';
-
-function answerKey(type: 'question' | 'task', id: string): string {
-  return `${type}:${id}`;
-}
 
 function normalizeFileExtension(fileName: string): string {
   const parts = fileName.trim().split('.');
@@ -72,6 +73,21 @@ function formatAnswerHtml(value: string): string {
   return trimmed;
 }
 
+function isHomeworkFileTask(item: HomeworkDetailItem): boolean {
+  return (
+    item.type === 'task' &&
+    (item.text ?? '').startsWith(HOMEWORK_FILE_TASK_TEXT_PREFIX)
+  );
+}
+
+function homeworkTaskPromptText(item: HomeworkDetailItem & { type: 'task' }): string {
+  const raw = item.text ?? '';
+  if (raw.startsWith(HOMEWORK_FILE_TASK_TEXT_PREFIX)) {
+    return raw.slice(HOMEWORK_FILE_TASK_TEXT_PREFIX.length);
+  }
+  return raw;
+}
+
 export default function HomeworkSubmissionPage() {
   const { slug: courseSlug, lessonSlug, homeworkSlug } = useParams<{
     slug: string;
@@ -84,43 +100,79 @@ export default function HomeworkSubmissionPage() {
   const submitAttempt = useSubmitHomeworkAttempt(homeworkSlug ?? '');
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [attachments, setAttachments] = useState<
-    Record<string, HomeworkAttemptAttachment[]>
+  const [attachments, setAttachments] = useState<Record<string, HomeworkAttemptAttachment[]>>({});
+  const [uploadProgress, setUploadProgress] = useState<
+    Record<string, { phase: string; percent: number; fileName: string } | null>
   >({});
-  const [uploadingTasks, setUploadingTasks] = useState<Record<string, boolean>>({});
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
 
+  const { persist, persistDebounced } = useHomeworkDraft(homeworkSlug);
+
+  // Seed state from attempt + merge saved draft on top
   useEffect(() => {
     const attempt = attemptQuery.data;
     if (!attempt) return;
 
-    const nextAnswers: Record<string, string> = {};
-    const nextAttachments: Record<string, HomeworkAttemptAttachment[]> = {};
+    // Clear draft when attempt is already submitted/reviewed
+    if (attempt.status !== 'draft' && homeworkSlug) {
+      clearDraft(homeworkSlug);
+    }
+
+    const serverAnswers: Record<string, string> = {};
+    const serverAttachments: Record<string, HomeworkAttemptAttachment[]> = {};
     for (const item of attempt.items) {
-      if (item.type === 'question') {
-        nextAnswers[answerKey('question', item.question_id)] = item.user_answer ?? '';
-      } else {
-        nextAnswers[answerKey('task', item.task_id)] = item.user_answer ?? '';
-        nextAttachments[answerKey('task', item.task_id)] = item.file_attachments ?? [];
+      const id = item.type === 'question' ? item.question_id : item.task_id;
+      if (!id) continue;
+      serverAnswers[id] = item.user_answer ?? '';
+      if (item.type === 'task') {
+        serverAttachments[id] = item.file_attachments ?? [];
       }
     }
 
-    setAnswers(nextAnswers);
-    setAttachments(nextAttachments);
+    if (attempt.status === 'draft' && homeworkSlug) {
+      const draft = readDraft(homeworkSlug);
+      if (draft) {
+        // Draft is newer than server state — merge on top
+        setAnswers({ ...serverAnswers, ...draft.answers });
+        setAttachments({
+          ...serverAttachments,
+          ...fromAttachmentMeta(draft.attachments),
+        });
+        setCurrentItemIndex(0);
+        return;
+      }
+    }
+
+    setAnswers(serverAnswers);
+    setAttachments(serverAttachments);
     setCurrentItemIndex(0);
-  }, [attemptQuery.data]);
+  }, [attemptQuery.data, homeworkSlug]);
 
-  const homeworkTitle = useMemo(() => {
-    return detailQuery.data?.title || 'Домашнее задание';
-  }, [detailQuery.data?.title]);
+  const homeworkTitle = useMemo(
+    () => detailQuery.data?.title || 'Домашнее задание',
+    [detailQuery.data?.title],
+  );
 
-  const handleUploadFile = async (task: HomeworkAttemptTaskItem, file: File) => {
+  const handleUploadFile = async (item: HomeworkDetailItem, file: File) => {
     if (!homeworkSlug || !attemptQuery.data) return;
     const extension = normalizeFileExtension(file.name);
-    const taskKey = answerKey('task', task.task_id);
-    setUploadingTasks((prev) => ({ ...prev, [taskKey]: true }));
+    setUploadProgress((prev) => ({
+      ...prev,
+      [item.id]: { phase: 'initiating', percent: 0, fileName: file.name },
+    }));
     try {
-      const uploaded = await uploadMediaAsset('homework_attachment', file);
+      const uploaded = await uploadMediaAsset('homework_attachment', file, {
+        onProgress: (event) => {
+          setUploadProgress((prev) => ({
+            ...prev,
+            [item.id]: {
+              phase: event.phase,
+              percent: event.progressPercent ?? (event.phase === 'polling' ? 99 : 0),
+              fileName: file.name,
+            },
+          }));
+        },
+      });
       const attachment: HomeworkAttemptAttachment = {
         attachment_id: uploaded.assetId,
         file_name: file.name,
@@ -128,53 +180,51 @@ export default function HomeworkSubmissionPage() {
         file_size: file.size,
         file_extension: extension,
       };
-      setAttachments((prev) => ({
-        ...prev,
-        [taskKey]: [...(prev[taskKey] ?? []), attachment],
-      }));
-      notifySuccess({ title: 'Файл загружен' });
+      const nextAttachments = {
+        ...attachments,
+        [item.id]: [...(attachments[item.id] ?? []), attachment],
+      };
+      setAttachments(nextAttachments);
+      persist(answers, nextAttachments);
     } catch (err) {
       notifyError({
         title: 'Не удалось загрузить файл',
         description: extractApiMessage(err),
       });
     } finally {
-      setUploadingTasks((prev) => ({ ...prev, [taskKey]: false }));
+      setUploadProgress((prev) => ({ ...prev, [item.id]: null }));
     }
   };
 
-  const removeAttachment = (taskId: string, attachmentId: string) => {
-    const key = answerKey('task', taskId);
-    setAttachments((prev) => ({
-      ...prev,
-      [key]: (prev[key] ?? []).filter(
-        (attachment) => attachment.attachment_id !== attachmentId,
-      ),
-    }));
+  const removeAttachment = (itemId: string, attachmentId: string) => {
+    const nextAttachments = {
+      ...attachments,
+      [itemId]: (attachments[itemId] ?? []).filter((a) => a.attachment_id !== attachmentId),
+    };
+    setAttachments(nextAttachments);
+    persist(answers, nextAttachments);
   };
 
   const handleSubmit = async () => {
     const attempt = attemptQuery.data;
-    if (!attempt || !homeworkSlug) return;
+    const detail = detailQuery.data;
+    if (!attempt || !detail || !homeworkSlug) return;
 
-    const items: SubmitHomeworkAttemptItemPayload[] = attempt.items.map((item) => {
+    const items: SubmitHomeworkAttemptItemPayload[] = detail.items.map((item) => {
       if (item.type === 'question') {
         return {
           type: 'question',
-          id: item.question_id,
+          id: item.id,
           number: item.number,
-          user_answer: answers[answerKey('question', item.question_id)] || null,
+          user_answer: answers[item.id] || null,
         };
       }
-      const taskKey = answerKey('task', item.task_id);
       return {
         type: 'task',
-        id: item.task_id,
+        id: item.id,
         number: item.number,
-        user_answer: answers[taskKey] || null,
-        asset_ids: (attachments[taskKey] ?? []).map(
-          (attachment) => attachment.attachment_id,
-        ),
+        user_answer: answers[item.id] || null,
+        asset_ids: (attachments[item.id] ?? []).map((a) => a.attachment_id),
       };
     });
 
@@ -185,6 +235,7 @@ export default function HomeworkSubmissionPage() {
         send_at: new Date().toISOString(),
         items,
       });
+      clearDraft(homeworkSlug);
       await attemptQuery.refetch();
     } catch (err) {
       notifyError({
@@ -200,9 +251,7 @@ export default function HomeworkSubmissionPage() {
         <div className={styles.centered}>
           <div className={styles.errorBox}>
             <p className={styles.errorText}>Некорректный адрес задания.</p>
-            <Button type="button" onClick={() => navigate(-1)}>
-              Назад
-            </Button>
+            <Button type="button" onClick={() => navigate(-1)}>Назад</Button>
           </div>
         </div>
       </PageFrame>
@@ -212,9 +261,7 @@ export default function HomeworkSubmissionPage() {
   if (attemptQuery.isLoading || detailQuery.isLoading) {
     return (
       <PageFrame>
-        <div className={styles.centered}>
-          <Spinner />
-        </div>
+        <div className={styles.centered}><Spinner /></div>
       </PageFrame>
     );
   }
@@ -224,16 +271,26 @@ export default function HomeworkSubmissionPage() {
       <PageFrame>
         <div className={styles.centered}>
           <div className={styles.errorBox}>
-            <p className={styles.errorText}>
-              Не удалось загрузить попытку для домашнего задания.
-            </p>
+            <p className={styles.errorText}>Не удалось загрузить попытку для домашнего задания.</p>
             <div className={styles.errorActions}>
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
-                Назад
-              </Button>
-              <Button type="button" onClick={() => void attemptQuery.refetch()}>
-                Обновить
-              </Button>
+              <Button type="button" variant="outline" onClick={() => navigate(-1)}>Назад</Button>
+              <Button type="button" onClick={() => void attemptQuery.refetch()}>Обновить</Button>
+            </div>
+          </div>
+        </div>
+      </PageFrame>
+    );
+  }
+
+  if (!detailQuery.data || detailQuery.isError) {
+    return (
+      <PageFrame>
+        <div className={styles.centered}>
+          <div className={styles.errorBox}>
+            <p className={styles.errorText}>Не удалось загрузить задания.</p>
+            <div className={styles.errorActions}>
+              <Button type="button" variant="outline" onClick={() => navigate(-1)}>Назад</Button>
+              <Button type="button" onClick={() => void detailQuery.refetch()}>Обновить</Button>
             </div>
           </div>
         </div>
@@ -242,33 +299,35 @@ export default function HomeworkSubmissionPage() {
   }
 
   const attempt = attemptQuery.data;
+  const detail = detailQuery.data;
+  const items = detail.items;
   const isDraft = attempt.status === 'draft';
-  if (attempt.items.length === 0) {
+
+  if (items.length === 0) {
     return (
       <PageFrame>
         <div className={styles.centered}>
           <div className={styles.errorBox}>
             <p className={styles.errorText}>В этом домашнем задании пока нет вопросов.</p>
-            <Button type="button" onClick={() => navigate(-1)}>
-              Назад
-            </Button>
+            <Button type="button" onClick={() => navigate(-1)}>Назад</Button>
           </div>
         </div>
       </PageFrame>
     );
   }
-  const currentItem = attempt.items[currentItemIndex];
-  const isLastItem = currentItemIndex === attempt.items.length - 1;
+
+  const currentItem = items[currentItemIndex];
+  const currentPromptText =
+    currentItem.type === 'question'
+      ? currentItem.text
+      : homeworkTaskPromptText(currentItem as HomeworkDetailItem & { type: 'task' });
+  const currentIsFileTask =
+    currentItem.type === 'task' && isHomeworkFileTask(currentItem);
+  const isLastItem = currentItemIndex === items.length - 1;
 
   const moveToItem = (index: number) => {
-    if (index < 0 || index >= attempt.items.length) return;
+    if (index < 0 || index >= items.length) return;
     setCurrentItemIndex(index);
-  };
-
-  const handleSaveDraft = () => {
-    notifyInfo({
-      title: 'Черновик сохраняется автоматически',
-    });
   };
 
   const handleAnswerCurrent = async () => {
@@ -276,7 +335,7 @@ export default function HomeworkSubmissionPage() {
       await handleSubmit();
       return;
     }
-    setCurrentItemIndex((prev) => Math.min(prev + 1, attempt.items.length - 1));
+    setCurrentItemIndex((prev) => Math.min(prev + 1, items.length - 1));
   };
 
   return (
@@ -313,9 +372,9 @@ export default function HomeworkSubmissionPage() {
           <ChevronLeft size={18} />
         </button>
         <div className={styles.stepsRow}>
-          {attempt.items.map((item, index) => (
+          {items.map((item, index) => (
             <button
-              key={`${item.type}-${item.number}-${index}`}
+              key={item.id}
               type="button"
               className={`${styles.stepButton} ${
                 index === currentItemIndex ? styles.stepButtonActive : ''
@@ -329,7 +388,7 @@ export default function HomeworkSubmissionPage() {
         <button
           type="button"
           className={styles.stepArrow}
-          disabled={currentItemIndex === attempt.items.length - 1}
+          disabled={currentItemIndex === items.length - 1}
           onClick={() => moveToItem(currentItemIndex + 1)}
         >
           <ChevronRight size={18} />
@@ -339,66 +398,41 @@ export default function HomeworkSubmissionPage() {
       <div className={styles.contentGrid}>
         <section className={styles.itemCard}>
           <p className={styles.itemMeta}>
-            Задание {currentItem.number}:{' '}
-            {currentItem.type === 'question'
-              ? `${currentItem.max_points} балла`
-              : `${currentItem.max_points} балла`}
+            Задание {currentItem.number}: {currentItem.max_points ?? 0} балла
           </p>
-          <p className={styles.itemTitle}>{currentItem.text}</p>
+          <p className={styles.itemTitle}>{currentPromptText}</p>
+
           {currentItem.type === 'question' ? (
             <div className={styles.optionsList}>
-              {currentItem.answer_options.map((option) => {
-                const key = answerKey('question', currentItem.question_id);
-                const value = answers[key] ?? '';
-                return (
-                  <label
-                    key={option}
-                    className={`${styles.optionLabel} ${
-                      value === option ? styles.optionLabelSelected : ''
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name={key}
-                      checked={value === option}
-                      disabled={!isDraft}
-                      onChange={() =>
-                        setAnswers((prev) => ({ ...prev, [key]: option }))
-                      }
-                    />
-                    <span>{option}</span>
-                  </label>
-                );
-              })}
+              {(currentItem.answer_options ?? []).map((option) => (
+                <label
+                  key={option}
+                  className={`${styles.optionLabel} ${
+                    answers[currentItem.id] === option ? styles.optionLabelSelected : ''
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name={currentItem.id}
+                    checked={answers[currentItem.id] === option}
+                    disabled={!isDraft}
+                    onChange={() => {
+                      const nextAnswers = { ...answers, [currentItem.id]: option };
+                      setAnswers(nextAnswers);
+                      persist(nextAnswers, attachments);
+                    }}
+                  />
+                  <span>{option}</span>
+                </label>
+              ))}
             </div>
-          ) : (
+          ) : currentIsFileTask ? (
             <div className={styles.taskAnswerWrap}>
-              {isDraft ? (
-                <RichTextEditor
-                  key={currentItem.task_id}
-                  className={styles.answerEditor}
-                  value={answers[answerKey('task', currentItem.task_id)] ?? ''}
-                  onChange={(html) =>
-                    setAnswers((prev) => ({
-                      ...prev,
-                      [answerKey('task', currentItem.task_id)]: html,
-                    }))
-                  }
-                  placeholder="Введите ответ"
-                />
-              ) : (
-                <SafeHtml
-                  className={styles.answerPreview}
-                  html={formatAnswerHtml(
-                    answers[answerKey('task', currentItem.task_id)] ?? '',
-                  )}
-                />
-              )}
               <div className={styles.attachmentsBlock}>
                 <label className={styles.uploadButton}>
                   <input
                     type="file"
-                    disabled={!isDraft || Boolean(uploadingTasks[answerKey('task', currentItem.task_id)])}
+                    disabled={!isDraft || uploadProgress[currentItem.id] != null}
                     onChange={(event) => {
                       const file = event.currentTarget.files?.[0];
                       if (!file) return;
@@ -410,28 +444,70 @@ export default function HomeworkSubmissionPage() {
                   Прикрепить файл
                 </label>
                 <ul className={styles.attachmentsList}>
-                  {(attachments[answerKey('task', currentItem.task_id)] ?? []).map(
-                    (attachment) => (
-                      <li key={attachment.attachment_id} className={styles.attachmentItem}>
-                        <span>{attachment.file_name}</span>
-                        {isDraft && (
-                          <button
-                            type="button"
-                            className={styles.removeAttachment}
-                            onClick={() =>
-                              removeAttachment(currentItem.task_id, attachment.attachment_id)
-                            }
-                          >
-                            Удалить
-                          </button>
-                        )}
+                  {(attachments[currentItem.id] ?? []).map((attachment) => (
+                    <li key={attachment.attachment_id} className={styles.attachmentItem}>
+                      <div className={styles.attachmentThumb}>
+                        <FileText size={28} className={styles.attachmentThumbIcon} />
+                      </div>
+                      <span className={styles.attachmentName}>{attachment.file_name}</span>
+                      {isDraft && (
+                        <button
+                          type="button"
+                          className={styles.removeAttachment}
+                          onClick={() =>
+                            removeAttachment(currentItem.id, attachment.attachment_id)
+                          }
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                  {uploadProgress[currentItem.id] != null && (() => {
+                    const p = uploadProgress[currentItem.id]!;
+                    const isIndeterminate = p.phase === 'initiating' || p.phase === 'polling';
+                    return (
+                      <li className={styles.attachmentItemUploading}>
+                        <div className={styles.attachmentThumbUploading}>
+                          <FileText size={24} className={styles.attachmentThumbIcon} />
+                        </div>
+                        <span className={styles.attachmentName}>{p.fileName}</span>
+                        <div className={styles.uploadProgressBar}>
+                          <div
+                            className={`${styles.uploadProgressFill} ${isIndeterminate ? styles.uploadProgressIndeterminate : ''}`}
+                            style={isIndeterminate ? undefined : { width: `${p.percent}%` }}
+                          />
+                        </div>
                       </li>
-                    ),
-                  )}
+                    );
+                  })()}
                 </ul>
               </div>
             </div>
+          ) : (
+            <div className={`${styles.taskAnswerWrap} ${styles.taskTextAnswerWrap}`}>
+              {isDraft ? (
+                <RichTextEditor
+                  key={currentItem.id}
+                  className={styles.answerEditor}
+                  toolbarPosition="bottom"
+                  value={answers[currentItem.id] ?? ''}
+                  onChange={(html) => {
+                    const nextAnswers = { ...answers, [currentItem.id]: html };
+                    setAnswers(nextAnswers);
+                    persistDebounced(nextAnswers, attachments);
+                  }}
+                  placeholder="Введите ответ"
+                />
+              ) : (
+                <SafeHtml
+                  className={styles.answerPreview}
+                  html={formatAnswerHtml(answers[currentItem.id] ?? '')}
+                />
+              )}
+            </div>
           )}
+
           <div className={styles.answerActionRow}>
             <Button
               type="button"
@@ -460,9 +536,6 @@ export default function HomeworkSubmissionPage() {
             </span>
           </div>
           <div className={styles.sideActions}>
-            <Button type="button" variant="outline" disabled={!isDraft} onClick={handleSaveDraft}>
-              Сохранить
-            </Button>
             <Button
               type="button"
               disabled={!isDraft || submitAttempt.isPending}

@@ -9,11 +9,12 @@ import {
   type CreateHomeworkWithItemsPayload,
 } from '@shared/api/mutations/courses';
 import { useHomeworkDetail } from '@shared/api/queries/courses';
-import type {
-  HomeworkLayout,
-  HomeworkQuestion,
-  HomeworkQuestionType,
-  HomeworkOption,
+import {
+  type HomeworkLayout,
+  type HomeworkQuestion,
+  type HomeworkQuestionType,
+  type HomeworkOption,
+  HOMEWORK_FILE_TASK_TEXT_PREFIX,
 } from '../../model/homeworkTypes';
 import type {
   CourseContentType,
@@ -67,10 +68,21 @@ function mapHomeworkDetailToLayout(
         options,
       };
     }
+    const taskText = item.text;
+    if (taskText.startsWith(HOMEWORK_FILE_TASK_TEXT_PREFIX)) {
+      const body = taskText.slice(HOMEWORK_FILE_TASK_TEXT_PREFIX.length);
+      return {
+        id: item.id,
+        type: 'file',
+        title: '',
+        description: body,
+        score: item.max_points ?? 0,
+      };
+    }
     return {
       id: item.id,
       type: 'text',
-      title: item.text,
+      title: taskText,
       description: '',
       score: item.max_points ?? 0,
     };
@@ -101,11 +113,26 @@ function mapLayoutToPayload(
           correct_ans: correctOpt?.text ?? null,
         },
       });
-    } else {
+    } else if (q.type === 'file') {
+      const body =
+        q.title ||
+        (q as Extract<HomeworkQuestion, { type: 'file' }>).description;
+      const marked = `${HOMEWORK_FILE_TASK_TEXT_PREFIX}${body}`;
       items.push({
         kind: 'task',
         payload: {
-          text: q.title || (q as Extract<HomeworkQuestion, { type: 'text' } | { type: 'file' }>).description,
+          text: marked.length > 200 ? marked.slice(0, 200) : marked,
+          max_points: q.score,
+        },
+      });
+    } else {
+      const body =
+        q.title ||
+        (q as Extract<HomeworkQuestion, { type: 'text' }>).description;
+      items.push({
+        kind: 'task',
+        payload: {
+          text: body.length > 200 ? body.slice(0, 200) : body,
           max_points: q.score,
         },
       });

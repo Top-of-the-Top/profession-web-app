@@ -186,10 +186,10 @@ function normalizeHomeworkAttemptItem(item: unknown): HomeworkAttemptItem | null
   }
 
   if ((item as { type?: unknown }).type === 'question') {
-    const question = item as RawHomeworkAttemptQuestionItem;
+    const question = item as RawHomeworkAttemptQuestionItem & { id?: unknown };
     return {
       type: 'question',
-      question_id: String(question.question_id ?? ''),
+      question_id: String(question.question_id ?? question.id ?? ''),
       answer_id: String(question.answer_id ?? ''),
       status: String(question.status ?? ''),
       number: Number(question.number ?? 0),
@@ -204,10 +204,10 @@ function normalizeHomeworkAttemptItem(item: unknown): HomeworkAttemptItem | null
   }
 
   if ((item as { type?: unknown }).type === 'task') {
-    const task = item as RawHomeworkAttemptTaskItem;
+    const task = item as RawHomeworkAttemptTaskItem & { id?: unknown };
     return {
       type: 'task',
-      task_id: String(task.task_id ?? ''),
+      task_id: String(task.task_id ?? task.id ?? ''),
       answer_id: String(task.answer_id ?? ''),
       status: String(task.status ?? ''),
       number: Number(task.number ?? 0),
@@ -231,7 +231,8 @@ function normalizeHomeworkAttemptItem(item: unknown): HomeworkAttemptItem | null
 }
 
 export function normalizeHomeworkAttempt(raw: RawHomeworkAttempt): HomeworkAttempt {
-  const normalizedStatus = String(raw.status ?? 'draft');
+  const rawWithType = raw as RawHomeworkAttempt & { type?: unknown };
+  const normalizedStatus = String(raw.status ?? rawWithType.type ?? 'draft');
   const itemsRaw = Array.isArray(raw.items) ? raw.items : [];
   return {
     homework_id: String(raw.homework_id ?? ''),

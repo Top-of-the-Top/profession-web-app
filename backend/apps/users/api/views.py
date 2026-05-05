@@ -531,7 +531,9 @@ class ProfileView(APIView):
         description=(
             "Частичное обновление профиля. "
             "**gender**: на вход можно передать М, Ж, Мужской или Женский; в БД хранится короткая форма (М/Ж). "
-            "**avatar_asset_id** — после успешной загрузки и `ready` на /api/uploads/…\n\n"
+            "**avatar_asset_id** — единое поле для управления фото профиля в этой же ручке PATCH /api/profile/: "
+            "передайте UUID ассета после успешной загрузки и `ready` на /api/uploads/…, "
+            "или передайте `null`, чтобы удалить текущий аватар.\n\n"
             "**400**: ошибки валидации DRF (**{поле:[…]}**) или ошибка при привязке аватара в форме "
             "**{status, code, message, details}**. "
             "**403 / 404 / 409 / 503** возможны только при ошибке bind ассета (с тем же телом ошибки)."
@@ -606,8 +608,10 @@ class ProfileView(APIView):
             from apps.core.meta_management.factory import build_binding_api
             from apps.core.meta_management.errors import AssetError
             from apps.core.processors.error_processor import process_error_response
+            from apps.core.models import AssetUsage
+            from django.contrib.contenttypes.models import ContentType
             try:
-                build_binding_api().sync_single(
+                build_binding_api().sync_single(    
                     content_object=profile,
                     role='user_avatar',
                     asset_id=data['avatar_asset_id'],
@@ -615,6 +619,24 @@ class ProfileView(APIView):
                 )
             except AssetError as exc:
                 return process_error_response(exc)
+
+            # Fail fast if binding was not applied for the requested asset.
+            bound = AssetUsage.objects.filter(
+                content_type=ContentType.objects.get_for_model(profile),
+                object_id=str(profile.pk),
+                role='user_avatar',
+                asset_id=data['avatar_asset_id'],
+            ).exists()
+            if data['avatar_asset_id'] is not None and not bound:
+                return Response(
+                    {
+                        'status': 'error',
+                        'code': 'avatar_bind_not_applied',
+                        'message': 'Не удалось привязать новый аватар к профилю.',
+                        'details': {'asset_id': str(data['avatar_asset_id'])},
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
 
         return Response(
             {'status': 'success'},
@@ -945,10 +967,6 @@ class VKOAauth2APIView(APIView):
             user.save(update_fields=user_fields_changed)
 
         profile, _ = Profile.objects.get_or_create(user=user)
-
-        vk_avatar = vk_user.get('avatar')
-        if vk_avatar and (is_new or not profile.avatar_url):
-            profile.avatar_url = str(vk_avatar).strip()
 
         vk_sex = vk_user.get('sex')
         if vk_sex and (is_new or not profile.gender):

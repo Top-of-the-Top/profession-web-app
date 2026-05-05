@@ -176,15 +176,27 @@ class UserProfileSerializer(serializers.Serializer):
         source='profile.birthday',
         required=False,
         allow_null=True)
-    avatar_url = serializers.CharField(
-        source='profile.avatar_url',
-        read_only=True,
-        required=False,
-        allow_blank=True,
-        max_length=500,
-        help_text='Legacy URL (например после OAuth); основной аватар — в assets.user_avatar.',
-    )
+    avatar = serializers.SerializerMethodField()
     assets = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_avatar(self, obj):
+        """
+        Backward-compatible alias for clients still reading `avatar`.
+        Source of truth is assets.user_avatar.
+        """
+        from apps.core.meta_management.mixins import _build_assets_for_object
+        profile = getattr(obj, 'profile', None)
+        if not profile:
+            return None
+
+        request = self.context.get('request')
+        viewer = getattr(request, 'user', None) if request is not None else None
+        assets = _build_assets_for_object(profile, ['user_avatar'], viewer=viewer)
+        avatar_items = assets.get('user_avatar') or []
+        if avatar_items:
+            return avatar_items[-1].get('url')
+        return None
 
     @extend_schema_field(UserProfileAssetsSerializer())
     def get_assets(self, obj):
@@ -333,9 +345,3 @@ class RecoverPasswordPhoneSerializer(serializers.Serializer):
         return value
 
 
-class AvatarBindRequestSerializer(serializers.Serializer):
-    asset_id = serializers.UUIDField(required=True)
-
-
-class AvatarResponseSerializer(serializers.Serializer):
-    avatar = serializers.URLField(allow_null=True)

@@ -5,8 +5,6 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-ACCESS_DURATION_DAYS = 365
-
 
 @shared_task(
     bind=True,

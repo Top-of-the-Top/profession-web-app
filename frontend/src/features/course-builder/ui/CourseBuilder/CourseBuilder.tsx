@@ -201,8 +201,10 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   const currentSignature = JSON.stringify({
     lesson: layout,
     homework: homeworkLayout,
-    pendingFileIds: Object.keys(pendingFiles).sort(),
+    pendingUploadIds: Object.keys(pendingUploads).sort(),
   });
+
+  const uploadingInProgress = hasPendingUploads();
 
   const currentSignatureRef = useRef(currentSignature);
   useEffect(() => {

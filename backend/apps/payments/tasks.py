@@ -1,12 +1,9 @@
 import logging
-from datetime import timedelta
 
 from celery import shared_task
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
-
-ACCESS_DURATION_DAYS = 365
 
 
 @shared_task(
@@ -44,43 +41,13 @@ def process_payment_task(self, payment_id: int):
 
 
 def _handle_success(payment):
-    from ..courses.models import PurchasedCourse
-    from django.core.cache import caches
-    from apps.courses.api.utils.cache_utils import purchased_courses_cache_key
-
     payment.status = 'success'
     payment.paid_at = timezone.now()
     payment.save(update_fields=['status', 'paid_at', 'updated_at'])
 
-    access_expires = timezone.now() + timedelta(days=ACCESS_DURATION_DAYS)
-    payment_items = payment.items.select_related('course').all()
+    logger.info('Payment %s успешен для пользователя %s', payment.payment_id, payment.user_id)
 
-    created_count = 0
-    for item in payment_items:
-        _, created = PurchasedCourse.objects.get_or_create(
-            user=payment.user,
-            course=item.course,
-            defaults={
-                'payment': payment,
-                'access_expires_at': access_expires,
-            },
-        )
-        if created:
-            created_count += 1
-
-    cache = caches["default"]
-    cache.delete(purchased_courses_cache_key(payment.user_id))
-
-    logger.info(
-        'Payment %s успешен: %d курсов добавлено пользователю %s',
-        payment.payment_id, created_count, payment.user_id,
-    )
-
-    return {
-        'status': 'success',
-        'payment_id': payment.payment_id,
-        'courses_added': created_count,
-    }
+    return {'status': 'success', 'payment_id': payment.payment_id}
 
 
 def _handle_failure(task_instance, payment):

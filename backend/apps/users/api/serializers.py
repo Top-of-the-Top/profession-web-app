@@ -17,7 +17,6 @@ PHONE_REGEX = re.compile(r'^\+?[1-9]\d{6,14}$')
 
 
 class TokenResponseSerializer(serializers.Serializer):
-    """Схема ответа с токенами доступа (Register, Login, Refresh, Recover)."""
     access_token = serializers.CharField(read_only=True)
     access_expires_at = serializers.CharField(read_only=True)
     refresh_token = serializers.CharField(read_only=True)

@@ -299,7 +299,7 @@ RABBITMQ_URL = os.getenv('RABBITMQ_URL', 'amqp://guest:guest@rabbitmq:5672//')
 
 
 REDIS_PASS = os.getenv('REDIS_PASS', '')
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # Имя сервиса в docker-compose
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_KEY_PREFIX = os.getenv('REDIS_KEY_PREFIX', '')
 REDIS_BASE_URL = f'redis://:{REDIS_PASS}@{REDIS_HOST}:{REDIS_PORT}'
@@ -338,8 +338,8 @@ else:
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'PASSWORD': REDIS_PASS,
-                'SOCKET_CONNECT_TIMEOUT': 5, # Это таймаут на подключение
-                'SOCKET_TIMEOUT': 5, #  Это таймаут на чтение-запись
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
                 'CONNECTION_POOL_KWARGS': {
                     'max_connections': 100,
                     'retry_on_timeout': True,
@@ -347,7 +347,7 @@ else:
                 }
             },
             'KEY_PREFIX': REDIS_KEY_PREFIX,
-            'TIMEOUT': 600, # Время жизни кэша
+            'TIMEOUT': 600,
         },
         'hot': {
             'BACKEND': 'django_redis.cache.RedisCache',
@@ -355,8 +355,8 @@ else:
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'PASSWORD': REDIS_PASS,
-                'SOCKET_CONNECT_TIMEOUT': 5,  # Это таймаут на подключение
-                'SOCKET_TIMEOUT': 5,  # Это таймаут на чтение-запись
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
                 'CONNECTION_POOL_KWARGS': {
                     'max_connections': 100,
                     'retry_on_timeout': True,
@@ -381,7 +381,7 @@ else:
                 }
             },
             'KEY_PREFIX': REDIS_KEY_PREFIX,
-            'TIMEOUT': 3600,  # Время жизни кэша
+            'TIMEOUT': 3600,
         },
     }
 
@@ -417,8 +417,6 @@ LOGGING = {
     'filters': {
         'ignore_cancelled': {
             '()': 'django.utils.log.CallbackFilter',
-            # CancelledError — штатное поведение когда SSE-клиент отключается.
-            # Daphne логирует это как ERROR, но это не ошибка приложения.
             'callback': lambda record: 'CancelledError' not in record.getMessage(),
         },
     },

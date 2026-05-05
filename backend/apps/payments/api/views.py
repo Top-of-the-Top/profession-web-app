@@ -79,27 +79,42 @@ class CartPayView(APIView):
             )
 
         with transaction.atomic():
-            total_sum = sum(
-                Decimal(item.course.price) for item in cart_items
-            )
+            from django.utils import timezone
+            from datetime import timedelta
+            from apps.courses.api.utils.cache_utils import purchased_courses_cache_key
+
+            total_sum = sum(Decimal(item.course.price) for item in cart_items)
 
             payment = Payment.objects.create(
                 user=request.user,
                 total_sum=total_sum,
             )
 
-            payment_items = [
+            PaymentItem.objects.bulk_create([
                 PaymentItem(
                     payment=payment,
                     course=item.course,
                     price=Decimal(item.course.price),
                 )
                 for item in cart_items
-            ]
-            PaymentItem.objects.bulk_create(payment_items)
+            ])
+
+            access_expires = timezone.now() + timedelta(days=365)
+            PurchasedCourse.objects.bulk_create([
+                PurchasedCourse(
+                    user=request.user,
+                    course=item.course,
+                    payment=payment,
+                    access_expires_at=access_expires,
+                )
+                for item in cart_items
+            ], ignore_conflicts=True)
+
             CartItem.objects.filter(cart_id=cart).delete()
 
         from django.core.cache import caches
+        cache = caches["default"]
+        cache.delete(purchased_courses_cache_key(request.user.id))
         caches["hot"].delete(f"hot:carts:cart:{request.user.id}")
 
         yookassa_response = MockYooKassaService.create_payment(

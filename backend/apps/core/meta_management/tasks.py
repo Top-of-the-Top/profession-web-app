@@ -23,7 +23,8 @@ def _get_worker_api():
 def commit_pending_asset(self, asset_id):
     worker = _get_worker_api()
     try:
-        return worker.commit_by_id(asset_id)
+        worker.commit_by_id(asset_id)
+        return {'status': 'ok', 'asset_id': str(asset_id)}
     except Exception as exc:
         logger.exception('commit_pending_asset: ошибка для %s', asset_id)
         raise self.retry(exc=exc)

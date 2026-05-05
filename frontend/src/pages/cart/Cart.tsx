@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Card,
   CardContent,
@@ -73,6 +73,7 @@ function CartSkeleton() {
 }
 
 export default function CartPage() {
+  const navigate = useNavigate();
   const { data: cart, isLoading: loading, error, refetch } = useCart();
   const removeFromCart = useRemoveFromCart();
   const payCart = usePayCart();
@@ -302,7 +303,10 @@ export default function CartPage() {
             disabled={payCart.isPending}
             onClick={() =>
               payCart.mutate(undefined, {
-                onSuccess: () => setPayDialogOpen(false),
+                onSuccess: () => {
+                  setPayDialogOpen(false);
+                  navigate('/app');
+                },
               })
             }
           >

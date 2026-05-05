@@ -3,6 +3,7 @@ import { type NotificationState, type Notification } from '../types';
 
 export const useNotificationStore = create<NotificationState>((set) => ({
   notifications: [],
+  unreadCount: 0,
   status: 'idle',
   error: null,
 
@@ -10,12 +11,37 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   setError: (message) => set({ error: message }),
 
   setInitial: (notificationsArray: Notification[]) => {
-    set({ notifications: notificationsArray });
+    set((state) => {
+      const seenIds = new Set<number>();
+      const merged: Notification[] = [];
+
+      for (const notification of state.notifications) {
+        if (seenIds.has(notification.id)) continue;
+        seenIds.add(notification.id);
+        merged.push(notification);
+      }
+
+      for (const notification of notificationsArray) {
+        if (seenIds.has(notification.id)) continue;
+        seenIds.add(notification.id);
+        merged.push(notification);
+      }
+
+      merged.sort(
+        (a, b) => b.created_at.getTime() - a.created_at.getTime()
+      );
+
+      return {
+        notifications: merged,
+        unreadCount: state.unreadCount,
+      };
+    });
   },
 
   addNotification: (newNotification: Notification) => {
     set((state) => ({
-      notifications: [...state.notifications, newNotification],
+      notifications: [newNotification, ...state.notifications],
+      unreadCount: state.unreadCount + 1,
     }));
   },
 
@@ -25,7 +51,9 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     }));
   },
 
+  markRead: () => set({ unreadCount: 0 }),
+
   clear: () => {
-    set({ notifications: [], error: null, status: 'idle' });
+    set({ notifications: [], unreadCount: 0, error: null, status: 'idle' });
   },
 }));

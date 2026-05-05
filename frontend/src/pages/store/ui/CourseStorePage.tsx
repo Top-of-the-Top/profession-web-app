@@ -42,6 +42,15 @@ const CourseCard = ({
       className={styles.courseCard}
       onPointerEnter={onPrefetch}
       onFocus={onPrefetch}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       <div className={styles.courseHeader}>
         <h3 className={styles.courseTitle}>{course.title}</h3>
@@ -69,10 +78,7 @@ const CourseCard = ({
           className={styles.detailsButton}
           onPointerEnter={onPrefetch}
           onFocus={onPrefetch}
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
+          onClick={onClick}
         >
           <div className={styles.iconWrapper}>
             <ArrowUpRight className={styles.arrowIcon} size={25} />

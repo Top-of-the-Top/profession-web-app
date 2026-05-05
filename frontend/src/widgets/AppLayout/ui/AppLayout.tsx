@@ -8,10 +8,13 @@ import { cn } from '@shared/lib/utils';
 import { tokenService } from '@shared/lib/auth/tokenService';
 import { useCart } from '@shared/api/queries/cart';
 import { useProfile } from '@shared/api/queries/profile';
+import { notificationsApi } from '@shared/api/notificationsApi';
 import {
   connectNotificationSSE,
   disconnectNotificationSSE,
 } from '../../../features/notification/model/notification.sse';
+import { useNotificationStore } from '../../../features/notification/model/notification.store';
+import { NotificationBell } from '../../../features/notification/ui/NotificationBell';
 import { prefetchAppSidebarHref } from '@router/lazyPages';
 
 import styles from './AppLayout.module.css';
@@ -19,8 +22,7 @@ import styles from './AppLayout.module.css';
 function isFullBleedAppPage(pathname: string) {
   return (
     pathname.endsWith('/webinar') ||
-    pathname.includes('/lesson/preview') ||
-    pathname === '/app/not-authorized'
+    pathname.includes('/lesson/preview')
   );
 }
 
@@ -41,9 +43,27 @@ export default function AppLayout() {
     .filter(Boolean)
     .join('');
 
+  const setInitial = useNotificationStore((s) => s.setInitial);
+
   useEffect(() => {
     if (hasToken && user) {
-      connectNotificationSSE();
+      void notificationsApi.getAll()
+        .then((notifications) => {
+          setInitial(
+            notifications.map((n) => ({
+              id: n.id,
+              title: n.title,
+              message: n.message,
+              created_at: new Date(n.created_at),
+            }))
+          );
+        })
+        .catch(() => {
+          setInitial([]);
+        })
+        .finally(() => {
+          connectNotificationSSE();
+        });
       return;
     }
 
@@ -84,6 +104,7 @@ export default function AppLayout() {
           className={styles.logo}
         />
         <div className={styles.topbarItem}>
+          <NotificationBell />
           <Link className={styles.headerLink} to="cart" aria-label="Корзина">
             <img
               src={cartHasItems ? '/cart-full.svg' : '/cart.svg'}

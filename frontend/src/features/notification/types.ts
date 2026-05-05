@@ -16,6 +16,7 @@ export type Notification = {
 
 export type NotificationState = {
 	notifications: Array<Notification>,
+	unreadCount: number,
 
 	status: ConnectionStatus
   error: string | null
@@ -26,5 +27,6 @@ export type NotificationState = {
 	setInitial: (notifications: Notification[]) => void
   addNotification: (notification: Notification) => void
 	removeNotification: (notificationId: number) => void
+  markRead: () => void
   clear: () => void
 } 

@@ -9,7 +9,6 @@ const importMap = {
   oauthVkCallback: () => import('@pages/oauth-vk-callback/ui/OAuthVkCallbackPage'),
   oauthYandexCallback: () => import('@pages/oauth-yandex-callback/ui/OAuthYandexCallbackPage'),
   notFound: () => import('@pages/notfound/NotFoundPage'),
-  notAuthorized: () => import('@pages/notAuthorized/NotAuthorizedPage'),
 
   appLayout: () => import('@widgets/AppLayout/ui/AppLayout'),
   appHome: () => import('@pages/home/ui/AppHomePage'),
@@ -35,7 +34,6 @@ export const ResetPage = lazy(importMap.reset);
 export const OAuthVkCallbackPage = lazy(importMap.oauthVkCallback);
 export const OAuthYandexCallbackPage = lazy(importMap.oauthYandexCallback);
 export const NotFoundPage = lazy(importMap.notFound);
-export const NotAuthorizedPage = lazy(importMap.notAuthorized);
 
 export const AppLayout = lazy(importMap.appLayout);
 export const AppHomePage = lazy(importMap.appHome);

@@ -4,8 +4,6 @@ from ..models import Payment, PaymentItem
 
 
 class PaymentCourseSerializer(serializers.ModelSerializer):
-    """Минимальное представление курса для платежа — без asset-запросов."""
-
     class Meta:
         model = Course
         fields = ['course_id', 'title', 'sub_title', 'price', 'slug']

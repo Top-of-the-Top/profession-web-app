@@ -14,12 +14,10 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def publish_event_async(routing_key, payload):
-    """Неблокирующая публикация события в RabbitMQ. Вызывается через .delay() из view."""
     publish_event(routing_key=routing_key, payload=payload)
 
 @shared_task
 def send_course_notification(course_id, title, message):
-    """Рассылка на весь курс: запись в БД + RabbitMQ + (опционально) Почта"""
 
     notif = Notification.objects.create(
         course_id=course_id,
@@ -40,7 +38,6 @@ def send_course_notification(course_id, title, message):
 
 @shared_task
 def send_personal_notification(user_id, title, message):
-    """Личное уведомление: запись в БД + RabbitMQ + Почта"""
 
     notif = Notification.objects.create(
         user_id=user_id,
@@ -61,7 +58,6 @@ def send_personal_notification(user_id, title, message):
 
 @shared_task
 def send_system_notification(title, message):
-    """Общесистемные уведомления: запись в БД + RabbitMQ + Почта"""
 
     notif = Notification.objects.create(
         title=title,
@@ -82,7 +78,6 @@ def send_system_notification(title, message):
 
 @shared_task
 def send_single_email(user_id, subject, message):
-    """Отдельная задача для отправки письма, чтобы не блокировать основной поток"""
     try:
         user = User.objects.get(pk=user_id)
         user_email = decrypt_data(user.email_cipher)
@@ -101,7 +96,6 @@ def send_single_email(user_id, subject, message):
 
 @shared_task
 def send_mass_course_email(course_id, subject, message):
-    """Отдельная жирная задача для отправки писем всем, кто зарегистрирован на курс"""
     users = User.objects.filter(
         purchased_courses__course_id=course_id
     ).distinct()
@@ -112,7 +106,6 @@ def send_mass_course_email(course_id, subject, message):
 
 @shared_task
 def send_mass_system_email(subject, message):
-    """Отдельная жирная задача для отправки все пользователям системы"""
 
     for user in User.objects.all():
         send_single_email(user.id, subject, message)

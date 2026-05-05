@@ -31,7 +31,6 @@ class PaymentModelUnitTests(SimpleTestCase):
         }
 
     def test_payment_creation_with_mock(self):
-        """Тест создания платежа через мок"""
         mock_payment = MagicMock(spec=Payment)
         mock_payment.payment_id = 1
         mock_payment.user = self.mock_user
@@ -44,7 +43,6 @@ class PaymentModelUnitTests(SimpleTestCase):
         self.assertEqual(mock_payment.status, 'pending')
 
     def test_payment_status_choices(self):
-        """Тест выбора статуса платежа"""
         mock_payment = MagicMock(spec=Payment)
 
         statuses = ['pending', 'approved', 'success', 'failed', 'refunded']
@@ -53,7 +51,6 @@ class PaymentModelUnitTests(SimpleTestCase):
             self.assertEqual(mock_payment.status, status_value)
 
     def test_payment_str_method(self):
-        """Тест строкового представления платежа"""
         mock_payment = MagicMock(spec=Payment)
         mock_payment.payment_id = 42
         mock_payment.status = 'pending'
@@ -63,7 +60,6 @@ class PaymentModelUnitTests(SimpleTestCase):
         self.assertEqual(str(mock_payment), 'Payment #42 (Ожидает оплаты)')
 
     def test_mock_yookassa_id_auto_generation(self):
-        """Тест что mock_yookassa_id генерируется автоматически"""
         mock_payment = MagicMock(spec=Payment)
         mock_uuid = uuid.uuid4()
         mock_payment.mock_yookassa_id = mock_uuid
@@ -71,7 +67,6 @@ class PaymentModelUnitTests(SimpleTestCase):
         self.assertIsInstance(mock_payment.mock_yookassa_id, uuid.UUID)
 
     def test_access_duration_constant(self):
-        """Тест что константа доступа определена"""
         self.assertIsInstance(ACCESS_DURATION_DAYS, int)
         self.assertEqual(ACCESS_DURATION_DAYS, 365)
 
@@ -95,7 +90,6 @@ class PaymentItemModelUnitTests(SimpleTestCase):
         }
 
     def test_payment_item_creation(self):
-        """Тест создания позиции платежа"""
         mock_item = MagicMock(spec=PaymentItem)
         mock_item.payment = self.mock_payment
         mock_item.course = self.mock_course
@@ -106,7 +100,6 @@ class PaymentItemModelUnitTests(SimpleTestCase):
         self.assertEqual(mock_item.price, Decimal('5000.00'))
 
     def test_payment_item_str_method(self):
-        """Тест строкового представления позиции"""
         mock_item = MagicMock(spec=PaymentItem)
         mock_item.course = self.mock_course
         mock_item.course.title = 'Тестовый курс'
@@ -116,7 +109,6 @@ class PaymentItemModelUnitTests(SimpleTestCase):
         self.assertEqual(str(mock_item), 'Тестовый курс — 5000.00₽')
 
     def test_payment_item_unique_together(self):
-        """Тест уникальности пары payment-course"""
         self.assertTrue(hasattr(PaymentItem._meta, 'unique_together'))
 
 
@@ -136,7 +128,6 @@ class PaymentTaskUnitTests(SimpleTestCase):
         self.mock_task.max_retries = 5
 
     def test_process_payment_task_success(self):
-        """Тест успешной обработки платежа"""
         mock_select = MagicMock()
         mock_select.return_value.get.return_value = self.mock_payment
 
@@ -161,7 +152,6 @@ class PaymentTaskUnitTests(SimpleTestCase):
             self.assertEqual(result['payment_id'], 1)
 
     def test_process_payment_task_payment_not_found(self):
-        """Тест когда платеж не найден"""
         with patch('apps.payments.models.Payment') as mock_payment_class, \
                 patch('apps.payments.tasks.logger') as mock_logger:
             mock_payment_class.DoesNotExist = Payment.DoesNotExist
@@ -172,7 +162,6 @@ class PaymentTaskUnitTests(SimpleTestCase):
             mock_logger.error.assert_called_once()
 
     def test_process_payment_task_already_processed(self):
-        """Тест когда платеж уже обработан"""
         self.mock_payment.status = 'success'
 
         with patch('apps.payments.models.Payment') as mock_payment_class, \
@@ -185,7 +174,6 @@ class PaymentTaskUnitTests(SimpleTestCase):
             mock_logger.info.assert_called_once()
 
     def test_handle_success_function(self):
-        """Тест функции обработки успешного платежа"""
         mock_payment = MagicMock()
         mock_payment.user = MagicMock()
         mock_payment.user.id = 1
@@ -222,7 +210,6 @@ class PaymentTaskUnitTests(SimpleTestCase):
             mock_payment.save.assert_called_once()
 
     def test_handle_failure_with_retry(self):
-        """Тест функции обработки неудачного платежа с повторной попыткой"""
         mock_payment = MagicMock()
         mock_payment.status = 'approved'
         mock_payment.save = MagicMock()
@@ -236,14 +223,11 @@ class PaymentTaskUnitTests(SimpleTestCase):
             with self.assertRaises(Exception):
                 _handle_failure(mock_task, mock_payment)
 
-            # Статус должен стать pending для повторной попытки
             self.assertEqual(mock_payment.status, 'pending')
-            # save вызывается дважды: сначала status='failed', затем
-            # status='pending'
+
             self.assertEqual(mock_payment.save.call_count, 2)
 
     def test_handle_failure_max_retries(self):
-        """Тест функции обработки неудачного платежа после всех попыток"""
         mock_payment = MagicMock()
         mock_payment.payment_id = 1
         mock_payment.status = 'approved'
@@ -282,22 +266,19 @@ class CartPayViewUnitTests(SimpleTestCase):
         self.mock_cart_item.course_id = self.mock_course
 
     def test_cart_pay_without_auth(self):
-        """Тест что оплата требует авторизации"""
         request = self.factory.post('/api/payments/pay/')
         response = CartPayView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_cart_pay_empty_cart(self):
-        """Тест оплаты пустой корзины"""
         request = self.factory.post('/api/payments/pay/')
         force_authenticate(request, user=self.mock_user)
 
         mock_cart = MagicMock()
         mock_cart_items = MagicMock()
         mock_cart_items.exists.return_value = False
-        # В представлении вызывается .filter(...).select_related('course_id') —
-        # exists() у результата
+ 
         mock_cart_items.select_related.return_value = mock_cart_items
 
         mock_purchased_filter = MagicMock()
@@ -316,7 +297,6 @@ class CartPayViewUnitTests(SimpleTestCase):
             self.assertIn('Корзина пуста', response.data['error'])
 
     def test_cart_pay_with_purchased_courses(self):
-        """Тест оплаты с уже купленными курсами"""
         request = self.factory.post('/api/payments/pay/')
         force_authenticate(request, user=self.mock_user)
 
@@ -339,7 +319,6 @@ class CartPayViewUnitTests(SimpleTestCase):
             self.assertIn('уже куплены', response.data['error'])
 
     def test_cart_pay_success(self):
-        """Тест успешного создания платежа"""
         request = self.factory.post('/api/payments/pay/')
         force_authenticate(request, user=self.mock_user)
 
@@ -391,14 +370,12 @@ class PaymentListViewUnitTests(SimpleTestCase):
         self.mock_user.is_authenticated = True
 
     def test_payment_list_without_auth(self):
-        """Тест что список платежей требует авторизации"""
         request = self.factory.get('/api/payments/')
         response = PaymentListView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_payment_list_empty(self):
-        """Тест пустого списка платежей"""
         request = self.factory.get('/api/payments/')
         force_authenticate(request, user=self.mock_user)
 
@@ -413,7 +390,6 @@ class PaymentListViewUnitTests(SimpleTestCase):
             self.assertEqual(response.data, [])
 
     def test_payment_list_with_payments(self):
-        """Тест списка с платежами"""
         request = self.factory.get('/api/payments/')
         force_authenticate(request, user=self.mock_user)
 
@@ -447,14 +423,12 @@ class PaymentDetailViewUnitTests(SimpleTestCase):
         self.mock_payment.user = self.mock_user
 
     def test_payment_detail_without_auth(self):
-        """Тест что детали платежа требуют авторизации"""
         request = self.factory.get('/api/payments/1/')
         response = PaymentDetailView.as_view()(request, payment_id=1)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_payment_detail_not_found(self):
-        """Тест получения несуществующего платежа"""
         request = self.factory.get('/api/payments/999/')
         force_authenticate(request, user=self.mock_user)
 
@@ -467,7 +441,6 @@ class PaymentDetailViewUnitTests(SimpleTestCase):
             self.assertEqual(response.data['detail'], 'Платёж не найден.')
 
     def test_payment_detail_success(self):
-        """Тест успешного получения деталей платежа"""
         request = self.factory.get('/api/payments/1/')
         force_authenticate(request, user=self.mock_user)
 
@@ -489,7 +462,6 @@ class PaymentDetailViewUnitTests(SimpleTestCase):
 class PaymentSerializerUnitTests(SimpleTestCase):
 
     def test_payment_serializer_with_mock(self):
-        """Тест PaymentSerializer"""
         mock_payment = MagicMock()
         mock_payment.payment_id = 1
         mock_payment.total_sum = Decimal('5000.00')
@@ -507,7 +479,6 @@ class PaymentSerializerUnitTests(SimpleTestCase):
         self.assertTrue(hasattr(mock_payment, 'status'))
 
     def test_payment_short_serializer_with_mock(self):
-        """Тест PaymentShortSerializer"""
         mock_payment = MagicMock()
         mock_payment.payment_id = 1
         mock_payment.total_sum = Decimal('5000.00')

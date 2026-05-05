@@ -66,6 +66,7 @@ import styles from './RichTextEditor.module.css';
 
 type BlockType = 'paragraph' | HeadingTagType | 'quote' | 'bullet' | 'number';
 type RichTextEditorVariant = 'default' | 'compact';
+type ToolbarPosition = 'top' | 'bottom';
 
 interface RichTextEditorProps {
   value: string;
@@ -75,6 +76,7 @@ interface RichTextEditorProps {
   className?: string;
   variant?: RichTextEditorVariant;
   hideToolbar?: boolean;
+  toolbarPosition?: ToolbarPosition;
   contentFontSizePx?: number;
   contentLineHeight?: CSSProperties['lineHeight'];
 }
@@ -353,6 +355,7 @@ export function RichTextEditor({
   className,
   variant = 'default',
   hideToolbar = false,
+  toolbarPosition = 'top',
   contentFontSizePx,
   contentLineHeight,
 }: RichTextEditorProps) {
@@ -391,7 +394,7 @@ export function RichTextEditor({
         )}
       >
         <div className={styles.editorBody}>
-          {!hideToolbar && (
+          {!hideToolbar && toolbarPosition === 'top' && (
             <div className={styles.toolbarFloat} data-rich-text-toolbar>
               <ToolbarPlugin disabled={disabled} />
             </div>
@@ -413,6 +416,14 @@ export function RichTextEditor({
               ErrorBoundary={LexicalErrorBoundary}
             />
           </div>
+          {!hideToolbar && toolbarPosition === 'bottom' && (
+            <div
+              className={cn(styles.toolbarFloat, styles.toolbarDockBottom)}
+              data-rich-text-toolbar
+            >
+              <ToolbarPlugin disabled={disabled} />
+            </div>
+          )}
         </div>
       </div>
       <HistoryPlugin />

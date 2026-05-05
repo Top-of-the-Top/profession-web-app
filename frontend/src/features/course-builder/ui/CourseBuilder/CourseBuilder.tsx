@@ -377,6 +377,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
               value={block.html || ''}
               onChange={(html) => handleTextChange(block.id, html)}
               variant="compact"
+              toolbarPosition="bottom"
               placeholder="Введите текст"
               contentFontSizePx={lessonTextFontPx}
               contentLineHeight={1.7}

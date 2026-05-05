@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   CardContent,
@@ -13,7 +14,7 @@ import {
   AvatarImage,
   PageFrame,
 } from '@shared/ui';
-import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars } from 'lucide-react';
+import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars, LogOut } from 'lucide-react';
 import styles from './ProfilePage.module.css';
 import { cn } from '@shared/lib/utils';
 import ChangeName from './ChangeName';
@@ -26,6 +27,8 @@ import {
 import { useProfile, profileKeys } from '@shared/api/queries/profile';
 import { useUpdateProfile } from '@shared/api/mutations/profile';
 import { parseApiError } from '@shared/lib/api/parseApiError';
+import { tokenService } from '@shared/lib/auth/tokenService';
+import { authEvents } from '@shared/events/authEvents';
 import {
   messageForApiFailure,
   notifyError,
@@ -89,7 +92,14 @@ const ProfileField = ({
 
 export default function ProfilePage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { data: user, isLoading } = useProfile();
+
+  const handleLogout = () => {
+    tokenService.clearTokens();
+    authEvents.dispatchEvent(new Event('logout'));
+    navigate('/login', { replace: true });
+  };
   const updateProfile = useUpdateProfile();
   const [profile, setProfile] = useState<ProfileData | null>(user ?? null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -475,6 +485,15 @@ export default function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        <Button
+          variant="ghost"
+          className={styles.logoutButton}
+          onClick={handleLogout}
+        >
+          <LogOut size={16} />
+          Выйти из аккаунта
+        </Button>
         </div>
       </PageFrame>
     </>

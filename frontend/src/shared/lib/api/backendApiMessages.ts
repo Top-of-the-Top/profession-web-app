@@ -232,7 +232,6 @@ function collectLogin400(body: unknown): UserFacingMessage | null {
 const RESET_DETAIL_NO_CONTACT = 'Необходимо указать email или phone_number';
 const RESET_DETAIL_USER_NOT_FOUND = 'Пользователь не найден';
 
-// --- RecoverPasswordView (поле в теле — password_hash; текст ошибки от бэка всё равно «password») ---
 
 const RECOVER_DETAIL_MISSING = 'token и password обязательны';
 const RECOVER_DETAIL_BAD_TOKEN = 'Невалидный или истёкший токен';

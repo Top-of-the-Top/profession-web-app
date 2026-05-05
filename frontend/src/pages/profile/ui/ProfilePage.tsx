@@ -111,9 +111,13 @@ export default function ProfilePage() {
     setGender(value);
     try {
       await updateProfile.mutateAsync({ gender: value });
-      setProfile((prev) => {
-        return prev ? { ...prev, gender: value } : prev;
+      const fresh = await queryClient.fetchQuery({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getProfile(),
       });
+      setProfile(fresh);
+      setGender(fresh.gender);
+      setAvatarUrl(fresh.avatar);
     } catch (err) {
       notifyProfileSaveError(err);
       setGender(previous);
@@ -140,6 +144,7 @@ export default function ProfilePage() {
     firstName: string;
     lastName: string;
     avatar?: File | null;
+    removeAvatar?: boolean;
   }) => {
     const prevAvatar = profile.avatar;
     let blobUrl: string | null = null;
@@ -171,6 +176,9 @@ export default function ProfilePage() {
           throw err;
         }
       }
+      if (data.removeAvatar) {
+        updateData.avatar_asset_id = null;
+      }
 
       const optimistic: ProfileData = {
         ...profile,
@@ -189,7 +197,7 @@ export default function ProfilePage() {
         queryFn: () => profileApi.getProfile(),
       });
 
-      if (blobUrl && fresh.avatar === prevAvatar) {
+      if (blobUrl && fresh.avatar === prevAvatar && !data.removeAvatar) {
         const merged = { ...fresh, avatar: blobUrl };
         setProfile(merged);
         setAvatarUrl(blobUrl);
@@ -238,6 +246,13 @@ export default function ProfilePage() {
         }
         await updateProfile.mutateAsync({ phone_number: v.normalized });
       }
+      const fresh = await queryClient.fetchQuery({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getProfile(),
+      });
+      setProfile(fresh);
+      setGender(fresh.gender);
+      setAvatarUrl(fresh.avatar);
       notifySuccess({
         title: 'код отправлен',
         description:

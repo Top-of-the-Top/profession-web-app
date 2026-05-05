@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Button, Input, Label, VerificationCodeInput } from '@shared/ui';
+import { AutoSubmitVerificationCode, Button, Input, Label } from '@shared/ui';
 import { X, AlertCircle } from 'lucide-react';
 import styles from './ConfirmContact.module.css';
 import { cn } from '@shared/lib/utils';
@@ -70,7 +70,7 @@ export default function ConfirmContact({
 
   const descriptions = {
     input: `Введите ${type === 'email' ? 'новый адрес почты' : 'новый номер телефона'}`,
-    code: `Введите 6 цифр из ${type === 'email' ? 'письма' : 'SMS'}`,
+    code: `Код отправлен в ${type === 'email' ? 'письмо' : 'SMS'}`,
   };
 
   const handleContinue = async ({
@@ -87,8 +87,7 @@ export default function ConfirmContact({
     }
   };
 
-  const handleConfirmCode = async (): Promise<void> => {
-    const code = otp.join('');
+  const handleConfirmCode = async (code: string): Promise<void> => {
     const parsed = oneTimeCodeSchema.safeParse(code);
     if (!parsed.success) {
       setCodeError(parsed.error.issues[0]?.message ?? 'Введите 6 цифр кода');
@@ -191,22 +190,17 @@ export default function ConfirmContact({
       )}
 
       {step === 'code' && (
-        <form
-          className={styles.form}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void handleConfirmCode();
-          }}
-        >
+        <div className={styles.form}>
           <div className={styles.formGroup}>
-            <VerificationCodeInput
+            <AutoSubmitVerificationCode
               value={otp}
               onChange={(next) => {
                 setOtp(next);
                 if (codeError) setCodeError(null);
               }}
+              onComplete={handleConfirmCode}
               disabled={isLoading}
-              label="Введите код"
+              label={null}
               labelClassName={styles.label}
               error={codeError ?? undefined}
               errorClassName={styles.errorText}
@@ -223,15 +217,8 @@ export default function ConfirmContact({
             >
               Назад
             </Button>
-            <Button
-              className={styles.saveButton}
-              type="submit"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Проверка...' : 'Подтвердить'}
-            </Button>
           </div>
-        </form>
+        </div>
       )}
     </div>
     </>,

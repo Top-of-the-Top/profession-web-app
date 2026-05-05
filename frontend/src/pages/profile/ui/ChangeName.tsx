@@ -25,6 +25,7 @@ interface ChangeNameProps {
     firstName: string;
     lastName: string;
     avatar?: File | null;
+    removeAvatar?: boolean;
   }) => Promise<void>;
   currentFirstName?: string;
   currentLastName?: string;
@@ -113,6 +114,7 @@ export default function ChangeName({
         firstName,
         lastName,
         avatar: avatarFile,
+        removeAvatar: !avatarFile && !avatarPreview && !!currentAvatar,
       });
       handleDialogOpenChange(false);
     } catch {

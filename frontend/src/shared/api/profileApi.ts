@@ -11,10 +11,11 @@ function normalizeGender(value: string | null): string | null {
 }
 
 function normalizeProfileData(raw: ApiUserResponse): ProfileData {
+  const firstAssetUrl = raw.assets?.user_avatar?.[0]?.url ?? null;
   return {
     ...raw,
     gender: normalizeGender(raw.gender),
-    avatar: raw.avatar ?? raw.avatar_url ?? null,
+    avatar: raw.avatar ?? firstAssetUrl,
   };
 }
 

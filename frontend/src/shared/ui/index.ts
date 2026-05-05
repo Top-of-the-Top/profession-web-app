@@ -96,6 +96,7 @@ export { SafeHtml } from './SafeHtml'
 export { Skeleton } from './Skeleton'
 export { OAuthButtons } from './OAuthButtons'
 export { VerificationCodeInput } from './VerificationCodeInput'
+export { AutoSubmitVerificationCode } from './AutoSubmitVerificationCode'
 
 	export {
 		Breadcrumb,

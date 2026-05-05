@@ -1,0 +1,56 @@
+.socialButton {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #ffffff !important;
+  transition: 0.1s;
+}
+
+.socialButton:hover {
+  color: #ffffff !important;
+	transform: scale(1.02);
+}
+
+.loginYa {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+.loginYa:hover {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.loginVk {
+  background-color: #0077ff !important;
+  color: #ffffff !important;
+  border-color: #0077ff !important;
+}
+
+.loginVk:hover {
+  background-color: #0077ff !important;
+  color: #ffffff !important;
+}
+
+.socialIcon {
+  width: 24px;
+  height: 24px;
+  color: #ffffff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.socialIcon img {
+  width: 100%;
+}

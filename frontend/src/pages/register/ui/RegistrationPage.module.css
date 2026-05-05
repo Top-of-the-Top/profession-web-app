@@ -119,7 +119,6 @@
 }
 
 .submitButton:hover {
-	transform: scale(1.01);
 	background-color: #191970 !important;
 }
 
@@ -152,54 +151,6 @@
   flex-direction: column;
   gap: 12px;
   margin-bottom: 24px;
-}
-
-.socialButton {
-  width: 100%;
-  padding: 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  /* background-color: white; */
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-	color: white !important;
-  transition:  0.1s;
-}
-.socialButton.loginYa {
-  background-color: black;
-}
-
-.socialButton.loginVk {
-  background-color: #0077FF;
-}
-.socialButton.loginYa:hover {
-  background-color: black !important;
-  transform: scale(1.02) !important;
-}
-
-.socialButton.loginVk:hover {
-  background-color: #0077FF !important;
-  transform: scale(1.02) !important;
-}
-
-.socialIcon {
-  width: 24px;
-  height: 24px;
-  /* background-color: #000000; */
-  color: white;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 14px;
-}
-.socialIcon img {
-	width: 100%;
-
 }
 
 .linksContainer {

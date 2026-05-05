@@ -333,10 +333,6 @@ export default function RegistrationForm({
 
                     <OAuthButtons
                       containerClassName={styles.socialButtons}
-                      buttonClassName={styles.socialButton}
-                      vkButtonClassName={styles.loginVk}
-                      yandexButtonClassName={styles.loginYa}
-                      iconClassName={styles.socialIcon}
                     />
 
                     <div className={styles.linksContainer}>

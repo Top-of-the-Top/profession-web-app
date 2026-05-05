@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from django.shortcuts import redirect
+from django.http import HttpResponseRedirect
 from django.conf import settings
 from urllib.parse import urlencode
 import httpx
@@ -787,7 +787,7 @@ class YandexCallbackAPIView(APIView):
             params['error'] = 'invalid_callback_payload'
 
         target_url = f"{settings.FRONTEND_OAUTH_YANDEX_REDIRECT_URI}?{urlencode(params)}"
-        return redirect(target_url)
+        return HttpResponseRedirect(target_url)
 
 
 class YandexOauth2APIView(APIView):
@@ -939,7 +939,7 @@ class VKCallbackAPIView(APIView):
             params['error'] = 'invalid_callback_payload'
 
         target_url = f"{settings.FRONTEND_OAUTH_VK_REDIRECT_URI}?{urlencode(params)}"
-        return redirect(target_url)
+        return HttpResponseRedirect(target_url)
 
 
 class VKOAauth2APIView(APIView):

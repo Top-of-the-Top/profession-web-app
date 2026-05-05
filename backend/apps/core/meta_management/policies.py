@@ -91,7 +91,7 @@ INTENT_POLICIES = {
         'default_role': 'whiteboard_pdf',
     },
     'lesson_video': {
-        'backend': 'kinescope',
+        'backend': 's3',
         'max_size': 20 * 1024 * MB,
         'mime_allowlist': (
             'video/mp4',

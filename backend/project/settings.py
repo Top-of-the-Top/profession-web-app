@@ -7,9 +7,6 @@ import tempfile
 
 load_dotenv()
 
-ALLOWED_HOSTS = ['professionkid.ru', 'https://professionkid.ru']
-
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 ASGI_APPLICATION = "project.asgi.application"
@@ -135,9 +132,6 @@ else:
             'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', 'localhost'),
             'PORT': os.getenv('DB_PORT', '5432'),
-            # ASGI (Daphne) запускает каждый запрос в отдельном потоке.
-            # CONN_MAX_AGE > 0 при ASGI приводит к тому что каждый поток держит
-            # своё соединение открытым — быстро исчерпывает max_connections PostgreSQL.
             'CONN_MAX_AGE': 0,
             'CONN_HEALTH_CHECKS': True,
             'OPTIONS': {

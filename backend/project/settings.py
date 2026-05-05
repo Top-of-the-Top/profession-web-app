@@ -36,8 +36,6 @@ INSTALLED_APPS = [
     'apps.payments.apps.PaymentsConfig',
     'drf_spectacular',
     'storages',
-    'django_celery_results',
-    'django_celery_beat',
     'apps.notifications.apps.NotificationsConfig',
     'sms',
     'apps.homeworks.apps.HomeworksConfig',
@@ -291,7 +289,6 @@ else:
     CELERY_TASK_SERIALIZER = 'json'
     CELERY_RESULT_SERIALIZER = 'json'
     CELERY_TIMEZONE = TIME_ZONE
-    CELERY_TASK_TRACK_STARTED = True
 
 
 

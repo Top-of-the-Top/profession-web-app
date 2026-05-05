@@ -2,7 +2,6 @@ import asyncio
 import json
 import aio_pika
 import logging
-
 from django.http import StreamingHttpResponse, HttpResponse, HttpResponseNotAllowed
 from rest_framework.response import Response
 from django.conf import settings
@@ -79,12 +78,19 @@ async def sse_notifications(request):
         user_id = access_token.get('user_id')
         if not user_id:
             return HttpResponse("Invalid token payload", status=401)
-        user = await sync_to_async(User.objects.get)(pk=user_id)
+        user = await sync_to_async(User.objects.get, thread_sensitive=False)(pk=user_id)
     except (TokenError, User.DoesNotExist):
         return HttpResponse("Invalid token", status=401)
 
     webinar_id = request.GET.get('webinar_id')
-    
+
+    user_pk = user.pk
+    get_course_ids = sync_to_async(
+        lambda: list(user.get_purchased_courses_ids()),
+        thread_sensitive=False,
+    )
+    user_course_ids = await get_course_ids()
+
     async def event_stream():
         connection = None
 
@@ -114,9 +120,8 @@ async def sse_notifications(request):
             )
 
             queue = await channel.declare_queue(exclusive=True)
-            await queue.bind(exchange, routing_key=f"user.{user.pk}")
+            await queue.bind(exchange, routing_key=f"user.{user_pk}")
 
-            user_course_ids = await user.aget_purchased_course_ids()
             for c_id in user_course_ids:
                 await queue.bind(exchange, routing_key=f"course.{c_id}")
 
@@ -133,7 +138,7 @@ async def sse_notifications(request):
                         yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n".encode('utf-8')
 
         except Exception as exc:
-            logger.warning('SSE: ошибка в потоке уведомлений для user=%s: %s', user.pk, exc)
+            logger.warning('SSE: ошибка в потоке уведомлений для user=%s: %s', user_pk, exc)
         finally:
             if connection and not connection.is_closed:
                 await connection.close()

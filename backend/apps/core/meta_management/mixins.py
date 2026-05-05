@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 
-from .factory import build_access_api
+from .factory import build_asset_service
 from ..models import AssetUsage, AssetStatus
 
 
@@ -27,13 +27,13 @@ def _build_assets_batch(objects, roles, viewer=None):
         .order_by('created_at')
     )
 
-    access = build_access_api()
+    service = build_asset_service()
     result = {pk: {role: [] for role in roles} for pk in object_ids}
 
     for usage in usages:
         asset = usage.asset
         try:
-            url = access.resolve_asset_url(asset, viewer=viewer)
+            url = service.resolve_asset_url(asset, viewer=viewer)
         except Exception:
             url = None
 

@@ -12,9 +12,7 @@ import {
   type Lesson,
   type LessonCreatePayload,
   type LessonPatchPayload,
-  type UploadHomeworkFilePayload,
   type SubmitHomeworkAttemptPayload,
-  type HomeworkUploadResponse,
   type QuestionCreatePayload,
   type SectionCreatePayload,
   type SectionPatchPayload,
@@ -472,6 +470,26 @@ export function usePatchCourse(slug: string) {
   });
 }
 
+export function useBindCourseCover(slug: string) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (assetId: string) =>
+      courseApi.patchCourse(slug, { cover_asset_id: assetId }),
+    onSuccess: () => {
+      notifySuccess({ title: 'Обложка курса обновлена' });
+      void qc.invalidateQueries({ queryKey: courseKeys.bySlug(slug) });
+      void qc.invalidateQueries({ queryKey: courseKeys.courseHome(slug) });
+    },
+    onError: (err) => {
+      notifyError({
+        title: 'Не удалось обновить обложку',
+        description: errMsg(err),
+      });
+    },
+  });
+}
+
 export interface CreateHomeworkWithItemsPayload {
   homeworkSlug?: string;
   previousItems?: Array<{ id: string; type: 'question' | 'task' }>;
@@ -671,13 +689,6 @@ export function useDeleteHomework(
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: lessonKey });
     },
-  });
-}
-
-export function useRequestHomeworkUpload(homeworkSlug: string) {
-  return useMutation({
-    mutationFn: (payload: UploadHomeworkFilePayload): Promise<HomeworkUploadResponse> =>
-      courseApi.requestHomeworkUpload(homeworkSlug, payload),
   });
 }
 

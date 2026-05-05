@@ -15,7 +15,6 @@ import {
   LessonPreviewPage,
   LessonViewPage,
   HomeworkSubmissionPage,
-  NotAuthorizedPage,
   WebinarPage,
   WebinarRecordPage,
   AppLayout,
@@ -99,10 +98,6 @@ export const routes: AppRoute[] = [
       {
         path: 'cart',
         element: <CartPage />,
-      },
-      {
-        path: 'not-authorized',
-        element: <NotAuthorizedPage />,
       },
     ],
   },

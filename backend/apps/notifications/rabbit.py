@@ -11,7 +11,6 @@ NOTIFICATIONS_EXCHANGE = "notifications"
 NOTIFICATIONS_EXCHANGE_TYPE = "topic"
 
 def get_connection_parameters() -> pika.ConnectionParameters:
-    # Параметры из окружения
     return pika.ConnectionParameters(
         host=os.getenv("RABBITMQ_HOST", "rabbitmq"),
         port=int(os.getenv("RABBITMQ_PORT", "5672")),
@@ -22,7 +21,7 @@ def get_connection_parameters() -> pika.ConnectionParameters:
         heartbeat=30,
         blocked_connection_timeout=30,
         connection_attempts=3,
-        retry_delay=2.0, # Увеличили задержку между попытками
+        retry_delay=2.0,
     )
 
 def publish_event(*, routing_key: str, payload: Dict[str, Any]) -> None:

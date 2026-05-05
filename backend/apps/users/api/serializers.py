@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from ..models import User
+from drf_spectacular.utils import extend_schema_field
+
+from ..models import User, Profile
 from .utils.crypto_utils import encrypt_data, decrypt_data
 from .constants import (
     MSG_EMAIL_ALREADY_EXISTS,
@@ -13,12 +15,72 @@ import re
 
 PHONE_REGEX = re.compile(r'^\+?[1-9]\d{6,14}$')
 
+
 class TokenResponseSerializer(serializers.Serializer):
-    """Схема ответа с токенами доступа (Register, Login, Refresh, Recover)."""
     access_token = serializers.CharField(read_only=True)
     access_expires_at = serializers.CharField(read_only=True)
     refresh_token = serializers.CharField(read_only=True)
     refresh_expires_at = serializers.CharField(read_only=True)
+    role = serializers.CharField(read_only=True)
+
+
+class RefreshTokenRequestSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField(required=True, help_text='Действующий refresh JWT.')
+
+
+class RecoverPasswordRequestSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True, help_text='Токен из письма восстановления.')
+    password_hash = serializers.CharField(
+        required=True,
+        help_text='Новый пароль (plaintext; имя поля историческое — «hash»).',
+    )
+
+
+class ResetPasswordRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class CodeSentResponseSerializer(serializers.Serializer):
+    status = serializers.CharField(read_only=True)
+    detail = serializers.CharField(read_only=True)
+
+
+class SimpleStatusResponseSerializer(serializers.Serializer):
+    status = serializers.CharField(read_only=True)
+
+
+class RateLimitedResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    retry_after = serializers.IntegerField()
+
+
+class DetailOnlyResponseSerializer(serializers.Serializer):
+
+    detail = serializers.CharField()
+
+
+class ResetPasswordSuccessSerializer(serializers.Serializer):
+
+    status = serializers.CharField(read_only=True)
+    detail = serializers.CharField(read_only=True, required=False, allow_blank=True)
+
+
+class ResetPasswordPhoneTokenResponseSerializer(serializers.Serializer):
+    token = serializers.CharField(read_only=True)
+
+
+class ProfileAssetSerializer(serializers.Serializer):
+    asset_id = serializers.CharField()
+    filename = serializers.CharField()
+    mime_type = serializers.CharField()
+    size_bytes = serializers.IntegerField()
+    url = serializers.URLField(allow_null=True)
+
+
+class UserProfileAssetsSerializer(serializers.Serializer):
+
+    user_avatar = ProfileAssetSerializer(many=True, read_only=True)
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -104,8 +166,9 @@ class UserProfileSerializer(serializers.Serializer):
     email = serializers.SerializerMethodField()
     phone_number = serializers.SerializerMethodField()
 
-    gender = serializers.CharField(
+    gender = serializers.ChoiceField(
         source='profile.gender',
+        choices=Profile.GENDER_CHOICES,
         required=False,
         allow_blank=True,
         allow_null=True)
@@ -114,11 +177,36 @@ class UserProfileSerializer(serializers.Serializer):
         required=False,
         allow_null=True)
     avatar = serializers.SerializerMethodField()
+    assets = serializers.SerializerMethodField()
 
+    @extend_schema_field(serializers.URLField(allow_null=True))
     def get_avatar(self, obj):
-        if hasattr(obj, 'profile') and obj.profile:
-            return obj.profile.avatar_url
+        """
+        Backward-compatible alias for clients still reading `avatar`.
+        Source of truth is assets.user_avatar.
+        """
+        from apps.core.meta_management.mixins import _build_assets_for_object
+        profile = getattr(obj, 'profile', None)
+        if not profile:
+            return None
+
+        request = self.context.get('request')
+        viewer = getattr(request, 'user', None) if request is not None else None
+        assets = _build_assets_for_object(profile, ['user_avatar'], viewer=viewer)
+        avatar_items = assets.get('user_avatar') or []
+        if avatar_items:
+            return avatar_items[-1].get('url')
         return None
+
+    @extend_schema_field(UserProfileAssetsSerializer())
+    def get_assets(self, obj):
+        from apps.core.meta_management.mixins import _build_assets_for_object
+        profile = getattr(obj, 'profile', None)
+        if not profile:
+            return {'user_avatar': []}
+        request = self.context.get('request')
+        viewer = getattr(request, 'user', None) if request is not None else None
+        return _build_assets_for_object(profile, ['user_avatar'], viewer=viewer)
 
     def get_email(self, obj):
         if hasattr(obj, 'user') and obj.user and obj.user.email_cipher:
@@ -132,19 +220,21 @@ class UserProfileSerializer(serializers.Serializer):
 
 
 class UpdateProfileSerializer(serializers.Serializer):
+    _GENDER_IN = {'М': 'М', 'Ж': 'Ж', 'Мужской': 'М', 'Женский': 'Ж'}
+
     first_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     last_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
     phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     gender = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     birthday = serializers.DateField(required=False, allow_null=True)
-    avatar = serializers.ImageField(required=False, allow_null=True)
+    avatar_asset_id = serializers.UUIDField(required=False, allow_null=True)
 
     def validate(self, attrs):
         email = (attrs.get('email') or '').strip()
         phone = (attrs.get('phone_number') or '').strip()
-        gender = (attrs.get('gender') or '').strip()
-        avatar = attrs.get('avatar')
+        gender_raw = attrs.get('gender')
+        gender = (gender_raw or '').strip()
         user = self.context.get('user')
 
         if email:
@@ -167,17 +257,16 @@ class UpdateProfileSerializer(serializers.Serializer):
                 )
             attrs['phone_cipher'] = phone_cipher
 
-        if gender and gender not in ('Мужской', 'Женский'):
-            raise serializers.ValidationError(
-                {'gender': 'Допустимые значения: Мужской, Женский'}
-            )
-
-        if avatar and avatar.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError(
-                {'avatar': 'Размер файла не должен превышать 5 МБ'}
-            )
+        if gender:
+            normalized = self._GENDER_IN.get(gender)
+            if normalized is None:
+                raise serializers.ValidationError(
+                    {'gender': 'Допустимые значения: М, Ж, Мужской, Женский'}
+                )
+            attrs['gender'] = normalized
 
         return attrs
+
 
 class VerifyCodeSerializer(serializers.Serializer):
     code = serializers.CharField(min_length=6, max_length=6)
@@ -254,3 +343,5 @@ class RecoverPasswordPhoneSerializer(serializers.Serializer):
         if not value.isdigit():
             raise serializers.ValidationError(MSG_CODE_DIGITS_ONLY)
         return value
+
+

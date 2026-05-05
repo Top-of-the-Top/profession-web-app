@@ -46,11 +46,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return
 
     try:
-        course = await sync_to_async(Course.objects.get)(slug=self.course_slug)
-        #if course not in self.user.aget_purchased_course_ids():
-        #   raise Exception("User does not have access to this course")
-        
+        course = await sync_to_async(Course.objects.get, thread_sensitive=False)(slug=self.course_slug)
         self.session = await self.chat_service.get_or_create_session(self.user, course)
+
         logger.info(
             "WS connect accepted: user_id=%s course_slug=%s session_id=%s",
             getattr(self.user, "pk", None),
@@ -59,14 +57,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
         self.group_name = f"session_{self.session.session_id}"
-    
-        await self.channel_layer.group_add(
-            self.group_name,
-            self.channel_name
-        )
-    
+
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
-        
+
         chats = await self.chat_service.get_chats()
         await self._send_ws_message(ConnectedMessage(chats=chats))
     except Exception as e:

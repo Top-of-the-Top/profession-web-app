@@ -1,8 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
-from django.dispatch import receiver
-from django.db.models.signals import pre_delete, pre_save
-import os
+from django.contrib.auth.hashers import make_password, check_password
 from asgiref.sync import sync_to_async
 from .api.constants import MSG_EMAIL_ALREADY_EXISTS, MSG_PHONE_ALREADY_EXISTS
 
@@ -167,14 +165,6 @@ class User(AbstractUser):
         return f'User #{self.id}'
 
 
-DEFAULT_PROFILE_IMAGE = "users/default_photo_user.png"
-
-
-def profile_image_path(instance, filename):
-    ext = filename.split('.')[-1].lower()
-    return f'users/profile_{instance.pk}.{ext}'
-
-
 class Profile(models.Model):
     GENDER_CHOICES = (
         ('М', 'Мужской'),
@@ -185,45 +175,12 @@ class Profile(models.Model):
     profile_id = models.AutoField(primary_key=True)
     birthday = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, default='')
-    avatar = models.ImageField(
-        upload_to=profile_image_path,
+    avatar_url = models.CharField(
+        max_length=500,
         blank=True,
-        null=True,
-        verbose_name='Аватар',
-        default=DEFAULT_PROFILE_IMAGE,
+        default='',
+        verbose_name='URL аватара (legacy)',
     )
-
-    @property
-    def avatar_url(self):
-        if self.avatar and self.avatar.name != DEFAULT_PROFILE_IMAGE:
-            return self.avatar.url
-        bucket = os.getenv("AWS_S3_BUCKET_NAME", "your-bucket")
-        return f'https://storage.yandexcloud.net/{bucket}/{DEFAULT_PROFILE_IMAGE}'
-
-    def save(self, *args, **kwargs):
-
-        is_new = self.pk is None
-        if is_new and self.avatar and self.avatar.name != DEFAULT_PROFILE_IMAGE:
-            try:
-                image_file = self.avatar.file
-            except (ValueError, OSError):
-                super().save(*args, **kwargs)
-                return
-
-            original_name = getattr(self.avatar, 'name', 'image.jpg')
-
-            self.avatar = None
-            super().save(*args, **kwargs)
-
-            ext = original_name.split(
-                '.')[-1].lower() if '.' in original_name else 'jpg'
-            new_name = f'users/profile_{self.pk}.{ext}'
-
-            image_file.seek(0)
-            self.avatar.save(new_name, image_file, save=False)
-            super().save(update_fields=['avatar'])
-        else:
-            super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Учетная запись'
@@ -232,23 +189,3 @@ class Profile(models.Model):
 
     def __str__(self):
         return f'Profile #{self.profile_id}'
-
-
-@receiver(pre_save, sender=Profile)
-def handle_profile_image_update(sender, instance, **kwargs):
-    if not instance.pk:
-        return
-
-    try:
-        old_instance = sender.objects.get(pk=instance.pk)
-        if (old_instance.avatar and old_instance.avatar.name != DEFAULT_PROFILE_IMAGE and
-                instance.avatar and instance.avatar != old_instance.avatar):
-            old_instance.avatar.delete(save=False)
-    except sender.DoesNotExist:
-        pass
-
-
-@receiver(pre_delete, sender=Profile)
-def delete_profile_image(sender, instance, **kwargs):
-    if instance.avatar and instance.avatar.name != DEFAULT_PROFILE_IMAGE:
-        instance.avatar.delete(save=False)

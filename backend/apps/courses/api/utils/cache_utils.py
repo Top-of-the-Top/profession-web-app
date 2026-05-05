@@ -80,7 +80,11 @@ def invalidate_on_course_model_change(slug):
         DEFAULT_CACHE_ALIAS,
         landing_courses_cache_key(),
         course_detail_cache_key(slug),
+        course_list_cache_key(),
     )
+    cache = caches[DEFAULT_CACHE_ALIAS]
+    if hasattr(cache, 'delete_pattern'):
+        cache.delete_pattern('default:app:courses:list:*')
 
 
 def invalidate_on_section_model_change(course_slug, section_slug):

@@ -27,8 +27,8 @@ class Payment(models.Model):
         default='pending',
     )
 
-    mock_payment_url = models.URLField(null=True, blank=True)  # Пока что замокаем URL
-    mock_yookassa_id = models.UUIDField(  # Пока что замокаем ID платежа
+    mock_payment_url = models.URLField(null=True, blank=True)
+    mock_yookassa_id = models.UUIDField(
         unique=True,
         default=uuid.uuid4,
         editable=False,
@@ -49,10 +49,6 @@ class Payment(models.Model):
 
 
 class PaymentItem(models.Model):
-    # Это курс, который мы получаем из корзины на момент оплаты.
-    # После оплаты мы создаем PurchasedCourse для этого курса, те переводим
-    # курс в список купленных пользователем.
-
     payment = models.ForeignKey(
         Payment,
         on_delete=models.CASCADE,

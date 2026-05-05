@@ -4,7 +4,12 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from apps.webinars.models import Webinar
-from ..models import Course, Section, Task, Question
+from ..models import (
+    Course,
+    Section,
+    Task,
+    Question,
+)
 from .serializers import (
     CourseDTOSerializer,
     CourseSerializer,
@@ -105,7 +110,18 @@ class CourseListView(APIView):
         cached = cache.get(key)
         if cached is not None:
             return Response(cached)
-        serializer = CourseSerializer(get_courses_for_user(request.user), many=True)
+
+        user = request.user
+        if user.is_moderator():
+            qs = Course.objects.all()
+        elif user.is_teacher():
+            qs = Course.objects.filter(
+                Q(type=Course.PUBLISHED_STATUS) | Q(authors=user)
+            ).distinct()
+        else:
+            qs = Course.objects.filter(type=Course.PUBLISHED_STATUS)
+
+        serializer = CourseSerializer(qs, many=True, context={'request': request})
         cache.set(key, serializer.data)
         return Response(serializer.data)
 
@@ -150,7 +166,6 @@ class CourseDetailView(APIView):
             500: {"schema": SCHEMA_DETAIL},
         }
     )
-    @require_course_enrollment
     def get(self, request, slug):
         cache = caches["default"]
         key = course_detail_cache_key(slug)
@@ -313,13 +328,6 @@ class CourseHomePageView(APIView):
         vis = course_content_visibility(user, course)
 
         if not vis.has_course_home_access():
-            logger.warning(
-                'course_home_access denied: user=%s role=%s course=%s '
-                'is_enrolled=%s purchased_ids=%s',
-                user.id, user.role, course_slug,
-                user.is_enrolled(course),
-                user.get_purchased_courses_ids(),
-            )
             return Response(
                 {'detail': 'Вы не записаны на этот курс'},
                 status=status.HTTP_403_FORBIDDEN
@@ -515,7 +523,7 @@ class LessonDetailView(APIView):
                 get_lesson_or_404(
                     course_slug, lesson_slug, include_drafts=vis.include_drafts
                 ),
-                context={'request': request, 'include_drafts': vis.include_drafts},
+                context={'include_drafts': vis.include_drafts},
             ).data,
         )
 
@@ -869,4 +877,5 @@ class QuestionDetailView(APIView):
     def delete(self, request, course_slug, lesson_slug, homework_slug, question_id):
         question = _get_question_or_404(course_slug, lesson_slug, homework_slug, question_id)
         question.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT
+        )

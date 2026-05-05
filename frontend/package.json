@@ -61,6 +61,7 @@
     "remark-gfm": "^4.0.1",
     "sileo": "^0.1.5",
     "tailwind-merge": "^3.4.0",
+    "tus-js-client": "^4.3.1",
     "white-web-sdk": "^2.16.54",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"

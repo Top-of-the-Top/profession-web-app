@@ -32,6 +32,11 @@ import {
   notifySuccess,
 } from '@shared/lib/sileo/notify';
 import { validateEmailOrPhone } from '@shared/utils/validation';
+import {
+  uploadMediaAsset,
+  MediaUploadError,
+} from '@shared/lib/uploads/uploadMediaAsset';
+import { IntentValidationError } from '@shared/lib/uploads/intentLimits';
 import { ProfilePageSkeleton } from './ProfilePageSkeleton';
 
 function notifyProfileSaveError(err: unknown) {
@@ -106,9 +111,13 @@ export default function ProfilePage() {
     setGender(value);
     try {
       await updateProfile.mutateAsync({ gender: value });
-      setProfile((prev) => {
-        return prev ? { ...prev, gender: value } : prev;
+      const fresh = await queryClient.fetchQuery({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getProfile(),
       });
+      setProfile(fresh);
+      setGender(fresh.gender);
+      setAvatarUrl(fresh.avatar);
     } catch (err) {
       notifyProfileSaveError(err);
       setGender(previous);
@@ -135,8 +144,10 @@ export default function ProfilePage() {
     firstName: string;
     lastName: string;
     avatar?: File | null;
+    removeAvatar?: boolean;
   }) => {
     const prevAvatar = profile.avatar;
+    let blobUrl: string | null = null;
 
     try {
       const updateData: UpdateProfilePayload = {
@@ -144,10 +155,29 @@ export default function ProfilePage() {
         last_name: data.lastName,
       };
 
-      let blobUrl: string | null = null;
       if (data.avatar instanceof File) {
-        updateData.avatar = data.avatar;
         blobUrl = URL.createObjectURL(data.avatar);
+        try {
+          const { assetId } = await uploadMediaAsset('user_avatar', data.avatar);
+          updateData.avatar_asset_id = assetId;
+        } catch (err) {
+          if (
+            err instanceof IntentValidationError ||
+            err instanceof MediaUploadError
+          ) {
+            notifyError({
+              title: 'не удалось загрузить аватар',
+              description: err.message,
+            });
+          } else {
+            notifyProfileSaveError(err);
+          }
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+          throw err;
+        }
+      }
+      if (data.removeAvatar) {
+        updateData.avatar_asset_id = null;
       }
 
       const optimistic: ProfileData = {
@@ -167,7 +197,7 @@ export default function ProfilePage() {
         queryFn: () => profileApi.getProfile(),
       });
 
-      if (blobUrl && fresh.avatar === prevAvatar) {
+      if (blobUrl && fresh.avatar === prevAvatar && !data.removeAvatar) {
         const merged = { ...fresh, avatar: blobUrl };
         setProfile(merged);
         setAvatarUrl(blobUrl);
@@ -177,8 +207,14 @@ export default function ProfilePage() {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
       }
     } catch (err) {
-      notifyProfileSaveError(err);
+      if (
+        !(err instanceof IntentValidationError) &&
+        !(err instanceof MediaUploadError)
+      ) {
+        notifyProfileSaveError(err);
+      }
       setAvatarUrl(prevAvatar);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
       const reverted = await queryClient
         .fetchQuery({
           queryKey: profileKeys.me(),
@@ -210,6 +246,13 @@ export default function ProfilePage() {
         }
         await updateProfile.mutateAsync({ phone_number: v.normalized });
       }
+      const fresh = await queryClient.fetchQuery({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getProfile(),
+      });
+      setProfile(fresh);
+      setGender(fresh.gender);
+      setAvatarUrl(fresh.avatar);
       notifySuccess({
         title: 'код отправлен',
         description:

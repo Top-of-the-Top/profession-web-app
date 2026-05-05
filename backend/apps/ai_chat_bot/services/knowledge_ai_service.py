@@ -8,7 +8,7 @@ from apps.ai_chat_bot.services.base_service import YandexAIBase
 logger = logging.getLogger(__name__)
 
 
-class YandexKnowledgeAIService(YandexAIBase): # Это кстати адаптер получился, хихик
+class YandexKnowledgeAIService(YandexAIBase):
     
     async def update_course_context(self, course, file_paths):
         logger.info(f"Starting huge context update for course {course.title}")

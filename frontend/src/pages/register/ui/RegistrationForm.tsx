@@ -10,7 +10,7 @@ import {
   FieldLabel,
   Input,
   OAuthButtons,
-  VerificationCodeInput,
+  AutoSubmitVerificationCode,
 } from '@shared/ui';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
@@ -164,14 +164,6 @@ export default function RegistrationForm({
     [pendingKind, pendingContact, login, navigate],
   );
 
-  useEffect(() => {
-    if (step !== 'code' || loading || verifySucceededRef.current) return;
-    const code = otp.join('');
-    const complete = otp.every((cell: string) => cell !== '') && code.length === 6;
-    if (!complete) return;
-    void submitVerificationCode(code);
-  }, [otp, step, loading, submitVerificationCode]);
-
   const handleCredentialsSubmit = async ({
     emailOrPhone,
     password,
@@ -238,7 +230,7 @@ export default function RegistrationForm({
               {step === 'credentials'
                 ? 'Начните работу с Профессией уже сегодня'
                 : codeSentDetail ??
-                  'Введите код из письма или SMS'}
+                  'Код подтверждения отправлен'}
             </CardDescription>
           </CardHeader>
           <CardContent className={styles.cardContent}>
@@ -341,10 +333,6 @@ export default function RegistrationForm({
 
                     <OAuthButtons
                       containerClassName={styles.socialButtons}
-                      buttonClassName={styles.socialButton}
-                      vkButtonClassName={styles.loginVk}
-                      yandexButtonClassName={styles.loginYa}
-                      iconClassName={styles.socialIcon}
                     />
 
                     <div className={styles.linksContainer}>
@@ -366,11 +354,12 @@ export default function RegistrationForm({
             ) : (
               <FieldGroup className={styles.fieldGroup}>
                 <Field className={styles.field}>
-                  <VerificationCodeInput
+                  <AutoSubmitVerificationCode
                     value={otp}
                     onChange={setOtp}
+                    onComplete={submitVerificationCode}
                     disabled={loading}
-                    label="Код из письма или SMS"
+                    label={null}
                     hint="После ввода всех 6 цифр подтверждение отправится автоматически"
                     hintClassName={styles.otpHint}
                   />

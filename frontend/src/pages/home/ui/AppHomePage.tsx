@@ -69,6 +69,14 @@ function HomeSkeleton() {
 export default function AppHomePage() {
   const navigate = useNavigate();
   const { data: items = [], isLoading, error, refetch } = useCoursesForHome();
+  const normalizedItems: CourseDTO[] = items
+    .map((item) => {
+      if (item && typeof item === 'object' && 'course' in item) {
+        return (item as { course?: CourseDTO }).course ?? null;
+      }
+      return item as CourseDTO;
+    })
+    .filter((item): item is CourseDTO => Boolean(item && item.slug && item.title));
 
   const openCourse = (slug: string) => {
     navigate(`/app/courses/${slug}`);
@@ -104,7 +112,7 @@ export default function AppHomePage() {
         <h1 className={styles.title}>Курсы</h1>
       </div>
 
-      {items.length === 0 ? (
+      {normalizedItems.length === 0 ? (
         <div className={styles.emptyState}>
           <p className={styles.emptyTitle}>Пока нет курсов</p>
           <p className={styles.emptyHint}>
@@ -114,7 +122,7 @@ export default function AppHomePage() {
         </div>
       ) : (
         <div className={styles.grid}>
-          {items.map((item) => (
+          {normalizedItems.map((item) => (
             <CourseCard key={item.course_id} item={item} onOpen={openCourse} />
           ))}
         </div>

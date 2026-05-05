@@ -159,7 +159,7 @@ export interface SubmitHomeworkAttemptItemTaskPayload {
   id: string;
   number: number;
   user_answer: string | null;
-  file_attachments?: HomeworkAttemptAttachment[];
+  asset_ids?: string[];
 }
 
 export type SubmitHomeworkAttemptItemPayload =
@@ -171,21 +171,6 @@ export interface SubmitHomeworkAttemptPayload {
   attempt_id: string;
   send_at: string;
   items: SubmitHomeworkAttemptItemPayload[];
-}
-
-export interface UploadHomeworkFilePayload {
-  attempt_id: string;
-  task_id: string;
-  file_name: string;
-  file_size: number;
-  file_extension: string;
-}
-
-export interface HomeworkUploadResponse {
-  url: string;
-  method: string;
-  expires_at: string;
-  fields: Record<string, string>;
 }
 
 export interface HomeworkCreatePayload {
@@ -289,7 +274,6 @@ export interface LessonCreatePayload {
   section?: string;
   lesson_num?: number;
   document?: string;
-  files?: Record<string, File>;
 }
 
 export interface LessonPatchPayload {
@@ -298,7 +282,6 @@ export interface LessonPatchPayload {
   type?: CourseContentType;
   date_time?: string | null;
   document?: string;
-  files?: Record<string, File>;
 }
 
 export interface CoursePatchPayload {
@@ -307,6 +290,7 @@ export interface CoursePatchPayload {
   description?: string;
   price?: number;
   type?: CourseContentType;
+  cover_asset_id?: string | null;
 }
 
 export interface CourseItemWriteResponse {

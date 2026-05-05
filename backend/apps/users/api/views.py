@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from django.shortcuts import redirect
+from django.http import HttpResponseRedirect
 from django.conf import settings
 from urllib.parse import urlencode
 import httpx
@@ -17,7 +17,7 @@ from .errors import VerificationError
 from ..models import User, Profile
 from .constants import (
     MSG_CONTACT_REQUIRED,
-    MSG_RATE_LIMITED,
+    MSG_RATE_LIMITED, 
     MSG_USER_NOT_FOUND,
     MSG_EMAIL_ALREADY_EXISTS,
     MSG_PHONE_ALREADY_EXISTS,
@@ -33,23 +33,31 @@ from .serializers import (
     EmailRegisterSerializer,
     VerifyRegisterSerializer,
     RecoverPasswordPhoneSerializer,
+    RefreshTokenRequestSerializer,
+    RecoverPasswordRequestSerializer,
+    ResetPasswordRequestSerializer,
+    CodeSentResponseSerializer,
+    RateLimitedResponseSerializer,
+    DetailOnlyResponseSerializer,
+    ResetPasswordSuccessSerializer,
+    SimpleStatusResponseSerializer,
+    ResetPasswordPhoneTokenResponseSerializer,
 )
-from .utils.crypto_utils import encrypt_data
+from apps.core.api.serializers import AssetErrorResponseSerializer
+
+from .utils.token_utils import get_tokens_for_user, set_reset_token
 from .utils.notification_utils import (
+    send_verification_sms,
+    send_verification_email,
     send_reset_password_email,
     send_reset_password_sms,
-    send_verification_email,
-    send_verification_sms,
 )
+from .utils.verification_utils import generate_verification_code_for_user, verify_code
+from .utils.crypto_utils import encrypt_data
 from .utils.registration_utils import (
-    check_contact_rate_limit,
     generate_registration_code,
     verify_registration_code,
-)
-from .utils.token_utils import get_tokens_for_user, set_reset_token
-from .utils.verification_utils import (
-    generate_verification_code_for_user,
-    verify_code,
+    check_contact_rate_limit,
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
@@ -89,35 +97,16 @@ class RegisterView(APIView):
             "Двухэтапная регистрация. "
             "Передайте email или phone_number с password. "
             "На указанный контакт отправляется 6 значный код. "
-            "Для завершения отправьте код на /api/auth/register/verify/."
+            "Для завершения отправьте код на /api/auth/register/verify/.\n\n"
+            "**403**: без контактов — объект с **detail**. "
+            "При ошибках вложенной валидации тело может быть **{ поле: [сообщения] }**, как у DRF."
         ),
         tags=["Users"],
         request=RegisterSerializer,
         responses={
-            200: {
-                "description": "Код отправлен.",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "status": {"type": "string", "example": "code_sent"},
-                        "detail": {"type": "string"},
-                    },
-                },
-            },
-            403: {
-                "description": "Ошибка валидации.",
-                "schema": SCHEMA_VALIDATION_ERROR
-            },
-            429: {
-                "description": "Слишком частые запросы.",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "detail": {"type": "string"},
-                        "retry_after": {"type": "integer"},
-                    },
-                },
-            },
+            200: CodeSentResponseSerializer,
+            403: DetailOnlyResponseSerializer,
+            429: RateLimitedResponseSerializer,
         },
     )
     def post(self, request):
@@ -153,13 +142,13 @@ class RegisterView(APIView):
 
             return Response(
                 {'status': 'code_sent', 'detail': 'Код подтверждения отправлен на телефон.'},
-                status=status.HTTP_200_OK,
+                status = status.HTTP_200_OK,
             )
         if email:
             serializer = EmailRegisterSerializer(data=request.data)
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
-
+            
             email_value = serializer.validated_data['email']
             password = serializer.validated_data['password']
 
@@ -178,9 +167,9 @@ class RegisterView(APIView):
 
             return Response(
                 {'status': 'code_sent', 'detail': 'Код подтверждения отправлен на почту.'},
-                status=status.HTTP_200_OK,
+                status = status.HTTP_200_OK,
             )
-
+        
 
 class VerifyRegisterView(APIView):
     permission_classes = []
@@ -190,23 +179,23 @@ class VerifyRegisterView(APIView):
         description=(
             "Второй шаг регистрации. "
             "Передайте phone_number или email и 6 значный код. "
-            "При успехе создаётся аккаунт и возвращаются JWT токены."
+            "При успехе создаётся аккаунт и возвращаются JWT токены.\n\n"
+            "Ответ **400**: либо стандартные ошибки полей DRF ({field: [msg]}), "
+            "либо при неверном коде объект **{ \"error\", \"detail\" }**."
         ),
         tags=["Users"],
         request=VerifyRegisterSerializer,
         responses={
             200: TokenResponseSerializer,
-            400: {
-                "description": "Неверный или истёкший код.",
-                "schema": SCHEMA_VALIDATION_ERROR,
-            },
+            400: SCHEMA_VALIDATION_ERROR,
         },
     )
+
     def post(self, request):
         serializer = VerifyRegisterSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+       
         phone = (serializer.validated_data.get('phone_number') or '').strip()
         email = (serializer.validated_data.get('email') or '').strip()
         user_code = serializer.validated_data['code']
@@ -225,7 +214,7 @@ class VerifyRegisterView(APIView):
                 {'error': e.code, 'detail': e.message},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+        
         if reg_data['contact_type'] == 'phone':
             phone_cipher = encrypt_data(reg_data['contact'])
             user = User.objects.create_user(phone_cipher=phone_cipher)
@@ -252,7 +241,8 @@ class LoginView(APIView):
         request=LoginSerializer,
         responses={
             200: TokenResponseSerializer,
-            400: {"description": "Ошибка валидации.", "schema": SCHEMA_VALIDATION_ERROR},
+            400: SCHEMA_VALIDATION_ERROR,
+            429: RateLimitedResponseSerializer,
         },
     )
     def post(self, request):
@@ -274,7 +264,7 @@ class LoginView(APIView):
                     },
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
-
+        
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
             if contact:
@@ -287,7 +277,7 @@ class LoginView(APIView):
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        
         if contact:
             cache.delete(attempts_key)
 
@@ -304,6 +294,7 @@ class RefreshTokenView(APIView):
             "Выдаёт новую пару access и refresh токенов по действующему refresh_token."
         ),
         tags=["Users"],
+        request=RefreshTokenRequestSerializer,
         responses={
             200: TokenResponseSerializer,
             401: {"description": "refresh_token отсутствует или недействителен.", "schema": SCHEMA_401},
@@ -338,11 +329,12 @@ class ResetPasswordView(APIView):
             "На email отправляется ссылка, на телефон SMS код."
         ),
         tags=["Users"],
+        request=ResetPasswordRequestSerializer,
         responses={
-            200: {"description": "Ссылка или код отправлены.",
-                  "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
-            403: {"description": "Контакт не указан или пользователь не найден.", "schema": SCHEMA_403},
-            500: {"description": "Ошибка отправки.", "schema": SCHEMA_500},
+            200: ResetPasswordSuccessSerializer,
+            403: SCHEMA_403,
+            429: RateLimitedResponseSerializer,
+            500: SCHEMA_500,
         },
     )
     def post(self, request):
@@ -415,21 +407,23 @@ class RecoverPasswordView(APIView):
         summary="Установка нового пароля",
         description=(
             "Завершение сброса пароля. "
-            "Передайте token (из письма) и password_hash (новый пароль). "
-            "При успехе возвращаются JWT токены."
+            "При успехе возвращаются JWT токены. "
+            "**password_hash**: тело содержит новый пароль (plain); имя поля историческое."
         ),
         tags=["Users"],
+        request=RecoverPasswordRequestSerializer,
         responses={
             200: TokenResponseSerializer,
-            403: {"description": "Токен отсутствует, невалиден или истёк.", "schema": SCHEMA_403},
+            403: SCHEMA_403,
         },
     )
+
     def patch(self, request):
         token = request.data.get('token')
         password = request.data.get('password')
         if not token or not password:
             return Response(
-                {'detail': 'token и password обязательны'},
+                {'detail': 'token и password_hash обязательны'},
                 status=status.HTTP_403_FORBIDDEN
             )
         user = User.objects.filter(
@@ -461,17 +455,9 @@ class RecoverPasswordPhoneView(APIView):
         tags=["Users"],
         request=RecoverPasswordPhoneSerializer,
         responses={
-            200: {
-                "description": "Код подтверждён, токен выдан.",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "token": {"type": "string", "description": "Токен для сброса пароля"},
-                    },
-                },
-            },
+            200: ResetPasswordPhoneTokenResponseSerializer,
             400: {
-                "description": "Неверный или истёкший код.",
+                "description": "Неверный код — **{ \"error\", \"detail\" }**; иначе ошибки полей DRF.",
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
             403: {
@@ -480,14 +466,15 @@ class RecoverPasswordPhoneView(APIView):
             },
         },
     )
+
     def post(self, request):
         serializer = RecoverPasswordPhoneSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        
         phone_number = serializer.validated_data['phone_number'].strip()
         user_code = serializer.validated_data['code']
-
+        
         phone_cipher = encrypt_data(phone_number)
         user = User.objects.filter(phone_cipher=phone_cipher).first()
         if not user:
@@ -507,7 +494,7 @@ class RecoverPasswordPhoneView(APIView):
                 {'error': e.code, 'detail': e.message},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+        
         token = set_reset_token(user)
         return Response({'token': token}, status=status.HTTP_200_OK)
 
@@ -535,20 +522,33 @@ class ProfileView(APIView):
                 self.profile = profile
 
         wrapper = UserProfileWrapper(user, profile)
-        serializer = UserProfileSerializer(wrapper)
+        serializer = UserProfileSerializer(wrapper, context={'request': request})
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
         summary="Обновление профиля",
-        description="Частичное обновление профиля текущего пользователя.",
+        description=(
+            "Частичное обновление профиля. "
+            "**gender**: на вход можно передать М, Ж, Мужской или Женский; в БД хранится короткая форма (М/Ж). "
+            "**avatar_asset_id** — единое поле для управления фото профиля в этой же ручке PATCH /api/profile/: "
+            "передайте UUID ассета после успешной загрузки и `ready` на /api/uploads/…, "
+            "или передайте `null`, чтобы удалить текущий аватар.\n\n"
+            "**400**: ошибки валидации DRF (**{поле:[…]}**) или ошибка при привязке аватара в форме "
+            "**{status, code, message, details}**. "
+            "**403 / 404 / 409 / 503** возможны только при ошибке bind ассета (с тем же телом ошибки)."
+        ),
         tags=["Users"],
         request=UpdateProfileSerializer,
         responses={
-            200: {"description": "Профиль обновлён.",
-                  "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
-            400: {"description": "Ошибка валидации.", "schema": SCHEMA_VALIDATION_ERROR},
+            200: SimpleStatusResponseSerializer,
+            400: SCHEMA_VALIDATION_ERROR,
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            403: AssetErrorResponseSerializer,
+            404: AssetErrorResponseSerializer,
+            409: AssetErrorResponseSerializer,
+            429: RateLimitedResponseSerializer,
+            503: AssetErrorResponseSerializer,
         },
     )
     def patch(self, request):
@@ -584,7 +584,7 @@ class ProfileView(APIView):
                     },
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
-
+            
             code = generate_verification_code_for_user(
                 user_id=user.id,
                 contact_type='phone',
@@ -602,9 +602,41 @@ class ProfileView(APIView):
             profile.gender = data['gender']
         if 'birthday' in data:
             profile.birthday = data['birthday']
-        if 'avatar' in data:
-            profile.avatar = data['avatar']
         profile.save()
+
+        if 'avatar_asset_id' in data:
+            from apps.core.meta_management.factory import build_binding_api
+            from apps.core.meta_management.errors import AssetError
+            from apps.core.processors.error_processor import process_error_response
+            from apps.core.models import AssetUsage
+            from django.contrib.contenttypes.models import ContentType
+            try:
+                build_binding_api().sync_single(    
+                    content_object=profile,
+                    role='user_avatar',
+                    asset_id=data['avatar_asset_id'],
+                    owner=user,
+                )
+            except AssetError as exc:
+                return process_error_response(exc)
+
+            # Fail fast if binding was not applied for the requested asset.
+            bound = AssetUsage.objects.filter(
+                content_type=ContentType.objects.get_for_model(profile),
+                object_id=str(profile.pk),
+                role='user_avatar',
+                asset_id=data['avatar_asset_id'],
+            ).exists()
+            if data['avatar_asset_id'] is not None and not bound:
+                return Response(
+                    {
+                        'status': 'error',
+                        'code': 'avatar_bind_not_applied',
+                        'message': 'Не удалось привязать новый аватар к профилю.',
+                        'details': {'asset_id': str(data['avatar_asset_id'])},
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
 
         return Response(
             {'status': 'success'},
@@ -625,15 +657,11 @@ class VerifyEmailChangeView(APIView):
         tags=["Users"],
         request=VerifyCodeSerializer,
         responses={
-            200: {
-                "description": "Email обновлён.",
-                "schema": {
-                    "type": "object",
-                    "properties": {"status": {"type": "string", "example": "success"}},
-                },
-            },
+            200: SimpleStatusResponseSerializer,
             400: {
-                "description": "Неверный код, неверный формат, дубликат email или ошибка валидации.",
+                "description": (
+                    "Неверный/дублирующий код, ошибки формата **или** объект **{ «error», «detail» }** после verify_code."
+                ),
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
@@ -662,7 +690,7 @@ class VerifyEmailChangeView(APIView):
                 {'detail': MSG_EMAIL_ALREADY_EXISTS},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        
         request.user.email_cipher = new_cipher
         try:
             request.user.save(update_fields=['email_cipher'])
@@ -673,7 +701,6 @@ class VerifyEmailChangeView(APIView):
             )
 
         return Response({'status': 'success'}, status=status.HTTP_200_OK)
-
 
 class VerifyPhoneChangeView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -688,15 +715,12 @@ class VerifyPhoneChangeView(APIView):
         tags=["Users"],
         request=VerifyCodeSerializer,
         responses={
-            200: {
-                "description": "Телефон обновлён.",
-                "schema": {
-                    "type": "object",
-                    "properties": {"status": {"type": "string", "example": "success"}},
-                },
-            },
+            200: SimpleStatusResponseSerializer,
             400: {
-                "description": "Неверный код, неверный формат, дубликат телефона или ошибка валидации.",
+                "description": (
+                    "Неверный/дублирующий код или **{ «error», «detail» }** после verify_code; "
+                    "также объект с **«detail»** при дубликате телефона."
+                ),
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
@@ -725,7 +749,7 @@ class VerifyPhoneChangeView(APIView):
                 {'detail': MSG_PHONE_ALREADY_EXISTS},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        
         request.user.phone_cipher = new_cipher
         try:
             request.user.save(update_fields=['phone_cipher'])
@@ -763,7 +787,7 @@ class YandexCallbackAPIView(APIView):
             params['error'] = 'invalid_callback_payload'
 
         target_url = f"{settings.FRONTEND_OAUTH_YANDEX_REDIRECT_URI}?{urlencode(params)}"
-        return redirect(target_url)
+        return HttpResponseRedirect(target_url)
 
 
 class YandexOauth2APIView(APIView):
@@ -915,7 +939,7 @@ class VKCallbackAPIView(APIView):
             params['error'] = 'invalid_callback_payload'
 
         target_url = f"{settings.FRONTEND_OAUTH_VK_REDIRECT_URI}?{urlencode(params)}"
-        return redirect(target_url)
+        return HttpResponseRedirect(target_url)
 
 
 class VKOAauth2APIView(APIView):
@@ -943,9 +967,6 @@ class VKOAauth2APIView(APIView):
             user.save(update_fields=user_fields_changed)
 
         profile, _ = Profile.objects.get_or_create(user=user)
-
-        if is_new or not profile.avatar:
-            profile.avatar = vk_user.get('avatar')
 
         vk_sex = vk_user.get('sex')
         if vk_sex and (is_new or not profile.gender):

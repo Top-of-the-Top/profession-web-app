@@ -8,8 +8,6 @@ from apps.core.api.permissions import _extract_request
 from ..models import Course, Homework, Lesson, Section
 
 
-# ── Queryset helpers ────────────────────────────────────────────────────────
-
 def get_courses_for_user(user):
     if user.is_moderator():
         return Course.objects.all()
@@ -17,8 +15,6 @@ def get_courses_for_user(user):
         return Course.objects.filter(authors=user)
     return Course.objects.filter(course_id__in=user.get_purchased_courses_ids())
 
-
-# ── Visibility ──────────────────────────────────────────────────────────────
 
 class CourseContentVisibility:
 
@@ -57,8 +53,6 @@ def filter_homework_queryset_for_visibility(qs, include_drafts):
         return qs
     return qs.filter(type=Homework.PUBLISHED_STATUS)
 
-
-# ── Course-level decorators ─────────────────────────────────────────────────
 
 def _get_course_from_kwargs(kwargs):
     slug = kwargs.get('course_slug') or kwargs.get('slug') or kwargs.get('pk')

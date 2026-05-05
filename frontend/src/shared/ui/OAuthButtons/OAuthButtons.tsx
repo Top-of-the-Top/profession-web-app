@@ -1,24 +1,15 @@
-import { Button } from './Button';
+import { Button } from '../Button';
 import { cn } from '@shared/lib/utils';
 import { startYandexOAuth } from '@shared/lib/auth/yandexOAuth';
 import { startVkOAuth } from '@shared/lib/auth/vkOAuth';
 import { notifyError } from '@shared/lib/sileo/notify';
+import styles from './OAuthButtons.module.css';
 
 type OAuthButtonsProps = {
   containerClassName?: string;
-  buttonClassName?: string;
-  vkButtonClassName?: string;
-  yandexButtonClassName?: string;
-  iconClassName?: string;
 };
 
-export function OAuthButtons({
-  containerClassName,
-  buttonClassName,
-  vkButtonClassName,
-  yandexButtonClassName,
-  iconClassName,
-}: OAuthButtonsProps) {
+export function OAuthButtons({ containerClassName }: OAuthButtonsProps) {
   const handleYandexLogin = () => {
     try {
       startYandexOAuth();
@@ -44,10 +35,10 @@ export function OAuthButtons({
       <Button
         variant="outline"
         type="button"
-        className={cn(buttonClassName, vkButtonClassName)}
+        className={cn(styles.socialButton, styles.loginVk)}
         onClick={handleVkLogin}
       >
-        <span className={iconClassName}>
+        <span className={styles.socialIcon}>
           <img src="login/vk.svg" alt="" />
         </span>
         Войти с VK ID
@@ -55,10 +46,10 @@ export function OAuthButtons({
       <Button
         variant="outline"
         type="button"
-        className={cn(buttonClassName, yandexButtonClassName)}
+        className={cn(styles.socialButton, styles.loginYa)}
         onClick={handleYandexLogin}
       >
-        <span className={iconClassName}>
+        <span className={styles.socialIcon}>
           <img src="login/ya.svg" alt="" />
         </span>
         Войти с Яндекс ID

@@ -25,9 +25,11 @@ from .serializers import (
 )
 import os
 import img2pdf
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 import logging
+
+from apps.core.meta_management.factory import build_upload_api, build_binding_api, build_access_api
+from apps.core.processors.error_processor import process_error_response
+from apps.core.meta_management.errors import AssetError
 
 logger = logging.getLogger(__name__)
 
@@ -640,13 +642,30 @@ class RecordingPdfView(APIView):
 
         images = [f.read() for f in screenshots]
         pdf_bytes = img2pdf.convert(images)
+        filename = f'recording_{recording.recording_id}.pdf'
 
-        pdf_path = f'whiteboards/recording_{recording.recording_id}.pdf'
-        saved_path = default_storage.save(pdf_path, ContentFile(pdf_bytes))
+        upload_api = build_upload_api()
+        binding_api = build_binding_api()
+        try:
+            asset = upload_api.upload_server_side(
+                owner=request.user,
+                intent='webinar_whiteboard',
+                filename=filename,
+                mime_type='application/pdf',
+                body=pdf_bytes,
+            )
+            binding_api.sync_single(
+                content_object=recording,
+                role='whiteboard_pdf',
+                asset_id=asset.asset_id,
+                owner=None,
+            )
+        except AssetError as exc:
+            return process_error_response(exc)
 
-        bucket = os.getenv('AWS_S3_BUCKET_NAME')
-        recording.whiteboard_pdf_url = (f'https://storage.yandexcloud.net/{bucket}/{saved_path}')
-        recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+        if recording.whiteboard_pdf_url:
+            recording.whiteboard_pdf_url = ''
+            recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
 
         return Response({'detail': 'pdf доски сохранен'})
 
@@ -664,12 +683,22 @@ class RecordingPdfView(APIView):
             webinar__lesson=lesson,
             is_deleted=False,
         )
-        if not recording.whiteboard_pdf_url:
-            return Response({'detail': 'PDF не привязан'}, status=status.HTTP_404_NOT_FOUND)
 
-        recording.whiteboard_pdf_url = ''
-        recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
-        
+        binding_api = build_binding_api()
+        try:
+            binding_api.sync_single(
+                content_object=recording,
+                role='whiteboard_pdf',
+                asset_id=None,
+                owner=None,
+            )
+        except AssetError as exc:
+            return process_error_response(exc)
+
+        if recording.whiteboard_pdf_url:
+            recording.whiteboard_pdf_url = ''
+            recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+
         return Response({'detail': 'pdf доски удален'}, status=status.HTTP_204_NO_CONTENT)
     
 
@@ -738,22 +767,35 @@ class WebinarFinalPdfView(APIView):
             ended_at=now,
         )
 
-        pdf_path = f'whiteboards/recording_{recording.recording_id}.pdf'
-        saved_path = default_storage.save(pdf_path, ContentFile(pdf_bytes))
-
-        bucket = os.getenv('AWS_S3_BUCKET_NAME')
-        recording.whiteboard_pdf_url = f'https://storage.yandexcloud.net/{bucket}/{saved_path}'
-        recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+        filename = f'whiteboard_{recording.recording_id}.pdf'
+        upload_api = build_upload_api()
+        binding_api = build_binding_api()
+        try:
+            asset = upload_api.upload_server_side(
+                owner=request.user,
+                intent='webinar_whiteboard',
+                filename=filename,
+                mime_type='application/pdf',
+                body=pdf_bytes,
+            )
+            binding_api.sync_single(
+                content_object=recording,
+                role='whiteboard_pdf',
+                asset_id=asset.asset_id,
+                owner=None,
+            )
+        except AssetError as exc:
+            recording.delete()
+            return process_error_response(exc)
 
         logger.info(
-            'Финальный PDF доски сохранен для вебинара %s, recording %s: %s',
-            webinar.webinar_id, recording.recording_id, recording.whiteboard_pdf_url,
+            'Финальный PDF доски сохранен для вебинара %s, recording %s',
+            webinar.webinar_id, recording.recording_id,
         )
 
         return Response({
             'detail': 'Финальный PDF доски сохранен',
             'recording_id': str(recording.recording_id),
-            'whiteboard_pdf_url': recording.whiteboard_pdf_url,
         })
     
 

@@ -199,10 +199,6 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                   </div>
                   <OAuthButtons
                     containerClassName={styles.socialButtons}
-                    buttonClassName={styles.socialButton}
-                    vkButtonClassName={styles.loginVk}
-                    yandexButtonClassName={styles.loginYa}
-                    iconClassName={styles.socialIcon}
                   />
                   <div className={styles.linksContainer}>
                     <div className={styles.linkRow}>

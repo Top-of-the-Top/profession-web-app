@@ -6,7 +6,7 @@ type VerificationCodeInputProps = {
   value: OtpValue;
   onChange: (next: OtpValue) => void;
   disabled?: boolean;
-  label?: string;
+  label?: string | null;
   hint?: string;
   error?: string;
   className?: string;
@@ -31,7 +31,7 @@ export function VerificationCodeInput({
 }: VerificationCodeInputProps) {
   return (
     <div className={className}>
-      <Label className={labelClassName}>{label}</Label>
+      {label ? <Label className={labelClassName}>{label}</Label> : null}
       <OtpInput value={value} onChange={onChange} disabled={disabled} className={otpClassName} />
       {hint ? <p className={hintClassName}>{hint}</p> : null}
       {error ? <p className={cn(errorClassName)}>{error}</p> : null}

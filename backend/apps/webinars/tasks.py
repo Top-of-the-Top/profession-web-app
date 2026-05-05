@@ -1,7 +1,7 @@
 import logging
 import os
+
 from celery import shared_task
-import time as time_module
 
 logger = logging.getLogger(__name__)
 
@@ -80,15 +80,15 @@ def upload_recording_to_kinescope(self, recording_id):
     except Recording.DoesNotExist:
         logger.error('Recording %s не найден', recording_id)
         return {'status': 'error', 'detail': f'Recording {recording_id} not found'}
-    
+
     if not recording.recording_url:
         logger.warning('Recording %s: нет recording_url', recording_id)
         return {'status': 'skipped', 'detail': 'No recording URL'}
-    
+
     if recording.kinescope_video_id:
         logger.info('Recording %s: уже загружен в Kinescope', recording_id)
         return {'status': 'skipped', 'detail': 'Already uploaded'}
-    
+
     recording_url = recording.recording_url
     if not recording_url.startswith('http'):
         bucket = os.getenv('AWS_S3_BUCKET_NAME', 'profession-web-app')
@@ -130,7 +130,7 @@ def upload_recording_to_kinescope(self, recording_id):
         )
 
         return {'status': 'uploaded', 'video_id': video_id}
-    
+
     except Exception as exc:
         recording.kinescope_upload_status = 'failed'
         recording.save(update_fields=['kinescope_upload_status', 'updated_at'])

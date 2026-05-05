@@ -4,12 +4,9 @@ from .views import (
     HomeworkAttemptSubmitView,
     HomeworkAttemptView,
     HomeworkAttemptListView,
-    UploadFileAttachmentView
 )
 
-
 app_name = 'homeworks'
-
 
 urlpatterns = [
     path(
@@ -22,14 +19,12 @@ urlpatterns = [
         HomeworkAttemptSubmitView.as_view(),
         name='attempt-submit',
     ),
-    path(
-        'homeworks/<slug:homework_slug>/attempt/upload_file',
-        UploadFileAttachmentView.as_view(), 
-        name='attempt-upload'
-    ),
-    path(
-        'homeworks/attempts/',
-        HomeworkAttemptListView.as_view(),
-        name='attempts-list',
-    ),
+]
+
+urlpatterns += [
+  path(
+    'homeworks/attempts/',
+    HomeworkAttemptListView.as_view(),
+    name='attempts-list',
+  ),
 ]

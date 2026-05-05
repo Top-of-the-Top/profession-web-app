@@ -28,7 +28,10 @@ export const recoverEmailPassword = async (data: {
   password: string;
   token: string;
 }): Promise<LoginPayload> => {
-  const raw = await authApi.recoverEmail(data);
+  const raw = await authApi.recoverEmail({
+    token: data.token,
+    password: data.password_hash,
+  });
   const parsed = AuthTokensSchema.parse(raw);
   return toLoginPayload(parsed);
 };
@@ -37,7 +40,10 @@ export const recoverSetPassword = async (data: {
   password: string;
   token: string;
 }): Promise<LoginPayload> => {
-  const raw = await authApi.recoverSet(data);
+  const raw = await authApi.recoverSet({
+    token: data.token,
+    password: data.password_hash,
+  });
   const parsed = AuthTokensSchema.parse(raw);
   return toLoginPayload(parsed);
 };

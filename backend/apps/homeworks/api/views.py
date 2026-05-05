@@ -1,32 +1,22 @@
-from apps.core.services.presigned_url import PresignedUrlService
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from uuid import uuid4
 
 from apps.courses.models import Homework
+from apps.courses.api.schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
 from apps.homeworks.models import Attempt
 
-from ..services import (
-    AttemptAlreadySubmitted,
-    AttemptItemNotFound,
-    AttemptPayloadMismatch,
-    AttemptService,
-    AttemptValidationError,
-    HomeworkServiceError,
-    StorageUnavailable,
-    UploadFileTooLarge,
-)
+from ..services.attempt_service import AttemptService
+from ..services.errors import HomeworkServiceError
+
 from .serializers import (
     AttemptSerializer,
     AttemptSubmitSerializer,
     ErrorResponseSerializer,
-    AttemptListSerializer, 
-    UploadFileRequestSerializer,
-    S3UploadResponseSerializer,
+    AttemptListSerializer,
 )
 
 
@@ -37,27 +27,15 @@ HOMEWORK_SLUG_PARAM = OpenApiParameter(
     required=True,
 )
 
-
-SERVICE_ERROR_STATUS_MAP = {
-    AttemptAlreadySubmitted: status.HTTP_409_CONFLICT,
-    AttemptItemNotFound: status.HTTP_400_BAD_REQUEST,
-    AttemptPayloadMismatch: status.HTTP_400_BAD_REQUEST,
-    AttemptValidationError: status.HTTP_400_BAD_REQUEST,
-    UploadFileTooLarge: status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-    StorageUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
-}
-
-
-def _error_response(exc, http_status=None):
+def _error_response(exc):
     payload = {
         'status': 'error',
         'code': exc.code,
         'message': exc.message,
         'details': exc.details or {},
     }
-    if http_status is None:
-        http_status = SERVICE_ERROR_STATUS_MAP.get(type(exc), status.HTTP_400_BAD_REQUEST)
-    return Response(payload, status=http_status)
+
+    return Response(payload, status=exc.status)
 
 
 class HomeworkAttemptView(APIView):
@@ -65,6 +43,10 @@ class HomeworkAttemptView(APIView):
 
     @extend_schema(
         summary='Получить текущую попытку по домашке',
+        description=(
+            '**404**: домашка с таким slug не найдена (стандартный ответ DRF с полем detail). '
+            'Ошибки сервиса — тело вида ErrorResponse (**status**, **code**, **message**, **details**).'
+        ),
         tags=['Homework'],
         parameters=[HOMEWORK_SLUG_PARAM],
         responses={
@@ -72,7 +54,7 @@ class HomeworkAttemptView(APIView):
             400: ErrorResponseSerializer,
             401: ErrorResponseSerializer,
             403: ErrorResponseSerializer,
-            404: ErrorResponseSerializer,
+            404: SCHEMA_DETAIL,
             500: ErrorResponseSerializer,
         },
     )
@@ -96,10 +78,7 @@ class HomeworkAttemptListView(APIView):
         tags=['Home'],
         responses={
             200: AttemptListSerializer(many=True),
-            400: OpenApiTypes.OBJECT,
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            500: OpenApiTypes.OBJECT,
+            401: SCHEMA_DETAIL,
         },
     )
     def get(self, request):
@@ -111,10 +90,7 @@ class HomeworkAttemptListView(APIView):
             .prefetch_related('homework__question_set', 'homework__task_set')
             .order_by('-created_at')
         )
-        try:
-            data = AttemptListSerializer(attempts, many=True).data
-        except Exception as exc:
-            return _error_response(exc)
+        data = AttemptListSerializer(attempts, many=True).data
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -123,17 +99,23 @@ class HomeworkAttemptSubmitView(APIView):
 
     @extend_schema(
         summary='Отправить домашку на проверку',
+        description=(
+            '**400**: либо ошибки валидации тела (**AttemptSubmitSerializer**, формат полей DRF), '
+            'либо ошибка сервиса в форме ErrorResponse. **404**: домашка не найдена.'
+        ),
         tags=['Homework'],
         parameters=[HOMEWORK_SLUG_PARAM],
         request=AttemptSubmitSerializer,
         responses={
             201: AttemptSerializer,
-            400: ErrorResponseSerializer,
+            400: SCHEMA_VALIDATION,
             401: ErrorResponseSerializer,
             403: ErrorResponseSerializer,
+            404: SCHEMA_DETAIL,
             409: ErrorResponseSerializer,
             413: ErrorResponseSerializer,
             500: ErrorResponseSerializer,
+            503: ErrorResponseSerializer,
         },
     )
     def post(self, request, homework_slug):
@@ -163,49 +145,3 @@ class HomeworkAttemptSubmitView(APIView):
         data = AttemptSerializer(attempt, context={'request': request}).data
         return Response(data, status=status.HTTP_201_CREATED)
 
-class UploadFileAttachmentView(APIView):
-    permission_classes = (IsAuthenticated, )
-    
-    @extend_schema(
-        summary='Загрузить файл в хранилище',
-        tags=['Homework'],
-        parameters=[HOMEWORK_SLUG_PARAM],
-        request=UploadFileRequestSerializer,
-        responses={
-            201: S3UploadResponseSerializer,
-            400: OpenApiTypes.OBJECT, 
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            413: OpenApiTypes.OBJECT,
-            503: OpenApiTypes.OBJECT,
-        }
-    )
-    def post(self, request, homework_slug):
-        serializer = UploadFileRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return _error_response(
-                AttemptValidationError(details=serializer.errors)
-            )
-
-        payload = serializer.validated_data
-
-        if payload['file_size'] > 10 * 1024 * 1024:
-            return _error_response(UploadFileTooLarge())
-
-        unique_id = uuid4().hex[:8]
-        filepath = (
-            f"homeworks/{homework_slug}/"
-            f"task_{payload['task_id']}/"
-            f"attempt_{payload['attempt_id']}/"
-            f"{unique_id}_{payload['file_name']}.{payload['file_extension']}"
-        )
-
-        presigned_url_service = PresignedUrlService()
-        data = presigned_url_service.get_presigned_url_response(filepath)
-
-        if not data:
-            return _error_response(StorageUnavailable())
-
-        data['method'] = 'POST'
-
-        return Response(data=data, status=status.HTTP_201_CREATED)

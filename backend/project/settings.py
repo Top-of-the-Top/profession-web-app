@@ -7,9 +7,6 @@ import tempfile
 
 load_dotenv()
 
-ALLOWED_HOSTS = ['professionkid.ru', 'https://professionkid.ru']
-
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 ASGI_APPLICATION = "project.asgi.application"
@@ -39,8 +36,6 @@ INSTALLED_APPS = [
     'apps.payments.apps.PaymentsConfig',
     'drf_spectacular',
     'storages',
-    'django_celery_results',
-    'django_celery_beat',
     'apps.notifications.apps.NotificationsConfig',
     'sms',
     'apps.homeworks.apps.HomeworksConfig',
@@ -63,6 +58,19 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'crum.CurrentRequestUserMiddleware',
 ]
+
+if DEBUG:
+    INSTALLED_APPS += ['orbit']
+    MIDDLEWARE = ['orbit.middleware.OrbitMiddleware'] + MIDDLEWARE
+
+    ORBIT_CONFIG = {
+        'ENABLED': True,
+        'SLOW_QUERY_THRESHOLD_MS': 200,
+        'STORAGE_LIMIT': 2000,
+        'AUTH_CHECK': lambda request: True,
+        'IGNORE_PATHS': ['/orbit/', '/static/', '/media/', '/api/schema/'],
+        'WATCHER_FAIL_SILENTLY': True,
+    }
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -122,6 +130,11 @@ else:
             'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', 'localhost'),
             'PORT': os.getenv('DB_PORT', '5432'),
+            'CONN_MAX_AGE': 0,
+            'OPTIONS': {
+                'connect_timeout': 10,
+                'options': '-c statement_timeout=30000',
+            },
         }
     }
 
@@ -202,6 +215,10 @@ DEFAULT_FROM_SMS = os.getenv('DEFAULT_FROM_SMS', '+1234567890')
 NOTIFICORE_API_KEY = os.getenv('NOTIFICORE_API_KEY', '')
 NOTIFICORE_API_URL = os.getenv('NOTIFICORE_API_URL', '')
 
+KINESCOPE_API_TOKEN = os.getenv('KINESCOPE_API_TOKEN', '')
+KINESCOPE_PROJECT_ID = os.getenv('KINESCOPE_PROJECT_ID', '')
+ASSET_S3_EVENT_QUEUE_URL = os.getenv('ASSET_S3_EVENT_QUEUE_URL', '')
+
 if USE_S3:
     AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', 'https://storage.yandexcloud.net')
     AWS_S3_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
@@ -242,8 +259,20 @@ else:
 
 CELERY_BEAT_SCHEDULE = {
     'check-idle-webinars': {
-        'task': 'apps.courses.tasks.check_idle_webinars',
+        'task': 'apps.webinars.tasks.check_idle_webinars',
         'schedule': 60.0,
+    },
+    'assets-poll-s3-events': {
+        'task': 'apps.core.meta_management.tasks.poll_s3_upload_events',
+        'schedule': 30.0,
+    },
+    'assets-sweep-pending': {
+        'task': 'apps.core.meta_management.tasks.sweep_pending_assets',
+        'schedule': 600.0,
+    },
+    'assets-sweep-orphaned': {
+        'task': 'apps.core.meta_management.tasks.sweep_orphaned_assets',
+        'schedule': 3600.0,
     },
 }
 
@@ -255,21 +284,11 @@ if os.getenv('CI') or 'test' in sys.argv:
     CELERY_BROKER_URL='memory://'
 else:
     CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
-    CELERY_RESULT_BACKEND = 'django-db'
+    CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
     CELERY_ACCEPT_CONTENT = ['json']
     CELERY_TASK_SERIALIZER = 'json'
     CELERY_RESULT_SERIALIZER = 'json'
     CELERY_TIMEZONE = TIME_ZONE
-    CELERY_TASK_TRACK_STARTED = True
-
-    from celery.schedules import crontab
-
-    CELERY_BEAT_SCHEDULE = {
-        "Обновление контекста курсов" : {
-            "task": "synchronize_course_context",
-            "schedule": crontab(hour = 4, minute = 0),
-        }
-    }
 
 
 
@@ -277,7 +296,7 @@ RABBITMQ_URL = os.getenv('RABBITMQ_URL', 'amqp://guest:guest@rabbitmq:5672//')
 
 
 REDIS_PASS = os.getenv('REDIS_PASS', '')
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # Имя сервиса в docker-compose
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_KEY_PREFIX = os.getenv('REDIS_KEY_PREFIX', '')
 REDIS_BASE_URL = f'redis://:{REDIS_PASS}@{REDIS_HOST}:{REDIS_PORT}'
@@ -316,8 +335,8 @@ else:
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'PASSWORD': REDIS_PASS,
-                'SOCKET_CONNECT_TIMEOUT': 5, # Это таймаут на подключение
-                'SOCKET_TIMEOUT': 5, #  Это таймаут на чтение-запись
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
                 'CONNECTION_POOL_KWARGS': {
                     'max_connections': 100,
                     'retry_on_timeout': True,
@@ -325,7 +344,7 @@ else:
                 }
             },
             'KEY_PREFIX': REDIS_KEY_PREFIX,
-            'TIMEOUT': 600, # Время жизни кэша
+            'TIMEOUT': 600,
         },
         'hot': {
             'BACKEND': 'django_redis.cache.RedisCache',
@@ -333,8 +352,8 @@ else:
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'PASSWORD': REDIS_PASS,
-                'SOCKET_CONNECT_TIMEOUT': 5,  # Это таймаут на подключение
-                'SOCKET_TIMEOUT': 5,  # Это таймаут на чтение-запись
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
                 'CONNECTION_POOL_KWARGS': {
                     'max_connections': 100,
                     'retry_on_timeout': True,
@@ -359,7 +378,7 @@ else:
                 }
             },
             'KEY_PREFIX': REDIS_KEY_PREFIX,
-            'TIMEOUT': 3600,  # Время жизни кэша
+            'TIMEOUT': 3600,
         },
     }
 
@@ -385,6 +404,39 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [("redis", 6379)],
+        },
+    },
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'filters': {
+        'ignore_cancelled': {
+            '()': 'django.utils.log.CallbackFilter',
+            'callback': lambda record: 'CancelledError' not in record.getMessage(),
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'filters': ['ignore_cancelled'],
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
 }

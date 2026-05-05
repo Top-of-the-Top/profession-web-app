@@ -1,9 +1,10 @@
 from django.urls import path
 from .views import (
-  RegisterView, VerifyRegisterView, LoginView, RefreshTokenView,
-  ResetPasswordView, RecoverPasswordPhoneView, RecoverPasswordView, 
-  ProfileView, VerifyEmailChangeView, VerifyPhoneChangeView, VKCallbackAPIView,
-  VKOAauth2APIView, YandexCallbackAPIView, YandexOauth2APIView
+    RegisterView, VerifyRegisterView, LoginView, RefreshTokenView,
+    ResetPasswordView, RecoverPasswordPhoneView, RecoverPasswordView,
+    ProfileView, VerifyEmailChangeView, VerifyPhoneChangeView,
+    YandexCallbackAPIView, YandexOauth2APIView,
+    VKCallbackAPIView, VKOAauth2APIView,
 )
 
 app_name = 'users'

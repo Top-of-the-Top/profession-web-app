@@ -19,13 +19,13 @@ class YooKassaPaymentResponse:
     description: str
 
 
-class MockYooKassaService:  # Это мок-реализация платёжного шлюза ЮKassa.
+class MockYooKassaService:
 
     MOCK_BASE_URL = 'https://mock-yookassa.ru/payments'
-    SUCCESS_PROBABILITY = 0.8  # Это вероятность успешного платежа.
+    SUCCESS_PROBABILITY = 0.8
 
     @classmethod
-    def create_payment(  # Это метод для создания платежа в (мок) ЮKassa.
+    def create_payment(
         cls,
         amount: Decimal,
         currency: str = 'RUB',
@@ -53,7 +53,6 @@ class MockYooKassaService:  # Это мок-реализация платёжн�
         )
 
     @classmethod
-    # Это метод - заглушка для проверки статуса платежа
     def fetch_payment_status(cls, yookassa_id: str) -> dict:
         is_success = random.random() < cls.SUCCESS_PROBABILITY
         status = 'succeeded' if is_success else 'canceled'
@@ -70,7 +69,6 @@ class MockYooKassaService:  # Это мок-реализация платёжн�
         }
 
     @classmethod
-    # Это метод - заглушка для подтверждения платежа.
     def capture_payment(cls, yookassa_id: str) -> dict:
         logger.info('MockYooKassa: capture платежа %s', yookassa_id)
         return {
@@ -80,7 +78,6 @@ class MockYooKassaService:  # Это мок-реализация платёжн�
         }
 
     @classmethod
-    # Это метод - заглушка для возврата платежа.
     def refund_payment(cls, yookassa_id: str, amount: Decimal) -> dict:
         refund_id = str(uuid.uuid4())
         logger.info(

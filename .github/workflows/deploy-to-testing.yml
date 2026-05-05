@@ -44,18 +44,19 @@ jobs:
             migrations:
               - 'backend/**/migrations/**'
 
-      - name: Pull latest
+      - name: Update code and Reset Permissions
         run: |
-          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} BRANCH=${BRANCH} COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME} bash -se" << 'EOF'
+          ssh -o StrictHostKeyChecking=no github-actions@professionkid-testing.ru "APP_DIR=${APP_DIR} BRANCH=${BRANCH} bash -se" << 'EOF'
           set -Eeuo pipefail
+          
+          git config --global --add safe.directory "${APP_DIR}" || true
+          
           cd "${APP_DIR}"
-          export COMPOSE_PROJECT_NAME
           git fetch origin "${BRANCH}"
-          git checkout "${BRANCH}"
+          git checkout -B "${BRANCH}" "origin/${BRANCH}"
           git reset --hard "origin/${BRANCH}"
-          git clean -fd
-          docker compose down --remove-orphans || true
-          docker rm -f profession_web_app_backend flower || true
+          
+          git clean -ffd
           EOF
 
       - name: Build backend
@@ -95,4 +96,5 @@ jobs:
           cd "${APP_DIR}"
           export COMPOSE_PROJECT_NAME
           docker compose up -d --force-recreate --remove-orphans
+          docker image prune -f
           EOF

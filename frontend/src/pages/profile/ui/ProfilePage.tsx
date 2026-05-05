@@ -32,6 +32,11 @@ import {
   notifySuccess,
 } from '@shared/lib/sileo/notify';
 import { validateEmailOrPhone } from '@shared/utils/validation';
+import {
+  uploadMediaAsset,
+  MediaUploadError,
+} from '@shared/lib/uploads/uploadMediaAsset';
+import { IntentValidationError } from '@shared/lib/uploads/intentLimits';
 import { ProfilePageSkeleton } from './ProfilePageSkeleton';
 
 function notifyProfileSaveError(err: unknown) {
@@ -137,6 +142,7 @@ export default function ProfilePage() {
     avatar?: File | null;
   }) => {
     const prevAvatar = profile.avatar;
+    let blobUrl: string | null = null;
 
     try {
       const updateData: UpdateProfilePayload = {
@@ -144,10 +150,26 @@ export default function ProfilePage() {
         last_name: data.lastName,
       };
 
-      let blobUrl: string | null = null;
       if (data.avatar instanceof File) {
-        updateData.avatar = data.avatar;
         blobUrl = URL.createObjectURL(data.avatar);
+        try {
+          const { assetId } = await uploadMediaAsset('user_avatar', data.avatar);
+          updateData.avatar_asset_id = assetId;
+        } catch (err) {
+          if (
+            err instanceof IntentValidationError ||
+            err instanceof MediaUploadError
+          ) {
+            notifyError({
+              title: 'не удалось загрузить аватар',
+              description: err.message,
+            });
+          } else {
+            notifyProfileSaveError(err);
+          }
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+          throw err;
+        }
       }
 
       const optimistic: ProfileData = {
@@ -177,8 +199,14 @@ export default function ProfilePage() {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
       }
     } catch (err) {
-      notifyProfileSaveError(err);
+      if (
+        !(err instanceof IntentValidationError) &&
+        !(err instanceof MediaUploadError)
+      ) {
+        notifyProfileSaveError(err);
+      }
       setAvatarUrl(prevAvatar);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
       const reverted = await queryClient
         .fetchQuery({
           queryKey: profileKeys.me(),

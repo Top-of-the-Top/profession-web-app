@@ -20,5 +20,6 @@ export interface ApiUserResponse {
   gender: string | null;
   birthday: string | null;
   avatar: string | null;
+  avatar_url?: string | null;
 }
 

@@ -6,8 +6,6 @@ import type {
   HomeworkAttempt,
   HomeworkAttemptAttachment,
   HomeworkAttemptItem,
-  LessonCreatePayload,
-  LessonPatchPayload,
   LessonRecording,
   RawCourseBySlugResponse,
   RawCourseHomeResponse,
@@ -221,42 +219,3 @@ export function normalizeHomeworkAttempt(raw: RawHomeworkAttempt): HomeworkAttem
   };
 }
 
-const ASSET_PART_PREFIX = 'asset_' as const;
-
-function guessAssetType(file: File): string {
-  if (file.type.startsWith('video/')) return 'video';
-  return 'image';
-}
-
-export function buildLessonFormData(
-  payload: LessonCreatePayload | LessonPatchPayload,
-): FormData {
-  const fd = new FormData();
-
-  if (payload.title != null) fd.set('title', payload.title);
-  if ('section' in payload && payload.section != null)
-    fd.set('section', payload.section);
-  if ('lesson_num' in payload && (payload as LessonCreatePayload).lesson_num != null)
-    fd.set('lesson_num', String((payload as LessonCreatePayload).lesson_num));
-
-  const files = payload.files ?? {};
-  const assetIds = Object.keys(files);
-  const assets = assetIds.map((id) => ({
-    asset_id: Number(id),
-    asset_type: guessAssetType(files[id]),
-    asset_file: `${ASSET_PART_PREFIX}${id}`,
-  }));
-
-  const content: Record<string, unknown> = {
-    document: payload.document ?? '',
-    assets,
-  };
-  fd.set('content', JSON.stringify(content));
-
-  for (const id of assetIds) {
-    const file = files[id];
-    fd.set(`${ASSET_PART_PREFIX}${id}`, file, file.name || id);
-  }
-
-  return fd;
-}

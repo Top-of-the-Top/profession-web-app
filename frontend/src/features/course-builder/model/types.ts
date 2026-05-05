@@ -33,6 +33,7 @@ export type TextBlock = z.infer<typeof TextBlockSchema>;
 export const PhotoBlockSchema = BaseBlockSchema.extend({
   type: z.literal('photo'),
   url: z.string().optional().default(''),
+  assetId: z.string().optional(),
 });
 
 export type PhotoBlock = z.infer<typeof PhotoBlockSchema>;
@@ -40,6 +41,7 @@ export type PhotoBlock = z.infer<typeof PhotoBlockSchema>;
 export const VideoBlockSchema = BaseBlockSchema.extend({
   type: z.literal('video'),
   url: z.string().optional().default(''),
+  assetId: z.string().optional(),
 });
 
 export type VideoBlock = z.infer<typeof VideoBlockSchema>;

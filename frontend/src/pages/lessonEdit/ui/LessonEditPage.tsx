@@ -49,7 +49,6 @@ export default function LessonEditPage() {
       {
         title,
         document: payload.document,
-        files: payload.files,
       },
       {
         onSuccess: () => {

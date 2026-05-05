@@ -19,7 +19,6 @@ import {
   useHomeworkDetail,
 } from '@shared/api/queries/courses';
 import {
-  useRequestHomeworkUpload,
   useSubmitHomeworkAttempt,
 } from '@shared/api/mutations/courses';
 import type {
@@ -27,11 +26,10 @@ import type {
   HomeworkAttemptTaskItem,
   SubmitHomeworkAttemptItemPayload,
 } from '@shared/api/courseApi';
+import { uploadMediaAsset } from '@shared/lib/uploads/uploadMediaAsset';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import { notifyError, notifyInfo, notifySuccess } from '@shared/lib/sileo/notify';
 import styles from './HomeworkSubmissionPage.module.css';
-
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 function answerKey(type: 'question' | 'task', id: string): string {
   return `${type}:${id}`;
@@ -84,12 +82,12 @@ export default function HomeworkSubmissionPage() {
   const attemptQuery = useHomeworkAttempt(homeworkSlug);
   const detailQuery = useHomeworkDetail(courseSlug, lessonSlug, homeworkSlug);
   const submitAttempt = useSubmitHomeworkAttempt(homeworkSlug ?? '');
-  const uploadFileMutation = useRequestHomeworkUpload(homeworkSlug ?? '');
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [attachments, setAttachments] = useState<
     Record<string, HomeworkAttemptAttachment[]>
   >({});
+  const [uploadingTasks, setUploadingTasks] = useState<Record<string, boolean>>({});
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
 
   useEffect(() => {
@@ -118,62 +116,15 @@ export default function HomeworkSubmissionPage() {
 
   const handleUploadFile = async (task: HomeworkAttemptTaskItem, file: File) => {
     if (!homeworkSlug || !attemptQuery.data) return;
-    if (file.size > MAX_FILE_BYTES) {
-      notifyError({
-        title: 'Файл слишком большой',
-        description: 'Максимальный размер файла 10MB.',
-      });
-      return;
-    }
-
     const extension = normalizeFileExtension(file.name);
+    const taskKey = answerKey('task', task.task_id);
+    setUploadingTasks((prev) => ({ ...prev, [taskKey]: true }));
     try {
-      const uploadData = await uploadFileMutation.mutateAsync({
-        attempt_id: attemptQuery.data.attempt_id,
-        task_id: task.task_id,
-        file_name: file.name,
-        file_size: file.size,
-        file_extension: extension,
-      });
-
-      const method = uploadData.method.toUpperCase();
-      if (method === 'POST') {
-        const formData = new FormData();
-        Object.entries(uploadData.fields).forEach(([key, value]) => {
-          formData.append(key, value);
-        });
-        formData.append('file', file);
-        const uploadResponse = await fetch(uploadData.url, {
-          method: 'POST',
-          body: formData,
-        });
-        if (!uploadResponse.ok) {
-          throw new Error('Не удалось загрузить файл в хранилище.');
-        }
-      } else if (method === 'PUT') {
-        const uploadResponse = await fetch(uploadData.url, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': file.type || 'application/octet-stream',
-          },
-          body: file,
-        });
-        if (!uploadResponse.ok) {
-          throw new Error('Не удалось загрузить файл в хранилище.');
-        }
-      } else {
-        throw new Error('Неподдерживаемый метод загрузки файла.');
-      }
-
-      const key = uploadData.fields.key ?? file.name;
-      const uploadedFileUrl = key
-        ? `${uploadData.url.replace(/\/$/, '')}/${key}`
-        : uploadData.url;
-      const taskKey = answerKey('task', task.task_id);
+      const uploaded = await uploadMediaAsset('homework_attachment', file);
       const attachment: HomeworkAttemptAttachment = {
-        attachment_id: key,
+        attachment_id: uploaded.assetId,
         file_name: file.name,
-        file_url: uploadedFileUrl,
+        file_url: '',
         file_size: file.size,
         file_extension: extension,
       };
@@ -187,6 +138,8 @@ export default function HomeworkSubmissionPage() {
         title: 'Не удалось загрузить файл',
         description: extractApiMessage(err),
       });
+    } finally {
+      setUploadingTasks((prev) => ({ ...prev, [taskKey]: false }));
     }
   };
 
@@ -219,7 +172,9 @@ export default function HomeworkSubmissionPage() {
         id: item.task_id,
         number: item.number,
         user_answer: answers[taskKey] || null,
-        file_attachments: attachments[taskKey] ?? [],
+        asset_ids: (attachments[taskKey] ?? []).map(
+          (attachment) => attachment.attachment_id,
+        ),
       };
     });
 
@@ -443,7 +398,7 @@ export default function HomeworkSubmissionPage() {
                 <label className={styles.uploadButton}>
                   <input
                     type="file"
-                    disabled={!isDraft || uploadFileMutation.isPending}
+                    disabled={!isDraft || Boolean(uploadingTasks[answerKey('task', currentItem.task_id)])}
                     onChange={(event) => {
                       const file = event.currentTarget.files?.[0];
                       if (!file) return;

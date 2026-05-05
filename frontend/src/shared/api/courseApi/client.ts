@@ -1,6 +1,5 @@
 import { apiClient } from '../interceptor';
 import {
-  buildLessonFormData,
   normalizeCourseBySlugResponse,
   normalizeCourseHomeResponse,
   normalizeCoursesResponse,
@@ -17,7 +16,6 @@ import type {
   HomeworkCreatePayload,
   HomeworkDetail,
   HomeworkPatchPayload,
-  HomeworkUploadResponse,
   Lesson,
   LessonCreatePayload,
   LessonPatchPayload,
@@ -35,7 +33,6 @@ import type {
   SubmitHomeworkAttemptPayload,
   TaskCreatePayload,
   TaskPatchPayload,
-  UploadHomeworkFilePayload,
 } from './types';
 
 export const courseApi = {
@@ -107,33 +104,17 @@ export const courseApi = {
   },
 
   createLesson(courseSlug: string, payload: LessonCreatePayload): Promise<Lesson> {
-    const hasFiles = payload.files && Object.keys(payload.files).length > 0;
-    const hasDocument =
-      payload.document != null && String(payload.document).trim() !== '';
-
-    if (hasFiles || hasDocument) {
-      const body = hasFiles
-        ? buildLessonFormData(payload)
-        : JSON.stringify({
-            title: payload.title,
-            section: payload.section,
-            type: 'draft',
-            content: { document: payload.document ?? '', assets: [] },
-          });
-
-      return apiClient.request<Lesson>(`/api/courses/${courseSlug}/lessons/`, {
-        method: 'PUT',
-        body,
-      });
+    const body: Record<string, unknown> = {
+      title: payload.title,
+      type: 'draft',
+    };
+    if (payload.section !== undefined) body.section = payload.section;
+    if (payload.document !== undefined) {
+      body.content = { document: payload.document };
     }
-
     return apiClient.request<Lesson>(`/api/courses/${courseSlug}/lessons/`, {
-      method: 'POST',
-      body: JSON.stringify({
-        title: payload.title,
-        section: payload.section,
-        type: 'draft',
-      }),
+      method: 'PUT',
+      body: JSON.stringify(body),
     });
   },
 
@@ -142,24 +123,19 @@ export const courseApi = {
     lessonSlug: string,
     payload: LessonPatchPayload,
   ): Promise<Lesson> {
-    const hasFiles = payload.files && Object.keys(payload.files).length > 0;
-    const hasDocument = payload.document != null;
-
-    let body: FormData | string;
-    if (hasFiles || hasDocument) {
-      body = buildLessonFormData(payload);
-    } else {
-      const meta: Record<string, unknown> = { ...payload };
-      delete meta.files;
-      delete meta.document;
-      body = JSON.stringify(meta);
+    const body: Record<string, unknown> = {};
+    if (payload.title !== undefined) body.title = payload.title;
+    if (payload.section !== undefined) body.section = payload.section;
+    if (payload.type !== undefined) body.type = payload.type;
+    if (payload.date_time !== undefined) body.date_time = payload.date_time;
+    if (payload.document !== undefined) {
+      body.content = { document: payload.document };
     }
-
     return apiClient.request<Lesson>(
       `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
       {
         method: 'PUT',
-        body,
+        body: JSON.stringify(body),
       },
     );
   },
@@ -235,19 +211,6 @@ export const courseApi = {
         body: JSON.stringify(payload),
       })
       .then(normalizeHomeworkAttempt);
-  },
-
-  requestHomeworkUpload(
-    homeworkSlug: string,
-    payload: UploadHomeworkFilePayload,
-  ): Promise<HomeworkUploadResponse> {
-    return apiClient.request<HomeworkUploadResponse>(
-      `/api/homeworks/${homeworkSlug}/attempt/upload_file`,
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      },
-    );
   },
 
   patchHomework(

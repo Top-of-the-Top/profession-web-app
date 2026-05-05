@@ -125,7 +125,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   const navigate = useNavigate();
   const {
     layout,
-    pendingFiles,
+    pendingUploads,
     setTitle,
     addBlockAt,
     updateBlock,
@@ -133,6 +133,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     removeBlock,
     toJSON,
     toSubmitPayload,
+    hasPendingUploads,
   } = useLessonBuilderStore();
   const {
     initialize: initHomework,
@@ -161,8 +162,10 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   const currentSignature = JSON.stringify({
     lesson: layout,
     homework: homeworkLayout,
-    pendingFileIds: Object.keys(pendingFiles).sort(),
+    pendingUploadIds: Object.keys(pendingUploads).sort(),
   });
+
+  const uploadingInProgress = hasPendingUploads();
 
   const currentSignatureRef = useRef(currentSignature);
   useEffect(() => {
@@ -383,6 +386,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
       );
     }
     if (block.type === 'photo') {
+      const upload = pendingUploads[block.id];
       return (
         <div
           className={styles.blockBody}
@@ -429,10 +433,23 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
               />
             </div>
           </label>
+          {upload?.phase === 'uploading' && (
+            <span className={styles.uploadStatus}>
+              {typeof upload.progressPercent === 'number'
+                ? `Загрузка… ${upload.progressPercent}%`
+                : 'Загрузка…'}
+            </span>
+          )}
+          {upload?.phase === 'error' && (
+            <span className={styles.uploadStatusError}>
+              Ошибка: {upload.errorMessage}
+            </span>
+          )}
         </div>
       );
     }
     if (block.type === 'video') {
+      const upload = pendingUploads[block.id];
       return (
         <div
           className={styles.blockBody}
@@ -477,6 +494,18 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
               />
             </div>
           </label>
+          {upload?.phase === 'uploading' && (
+            <span className={styles.uploadStatus}>
+              {typeof upload.progressPercent === 'number'
+                ? `Загрузка… ${upload.progressPercent}%`
+                : 'Загрузка…'}
+            </span>
+          )}
+          {upload?.phase === 'error' && (
+            <span className={styles.uploadStatusError}>
+              Ошибка: {upload.errorMessage}
+            </span>
+          )}
         </div>
       );
     }
@@ -711,12 +740,16 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
                       isSavedStatus ? styles.unsavedIndicatorSaved : styles.unsavedIndicatorDirty
                     }
                   >
-                    {isSavedStatus ? 'Сохранено' : 'Не сохранено'}
+                    {uploadingInProgress
+                      ? 'Загрузка медиа…'
+                      : isSavedStatus
+                        ? 'Сохранено'
+                        : 'Не сохранено'}
                   </span>
                   <button
                     type="button"
                     className={`${styles.button} ${styles.buttonSecondary}`}
-                    disabled={saving}
+                    disabled={saving || uploadingInProgress}
                     onClick={() => onSave(toSubmitPayload())}
                   >
                     {saving ? 'Сохранение…' : 'Сохранить черновик'}

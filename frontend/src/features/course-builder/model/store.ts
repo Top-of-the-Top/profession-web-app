@@ -1,8 +1,16 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import type { Block, BlockType, LessonLayout } from './types';
+import type { Block, BlockType, LessonLayout, PhotoBlock, VideoBlock } from './types';
 import { serializeLessonLayout } from './types';
-import { makeStructureMediaPlaceholder } from '../api/courseBuilderApi';
+import {
+  uploadMediaAsset,
+  assetUri,
+  MediaUploadError,
+} from '@shared/lib/uploads/uploadMediaAsset';
+import {
+  IntentValidationError,
+} from '@shared/lib/uploads/intentLimits';
+import type { MediaIntent } from '@shared/api/uploadsApi';
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -13,14 +21,24 @@ import {
   DEFAULT_FONT_SIZE_INDEX,
 } from '../lib/constants';
 
+export type PendingUploadPhase = 'uploading' | 'ready' | 'error';
+
+export interface PendingUpload {
+  phase: PendingUploadPhase;
+  file?: File;
+  blobUrl?: string;
+  assetId?: string;
+  errorMessage?: string;
+  progressPercent?: number;
+}
+
 export interface SubmitPayload {
   document: string;
-  files: Record<string, File>;
 }
 
 interface LessonBuilderState {
   layout: LessonLayout;
-  pendingFiles: Record<string, File>;
+  pendingUploads: Record<string, PendingUpload>;
 }
 
 interface LessonBuilderActions {
@@ -35,6 +53,7 @@ interface LessonBuilderActions {
   resizeBlock: (blockId: string, w: number, h: number) => void;
   toJSON: () => LessonLayout;
   toSubmitPayload: () => SubmitPayload;
+  hasPendingUploads: () => boolean;
 }
 
 export type LessonBuilderStore = LessonBuilderState & LessonBuilderActions;
@@ -58,27 +77,28 @@ const rectsIntersect = (a: Block, b: Block): boolean => {
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
-const LOCAL_ASSET_RE = /^local:\/\/(\d+)$/;
-const REMOTE_ASSET_RE = /\/asset_(\d+)(?:\.[^/?#]+)?(?:[?#].*)?$/;
+function intentForBlock(type: 'photo' | 'video'): MediaIntent {
+  return type === 'video' ? 'lesson_video' : 'lesson_image';
+}
 
-const extractAssetId = (url: string | undefined): number | null => {
-  if (!url) return null;
-  const localMatch = url.match(LOCAL_ASSET_RE);
-  if (localMatch) return Number(localMatch[1]);
-  const remoteMatch = url.match(REMOTE_ASSET_RE);
-  if (remoteMatch) return Number(remoteMatch[1]);
-  return null;
-};
+function revokeBlobUrl(url: string | undefined): void {
+  if (url && url.startsWith('blob:')) {
+    URL.revokeObjectURL(url);
+  }
+}
 
 export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
   layout: createEmptyLayout(),
-  pendingFiles: {},
+  pendingUploads: {},
 
-  initialize: (layout) =>
+  initialize: (layout) => {
+    const prev = get().pendingUploads;
+    Object.values(prev).forEach((entry) => revokeBlobUrl(entry.blobUrl));
     set(() => ({
       layout,
-      pendingFiles: {},
-    })),
+      pendingUploads: {},
+    }));
+  },
 
   setTitle: (title) =>
     set((state) => ({
@@ -91,7 +111,6 @@ export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
       const w = isMedia ? MIN_MEDIA_BLOCK_W : MIN_TEXT_BLOCK_W;
       const h = isMedia ? MIN_MEDIA_BLOCK_H : MIN_TEXT_BLOCK_H;
 
-      // поиск первого свободного места w×h
       let targetX = 0;
       let targetY = 0;
       outer: for (let y = 0; y <= GRID_ROWS - h; y += 1) {
@@ -191,28 +210,105 @@ export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
       },
     })),
 
-  setBlockFile: (blockId, file) =>
-    set((state) => {
-      const previewUrl = URL.createObjectURL(file);
-      return {
-        pendingFiles: { ...state.pendingFiles, [blockId]: file },
-        layout: {
-          ...state.layout,
-          blocks: state.layout.blocks.map((block) =>
-            block.id === blockId
-              ? ({ ...block, url: previewUrl } as Block)
-              : block,
-          ),
-        },
-      };
-    }),
+  setBlockFile: (blockId, file) => {
+    const state = get();
+    const block = state.layout.blocks.find((b) => b.id === blockId);
+    if (!block || (block.type !== 'photo' && block.type !== 'video')) return;
+
+    const previousEntry = state.pendingUploads[blockId];
+    revokeBlobUrl(previousEntry?.blobUrl);
+
+    const blobUrl = URL.createObjectURL(file);
+    const intent = intentForBlock(block.type);
+
+    set((current) => ({
+      pendingUploads: {
+        ...current.pendingUploads,
+        [blockId]: { phase: 'uploading', file, blobUrl },
+      },
+      layout: {
+        ...current.layout,
+        blocks: current.layout.blocks.map((b) =>
+          b.id === blockId
+            ? ({ ...(b as PhotoBlock | VideoBlock), url: blobUrl, assetId: undefined } as Block)
+            : b,
+        ),
+      },
+    }));
+
+    void uploadMediaAsset(intent, file, {
+      onProgress: (event) => {
+        if (event.phase !== 'uploading') return;
+        const percent = event.progressPercent;
+        if (percent == null) return;
+        const latest = get();
+        const entry = latest.pendingUploads[blockId];
+        if (!entry || entry.blobUrl !== blobUrl) return;
+        set((current) => ({
+          pendingUploads: {
+            ...current.pendingUploads,
+            [blockId]: {
+              ...current.pendingUploads[blockId],
+              phase: 'uploading',
+              progressPercent: percent,
+            },
+          },
+        }));
+      },
+    })
+      .then(({ assetId }) => {
+        const latest = get();
+        if (latest.pendingUploads[blockId]?.blobUrl !== blobUrl) {
+          return;
+        }
+        set((current) => ({
+          pendingUploads: {
+            ...current.pendingUploads,
+            [blockId]: { phase: 'ready', file, blobUrl, assetId, progressPercent: 100 },
+          },
+          layout: {
+            ...current.layout,
+            blocks: current.layout.blocks.map((b) =>
+              b.id === blockId
+                ? ({ ...(b as PhotoBlock | VideoBlock), assetId } as Block)
+                : b,
+            ),
+          },
+        }));
+      })
+      .catch((err: unknown) => {
+        const latest = get();
+        if (latest.pendingUploads[blockId]?.blobUrl !== blobUrl) {
+          return;
+        }
+        const message =
+          err instanceof IntentValidationError || err instanceof MediaUploadError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : 'Не удалось загрузить файл.';
+        set((current) => ({
+          pendingUploads: {
+            ...current.pendingUploads,
+            [blockId]: {
+              phase: 'error',
+              file,
+              blobUrl,
+              errorMessage: message,
+            },
+          },
+        }));
+      });
+  },
 
   removeBlock: (blockId) =>
     set((state) => {
-      const remainingFiles = { ...state.pendingFiles };
-      delete remainingFiles[blockId];
+      const remainingUploads = { ...state.pendingUploads };
+      const removed = remainingUploads[blockId];
+      delete remainingUploads[blockId];
+      revokeBlobUrl(removed?.blobUrl);
       return {
-        pendingFiles: remainingFiles,
+        pendingUploads: remainingUploads,
         layout: {
           ...state.layout,
           blocks: state.layout.blocks.filter((block) => block.id !== blockId),
@@ -269,48 +365,25 @@ export const useLessonBuilderStore = create<LessonBuilderStore>((set, get) => ({
   },
 
   toSubmitPayload: () => {
-    const { layout, pendingFiles } = get();
+    const { layout } = get();
     const serialized = serializeLessonLayout(layout);
-    const blockAssetIds: Record<string, string> = {};
-    const filesByAssetId: Record<string, File> = {};
-    const usedAssetIds = new Set<number>();
-
-    for (const block of serialized.blocks) {
-      if (block.type !== 'photo' && block.type !== 'video') continue;
-      const currentAssetId = extractAssetId(block.url);
-      if (currentAssetId != null) usedAssetIds.add(currentAssetId);
-    }
-
-    let nextAssetId = usedAssetIds.size > 0 ? Math.max(...usedAssetIds) + 1 : 1;
-
-    for (const block of serialized.blocks) {
-      if (
-        (block.type === 'photo' || block.type === 'video') &&
-        pendingFiles[block.id]
-      ) {
-        while (usedAssetIds.has(nextAssetId)) {
-          nextAssetId += 1;
-        }
-        const assetId = String(nextAssetId);
-        usedAssetIds.add(nextAssetId);
-        nextAssetId += 1;
-        blockAssetIds[block.id] = assetId;
-        filesByAssetId[assetId] = pendingFiles[block.id];
-      }
-    }
 
     const blocks = serialized.blocks.map((block) => {
-      const assetId = blockAssetIds[block.id];
-      if ((block.type === 'photo' || block.type === 'video') && assetId) {
-        return { ...block, url: makeStructureMediaPlaceholder(assetId) };
+      if (block.type !== 'photo' && block.type !== 'video') return block;
+      const mediaBlock = block as PhotoBlock | VideoBlock;
+      if (mediaBlock.assetId) {
+        return { ...mediaBlock, url: assetUri(mediaBlock.assetId) };
       }
       return block;
     });
 
     return {
       document: JSON.stringify({ ...serialized, blocks }),
-      files: filesByAssetId,
     };
   },
-}));
 
+  hasPendingUploads: () => {
+    const uploads = get().pendingUploads;
+    return Object.values(uploads).some((entry) => entry.phase === 'uploading');
+  },
+}));

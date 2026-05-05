@@ -115,7 +115,11 @@ export default function AppHomePage() {
       ) : (
         <div className={styles.grid}>
           {items.map((item) => (
-            <CourseCard key={item.course_id} item={item} onOpen={openCourse} />
+            <CourseCard
+              key={String(item.id)}
+              item={item.course}
+              onOpen={openCourse}
+            />
           ))}
         </div>
       )}

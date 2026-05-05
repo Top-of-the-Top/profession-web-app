@@ -33,3 +33,7 @@ __pycache__/
 .cursor/
 .claude/
 docs/
+
+celerybeat-schedule-wal
+celerybeat-schedule
+celerybeat-schedule-shm

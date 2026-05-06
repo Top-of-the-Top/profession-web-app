@@ -322,6 +322,7 @@ function SubscribeOnlyInner({
   rtcUidToLabel,
   onRecorderChannelPresence,
   onSubscribeOnlyAnyRemoteVideo,
+  children,
 }: VideoGridBaseProps & {
   onSubscribeOnlyAnyRemoteVideo?: (anyHasVideo: boolean) => void;
 }) {
@@ -422,6 +423,7 @@ function SubscribeOnlyInner({
           />
         ))}
       </div>
+      {children ? <div className={styles.chatArea}>{children}</div> : null}
     </div>
   );
 }
@@ -444,6 +446,7 @@ export function VideoGrid(props: VideoGridProps) {
           rtcUidToLabel={props.rtcUidToLabel}
           onRecorderChannelPresence={props.onRecorderChannelPresence}
           onSubscribeOnlyAnyRemoteVideo={props.onSubscribeOnlyAnyRemoteVideo}
+          children={props.children}
         />
       ) : (
         <PublisherInner

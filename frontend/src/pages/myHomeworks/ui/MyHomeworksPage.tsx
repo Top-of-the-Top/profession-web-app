@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import {
   PageFrame,
@@ -14,8 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@shared/ui';
-import { useMyHomeworks } from '@shared/api/queries/courses';
-import { useCoursesForHome } from '@shared/api/queries/courses';
+import { useMyHomeworks, useCoursesForHome, useCourseHomeBySlug } from '@shared/api/queries/courses';
 import type {
   MyHomeworkStudentItem,
   MyHomeworkTeacherAttempt,
@@ -272,7 +271,6 @@ function TeacherView({
 
 export default function MyHomeworksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { hasAny } = useRole();
   const isTeacher = hasAny('teacher', 'moderator');
 
@@ -280,34 +278,17 @@ export default function MyHomeworksPage() {
   const lessonSlug = searchParams.get('lesson_slug') ?? undefined;
 
   const coursesQuery = useCoursesForHome();
+  const courseHomeQuery = useCourseHomeBySlug(courseSlug);
   const homeworksQuery = useMyHomeworks(courseSlug, lessonSlug);
 
   const courses = coursesQuery.data ?? [];
 
-  // Lessons for the selected course derived from course-home data
-  // We don't have lesson list here so we skip lesson sub-filter unless backend returns it
-  // The lesson selector is driven by URL only; user picks from available slugs in results
-
   const availableLessons = useMemo<Array<{ slug: string; title: string }>>(() => {
-    if (!homeworksQuery.data) return [];
-    if (homeworksQuery.data.role === 'student') {
-      const seen = new Map<string, string>();
-      for (const item of homeworksQuery.data.items) {
-        if (!seen.has(item.lesson_slug)) {
-          seen.set(item.lesson_slug, item.lesson_slug);
-        }
-      }
-      return Array.from(seen.entries()).map(([slug]) => ({ slug, title: slug }));
-    } else {
-      const seen = new Map<string, string>();
-      for (const item of homeworksQuery.data.items) {
-        if (!seen.has(item.lesson_slug)) {
-          seen.set(item.lesson_slug, item.lesson_slug);
-        }
-      }
-      return Array.from(seen.entries()).map(([slug]) => ({ slug, title: slug }));
-    }
-  }, [homeworksQuery.data]);
+    if (!courseHomeQuery.data) return [];
+    return courseHomeQuery.data.content.flatMap((section) =>
+      section.lessons.map((l) => ({ slug: l.slug, title: l.title })),
+    );
+  }, [courseHomeQuery.data]);
 
   function setFilter(key: 'course_slug' | 'lesson_slug', value: string | undefined) {
     setSearchParams((prev) => {
@@ -325,8 +306,6 @@ export default function MyHomeworksPage() {
     });
   }
 
-  const _ = navigate; // suppress unused warning
-
   return (
     <PageFrame>
       <div className={styles.wrap}>
@@ -338,14 +317,14 @@ export default function MyHomeworksPage() {
           <span className={styles.filterLabel}>Курс:</span>
           <div className={styles.filterSelect}>
             <Select
-              value={courseSlug ?? ''}
-              onValueChange={(val) => setFilter('course_slug', val || undefined)}
+              value={courseSlug ?? '__all__'}
+              onValueChange={(val) => setFilter('course_slug', val === '__all__' ? undefined : val)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Все курсы" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Все курсы</SelectItem>
+                <SelectItem value="__all__">Все курсы</SelectItem>
                 {courses.map((c) => (
                   <SelectItem key={c.slug} value={c.slug}>
                     {c.title}
@@ -360,14 +339,14 @@ export default function MyHomeworksPage() {
               <span className={styles.filterLabel}>Урок:</span>
               <div className={styles.filterSelect}>
                 <Select
-                  value={lessonSlug ?? ''}
-                  onValueChange={(val) => setFilter('lesson_slug', val || undefined)}
+                  value={lessonSlug ?? '__all__'}
+                  onValueChange={(val) => setFilter('lesson_slug', val === '__all__' ? undefined : val)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Все уроки" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Все уроки</SelectItem>
+                    <SelectItem value="__all__">Все уроки</SelectItem>
                     {availableLessons.map((l) => (
                       <SelectItem key={l.slug} value={l.slug}>
                         {l.title}
@@ -380,7 +359,11 @@ export default function MyHomeworksPage() {
           )}
         </div>
 
-        {homeworksQuery.isLoading ? (
+        {!courseSlug || !lessonSlug ? (
+          <div className={styles.centered} style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
+            Выберите курс и урок для просмотра заданий
+          </div>
+        ) : homeworksQuery.isLoading ? (
           <div className={styles.centered}>
             <Spinner />
           </div>

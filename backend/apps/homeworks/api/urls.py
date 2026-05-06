@@ -1,8 +1,10 @@
 from django.urls import path
 
 from .views import (
-    HomeworkAttemptSubmitView,
+    AttemptDetailView,
+    AttemptReviewView,
     HomeworkAttemptView,
+    HomeworkAttemptSubmitView,
     HomeworkAttemptListView,
 )
 
@@ -10,21 +12,28 @@ app_name = 'homeworks'
 
 urlpatterns = [
     path(
-        'homeworks/<slug:homework_slug>/attempt/',
+        'courses/<slug:course_slug>/attempts/',
+        HomeworkAttemptListView.as_view(),
+        name='attempts-list',
+    ),
+    path(
+        'courses/<slug:course_slug>/homeworks/<slug:homework_slug>/attempt/',
         HomeworkAttemptView.as_view(),
         name='attempt',
     ),
     path(
-        'homeworks/<slug:homework_slug>/attempt/submit',
+        'courses/<slug:course_slug>/homeworks/<slug:homework_slug>/attempt/submit/',
         HomeworkAttemptSubmitView.as_view(),
         name='attempt-submit',
     ),
-]
-
-urlpatterns += [
-  path(
-    'homeworks/attempts/',
-    HomeworkAttemptListView.as_view(),
-    name='attempts-list',
-  ),
+    path(
+        'courses/<slug:course_slug>/attempts/<uuid:attempt_id>/',
+        AttemptDetailView.as_view(),
+        name='attempt-detail',
+    ),
+    path(
+        'courses/<slug:course_slug>/attempts/<uuid:attempt_id>/review/',
+        AttemptReviewView.as_view(),
+        name='attempt-review',
+    ),
 ]

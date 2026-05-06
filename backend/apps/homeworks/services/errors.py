@@ -46,3 +46,21 @@ class StorageUnavailable(HomeworkServiceError):
     code = 'STORAGE_ERROR'
     message = 'Не удалось связаться с облачным хранилищем.'
     status = status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+class AttemptNotSubmitted(HomeworkServiceError):
+    code = 'ATTEMPT_NOT_SUBMITTED'
+    message = 'Попытка ещё не отправлена на проверку.'
+    status = status.HTTP_409_CONFLICT
+
+
+class ReviewItemNotFound(HomeworkServiceError):
+    code = 'REVIEW_ITEM_NOT_FOUND'
+    message = 'Ответ на задание не найден в данной попытке.'
+    status = status.HTTP_400_BAD_REQUEST
+
+
+class ReviewPointsExceeded(HomeworkServiceError):
+    code = 'REVIEW_POINTS_EXCEEDED'
+    message = 'Выставленные баллы превышают максимум за задание.'
+    status = status.HTTP_400_BAD_REQUEST

@@ -59,8 +59,6 @@ class AttemptService:
 
         normalized = [self._normalize_item(item) for item in items]
 
-        # S3 HEAD-вызовы делаем ДО транзакции — держать соединение открытым
-        # пока идут сетевые запросы не нужно.
         self._preflight_assets(normalized, owner=attempt.user)
 
         with transaction.atomic():
@@ -73,10 +71,6 @@ class AttemptService:
 
         attempt.refresh_from_db()
         return attempt
-
-    # ------------------------------------------------------------------ #
-    # Internal                                                             #
-    # ------------------------------------------------------------------ #
 
     def _prefill_answers(self, attempt):
         homework = attempt.homework
@@ -98,10 +92,7 @@ class AttemptService:
         )
 
     def _preflight_assets(self, items, owner):
-        """
-        Проверяет и при необходимости коммитит ассеты ДО открытия DB-транзакции.
-        Все S3 HEAD-вызовы происходят здесь, а не внутри atomic-блока.
-        """
+ 
         asset_service = build_asset_service()
 
         for item in items:
@@ -124,7 +115,6 @@ class AttemptService:
                     )
 
                 if asset.status == AssetStatus.PENDING:
-                    # Пробуем закоммитить — делает HEAD в S3
                     try:
                         asset_service.commit_asset(asset.asset_id)
                     except AssetError:
@@ -140,7 +130,6 @@ class AttemptService:
                     )
 
     def _apply_items(self, attempt, items):
-        """Только DB-операции. S3-вызовов нет — ассеты уже READY после preflight."""
         question_by_id = {str(qa.question_id): qa for qa in attempt.question_answers.all()}
         task_by_id = {str(ta.task_id): ta for ta in attempt.task_answers.all()}
 

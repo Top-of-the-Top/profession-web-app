@@ -127,25 +127,35 @@ class TaskAnswer(EstimatedMixin, TimestampedMixin):
     
 
 class TaskReview(TimestampedMixin):
-    task_review_id =  models.UUIDField(primary_key=True, verbose_name="id", default=uuid.uuid4)
-    answer = models.OneToOneField(TaskAnswer, on_delete=models.CASCADE)
+    task_review_id = models.UUIDField(primary_key=True, verbose_name="id", default=uuid.uuid4)
+    answer = models.OneToOneField(
+        TaskAnswer,
+        on_delete=models.CASCADE,
+        related_name='review',
+    )
+    reviewer = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='task_reviews',
+        verbose_name='Проверяющий',
+    )
 
     comment = models.TextField(
         max_length=1500,
         verbose_name="Комментарий преподавателя",
         null=True,
         blank=True,
-        default=None
+        default=None,
     )
-
-    point = models.PositiveIntegerField(verbose_name="Выставленные баллы", default=0)
+    points = models.PositiveIntegerField(verbose_name="Выставленные баллы", default=0)
 
     def clean(self):
-        if self.points is not None and self.points > self.answer.task.max_points:
+        if self.points > self.answer.task.max_points:
             raise ValidationError({
-                'points': f'За задание {self.answer.answer} можно выстовить максимум {self.answer.task.max_points}'
+                'points': f'Максимум за задание: {self.answer.task.max_points}'
             })
-        
+
     class Meta:
         verbose_name = 'Ревью задания с развернутым ответом'
         verbose_name_plural = 'Ревью заданий с развернутым ответом'

@@ -1,5 +1,18 @@
+.pageRoot {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .breadcrumbWrap {
   margin-bottom: 16px;
+  width: 100%;
+}
+
+.centeredColumn {
+  width: 100%;
+  max-width: 1000px;
+  margin-inline: auto;
+  box-sizing: border-box;
 }
 
 .topNav {
@@ -51,10 +64,16 @@
   color: #fff;
 }
 
+.stepButtonAnswered {
+  border-color: #b8d0ff;
+  background: #edf3ff;
+  color: #1d2939;
+}
+
 .contentGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 230px;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  gap: 28px;
   align-items: start;
 }
 
@@ -121,13 +140,19 @@
   margin-top: 20px;
 }
 
+.answerEditorWrap {
+  width: 100%;
+}
+
 .answerEditor {
   width: 100%;
   min-height: 180px;
 }
 
 .answerEditor :global([contenteditable='true']) {
-  min-height: 136px;
+  max-height: calc(60vh - 5.25rem);
+  min-height: 120px;
+  overflow-y: auto;
   font-size: 15px;
 }
 
@@ -141,6 +166,13 @@
   font-size: 15px;
   line-height: 1.45;
   background: #f8fafc;
+}
+
+.answerPreviewBounded {
+  max-height: 60vh;
+  min-height: 120px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .answerPreview p,
@@ -318,7 +350,7 @@
 }
 
 .answerActionRow button {
-  background: #1d2939 !important;
+  background: #211c84 !important;
   color: #fff !important;
   border-radius: 10px !important;
   padding: 9px 22px !important;
@@ -328,7 +360,7 @@
 }
 
 .answerActionRow button:hover:not(:disabled) {
-  background: #101828 !important;
+  background: #1a1670 !important;
 }
 
 .sideCard {
@@ -365,15 +397,6 @@
   gap: 8px;
 }
 
-.statusBadge {
-  width: fit-content;
-  border-radius: 999px;
-  padding: 4px 10px;
-  background: #e7e7f6;
-  color: #211c84;
-  font-size: 12px;
-}
-
 .deadlineText {
   font-size: 12px;
   color: #667085;
@@ -408,6 +431,58 @@
 
 .errorActions {
   display: flex;
+  gap: 10px;
+}
+
+/* Slide animations */
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(-32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.slideInLeft {
+  animation: slideInLeft 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.slideInRight {
+  animation: slideInRight 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* Confirm dialog */
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 24px 20px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+}
+
+.dialogText {
+  margin: 0 0 20px;
+  font-size: 15px;
+  color: #1d2939;
+  line-height: 1.5;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
   gap: 10px;
 }
 

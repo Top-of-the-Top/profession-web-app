@@ -292,7 +292,7 @@ class UploadRecordingTaskTest(BaseWebinarTestCase):
             storage_key='kinescope-vid-1',
         )
         self.assertEqual(asset.status, AssetStatus.PENDING)
-        self.assertEqual(asset.visibility, 'public')
+        self.assertEqual(asset.visibility, 'course_paid')
 
         ct = ContentType.objects.get_for_model(Recording)
         usage = AssetUsage.objects.get(

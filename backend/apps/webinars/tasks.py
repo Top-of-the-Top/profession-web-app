@@ -132,7 +132,7 @@ def upload_recording_to_kinescope(self, recording_id):
             backend_name='kinescope',
             storage_key=video_id,
             owner=recording.started_by,
-            visibility=AssetVisibility.PUBLIC,
+            visibility=AssetVisibility.COURSE_PAID,
         )
         service.bind_asset(asset, recording, role='webinar_recording')
 

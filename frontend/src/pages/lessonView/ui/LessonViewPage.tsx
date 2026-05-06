@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Home, Clock3, Video, CircleCheck, FileDown, Trash2 } from 'lucide-react';
@@ -674,6 +681,9 @@ const LessonRecordingCard: React.FC<{
   );
 };
 
+const TITLE_CENTER_MIN_WIDTH = 130;
+const TITLE_CENTER_MAX_WIDTH = 560;
+
 /* ── Page ── */
 
 export default function LessonViewPage() {
@@ -698,6 +708,8 @@ export default function LessonViewPage() {
     useState<RecordingDeleteConfirm>(null);
   const [leavingRecordingId, setLeavingRecordingId] = useState<string | null>(null);
   const leavingRecordingIdRef = useRef<string | null>(null);
+  const titleMeasureRef = useRef<HTMLSpanElement>(null);
+  const [titleCenterWidth, setTitleCenterWidth] = useState(TITLE_CENTER_MIN_WIDTH);
 
   const completeRecordingLeaveAnimation = useCallback(() => {
     const id = leavingRecordingIdRef.current;
@@ -719,6 +731,18 @@ export default function LessonViewPage() {
       };
     }
   }, [lessonDetail]);
+
+  useLayoutEffect(() => {
+    const node = titleMeasureRef.current;
+    if (!node) return;
+    const measured = Math.ceil(node.getBoundingClientRect().width) + 44;
+    setTitleCenterWidth(
+      Math.min(
+        TITLE_CENTER_MAX_WIDTH,
+        Math.max(TITLE_CENTER_MIN_WIDTH, measured),
+      ),
+    );
+  }, [lessonDetail?.title]);
 
   const loading = lessonQuery.isLoading;
   if (loading) {
@@ -792,9 +816,59 @@ export default function LessonViewPage() {
         <div className={styles.mainColumn}>
           <div className={styles.lessonHeader}>
             <div className={styles.lessonHeaderTrapezoid}>
-              <h1 className={styles.lessonTitleTrapezoid}>
-                {lessonDetail.title}
-              </h1>
+              <svg
+                className={styles.lessonHeaderCapLeft}
+                width="36"
+                height="50"
+                viewBox="0 0 36 50"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                <path
+                  d="M0.526002 49.5C0.0639109 49.5 5.86287 35.1201 10.4607 7.34502C11.1094 3.42623 14.4713 0.5 18.4434 0.5H35.526C35.2499 0.5 35.026 0.73128 35.026 1.00742V49.0062C35.026 49.2823 35.2499 49.5 35.526 49.5H0.526002Z"
+                  fill="#fff"
+                  stroke="#fff"
+                />
+              </svg>
+              <div
+                className={styles.lessonHeaderCenter}
+                style={{ width: `${titleCenterWidth}px` }}
+              >
+                <svg
+                  className={styles.lessonHeaderCenterSvg}
+                  width="82"
+                  height="50"
+                  viewBox="0 0 82 50"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  preserveAspectRatio="none"
+                  aria-hidden
+                >
+                  <rect width="82" height="50" fill="#fff" />
+                </svg>
+                <h1 className={styles.lessonTitleTrapezoid}>
+                  {lessonDetail.title}
+                </h1>
+                <span ref={titleMeasureRef} className={styles.titleMeasure}>
+                  {lessonDetail.title || '\u00a0'}
+                </span>
+              </div>
+              <svg
+                className={styles.lessonHeaderCapRight}
+                width="36"
+                height="50"
+                viewBox="0 0 36 50"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                <path
+                  d="M35.0052 49.5C35.4673 49.5 29.6684 35.1201 25.0705 7.34502C24.4218 3.42623 21.0599 0.5 17.0878 0.5H0.00523758C0.28138 0.5 0.505238 0.73128 0.505238 1.00742V49.0062C0.505238 49.2823 0.28138 49.5 0.00523758 49.5H35.0052Z"
+                  fill="#fff"
+                  stroke="#fff"
+                />
+              </svg>
             </div>
           </div>
 

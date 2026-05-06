@@ -173,12 +173,33 @@ function PublisherInner({
   micOn,
   cameraOn,
 }: PublisherInnerProps) {
-  useJoin({ appid: appId, channel, token, uid }, true);
+  // Memoize so useJoin doesn't see a new object every render and re-join.
+  const joinOptions = useMemo(
+    () => ({ appid: appId, channel, token, uid }),
+    [appId, channel, token, uid],
+  );
+  useJoin(joinOptions, true);
 
   const { localMicrophoneTrack } = useLocalMicrophoneTrack(micOn);
   const { localCameraTrack } = useLocalCameraTrack(cameraOn);
 
   usePublish([localMicrophoneTrack, localCameraTrack]);
+
+  // Release OS device locks on unmount so re-entering the webinar doesn't get
+  // NOT_READABLE / "Device in use" on the next createCameraVideoTrack call.
+  useEffect(() => {
+    return () => {
+      localMicrophoneTrack?.stop();
+      localMicrophoneTrack?.close();
+    };
+  }, [localMicrophoneTrack]);
+
+  useEffect(() => {
+    return () => {
+      localCameraTrack?.stop();
+      localCameraTrack?.close();
+    };
+  }, [localCameraTrack]);
 
   const remoteUsers = useRemoteUsers();
   useNotifyRecorderPresence(remoteUsers, onRecorderChannelPresence);
@@ -281,7 +302,11 @@ function SubscribeOnlyInner({
 }: VideoGridBaseProps & {
   onSubscribeOnlyAnyRemoteVideo?: (anyHasVideo: boolean) => void;
 }) {
-  useJoin({ appid: appId, channel, token, uid }, true);
+  const joinOptions = useMemo(
+    () => ({ appid: appId, channel, token, uid }),
+    [appId, channel, token, uid],
+  );
+  useJoin(joinOptions, true);
 
   const remoteUsers = useRemoteUsers();
   useNotifyRecorderPresence(remoteUsers, onRecorderChannelPresence);
@@ -377,10 +402,11 @@ function SubscribeOnlyInner({
 }
 
 export function VideoGrid(props: VideoGridProps) {
-  const client = useMemo(
-    () => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }),
-    []
-  );
+  const clientRef = useRef<ReturnType<typeof AgoraRTC.createClient> | null>(null);
+  if (!clientRef.current) {
+    clientRef.current = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+  }
+  const client = clientRef.current;
 
   return (
     <AgoraRTCProvider client={client}>

@@ -71,6 +71,34 @@ class QuestionAttemptItemSerializer(serializers.Serializer):
         return obj.status or NOT_REVIEWED_LABEL
 
 
+class ReviewerSerializer(serializers.Serializer):
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+    avatar_url = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_avatar_url(self, obj):
+        profile = getattr(obj, 'profile', None)
+        if profile is None:
+            return None
+        return profile.avatar_url or None
+
+
+class TaskReviewReadSerializer(serializers.Serializer):
+    task_review_id = serializers.UUIDField(read_only=True)
+    points = serializers.IntegerField(read_only=True)
+    comment = serializers.CharField(read_only=True, allow_null=True)
+    reviewer = serializers.SerializerMethodField()
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    @extend_schema_field(ReviewerSerializer(allow_null=True))
+    def get_reviewer(self, obj):
+        if obj.reviewer is None:
+            return None
+        return ReviewerSerializer(obj.reviewer).data
+
+
 class TaskAttemptItemSerializer(serializers.Serializer):
     type = serializers.SerializerMethodField()
     task_id = serializers.UUIDField(source='task.task_id', read_only=True)
@@ -79,9 +107,8 @@ class TaskAttemptItemSerializer(serializers.Serializer):
     number = serializers.IntegerField(source='task.task_number', read_only=True)
     text = serializers.CharField(source='task.text', read_only=True)
     user_answer = serializers.CharField(read_only=True, allow_null=True)
-    points = serializers.SerializerMethodField()
     max_points = serializers.IntegerField(source='task.max_points', read_only=True)
-    teacher_comment = serializers.SerializerMethodField()
+    review = serializers.SerializerMethodField()
     file_attachments = serializers.SerializerMethodField()
 
     def get_type(self, obj):
@@ -90,11 +117,13 @@ class TaskAttemptItemSerializer(serializers.Serializer):
     def get_status(self, obj):
         return obj.status or NOT_REVIEWED_LABEL
 
-    def get_points(self, obj):
-        return getattr(obj, 'points', None)
-
-    def get_teacher_comment(self, obj):
-        return getattr(obj, 'teacher_comment', None)
+    @extend_schema_field(TaskReviewReadSerializer(allow_null=True))
+    def get_review(self, obj):
+        try:
+            review = obj.review
+        except AttributeError:
+            return None
+        return TaskReviewReadSerializer(review).data
 
     @extend_schema_field(FileAttachmentSerializer(many=True))
     def get_file_attachments(self, obj):
@@ -149,7 +178,7 @@ class AttemptSerializer(serializers.ModelSerializer):
         many=True,
     ))
     def get_items(self, obj):
-        task_answers = list(obj.task_answers.select_related('task').all())
+        task_answers = list(obj.task_answers.select_related('task', 'review', 'review__reviewer', 'review__reviewer__profile').all())
 
         request = self.context.get('request')
         viewer = getattr(request, 'user', None) if request is not None else None
@@ -262,6 +291,18 @@ class AttemptSubmitSerializer(serializers.Serializer):
     attempt_id = serializers.UUIDField()
     send_at = serializers.DateTimeField()
     items = serializers.ListField(child=SubmitItemField(), allow_empty=False)
+
+
+class TaskReviewItemSerializer(serializers.Serializer):
+    task_answer_id = serializers.UUIDField()
+    points = serializers.IntegerField(min_value=0)
+    comment = serializers.CharField(
+        max_length=1500, allow_blank=True, allow_null=True, required=False, default=None
+    )
+
+class AttemptReviewSerializer(serializers.Serializer):
+    attempt_id = serializers.UUIDField()
+    items = serializers.ListField(child=TaskReviewItemSerializer(), allow_empty=False)
 
 
 class ErrorDetailItemSerializer(serializers.Serializer):

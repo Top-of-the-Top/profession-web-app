@@ -30,6 +30,7 @@ import logging
 from apps.core.meta_management.factory import build_upload_api, build_binding_api, build_access_api
 from apps.core.processors.error_processor import process_error_response
 from apps.core.meta_management.errors import AssetError
+from apps.courses.api.utils.cache_utils import invalidate_lesson_detail_cache
 
 logger = logging.getLogger(__name__)
 
@@ -675,6 +676,8 @@ class RecordingPdfView(APIView):
             recording.whiteboard_pdf_url = ''
             recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
 
+        invalidate_lesson_detail_cache(course_slug, lesson_slug)
+
         return Response({'detail': 'pdf доски сохранен'})
 
     @require_course_author
@@ -708,6 +711,8 @@ class RecordingPdfView(APIView):
 
         recording.whiteboard_pdf_url = ''
         recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+
+        invalidate_lesson_detail_cache(course_slug, lesson_slug)
 
         return Response({'detail': 'pdf доски удален'}, status=status.HTTP_204_NO_CONTENT)
     

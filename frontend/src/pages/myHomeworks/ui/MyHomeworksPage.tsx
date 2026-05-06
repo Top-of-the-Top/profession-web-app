@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Clock, Search, Home, ChevronDown } from 'lucide-react';
+import { CheckCircle2, Clock, Search, Home } from 'lucide-react';
 import {
   PageFrame,
   Spinner,
@@ -82,7 +82,8 @@ function TeacherView({
     const q = search.toLowerCase();
     return baseList.filter((i) =>
       `${i.student.first_name} ${i.student.last_name}`.toLowerCase().includes(q) ||
-      i.student.email.toLowerCase().includes(q),
+      i.student.email.toLowerCase().includes(q) ||
+      i.homework_title.toLowerCase().includes(q),
     );
   }, [baseList, search]);
 
@@ -113,7 +114,7 @@ function TeacherView({
           <Search size={15} />
           <input
             className={styles.searchInput}
-            placeholder="Поиск ученика"
+            placeholder="Поиск ученика или задания"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -128,6 +129,7 @@ function TeacherView({
             <thead>
               <tr>
                 <th>Ученик</th>
+                <th>Домашнее задание</th>
                 <th>Выполнено</th>
                 <th>Сдано</th>
                 <th>Статус</th>
@@ -150,6 +152,9 @@ function TeacherView({
                       </span>
                       <span className={styles.studentEmail}>{item.student.email}</span>
                     </div>
+                  </td>
+                  <td>
+                    <div className={styles.hwTitle}>{item.homework_title}</div>
                   </td>
                   <td>
                     <span className={styles.scoreCell}>
@@ -401,7 +406,6 @@ export default function MyHomeworksPage() {
           >
             <SelectTrigger className={styles.selectorTrigger}>
               <SelectValue placeholder="Выберите курс" />
-              <ChevronDown size={18} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Все курсы</SelectItem>
@@ -418,7 +422,6 @@ export default function MyHomeworksPage() {
           >
             <SelectTrigger className={styles.selectorTrigger}>
               <SelectValue placeholder={courseSlug ? 'Все уроки' : 'Сначала выберите курс'} />
-              <ChevronDown size={18} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Все уроки</SelectItem>

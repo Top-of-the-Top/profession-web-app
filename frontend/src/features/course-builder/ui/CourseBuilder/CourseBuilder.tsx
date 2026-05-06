@@ -198,34 +198,40 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
 
   const blocker = useBlocker(hasUnsavedChanges && !allowNavigation);
 
-  const currentSignature = JSON.stringify({
+  const lessonSignature = JSON.stringify({
     lesson: layout,
-    homework: homeworkLayout,
     pendingUploadIds: Object.keys(pendingUploads).sort(),
   });
+  const homeworkSignature = JSON.stringify(homeworkLayout);
 
   const uploadingInProgress = hasPendingUploads();
 
-  const currentSignatureRef = useRef(currentSignature);
-  useEffect(() => {
-    currentSignatureRef.current = currentSignature;
-  }, [currentSignature]);
+  const lessonSignatureRef = useRef(lessonSignature);
+  const homeworkSignatureRef = useRef(homeworkSignature);
+  useEffect(() => { lessonSignatureRef.current = lessonSignature; }, [lessonSignature]);
+  useEffect(() => { homeworkSignatureRef.current = homeworkSignature; }, [homeworkSignature]);
 
+  // Set lesson baseline once on mount
   useEffect(() => {
-    setBaselineSignature((prev) =>
-      prev === null ? currentSignatureRef.current : prev,
-    );
+    setLessonBaseline((prev) => prev === null ? lessonSignatureRef.current : prev);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // homeworkBaseline is set via onInitialized callback after the store is first loaded
+
+  // When lesson is saved (savedRevision bumps), reset lesson baseline
   useEffect(() => {
     if (savedRevision === 0) return;
-    setBaselineSignature(currentSignatureRef.current);
+    setLessonBaseline(lessonSignatureRef.current);
   }, [savedRevision]);
 
-  const hasUnsavedChanges =
-    baselineSignature !== null && baselineSignature !== currentSignature;
-  const isSavedStatus =
-    baselineSignature === null || (!hasUnsavedChanges && !saving);
+  const hasUnsavedLesson =
+    lessonBaseline !== null && lessonBaseline !== lessonSignature;
+  const hasUnsavedHomework =
+    homeworkBaseline !== null && homeworkBaseline !== homeworkSignature;
+  const hasUnsavedChanges = hasUnsavedLesson || hasUnsavedHomework;
+
+  const isSavedStatus = lessonBaseline === null || (!hasUnsavedLesson && !saving);
 
   const blocker = useBlocker(hasUnsavedChanges && !allowNavigation);
 
@@ -239,7 +245,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     if (!hasUnsavedChanges) return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      event.returnValue = '';
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
@@ -255,6 +260,22 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
       setLeaveDialogOpen(true);
     },
     [hasUnsavedChanges],
+  );
+
+  // Tab switch: warn only if the *current* tab has unsaved changes
+  const requestTabSwitch = useCallback(
+    (tab: 'layout' | 'homework') => {
+      if (tab === activeTab) return;
+      const currentTabDirty =
+        activeTab === 'layout' ? hasUnsavedLesson : hasUnsavedHomework;
+      if (!currentTabDirty) {
+        setActiveTab(tab);
+        return;
+      }
+      setPendingNavigationAction(() => () => setActiveTab(tab));
+      setLeaveDialogOpen(true);
+    },
+    [activeTab, hasUnsavedLesson, hasUnsavedHomework],
   );
 
   const handleConfirmLeave = useCallback(() => {

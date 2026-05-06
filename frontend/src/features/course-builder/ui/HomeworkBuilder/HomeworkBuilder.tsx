@@ -178,6 +178,7 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
     });
   }, [lessonHomeworks]);
 
+  // Reset initializedForSlug whenever the user picks a different HW
   useEffect(() => {
     setInitializedForSlug(null);
     setTitleTouched(false);
@@ -193,6 +194,7 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
       setTimeout(() => onInitialized?.(), 0);
       return;
     }
+
     if (!selectedHomeworkQuery.data) return;
     initHomework(`${courseSlug}/${lessonSlug}`, mapHomeworkDetailToLayout(selectedHomeworkQuery.data, `${courseSlug}/${lessonSlug}`));
     setInitializedForSlug(selectedHomeworkSlug);

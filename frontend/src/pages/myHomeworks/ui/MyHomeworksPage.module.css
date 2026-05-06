@@ -1,48 +1,187 @@
+.page {
+  min-height: 100%;
+  background: var(--muted, #f1f5f9);
+  padding: 0;
+}
+
 .wrap {
-  max-width: 960px;
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 20px 24px 40px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
-.filters {
+/* breadcrumb */
+.breadcrumb {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
   align-items: center;
-}
-
-.filterLabel {
+  gap: 6px;
   font-size: 0.8125rem;
   color: var(--muted-foreground);
-  white-space: nowrap;
 }
 
-.filterSelect {
-  min-width: 200px;
+.breadcrumb a {
+  color: var(--muted-foreground);
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  color: var(--foreground);
+}
+
+.breadcrumbSep {
+  color: var(--muted-foreground);
+  opacity: 0.5;
+}
+
+.breadcrumbCurrent {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+/* selectors row */
+.selectors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.selectorTrigger {
+  width: 100%;
+  height: 52px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  padding: 0 16px;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* tabs bar */
+.tabsBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tabsList {
+  display: flex;
+  gap: 4px;
+  background: transparent;
+  padding: 0;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tab:hover {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.tabActive {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.tabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.tabActiveCount {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* search */
+.searchWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  min-width: 180px;
+}
+
+.searchInput {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  width: 100%;
+}
+
+.searchInput::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* table card */
+.card {
+  background: var(--background);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
 }
 
 .table th {
   text-align: left;
-  padding: 10px 12px;
-  font-size: 0.75rem;
+  padding: 12px 20px;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--muted-foreground);
   border-bottom: 1px solid var(--border);
 }
 
+.table th:last-child {
+  text-align: right;
+}
+
 .table td {
-  padding: 12px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -51,26 +190,91 @@
   border-bottom: none;
 }
 
+.table tbody tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
 .table tbody tr:hover td {
-  background: var(--accent);
+  background: var(--muted, #f8fafc);
 }
 
-.card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--card);
-  overflow: hidden;
+/* cell types */
+.cellStudent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.cardTitle {
+.studentName {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.studentEmail {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+.scoreCell {
   font-size: 1rem;
-  font-weight: 600;
-  padding: 16px;
-  border-bottom: 1px solid var(--border);
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.dateCell {
+  font-size: 0.875rem;
+  color: var(--foreground);
+}
+
+.statusCell {
+  text-align: right;
+}
+
+.statusIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+}
+
+.statusIconReviewed {
+  background: #e8f9ee;
+  color: #22c55e;
+  border: 2px solid #22c55e;
+}
+
+.statusIconSubmitted {
+  background: #fff7e6;
+  color: #f59e0b;
+  border: 2px solid #f59e0b;
+}
+
+.statusIconDraft {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  border: 2px solid var(--border);
+}
+
+/* hw title cell */
+.hwTitle {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--foreground);
+  max-width: 320px;
+}
+
+.hwLesson {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  margin-top: 2px;
 }
 
 .empty {
-  padding: 32px;
+  padding: 48px;
   text-align: center;
   color: var(--muted-foreground);
   font-size: 0.875rem;
@@ -81,74 +285,4 @@
   justify-content: center;
   align-items: center;
   min-height: 200px;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.badgePending {
-  background: var(--muted);
-  color: var(--muted-foreground);
-}
-
-.badgeSubmitted {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.badgeReviewed {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.badgeNotStarted {
-  background: var(--muted);
-  color: var(--muted-foreground);
-}
-
-.linkCell {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--primary);
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.8125rem;
-  white-space: nowrap;
-}
-
-.linkCell:hover {
-  text-decoration: underline;
-}
-
-.scoreText {
-  font-size: 0.875rem;
-}
-
-.dateText {
-  font-size: 0.8125rem;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-}
-
-.hwTitle {
-  font-weight: 500;
-  max-width: 280px;
-}
-
-.studentName {
-  max-width: 200px;
-}
-
-.tabsWrap {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
 }

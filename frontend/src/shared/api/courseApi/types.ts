@@ -228,6 +228,7 @@ export interface MyHomeworkTeacherAttempt {
   homework_title: string;
   grade: number | null;
   max_points: number | null;
+  send_at: string | null;
   student: MyHomeworkTeacherStudent;
 }
 

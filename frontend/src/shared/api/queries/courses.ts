@@ -121,7 +121,6 @@ export function useMyHomeworks(
 ) {
   return useQuery({
     queryKey: myHomeworksKeys.filtered(courseSlug, lessonSlug),
-    queryFn: () => courseApi.getMyHomeworks({ courseSlug: courseSlug!, lessonSlug }),
-    enabled: !!courseSlug,
+    queryFn: () => courseApi.getMyHomeworks({ courseSlug, lessonSlug }),
   });
 }

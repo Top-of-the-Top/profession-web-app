@@ -273,6 +273,36 @@
   margin-top: 2px;
 }
 
+.deadlineDate {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+.deadlineTime {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  margin-top: 1px;
+}
+
+.arrowCell {
+  text-align: right;
+  width: 52px;
+}
+
+.arrowBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: #1e3a8a;
+  color: #fff;
+  flex-shrink: 0;
+}
+
 .empty {
   padding: 48px;
   text-align: center;

@@ -234,6 +234,7 @@ class StudentAttemptSerializer(serializers.ModelSerializer):
             'homework_slug',
             'homework_title',
             'grade',
+						'sent_at',
             'max_points',
             'student',
         )

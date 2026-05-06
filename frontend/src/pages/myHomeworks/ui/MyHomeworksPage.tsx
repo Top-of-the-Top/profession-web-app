@@ -28,11 +28,6 @@ function timeAgo(iso: string | null): string {
   return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(new Date(iso));
 }
 
-function formatDeadline(iso: string | null): string {
-  if (!iso) return '—';
-  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(new Date(iso));
-}
-
 function pluralHours(n: number) {
   if (n % 10 === 1 && n % 100 !== 11) return 'час';
   if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'часа';
@@ -62,7 +57,6 @@ function StatusIcon({ status }: { status: string }) {
 }
 
 type Tab = 'waiting' | 'done' | 'all';
-type StudentTab = 'all' | 'draft' | 'pending' | 'reviewed';
 
 // ─── Teacher ──────────────────────────────────────────────────────────────────
 
@@ -72,7 +66,7 @@ function TeacherView({
   lessonSlug,
 }: {
   items: MyHomeworkTeacherAttempt[];
-  courseSlug: string;
+  courseSlug: string | undefined;
   lessonSlug: string | undefined;
 }) {
   const [tab, setTab] = useState<Tab>('waiting');
@@ -168,7 +162,7 @@ function TeacherView({
                   </td>
                   <td>
                     <span className={styles.dateCell}>
-                      {timeAgo(null)}
+                      {timeAgo(item.send_at)}
                     </span>
                   </td>
                   <td className={styles.statusCell}>
@@ -186,49 +180,77 @@ function TeacherView({
 
 // ─── Student ──────────────────────────────────────────────────────────────────
 
+type StudentTab = 'todo' | 'pending' | 'reviewed';
+
+function formatDeadlineFull(iso: string | null): { date: string; time: string } {
+  if (!iso) return { date: '—', time: '' };
+  const d = new Date(iso);
+  const date = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(d);
+  const time = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(d);
+  return { date, time };
+}
+
 function StudentView({
   items,
   courseSlug,
   lessonSlug,
 }: {
   items: MyHomeworkStudentItem[];
-  courseSlug: string;
+  courseSlug: string | undefined;
   lessonSlug: string | undefined;
 }) {
-  const [tab, setTab] = useState<StudentTab>('all');
+  const [tab, setTab] = useState<StudentTab>('todo');
+  const [search, setSearch] = useState('');
 
-  const draft = useMemo(() => items.filter((i) => i.status === 'draft'), [items]);
+  const todo = useMemo(() => items.filter((i) => i.status === 'draft'), [items]);
   const pending = useMemo(() => items.filter((i) => i.status === 'submitted'), [items]);
   const reviewed = useMemo(() => items.filter((i) => i.status === 'reviewed'), [items]);
 
-  const list = tab === 'draft' ? draft : tab === 'pending' ? pending : tab === 'reviewed' ? reviewed : items;
+  const baseList = tab === 'todo' ? todo : tab === 'pending' ? pending : reviewed;
 
-  function tabCount(t: StudentTab) {
-    return t === 'draft' ? draft.length : t === 'pending' ? pending.length : t === 'reviewed' ? reviewed.length : items.length;
-  }
+  const filtered = useMemo(() => {
+    if (!search.trim()) return baseList;
+    const q = search.toLowerCase();
+    return baseList.filter((i) => i.homework_title.toLowerCase().includes(q));
+  }, [baseList, search]);
+
+  const tabDefs: { key: StudentTab; label: string; count: number }[] = [
+    { key: 'todo',     label: 'К выполнению',      count: todo.length },
+    { key: 'pending',  label: 'Ожидает проверки',   count: pending.length },
+    { key: 'reviewed', label: 'Проверено',           count: reviewed.length },
+  ];
 
   return (
     <>
       <div className={styles.tabsBar}>
         <div className={styles.tabsList}>
-          {(['all', 'draft', 'pending', 'reviewed'] as StudentTab[]).map((t) => (
+          {tabDefs.map(({ key, label, count }) => (
             <button
-              key={t}
+              key={key}
               type="button"
-              className={cn(styles.tab, tab === t && styles.tabActive)}
-              onClick={() => setTab(t)}
+              className={cn(styles.tab, tab === key && styles.tabActive)}
+              onClick={() => setTab(key)}
             >
-              {t === 'all' ? 'Все' : t === 'draft' ? 'Черновики' : t === 'pending' ? 'Ожидает проверки' : 'Проверено'}
-              <span className={cn(styles.tabCount, tab === t && styles.tabActiveCount)}>
-                {tabCount(t)}
+              {label}
+              <span className={cn(styles.tabCount, tab === key && styles.tabActiveCount)}>
+                {count}
               </span>
             </button>
           ))}
         </div>
+        <label className={styles.searchWrap}>
+          <Search size={15} />
+          <input
+            className={styles.searchInput}
+            placeholder="Поиск домашнего задания"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
       </div>
 
       <div className={styles.card}>
-        {list.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className={styles.empty}>Нет заданий</div>
         ) : (
           <table className={styles.table}>
@@ -237,42 +259,48 @@ function StudentView({
                 <th>Домашнее задание</th>
                 <th>Баллы</th>
                 <th>Дедлайн</th>
-                <th>Статус</th>
+                <th />
               </tr>
             </thead>
             <tbody>
-              {list.map((item) => (
-                <tr
-                  key={item.attempt_id}
-                  onClick={() => {
-                    if (lessonSlug) {
-                      window.location.href = `/app/courses/${courseSlug}/${lessonSlug}/homework/${item.homework_slug}`;
-                    }
-                  }}
-                >
-                  <td>
-                    <div className={styles.hwTitle}>{item.homework_title}</div>
-                    {!lessonSlug && (
-                      <div className={styles.hwLesson}>{item.lesson_title}</div>
-                    )}
-                  </td>
-                  <td>
-                    <span className={styles.scoreCell}>
-                      {item.grade !== null && item.max_points !== null
-                        ? `${item.grade}/${item.max_points}`
-                        : item.max_points !== null
-                          ? `—/${item.max_points}`
-                          : '—'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={styles.dateCell}>{formatDeadline(item.deadline)}</span>
-                  </td>
-                  <td className={styles.statusCell}>
-                    <StatusIcon status={item.status} />
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((item) => {
+                const dl = formatDeadlineFull(item.deadline);
+                const href = lessonSlug && courseSlug
+                  ? `/app/courses/${courseSlug}/${lessonSlug}/homework/${item.homework_slug}`
+                  : undefined;
+                return (
+                  <tr
+                    key={item.attempt_id}
+                    onClick={() => { if (href) window.location.href = href; }}
+                    style={{ cursor: href ? 'pointer' : 'default' }}
+                  >
+                    <td>
+                      <div className={styles.hwTitle}>{item.homework_title}</div>
+                      <div className={styles.hwLesson}>
+                        {item.course_title}{item.lesson_title ? ` · ${item.lesson_title}` : ''}
+                      </div>
+                    </td>
+                    <td>
+                      <span className={styles.scoreCell}>
+                        {item.grade !== null
+                          ? `${item.grade} / ${item.max_points ?? '?'}`
+                          : item.max_points !== null
+                            ? `— / ${item.max_points}`
+                            : '—'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className={styles.deadlineDate}>{dl.date}</div>
+                      {dl.time && <div className={styles.deadlineTime}>{dl.time}</div>}
+                    </td>
+                    <td className={styles.arrowCell}>
+                      <span className={styles.arrowBtn}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -317,13 +345,6 @@ export default function MyHomeworksPage() {
   }
 
   function renderContent() {
-    if (!courseSlug) {
-      return (
-        <div className={styles.centered} style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
-          Выберите курс для просмотра заданий
-        </div>
-      );
-    }
     if (homeworksQuery.isLoading) {
       return <div className={styles.centered}><Spinner /></div>;
     }

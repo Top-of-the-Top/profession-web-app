@@ -170,7 +170,6 @@ export default function HomeworkSubmissionPage() {
 
   const { persist, persistDebounced } = useHomeworkDraft(homeworkSlug);
 
-  // Seed state from attempt + merge saved draft on top
   useEffect(() => {
     const attempt = attemptQuery.data;
     if (!attempt) return;

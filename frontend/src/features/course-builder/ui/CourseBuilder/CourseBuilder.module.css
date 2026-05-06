@@ -767,6 +767,17 @@
   color: #191970;
 }
 
+.dirtyDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #f59e0b;
+  margin-left: 5px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
 .mainContent {
   flex: 1 1 0;
   min-height: 0;

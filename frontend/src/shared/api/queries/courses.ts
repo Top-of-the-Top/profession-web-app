@@ -48,22 +48,15 @@ export function useCourseHomeBySlug(slug: string | undefined) {
 export function useLessonBySlug(
   courseSlug: string | undefined,
   lessonSlug: string | undefined,
+  opts?: { editorMode?: boolean },
 ) {
   return useQuery({
     queryKey: courseKeys.lesson(courseSlug!, lessonSlug!),
     queryFn: () => courseApi.getLessonBySlug(courseSlug!, lessonSlug!),
     enabled: !!courseSlug && !!lessonSlug,
-    // refetchInterval: (query) => {
-    //   const recordings = query.state.data?.recordings ?? [];
-    //   return recordings.some(
-    //     (recording) =>
-    //       recording.kinescope_upload_status === 'pending' ||
-    //       recording.kinescope_upload_status === 'uploading' ||
-    //       recording.kinescope_upload_status === 'processing',
-    //   )
-    //     ? 10_000
-    //     : false;
-    // },
+    // In editor mode never auto-refetch — would clobber unsaved work
+    staleTime: opts?.editorMode ? Infinity : 30_000,
+    refetchOnWindowFocus: opts?.editorMode ? false : true,
   });
 }
 
@@ -71,11 +64,14 @@ export function useHomeworkDetail(
   courseSlug: string | undefined,
   lessonSlug: string | undefined,
   homeworkSlug: string | undefined,
+  opts?: { editorMode?: boolean },
 ) {
   return useQuery({
     queryKey: courseKeys.homework(courseSlug!, lessonSlug!, homeworkSlug!),
     queryFn: () => courseApi.getHomeworkDetail(courseSlug!, lessonSlug!, homeworkSlug!),
     enabled: !!courseSlug && !!lessonSlug && !!homeworkSlug,
+    staleTime: opts?.editorMode ? Infinity : 30_000,
+    refetchOnWindowFocus: opts?.editorMode ? false : true,
   });
 }
 

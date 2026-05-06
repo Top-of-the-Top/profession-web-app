@@ -96,7 +96,9 @@ export const useHomeworkStore = create<HomeworkStore>((set, get) => ({
         type,
         title: '',
         score: 0,
-        ...(type === 'single' ? { options: [] } : { description: '' }),
+        ...(type === 'single'
+          ? { options: [{ id: nanoid(), text: '', isCorrect: false }, { id: nanoid(), text: '', isCorrect: false }] }
+          : { description: '' }),
       } as HomeworkQuestion;
 
       return {

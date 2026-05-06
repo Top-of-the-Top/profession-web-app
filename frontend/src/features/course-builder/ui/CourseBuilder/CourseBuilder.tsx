@@ -155,38 +155,46 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   const [confirmedNavigationAction, setConfirmedNavigationAction] = useState<null | (() => void)>(
     null,
   );
-  const [baselineSignature, setBaselineSignature] = useState<string | null>(null);
+  // Separate baselines for lesson and homework so saves are tracked independently
+  const [lessonBaseline, setLessonBaseline] = useState<string | null>(null);
+  const [homeworkBaseline, setHomeworkBaseline] = useState<string | null>(null);
   const [allowNavigation, setAllowNavigation] = useState(false);
   const titleMeasureRef = useRef<HTMLSpanElement | null>(null);
 
-  const currentSignature = JSON.stringify({
+  const lessonSignature = JSON.stringify({
     lesson: layout,
-    homework: homeworkLayout,
     pendingUploadIds: Object.keys(pendingUploads).sort(),
   });
+  const homeworkSignature = JSON.stringify(homeworkLayout);
 
   const uploadingInProgress = hasPendingUploads();
 
-  const currentSignatureRef = useRef(currentSignature);
-  useEffect(() => {
-    currentSignatureRef.current = currentSignature;
-  }, [currentSignature]);
+  const lessonSignatureRef = useRef(lessonSignature);
+  const homeworkSignatureRef = useRef(homeworkSignature);
+  useEffect(() => { lessonSignatureRef.current = lessonSignature; }, [lessonSignature]);
+  useEffect(() => { homeworkSignatureRef.current = homeworkSignature; }, [homeworkSignature]);
 
+  // Set lesson baseline once on mount
   useEffect(() => {
-    setBaselineSignature((prev) =>
-      prev === null ? currentSignatureRef.current : prev,
-    );
+    setLessonBaseline((prev) => prev === null ? lessonSignatureRef.current : prev);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // homeworkBaseline is set via onInitialized callback after the store is first loaded
+
+  // When lesson is saved (savedRevision bumps), reset lesson baseline
   useEffect(() => {
     if (savedRevision === 0) return;
-    setBaselineSignature(currentSignatureRef.current);
+    setLessonBaseline(lessonSignatureRef.current);
   }, [savedRevision]);
 
-  const hasUnsavedChanges =
-    baselineSignature !== null && baselineSignature !== currentSignature;
-  const isSavedStatus =
-    baselineSignature === null || (!hasUnsavedChanges && !saving);
+  const hasUnsavedLesson =
+    lessonBaseline !== null && lessonBaseline !== lessonSignature;
+  const hasUnsavedHomework =
+    homeworkBaseline !== null && homeworkBaseline !== homeworkSignature;
+  const hasUnsavedChanges = hasUnsavedLesson || hasUnsavedHomework;
+
+  const isSavedStatus = lessonBaseline === null || (!hasUnsavedLesson && !saving);
 
   const blocker = useBlocker(hasUnsavedChanges && !allowNavigation);
 
@@ -200,7 +208,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     if (!hasUnsavedChanges) return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      event.returnValue = '';
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
@@ -216,6 +223,22 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
       setLeaveDialogOpen(true);
     },
     [hasUnsavedChanges],
+  );
+
+  // Tab switch: warn only if the *current* tab has unsaved changes
+  const requestTabSwitch = useCallback(
+    (tab: 'layout' | 'homework') => {
+      if (tab === activeTab) return;
+      const currentTabDirty =
+        activeTab === 'layout' ? hasUnsavedLesson : hasUnsavedHomework;
+      if (!currentTabDirty) {
+        setActiveTab(tab);
+        return;
+      }
+      setPendingNavigationAction(() => () => setActiveTab(tab));
+      setLeaveDialogOpen(true);
+    },
+    [activeTab, hasUnsavedLesson, hasUnsavedHomework],
   );
 
   const handleConfirmLeave = useCallback(() => {
@@ -598,20 +621,26 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
             className={`${styles.sideTab} ${
               activeTab === 'layout' ? styles.sideTabActive : ''
             }`}
-            onClick={() => setActiveTab('layout')}
+            onClick={() => requestTabSwitch('layout')}
           >
             <SideTabChrome />
-            <span className={styles.sideTabLabel}>конструктор</span>
+            <span className={styles.sideTabLabel}>
+              конструктор
+              {hasUnsavedLesson && <span className={styles.dirtyDot} />}
+            </span>
           </button>
           <button
             type="button"
             className={`${styles.sideTab} ${
               activeTab === 'homework' ? styles.sideTabActive : ''
             }`}
-            onClick={() => setActiveTab('homework')}
+            onClick={() => requestTabSwitch('homework')}
           >
             <SideTabChrome />
-            <span className={styles.sideTabLabel}>домашнее задание</span>
+            <span className={styles.sideTabLabel}>
+              домашнее задание
+              {hasUnsavedHomework && <span className={styles.dirtyDot} />}
+            </span>
           </button>
         </div>
 
@@ -765,6 +794,9 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
               courseSlug={courseSlug}
               lessonSlug={lessonSlug}
               lessonHomeworks={lessonHomeworks}
+              hasUnsavedChanges={hasUnsavedHomework}
+              onInitialized={() => setHomeworkBaseline(homeworkSignatureRef.current)}
+              onSaved={() => setHomeworkBaseline(homeworkSignatureRef.current)}
             />
           )}
         </div>

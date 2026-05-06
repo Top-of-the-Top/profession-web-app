@@ -108,3 +108,19 @@ export function useHomeworkAttemptForReview(
     enabled: !!courseSlug && !!attemptId,
   });
 }
+
+export const myHomeworksKeys = {
+  all: ['my-homeworks'] as const,
+  filtered: (courseSlug?: string, lessonSlug?: string) =>
+    [...myHomeworksKeys.all, courseSlug ?? '', lessonSlug ?? ''] as const,
+};
+
+export function useMyHomeworks(
+  courseSlug?: string,
+  lessonSlug?: string,
+) {
+  return useQuery({
+    queryKey: myHomeworksKeys.filtered(courseSlug, lessonSlug),
+    queryFn: () => courseApi.getMyHomeworks({ courseSlug, lessonSlug }),
+  });
+}

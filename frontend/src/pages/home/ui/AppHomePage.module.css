@@ -9,7 +9,7 @@
 .title {
   font-size: 28px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--profession-black-primary);
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -22,7 +22,8 @@
 }
 
 .card {
-  background: #fff;
+  background: var(--profession-white-bg);
+	color: var(--profession-black-primary);
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -34,7 +35,6 @@
   padding: 0;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   font: inherit;
-  color: inherit;
 }
 
 .skeletonCardTitle {
@@ -72,14 +72,14 @@
 .cardTitle {
   font-size: 18px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--profession-black-primary);
   margin: 0 0 10px;
   line-height: 1.25;
 }
 
 .cardDescription {
   font-size: 14px;
-  color: #64748b;
+  color: var(--profession-grey-primary);
   margin: 0;
   line-height: 1.5;
 }
@@ -88,7 +88,7 @@
   width: 100%;
   aspect-ratio: 400 / 261;
   margin-top: auto;
-  background: #e8eaef;
+  background: var(--profession-white-bg);
   overflow: hidden;
 }
 
@@ -116,7 +116,7 @@
   font-size: 12px;
   font-weight: 600;
   color: #b45309;
-  background: #fff7ed;
+  background: var(--profession-white-bg);
   padding: 4px 8px;
   border-radius: 6px;
 }
@@ -131,7 +131,7 @@
 .errorBox {
   margin: 0 40px;
   padding: 24px;
-  background: #fff;
+  background: var(--profession-white-bg);
   border-radius: 14px;
   border: 1px solid #fecaca;
   max-width: 480px;
@@ -146,9 +146,9 @@
   margin: 48px 40px;
   padding: 40px;
   text-align: center;
-  background: #fff;
+  background: var(--profession-white-bg);
   border-radius: 14px;
-  color: #64748b;
+  color: var(--profession-black-primary);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -156,7 +156,7 @@
   margin: 0 0 8px;
   font-size: 18px;
   font-weight: 600;
-  color: #334155;
+  color: var(--profession-black-primary);
 }
 
 .emptyHint {

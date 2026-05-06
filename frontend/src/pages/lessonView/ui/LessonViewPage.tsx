@@ -273,6 +273,13 @@ const HomeworkWidget: React.FC<{
                 ? 'Посмотреть отправку'
                 : hw.title || 'Сдать ДЗ'}
           </Link>
+          <Link
+            to={`/app/homeworks?course_slug=${courseSlug}&lesson_slug=${lessonSlug}`}
+            className={styles.homeworkButton}
+            style={{ marginTop: 4, opacity: 0.7, fontSize: '0.8rem' }}
+          >
+            Все ДЗ урока
+          </Link>
         </div>
       ))}
     </div>

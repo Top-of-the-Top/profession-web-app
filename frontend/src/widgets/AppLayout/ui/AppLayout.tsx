@@ -86,7 +86,7 @@ export default function AppLayout() {
       id: 'modify',
     },
     {
-      href: '/app/distribute',
+      href: '/app/homeworks',
       label: 'Задания',
       icon: ClipboardList,
       id: 'distribute',

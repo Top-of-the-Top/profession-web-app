@@ -23,6 +23,7 @@ import type {
   Lesson,
   LessonCreatePayload,
   LessonPatchPayload,
+  MyHomeworksResponse,
   QuestionCreatePayload,
   QuestionPatchPayload,
   RawCourseBySlugResponse,
@@ -175,6 +176,20 @@ export const courseApi = {
 
   getCoursesForAppHome(): Promise<CourseDTO[]> {
     return courseApi.getMyCourses();
+  },
+
+  getMyHomeworks(params: {
+    courseSlug?: string;
+    lessonSlug?: string;
+  }): Promise<MyHomeworksResponse> {
+    const query = new URLSearchParams();
+    if (params.courseSlug) query.set('course_slug', params.courseSlug);
+    if (params.lessonSlug) query.set('lesson_slug', params.lessonSlug);
+    const qs = query.toString();
+    return apiClient.request<MyHomeworksResponse>(
+      `/api/my-homeworks/${qs ? `?${qs}` : ''}`,
+      { method: 'GET' },
+    );
   },
 
   createHomework(

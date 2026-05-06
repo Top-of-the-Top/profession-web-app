@@ -9,7 +9,7 @@
 .errorState {
   margin: 0 40px;
   padding: 24px;
-  background: #fff;
+  background: var(--profession-white-block);
   border-radius: 14px;
   border: 1px solid #fecaca;
   max-width: 480px;
@@ -23,7 +23,7 @@
 .emptyState {
   margin: 0 40px;
   padding: 24px;
-  background: #fff;
+  background: var(--profession-white-bg);
   border-radius: 14px;
   color: #64748b;
 }
@@ -36,7 +36,7 @@
 }
 
 .courseCard {
-  background-color: white;
+  background-color: var(--profession-white-bg);
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -45,6 +45,7 @@
   flex-direction: column;
   min-height: 100%;
   cursor: pointer;
+	color: var(--profession-black-primary);
 }
 
 .skeletonTitle {
@@ -87,7 +88,6 @@
 .courseTitle {
   font-size: 20px;
   font-weight: 600;
-  color: #1a1a1a;
   margin: 0 0 8px 0;
 }
 
@@ -103,7 +103,7 @@
   max-height: 220px;
   margin-top: auto;
   overflow: hidden;
-  background-color: #f5f5f5;
+  background-color: var(--profession-white-bg);
 }
 
 .courseImage {
@@ -136,14 +136,13 @@
   padding: 10px 16px 10px 0 !important;
   font-size: 16px;
   font-weight: 500;
-  color: #1a1a1a;
   background-color: transparent;
   border-radius: 8px;
   transition: all 0.2s ease;
 }
 
 .detailsButton:hover {
-  background-color: white !important;
+	background-color: var(--profession-white-bg) !important;
 	transform: scale(1.02);
 }
 
@@ -159,12 +158,12 @@
   flex-shrink: 0;
   aspect-ratio: 1 / 1;
   line-height: 0;
-  background-color: black;
+  background-color: var(--profession-black-primary);
   border-radius: 50%;
 }
 
 .arrowIcon {
-  color: white;
+  color: var(--profession-white-bg);
   width: 25px !important;
   height: 25px !important;
   min-width: 25px;
@@ -182,7 +181,7 @@
   padding: 14px 24px !important;
   font-size: 15px;
   font-weight: 400;
-  background-color: #191970 !important;
+  background-color: var(--profession-blue) !important;
   color: white;
   border-radius: 8px;
   border: none;
@@ -193,7 +192,7 @@
 }
 
 .selectButton:hover {
-  background-color: #191970 !important;
+  background-color: var(--profession-blue-hover) !important;
   transform: scale(1.02);
 }
 

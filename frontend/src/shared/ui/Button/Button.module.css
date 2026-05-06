@@ -15,11 +15,11 @@
 
   /* Variant */
   &[data-variant="primary"] {
-    background-color: #191970;
+    background-color: var(--profession-blue);
     color: #fff;
 
     &:hover {
-      background-color: color-mix(in oklab, #191970 85%, #000);
+      background-color: var(--profession-blue-hover);
     }
   }
 
@@ -47,13 +47,13 @@
 
   &[data-variant="ghost"] {
     background-color: transparent;
-    color: var(--color-foreground);
+    color: var(--profession-black-primary);
     border-color: transparent;
     box-shadow: none;
 
     &:hover {
       background-color: var(--color-accent);
-      color: var(--color-foreground);
+      color: var(--profession-black-primary);
     }
   }
 

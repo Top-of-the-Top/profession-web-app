@@ -181,22 +181,11 @@
   color: var(--profession-grey-primary) !important;
 }
 
-.pencilEditButton:hover .pencilIcon {
-  color: var(--profession-grey-primary) !important;
-}
-
-.genderTrigger:hover .pencilIcon {
-  color: #0f172a !important;
-}
-
 .plusIcon {
   /* Force plus color; Button sets `color` на кнопку для ghost */
   color: var(--profession-grey-primary) !important;
 }
 
-.pencilEditButton:hover .plusIcon {
-  color: #0f172a !important;
-}
 
 .profileFieldAction button:hover {
 	background-color: transparent !important;
@@ -307,9 +296,9 @@
   font-weight: 500;
   padding: 8px 12px;
   border-radius: 10px;
-  transition: background 0.18s ease;
+  transition: 0.18s ease;
 }
 
 .logoutButton:hover {
-  background-color: #fee2e2 !important;
+  transform: scale(1.02);
 }

@@ -27,6 +27,7 @@ const importMap = {
   lessonPreview: () => import('@pages/lessonPreview/ui/LessonPreviewPage'),
   webinar: () => import('@pages/webinar/ui/WebinarPage'),
   webinarRecord: () => import('@pages/webinarRecord/ui/WebinarRecordPage'),
+  myHomeworks: () => import('@pages/myHomeworks/ui/MyHomeworksPage'),
 };
 
 export const LandingPage = lazy(importMap.landing);
@@ -53,6 +54,7 @@ export const CartPage = lazy(importMap.cart);
 export const LessonPreviewPage = lazy(importMap.lessonPreview);
 export const WebinarPage = lazy(importMap.webinar);
 export const WebinarRecordPage = lazy(importMap.webinarRecord);
+export const MyHomeworksPage = lazy(importMap.myHomeworks);
 
 export function runWhenIdle(fn: () => void, timeoutMs = 2500): void {
   if (typeof requestIdleCallback === 'function') {

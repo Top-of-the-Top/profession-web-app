@@ -12,7 +12,7 @@
 }
 
 .mainContent {
-  background: white;
+  background: var(--profession-white-bg);
   border-radius: 16px;
   padding: 32px;
 }
@@ -41,7 +41,7 @@
 .text {
   font-size: 15px;
   line-height: 1.6;
-  color: #333;
+  color: var(--profession-black-primary);
   margin: 0;
 }
 
@@ -51,33 +51,81 @@
 }
 
 .priceCard {
-  background: white;
+  background: var(--profession-white-bg);
   border-radius: 16px;
   padding: 24px;
-}
-
-.priceHeader {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.priceHeader > span:first-child {
-  font-size: 18px;
-  font-weight: 500;
+.priceBadge {
+  display: inline-block;
+  align-self: flex-start;
+  background: #E8EAF6;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--profession-blue-hover);
+}
+
+.priceBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+	color: var(--profession-black-primary);
+}
+
+.priceLabel {
+  font-size: 14px;
+  color: var(--profession-black-primary);
 }
 
 .price {
-  font-size: 24px;
+  font-size: 36px;
+  font-weight: 550;
+  letter-spacing: -0.5px;
+	color: var(--profession-black-primary);
+}
+
+.priceDivider {
+  height: 1px;
+  background: var(--profession-light-bg, #e5e7eb);
+}
+
+.priceDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+	padding: 10px;
+	background-color: var(--profession-white-block);
+	border-radius: 10px;
+}
+
+.priceDetailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+	color: var(--profession-black-primary);
+}
+
+.priceDetailKey {
+  font-size: 14px;
+}
+
+.priceDetailValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--profession-black-primary);
 }
 
 .selectButton {
   width: 100%;
   height: 48px;
-  background-color: #191970 !important;
-  color: white;
+  background-color: var(-profession-blue) !important;
+  color: var(--profession-white-bg);
   font-size: 16px;
   border-radius: 12px;
   border: none;
@@ -85,7 +133,7 @@
 }
 
 .selectButton:hover {
-  background-color: #1e1e8f;
+  background-color: var(--profession-blue-hover);
 }
 
 .skeletonPageTitle {
@@ -116,14 +164,25 @@
   height: 16px;
 }
 
+.skeletonPriceBadge {
+  width: 140px;
+  height: 28px;
+  border-radius: 20px;
+}
+
 .skeletonPriceLabel {
-  width: 70px;
-  height: 20px;
+  width: 50px;
+  height: 14px;
 }
 
 .skeletonPriceValue {
-  width: 90px;
-  height: 26px;
+  width: 110px;
+  height: 40px;
+}
+
+.skeletonPriceDetail {
+  width: 100%;
+  height: 18px;
 }
 
 .skeletonSelectButton {

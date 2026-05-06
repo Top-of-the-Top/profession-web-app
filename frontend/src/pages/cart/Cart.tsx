@@ -1,10 +1,6 @@
 import { useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Button,
   Modal,
   PageFrame,
@@ -57,15 +53,16 @@ function CartSkeleton() {
           ))}
         </div>
         <aside className={styles.cartSummary}>
-          <Card className={styles.summaryCard}>
-            <CardHeader className={styles.summaryHeader}>
-              <Skeleton className={styles.skeletonSummaryTitle} />
-              <Skeleton className={styles.skeletonSummaryAmount} />
-            </CardHeader>
-            <CardContent className={styles.summaryContent}>
-              <Skeleton className={styles.skeletonPayButton} />
-            </CardContent>
-          </Card>
+          <div className={styles.summaryCard}>
+            <Skeleton className={styles.skeletonSummaryBadge} />
+            <Skeleton className={styles.skeletonSummaryTitle} />
+            <Skeleton className={styles.skeletonSummaryTitle} />
+            <div className={styles.summaryDivider} />
+            <Skeleton className={styles.skeletonSummaryAmount} />
+            <div className={styles.summaryDivider} />
+            <Skeleton className={styles.skeletonSummaryAmount} />
+            <Skeleton className={styles.skeletonPayButton} />
+          </div>
         </aside>
       </div>
     </>
@@ -199,22 +196,44 @@ export default function CartPage() {
         </div>
 
         <aside className={styles.cartSummary}>
-          <Card className={styles.summaryCard}>
-            <CardHeader className={styles.summaryHeader}>
-              <CardTitle className={styles.summaryTitle}>Сумма</CardTitle>
-              <span className={styles.summaryAmount}>{formattedTotal}</span>
-            </CardHeader>
-            <CardContent className={styles.summaryContent}>
-              <Button
-                type="button"
-                className={styles.payButton}
-                disabled={payCart.isPending}
-                onClick={() => setPayDialogOpen(true)}
-              >
-                {payCart.isPending ? 'Оформление…' : 'Перейти к оплате'}
-              </Button>
-            </CardContent>
-          </Card>
+          <div className={styles.summaryCard}>
+            <div className={styles.summaryBadge}>ВАШ ЗАКАЗ</div>
+
+            <div className={styles.summaryRows}>
+              {courses.map((course) => (
+                <div key={course.course_id} className={styles.summaryRow}>
+                  <span className={styles.summaryRowTitle}>{course.title}</span>
+                  <span className={styles.summaryRowPrice}>{formatPrice(course.price)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.summaryDivider} />
+
+            <div className={styles.summaryTotalRow}>
+              <span className={styles.summaryTotalLabel}>Сумма заказа</span>
+              <span className={styles.summaryTotalValue}>{formattedTotal}</span>
+            </div>
+
+            <div className={styles.summaryDivider} />
+
+            <div className={styles.summaryPayRow}>
+              <span className={styles.summaryPayLabel}>К оплате</span>
+              <div className={styles.summaryPayRight}>
+                <span className={styles.summaryPayAmount}>{formattedTotal}</span>
+                <span className={styles.summaryPayHint}>ежемесячный платёж</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              className={styles.payButton}
+              disabled={payCart.isPending}
+              onClick={() => setPayDialogOpen(true)}
+            >
+              {payCart.isPending ? 'Оформление…' : 'Перейти к оплате'}
+            </Button>
+          </div>
         </aside>
       </div>
 

@@ -198,6 +198,41 @@ export interface HomeworkAttemptListItem {
   max_points: number | null;
 }
 
+// GET /api/my-homeworks/ — student view
+export interface MyHomeworkStudentItem {
+  homework_id: string;
+  homework_slug: string;
+  lesson_slug: string;
+  course_slug: string;
+  title: string;
+  deadline: string | null;
+  status: HomeworkAttemptStatus | 'not_started';
+  score: number | null;
+  max_points: number | null;
+  send_at: string | null;
+  attempt_id: string | null;
+}
+
+// GET /api/my-homeworks/ — teacher view
+export interface MyHomeworkTeacherAttempt {
+  attempt_id: string;
+  homework_id: string;
+  homework_slug: string;
+  homework_title: string;
+  lesson_slug: string;
+  course_slug: string;
+  student_name: string;
+  student_id: number;
+  status: HomeworkAttemptStatus;
+  score: number | null;
+  max_points: number | null;
+  send_at: string | null;
+}
+
+export type MyHomeworksResponse =
+  | { role: 'student'; items: MyHomeworkStudentItem[] }
+  | { role: 'teacher'; items: MyHomeworkTeacherAttempt[] };
+
 export interface ReviewHomeworkAttemptItemPayload {
   task_answer_id: string;
   points: number;

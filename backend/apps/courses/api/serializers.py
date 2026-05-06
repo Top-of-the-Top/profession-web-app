@@ -584,6 +584,20 @@ class UserWebinarListItemSerializer(serializers.Serializer):
     ended_at = serializers.DateTimeField(allow_null=True)
 
 
+class ScheduleItemSerializer(serializers.Serializer):
+    TYPE_WEBINAR = 'webinar'
+    TYPE_HOMEWORK = 'homework'
+
+    type = serializers.ChoiceField(choices=[TYPE_WEBINAR, TYPE_HOMEWORK])
+    datetime = serializers.DateTimeField()
+    course_title = serializers.CharField()
+    title = serializers.CharField()
+
+
+class ScheduleResponseSerializer(serializers.Serializer):
+    items = ScheduleItemSerializer(many=True)
+
+
 class MyContentLessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson

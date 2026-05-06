@@ -1,0 +1,171 @@
+.pageRoot {
+  width: 100%;
+}
+
+.centeredColumn {
+  max-width: 1060px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.breadcrumbWrap {
+  width: 100%;
+}
+
+.steps {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.step,
+.stepActive {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  cursor: pointer;
+}
+
+.stepActive {
+  background: #211c84;
+  color: #fff;
+  border-color: #211c84;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  gap: 16px;
+}
+
+.itemCard {
+  background: #fff;
+  border: 1px solid #eaecf0;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.itemTitle {
+  margin: 0 0 14px;
+  font-size: 28px;
+}
+
+.promptText {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.questionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.optionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.optionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.autoChecked {
+  color: #344054;
+  font-weight: 600;
+}
+
+.attachments {
+  margin: 0 0 14px;
+  padding-left: 18px;
+}
+
+.answerPreview {
+  border: 1px solid #eaecf0;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  min-height: 90px;
+}
+
+.reviewForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.fieldLabel input {
+  width: 96px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.editorWrap {
+  min-height: 160px;
+}
+
+.editor {
+  min-height: 150px;
+}
+
+.actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sideCard {
+  background: #fff;
+  border: 1px solid #eaecf0;
+  border-radius: 16px;
+  padding: 14px;
+  height: fit-content;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backToList {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: #667085;
+}
+
+.sideCardTitle {
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.meta {
+  color: #475467;
+}
+
+.centered {
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

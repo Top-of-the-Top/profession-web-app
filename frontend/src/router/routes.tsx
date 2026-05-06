@@ -15,6 +15,8 @@ import {
   LessonPreviewPage,
   LessonViewPage,
   HomeworkSubmissionPage,
+  HomeworkReviewPage,
+  HomeworkReviewAttemptsPage,
   WebinarPage,
   WebinarRecordPage,
   AppLayout,
@@ -82,6 +84,16 @@ export const routes: AppRoute[] = [
       {
         path: 'courses/:slug/:lessonSlug/homework/:homeworkSlug',
         element: <HomeworkSubmissionPage />,
+      },
+      {
+        path: 'courses/:slug/:lessonSlug/homework/:homeworkSlug/review',
+        element: <HomeworkReviewAttemptsPage />,
+        roles: ['teacher', 'moderator'],
+      },
+      {
+        path: 'courses/:slug/:lessonSlug/homework/:homeworkSlug/review/:attemptId',
+        element: <HomeworkReviewPage />,
+        roles: ['teacher', 'moderator'],
       },
       {
         path: 'courses/:slug/:lessonSlug',

@@ -170,7 +170,7 @@ const HomeworkWidget: React.FC<{
       ? []
       : visible.map((homework) => ({
           queryKey: courseKeys.homeworkAttempt(homework.homework_slug),
-          queryFn: () => courseApi.getHomeworkAttempt(homework.homework_slug),
+          queryFn: () => courseApi.getHomeworkAttempt(courseSlug, homework.homework_slug),
           staleTime: 30_000,
         })),
   });
@@ -260,7 +260,11 @@ const HomeworkWidget: React.FC<{
             </p>
           )}
           <Link
-            to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`}
+            to={
+              isTeacher
+                ? `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}/review`
+                : `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`
+            }
             className={styles.homeworkButton}
           >
             {attemptStatuses.get(hw.homework_slug) === 'reviewed'

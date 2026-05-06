@@ -20,10 +20,7 @@ import { prefetchAppSidebarHref } from '@router/lazyPages';
 import styles from './AppLayout.module.css';
 
 function isFullBleedAppPage(pathname: string) {
-  return (
-    pathname.endsWith('/webinar') ||
-    pathname.includes('/lesson/preview')
-  );
+  return pathname.endsWith('/webinar') || pathname.includes('/lesson/preview');
 }
 
 function isLessonEditorPage(pathname: string) {
@@ -47,7 +44,8 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (hasToken && user) {
-      void notificationsApi.getAll()
+      void notificationsApi
+        .getAll()
         .then((notifications) => {
           setInitial(
             notifications.map((n) => ({

@@ -1,4 +1,4 @@
-import { Mic, MicOff, Video, VideoOff, Circle, LogOut, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Circle, LogOut, PhoneOff, MessageSquare } from 'lucide-react';
 import { cn } from '@shared/lib/utils';
 import styles from './WebinarControls.module.css';
 
@@ -11,8 +11,10 @@ interface WebinarControlsProps {
   recordingPending: boolean;
   stopRecordingPending: boolean;
   stopWebinarPending: boolean;
+  isChatOpen: boolean;
   onToggleMic: () => void;
   onToggleCamera: () => void;
+  onToggleChat: () => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
   onLeave: () => void;
@@ -28,8 +30,10 @@ export function WebinarControls({
   recordingPending,
   stopRecordingPending,
   stopWebinarPending,
+  isChatOpen,
   onToggleMic,
   onToggleCamera,
+  onToggleChat,
   onStartRecording,
   onStopRecording,
   onLeave,
@@ -53,6 +57,15 @@ export function WebinarControls({
       >
         {cameraOn ? <Video size={18} /> : <VideoOff size={18} />}
         {cameraOn ? 'Камера' : 'Камера выкл'}
+      </button>
+
+      <button
+        type="button"
+        className={cn(styles.btn, isChatOpen && styles.btnActive)}
+        onClick={onToggleChat}
+      >
+        <MessageSquare size={18} />
+        Чат
       </button>
 
       {canManageWebinar && !teacherRecordingLive && (

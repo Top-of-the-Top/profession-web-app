@@ -109,6 +109,21 @@ export interface HomeworkAttemptAttachment {
   file_extension: string;
 }
 
+export interface HomeworkTaskReviewReviewer {
+  first_name: string;
+  last_name: string;
+  avatar_url: string | null;
+}
+
+export interface HomeworkTaskReview {
+  task_review_id: string;
+  points: number;
+  comment: string | null;
+  reviewer: HomeworkTaskReviewReviewer | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface HomeworkAttemptQuestionItem {
   type: 'question';
   question_id: string;
@@ -129,9 +144,8 @@ export interface HomeworkAttemptTaskItem {
   number: number;
   text: string;
   user_answer: string | null;
-  points: number | null;
   max_points: number;
-  teacher_comment: string | null;
+  review: HomeworkTaskReview | null;
   file_attachments: HomeworkAttemptAttachment[];
 }
 
@@ -171,6 +185,28 @@ export interface SubmitHomeworkAttemptPayload {
   attempt_id: string;
   send_at: string;
   items: SubmitHomeworkAttemptItemPayload[];
+}
+
+export interface HomeworkAttemptListItem {
+  attempt_id: string;
+  homework_id: string;
+  deadline: string;
+  homework_slug: string;
+  status: HomeworkAttemptStatus;
+  send_at: string | null;
+  score: number | null;
+  max_points: number | null;
+}
+
+export interface ReviewHomeworkAttemptItemPayload {
+  task_answer_id: string;
+  points: number;
+  comment?: string | null;
+}
+
+export interface ReviewHomeworkAttemptPayload {
+  attempt_id: string;
+  items: ReviewHomeworkAttemptItemPayload[];
 }
 
 export interface HomeworkCreatePayload {
@@ -358,9 +394,19 @@ export type RawHomeworkAttemptTaskItem = {
   number?: unknown;
   text?: unknown;
   user_answer?: unknown;
-  points?: unknown;
   max_points?: unknown;
-  teacher_comment?: unknown;
+  review?: {
+    task_review_id?: unknown;
+    points?: unknown;
+    comment?: unknown;
+    reviewer?: {
+      first_name?: unknown;
+      last_name?: unknown;
+      avatar_url?: unknown;
+    } | null;
+    created_at?: unknown;
+    updated_at?: unknown;
+  } | null;
   file_attachments?: unknown;
 };
 
@@ -371,5 +417,7 @@ export type RawHomeworkAttempt = {
   deadline?: unknown;
   score?: unknown;
   max_points?: unknown;
+  send_at?: unknown;
+  homework_slug?: unknown;
   items?: unknown;
 };

@@ -21,6 +21,7 @@ interface VideoGridBaseProps {
   uid: number;
   rtcUidToLabel?: Record<number, string>;
   onRecorderChannelPresence?: (present: boolean) => void;
+  children?: ReactNode;
 }
 
 interface VideoGridPublisherProps extends VideoGridBaseProps {

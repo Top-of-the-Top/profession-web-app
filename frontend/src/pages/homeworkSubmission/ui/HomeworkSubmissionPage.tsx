@@ -101,11 +101,11 @@ export default function HomeworkSubmissionPage() {
     homeworkSlug: string;
   }>();
   const navigate = useNavigate();
-  const attemptQuery = useHomeworkAttempt(homeworkSlug);
+  const attemptQuery = useHomeworkAttempt(courseSlug, homeworkSlug);
   const detailQuery = useHomeworkDetail(courseSlug, lessonSlug, homeworkSlug);
   const courseQuery = useCourseBySlug(courseSlug);
   const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
-  const submitAttempt = useSubmitHomeworkAttempt(homeworkSlug ?? '');
+  const submitAttempt = useSubmitHomeworkAttempt(courseSlug ?? '', homeworkSlug ?? '');
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [attachments, setAttachments] = useState<Record<string, HomeworkAttemptAttachment[]>>({});

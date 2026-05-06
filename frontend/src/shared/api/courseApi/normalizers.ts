@@ -6,7 +6,9 @@ import type {
   CourseLessonDetail,
   HomeworkAttempt,
   HomeworkAttemptAttachment,
+  HomeworkAttemptListItem,
   HomeworkAttemptItem,
+  HomeworkTaskReview,
   LessonRecording,
   RawCourseBySlugResponse,
   RawCourseHomeResponse,
@@ -205,6 +207,29 @@ function normalizeHomeworkAttemptItem(item: unknown): HomeworkAttemptItem | null
 
   if ((item as { type?: unknown }).type === 'task') {
     const task = item as RawHomeworkAttemptTaskItem & { id?: unknown };
+    let review: HomeworkTaskReview | null = null;
+    if (task.review && typeof task.review === 'object') {
+      const rawReview = task.review;
+      const reviewerValue =
+        rawReview.reviewer && typeof rawReview.reviewer === 'object'
+          ? {
+              first_name: String(rawReview.reviewer.first_name ?? ''),
+              last_name: String(rawReview.reviewer.last_name ?? ''),
+              avatar_url:
+                rawReview.reviewer.avatar_url == null
+                  ? null
+                  : String(rawReview.reviewer.avatar_url),
+            }
+          : null;
+      review = {
+        task_review_id: String(rawReview.task_review_id ?? ''),
+        points: Number(rawReview.points ?? 0),
+        comment: rawReview.comment == null ? null : String(rawReview.comment),
+        reviewer: reviewerValue,
+        created_at: String(rawReview.created_at ?? ''),
+        updated_at: String(rawReview.updated_at ?? ''),
+      };
+    }
     return {
       type: 'task',
       task_id: String(task.task_id ?? task.id ?? ''),
@@ -213,10 +238,8 @@ function normalizeHomeworkAttemptItem(item: unknown): HomeworkAttemptItem | null
       number: Number(task.number ?? 0),
       text: String(task.text ?? ''),
       user_answer: task.user_answer == null ? null : String(task.user_answer),
-      points: task.points == null ? null : Number(task.points),
       max_points: Number(task.max_points ?? 0),
-      teacher_comment:
-        task.teacher_comment == null ? null : String(task.teacher_comment),
+      review,
       file_attachments: Array.isArray(task.file_attachments)
         ? task.file_attachments.map((attachment) =>
             normalizeAttemptAttachment(
@@ -248,5 +271,25 @@ export function normalizeHomeworkAttempt(raw: RawHomeworkAttempt): HomeworkAttem
       .map((item) => normalizeHomeworkAttemptItem(item))
       .filter((item): item is HomeworkAttemptItem => item != null),
   };
+}
+
+export function normalizeHomeworkAttemptsList(raw: unknown): HomeworkAttemptListItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    const row = (item ?? {}) as RawHomeworkAttempt;
+    const statusRaw = String(row.status ?? 'draft');
+    const status =
+      statusRaw === 'submitted' || statusRaw === 'reviewed' ? statusRaw : 'draft';
+    return {
+      attempt_id: String(row.attempt_id ?? ''),
+      homework_id: String(row.homework_id ?? ''),
+      deadline: String(row.deadline ?? ''),
+      homework_slug: String(row.homework_slug ?? ''),
+      status,
+      send_at: row.send_at == null ? null : String(row.send_at),
+      score: row.score == null ? null : Number(row.score),
+      max_points: row.max_points == null ? null : Number(row.max_points),
+    };
+  });
 }
 

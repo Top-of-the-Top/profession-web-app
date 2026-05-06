@@ -68,7 +68,7 @@ class KinescopeApiTest(SimpleTestCase):
 
     @patch('apps.core.meta_management.storages.kinescope.KinescopeBackend._post')
     def test_upload_video_by_url_passes_expected_headers(self, mock_post):
-        mock_post.return_value = {'data': {}}
+        mock_post.return_value = {'data': {'id': 'stub-id'}}
         upload_video_by_url('http://video-url', 'My Title', parent_id='parent-xyz')
 
         _, kwargs = mock_post.call_args
@@ -80,7 +80,7 @@ class KinescopeApiTest(SimpleTestCase):
 
     @patch('apps.core.meta_management.storages.kinescope.KinescopeBackend._post')
     def test_upload_video_by_url_encodes_cyrillic_title(self, mock_post):
-        mock_post.return_value = {'data': {}}
+        mock_post.return_value = {'data': {'id': 'stub-id'}}
         upload_video_by_url('http://video-url', 'Вебинар: Урок', parent_id='p')
 
         _, kwargs = mock_post.call_args

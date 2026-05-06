@@ -1,59 +1,64 @@
 import json
-import tempfile
-import uuid
 
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase
 
 from apps.courses.lesson_content import (
-    resolve_lesson_document_string,
-    substitute_local_placeholders,
-    upload_numeric_assets,
+    extract_asset_ids,
+    substitute_asset_uris,
+    parse_content_value,
 )
 
 
-class SubstituteLocalTest(SimpleTestCase):
-    def test_replaces_local_placeholder(self):
-        s = '{"url":"local://1","x":1}'
-        out = substitute_local_placeholders(s, {1: 'https://cdn.example.com/a.png'})
-        self.assertEqual(
-            json.loads(out)['url'],
-            'https://cdn.example.com/a.png',
-        )
+class ExtractAssetIdsTest(SimpleTestCase):
+    def test_extracts_single_uuid(self):
+        uid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+        doc = json.dumps({'url': f'asset://{uid}'})
+        self.assertEqual(extract_asset_ids(doc), [uid])
 
-    def test_missing_placeholder_raises(self):
-        with self.assertRaises(ValueError):
-            substitute_local_placeholders('{"u":"local://2"}', {1: 'https://x'})
+    def test_deduplicates(self):
+        uid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+        doc = f'asset://{uid} asset://{uid}'
+        self.assertEqual(extract_asset_ids(doc), [uid])
 
+    def test_empty_string_returns_empty(self):
+        self.assertEqual(extract_asset_ids(''), [])
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class UploadNumericAssetsTest(SimpleTestCase):
-    def test_upload_by_asset_file_field_name(self):
-        course_id = uuid.uuid4()
-        lesson_id = uuid.uuid4()
-        f = SimpleUploadedFile('x.png', b'\x89PNG', content_type='image/png')
-        files = {'asset_1': f}
-        meta = [{'asset_id': 1, 'asset_type': 'image', 'asset_file': 'asset_1'}]
-        m = upload_numeric_assets(course_id, lesson_id, meta, files)
-        self.assertIn(1, m)
-        self.assertTrue(m[1].startswith('http') or m[1].startswith('/media'))
+    def test_no_assets_returns_empty(self):
+        self.assertEqual(extract_asset_ids('{"url": "https://example.com"}'), [])
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class ResolveLessonDocumentTest(SimpleTestCase):
-    def test_end_to_end_local_string(self):
-        course_id = uuid.uuid4()
-        lesson_id = uuid.uuid4()
-        doc = json.dumps(
-            {
-                'id': 'x',
-                'blocks': [{'type': 'photo', 'url': 'local://1'}],
-            },
-            ensure_ascii=False,
-        )
-        f = SimpleUploadedFile('a.png', b'\x89PNG\r\n', content_type='image/png')
-        files = {'asset_1': f}
-        meta = [{'asset_id': 1, 'asset_type': 'image/png', 'asset_file': 'asset_1'}]
-        out = resolve_lesson_document_string(course_id, lesson_id, doc, meta, files)
-        self.assertNotIn('local://', out)
-        self.assertIn('blocks', out)
+class SubstituteAssetUrisTest(SimpleTestCase):
+    def test_replaces_asset_uri(self):
+        uid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+        doc = f'asset://{uid}'
+        out = substitute_asset_uris(doc, {uid: 'https://cdn.example.com/a.png'})
+        self.assertEqual(out, 'https://cdn.example.com/a.png')
+
+    def test_missing_uri_keeps_original(self):
+        uid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+        doc = f'asset://{uid}'
+        out = substitute_asset_uris(doc, {})
+        self.assertEqual(out, doc)
+
+    def test_empty_string_returns_empty(self):
+        self.assertEqual(substitute_asset_uris('', {}), '')
+
+
+class ParseContentValueTest(SimpleTestCase):
+    def test_none_returns_none(self):
+        self.assertIsNone(parse_content_value(None))
+
+    def test_empty_string_returns_none(self):
+        self.assertIsNone(parse_content_value(''))
+
+    def test_dict_returns_dict(self):
+        d = {'key': 'value'}
+        self.assertEqual(parse_content_value(d), d)
+
+    def test_json_string_returns_dict(self):
+        d = {'key': 'value'}
+        self.assertEqual(parse_content_value(json.dumps(d)), d)
+
+    def test_invalid_type_raises(self):
+        with self.assertRaises(TypeError):
+            parse_content_value(123)

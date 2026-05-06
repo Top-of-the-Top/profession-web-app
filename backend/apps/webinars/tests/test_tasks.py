@@ -290,7 +290,7 @@ class CheckKinescopeProcessingTest(BaseWebinarTestCase):
 
     @patch('apps.webinars.api.utils.kinescope_utils.get_video_status')
     def test_marks_ready_on_ready_status(self, mock_status):
-        mock_status.return_value = {'status': 'ready'}
+        mock_status.return_value = {'status': 'done'}
         rec = Recording.objects.create(
             webinar=self.webinar,
             kinescope_video_id='vid',

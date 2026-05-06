@@ -1,5 +1,6 @@
 import logging
 import os
+import time as time_module
 
 from celery import shared_task
 

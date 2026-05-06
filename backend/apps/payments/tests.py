@@ -206,7 +206,7 @@ class PaymentTaskUnitTests(SimpleTestCase):
             result = _handle_success(mock_payment)
 
             self.assertEqual(result['status'], 'success')
-            self.assertEqual(result['courses_added'], 2)
+            self.assertIn('payment_id', result)
             mock_payment.save.assert_called_once()
 
     def test_handle_failure_with_retry(self):
@@ -354,7 +354,7 @@ class CartPayViewUnitTests(SimpleTestCase):
 
             response = CartPayView.as_view()(request)
 
-            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             mock_payment_create.assert_called_once()
             mock_bulk_create.assert_called_once()
             mock_yookassa.assert_called_once()

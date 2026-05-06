@@ -684,6 +684,9 @@ class RecordingPdfView(APIView):
             is_deleted=False,
         )
 
+        if not recording.whiteboard_pdf_url:
+            return Response({'detail': 'PDF не найден'}, status=status.HTTP_404_NOT_FOUND)
+
         binding_api = build_binding_api()
         try:
             binding_api.sync_single(
@@ -695,9 +698,8 @@ class RecordingPdfView(APIView):
         except AssetError as exc:
             return process_error_response(exc)
 
-        if recording.whiteboard_pdf_url:
-            recording.whiteboard_pdf_url = ''
-            recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+        recording.whiteboard_pdf_url = ''
+        recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
 
         return Response({'detail': 'pdf доски удален'}, status=status.HTTP_204_NO_CONTENT)
     

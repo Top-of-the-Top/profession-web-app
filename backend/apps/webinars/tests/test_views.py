@@ -608,25 +608,34 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @patch('apps.webinars.api.views.os.getenv', return_value='test-bucket')
-    @patch('apps.webinars.api.views.default_storage.save', return_value='whiteboards/recording_x.pdf')
     @patch('apps.webinars.api.views.img2pdf.convert', return_value=b'%PDF-1.4 fake')
-    def test_post_with_screenshots_saves_pdf(self, mock_convert, mock_save, mock_env):
+    def test_post_with_screenshots_saves_pdf(self, mock_convert):
         from django.core.files.uploadedfile import SimpleUploadedFile
+        from unittest.mock import MagicMock
+        from apps.core.meta_management.errors import AssetError
+
+        mock_asset = MagicMock()
+        mock_asset.asset_id = 'fake-asset-id'
+
+        mock_upload_api = MagicMock()
+        mock_upload_api.upload_server_side.return_value = mock_asset
+
+        mock_binding_api = MagicMock()
 
         screenshot = SimpleUploadedFile('a.png', b'\x89PNG\r\n\x1a\n', content_type='image/png')
 
         self.authenticate(self.teacher)
-        response = self.client.post(
-            self.url_pdf(self.recording.recording_id),
-            {'screenshots': [screenshot]},
-            format='multipart',
-        )
+        with patch('apps.webinars.api.views.build_upload_api', return_value=mock_upload_api), \
+             patch('apps.webinars.api.views.build_binding_api', return_value=mock_binding_api):
+            response = self.client.post(
+                self.url_pdf(self.recording.recording_id),
+                {'screenshots': [screenshot]},
+                format='multipart',
+            )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.recording.refresh_from_db()
-        self.assertIn('whiteboards/recording_x.pdf', self.recording.whiteboard_pdf_url)
-        mock_save.assert_called_once()
+        mock_upload_api.upload_server_side.assert_called_once()
+        mock_binding_api.sync_single.assert_called_once()
 
     def test_post_returns_404_for_nonexistent_recording(self):
         import uuid

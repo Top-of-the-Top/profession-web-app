@@ -114,12 +114,6 @@ class TaskAnswer(EstimatedMixin, TimestampedMixin):
     )
 
     user_answer = models.TextField(blank=True, default='', verbose_name='Ответ пользователя')
-    points = models.PositiveIntegerField(
-        null=True, blank=True, default=None, verbose_name='Баллы за задание'
-    )
-    teacher_comment = models.TextField(
-        blank=True, default='', verbose_name='Комментарий преподавателя'
-    )
 
     class Meta:
         verbose_name = 'Ответ на задание'
@@ -127,12 +121,32 @@ class TaskAnswer(EstimatedMixin, TimestampedMixin):
         ordering = ['created_at']
         unique_together = ('attempt', 'task')
 
-    def clean(self):
-        if self.points is not None and self.points > self.task.max_points:
-            raise ValidationError({
-                'points': f'За задание {self.task} можно получить максимум {self.task.max_points}'
-            })
 
     def __str__(self):
         return str(self.answer_id)
     
+
+class TaskReview(TimestampedMixin):
+    task_review_id =  models.UUIDField(primary_key=True, verbose_name="id", default=uuid.uuid4)
+    answer = models.OneToOneField(TaskAnswer, on_delete=models.CASCADE)
+
+    comment = models.TextField(
+        max_length=1500,
+        verbose_name="Комментарий преподавателя",
+        null=True,
+        blank=True,
+        default=None
+    )
+
+    point = models.PositiveIntegerField(verbose_name="Выставленные баллы", default=0)
+
+    def clean(self):
+        if self.points is not None and self.points > self.answer.task.max_points:
+            raise ValidationError({
+                'points': f'За задание {self.answer.answer} можно выстовить максимум {self.answer.task.max_points}'
+            })
+        
+    class Meta:
+        verbose_name = 'Ревью задания с развернутым ответом'
+        verbose_name_plural = 'Ревью заданий с развернутым ответом'
+        ordering = ['-created_at']

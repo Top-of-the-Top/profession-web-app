@@ -46,8 +46,10 @@ def lesson_list_cache_key(course_slug):
     return f"default:lessons:list:{course_slug}"
 
 
-def my_schedule_cache_key(user_id):
-    return f"default:schedule:list:{int(user_id)}"
+def my_schedule_cache_key(user_id, start_date=None, end_date=None):
+    start = start_date.isoformat() if start_date else 'none'
+    end = end_date.isoformat() if end_date else 'none'
+    return f"default:schedule:list:{int(user_id)}:{start}:{end}"
 
 
 DETAIL_CACHE_SCOPES = ('pub', 'all')

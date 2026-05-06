@@ -147,7 +147,7 @@ class StudentAttemptsView(APIView):
                 .select_related('homework', 'user')
                 .order_by('-created_at')
             )
-            data = {'student_attempts': StudentAttemptSerializer(attempts, many=True).data}
+            data = {'student_attempts': {'items': StudentAttemptSerializer(attempts, many=True).data}}
             cache.set(cache_key, data)
             return Response(data, status=status.HTTP_200_OK)
 
@@ -168,7 +168,7 @@ class StudentAttemptsView(APIView):
                 .select_related('homework', 'user')
                 .order_by('-created_at')
             )
-            data = {'student_attempts': StudentAttemptSerializer(attempts, many=True).data}
+            data = {'student_attempts': {'items': StudentAttemptSerializer(attempts, many=True).data}}
             cache.set(cache_key, data)
             return Response(data, status=status.HTTP_200_OK)
 
@@ -182,7 +182,7 @@ class StudentAttemptsView(APIView):
             .select_related('homework__lesson__section__course')
             .order_by('-created_at')
         )
-        data = {'my_attempts': MyAttemptSerializer(attempts, many=True).data}
+        data = {'my_attempts': {'items': MyAttemptSerializer(attempts, many=True).data}}
         cache.set(cache_key, data)
         return Response(data, status=status.HTTP_200_OK)
 

@@ -44,6 +44,7 @@ from .utils.cache_utils import (
     homework_detail_cache_key,
     landing_courses_cache_key,
     lesson_detail_cache_key,
+    my_schedule_cache_key,
     purchased_courses_cache_key,
 )
 from .utils.queryset_utils import get_homework_or_404, get_lesson_or_404
@@ -306,6 +307,12 @@ class MyScheduleView(APIView):
             if end_date is None:
                 return Response({'detail': 'Неверный формат end_date'}, status=status.HTTP_400_BAD_REQUEST)
 
+        cache = caches['default']
+        key = my_schedule_cache_key(request.user.id, start_date, end_date)
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+
         user = request.user
         authored_ids = set()
         enrolled_ids = set()
@@ -360,7 +367,9 @@ class MyScheduleView(APIView):
             })
 
         items.sort(key=lambda x: x['datetime'])
-        return Response({'items': items})
+        data = {'items': items}
+        cache.set(key, data)
+        return Response(data)
 
 
 class CourseHomePageView(APIView):

@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.core.cache import caches
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -7,6 +8,12 @@ from rest_framework.views import APIView
 from apps.courses.models import Homework, Lesson
 from apps.courses.api.schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
 from apps.courses.api.permissions import require_course_author, require_course_enrollment
+from apps.courses.api.utils.cache_utils import (
+    attempt_draft_cache_key,
+    attempt_detail_cache_key,
+    attempt_list_cache_key,
+    invalidate_attempt_cache,
+)
 from apps.homeworks.models import Attempt
 
 from ..services.attempt_service import AttemptService
@@ -63,6 +70,12 @@ class HomeworkAttemptView(APIView):
     )
     @require_course_enrollment
     def get(self, request, course_slug, homework_slug):
+        cache = caches['default']
+        cache_key = attempt_draft_cache_key(request.user.id, homework_slug)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
+
         homework = get_object_or_404(
             Homework,
             slug=homework_slug,
@@ -74,10 +87,9 @@ class HomeworkAttemptView(APIView):
         except HomeworkServiceError as exc:
             return _error_response(exc)
 
-        return Response(
-            AttemptSerializer(attempt, context={'request': request}).data,
-            status=status.HTTP_200_OK,
-        )
+        data = AttemptSerializer(attempt, context={'request': request}).data
+        cache.set(cache_key, data)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class StudentAttemptsView(APIView):
@@ -122,18 +134,22 @@ class StudentAttemptsView(APIView):
         )
 
         user = request.user
+        cache = caches['default']
 
         if user.is_moderator():
+            cache_key = attempt_list_cache_key(lesson_slug)
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached, status=status.HTTP_200_OK)
             attempts = (
                 Attempt.objects
                 .filter(homework__lesson=lesson)
                 .select_related('homework', 'user')
                 .order_by('-created_at')
             )
-            return Response(
-                {'student_attempts': StudentAttemptSerializer(attempts, many=True).data},
-                status=status.HTTP_200_OK,
-            )
+            data = {'student_attempts': StudentAttemptSerializer(attempts, many=True).data}
+            cache.set(cache_key, data)
+            return Response(data, status=status.HTTP_200_OK)
 
         if user.is_teacher():
             course = lesson.section.course
@@ -142,27 +158,33 @@ class StudentAttemptsView(APIView):
                     {'detail': 'Вы не являетесь автором этого курса'},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+            cache_key = attempt_list_cache_key(lesson_slug)
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached, status=status.HTTP_200_OK)
             attempts = (
                 Attempt.objects
                 .filter(homework__lesson=lesson)
                 .select_related('homework', 'user')
                 .order_by('-created_at')
             )
-            return Response(
-                {'student_attempts': StudentAttemptSerializer(attempts, many=True).data},
-                status=status.HTTP_200_OK,
-            )
+            data = {'student_attempts': StudentAttemptSerializer(attempts, many=True).data}
+            cache.set(cache_key, data)
+            return Response(data, status=status.HTTP_200_OK)
 
+        cache_key = attempt_list_cache_key(lesson_slug, user.id)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
         attempts = (
             Attempt.objects
             .filter(homework__lesson=lesson, user=user)
             .select_related('homework__lesson__section__course')
             .order_by('-created_at')
         )
-        return Response(
-            {'my_attempts': MyAttemptSerializer(attempts, many=True).data},
-            status=status.HTTP_200_OK,
-        )
+        data = {'my_attempts': MyAttemptSerializer(attempts, many=True).data}
+        cache.set(cache_key, data)
+        return Response(data, status=status.HTTP_200_OK)
 
 class AttemptDetailView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -194,6 +216,12 @@ class AttemptDetailView(APIView):
     )
     @require_course_author
     def get(self, request, course_slug, attempt_id):
+        cache = caches['default']
+        cache_key = attempt_detail_cache_key(attempt_id)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
+
         attempt = get_object_or_404(
             Attempt.objects
             .select_related('homework')
@@ -205,10 +233,9 @@ class AttemptDetailView(APIView):
             attempt_id=attempt_id,
             homework__lesson__section__course__slug=course_slug,
         )
-        return Response(
-            AttemptSerializer(attempt, context={'request': request}).data,
-            status=status.HTTP_200_OK,
-        )
+        data = AttemptSerializer(attempt, context={'request': request}).data
+        cache.set(cache_key, data)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class AttemptReviewView(APIView):
@@ -282,6 +309,12 @@ class AttemptReviewView(APIView):
         except HomeworkServiceError as exc:
             return _error_response(exc)
 
+        invalidate_attempt_cache(
+            user_id=attempt.user_id,
+            homework_slug=attempt.homework.slug,
+            attempt_id=attempt.attempt_id,
+            lesson_slug=attempt.homework.lesson.slug,
+        )
         return Response(
             AttemptSerializer(attempt, context={'request': request}).data,
             status=status.HTTP_200_OK,
@@ -338,6 +371,12 @@ class HomeworkAttemptSubmitView(APIView):
         except HomeworkServiceError as exc:
             return _error_response(exc)
 
+        invalidate_attempt_cache(
+            user_id=request.user.id,
+            homework_slug=homework_slug,
+            attempt_id=attempt.attempt_id,
+            lesson_slug=attempt.homework.lesson.slug,
+        )
         return Response(
             AttemptSerializer(attempt, context={'request': request}).data,
             status=status.HTTP_201_CREATED,

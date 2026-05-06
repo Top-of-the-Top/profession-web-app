@@ -200,38 +200,40 @@ export interface HomeworkAttemptListItem {
 
 // GET /api/my-homeworks/ — student view
 export interface MyHomeworkStudentItem {
-  homework_id: string;
-  homework_slug: string;
-  lesson_slug: string;
-  course_slug: string;
-  title: string;
-  deadline: string | null;
-  status: HomeworkAttemptStatus | 'not_started';
-  score: number | null;
-  max_points: number | null;
-  send_at: string | null;
-  attempt_id: string | null;
-}
-
-// GET /api/my-homeworks/ — teacher view
-export interface MyHomeworkTeacherAttempt {
   attempt_id: string;
+  status: HomeworkAttemptStatus;
   homework_id: string;
   homework_slug: string;
   homework_title: string;
-  lesson_slug: string;
-  course_slug: string;
-  student_name: string;
-  student_id: number;
-  status: HomeworkAttemptStatus;
-  score: number | null;
+  deadline: string | null;
+  course_title: string;
+  lesson_title: string;
+  grade: number | null;
   max_points: number | null;
-  send_at: string | null;
+}
+
+// GET /api/my-homeworks/ — teacher view
+export interface MyHomeworkTeacherStudent {
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface MyHomeworkTeacherAttempt {
+  attempt_id: string;
+  status: HomeworkAttemptStatus;
+  homework_id: string;
+  homework_slug: string;
+  homework_title: string;
+  grade: number | null;
+  max_points: number | null;
+  student: MyHomeworkTeacherStudent;
 }
 
 export type MyHomeworksResponse =
-  | { role: 'student'; items: MyHomeworkStudentItem[] }
-  | { role: 'teacher'; items: MyHomeworkTeacherAttempt[] };
+  | { my_attempts: { items: MyHomeworkStudentItem[] } }
+  | { student_attempts: { items: MyHomeworkTeacherAttempt[] } };
 
 export interface ReviewHomeworkAttemptItemPayload {
   task_answer_id: string;

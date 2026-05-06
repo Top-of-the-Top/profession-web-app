@@ -19,7 +19,6 @@ import type {
   MyHomeworkStudentItem,
   MyHomeworkTeacherAttempt,
 } from '@shared/api/courseApi/types';
-import { useRole } from '@shared/lib/rbac';
 import styles from './MyHomeworksPage.module.css';
 
 function formatDate(value: string | null): string {
@@ -41,25 +40,29 @@ function StatusBadge({ status }: { status: string }) {
       ? styles.badgeReviewed
       : status === 'submitted'
         ? styles.badgeSubmitted
-        : status === 'draft'
-          ? styles.badgePending
-          : styles.badgeNotStarted;
+        : styles.badgePending;
 
   const label =
     status === 'reviewed'
       ? 'Проверено'
       : status === 'submitted'
         ? 'Ожидает проверки'
-        : status === 'draft'
-          ? 'Черновик'
-          : 'Не начато';
+        : 'Черновик';
 
   return <span className={`${styles.badge} ${cls}`}>{label}</span>;
 }
 
-// ─── Student table ────────────────────────────────────────────────────────────
+// ─── Student ──────────────────────────────────────────────────────────────────
 
-function StudentTable({ items }: { items: MyHomeworkStudentItem[] }) {
+function StudentTable({
+  items,
+  courseSlug,
+  lessonSlug,
+}: {
+  items: MyHomeworkStudentItem[];
+  courseSlug: string;
+  lessonSlug: string | undefined;
+}) {
   if (items.length === 0) {
     return <div className={styles.empty}>Нет заданий</div>;
   }
@@ -70,45 +73,36 @@ function StudentTable({ items }: { items: MyHomeworkStudentItem[] }) {
         <tr>
           <th>Домашнее задание</th>
           <th>Баллы</th>
-          <th>Дедлайн / Сдано</th>
+          <th>Дедлайн</th>
           <th>Статус</th>
           <th />
         </tr>
       </thead>
       <tbody>
         {items.map((item) => (
-          <tr key={item.homework_id}>
-            <td className={styles.hwTitle}>{item.title}</td>
+          <tr key={item.attempt_id}>
+            <td className={styles.hwTitle}>{item.homework_title}</td>
             <td className={styles.scoreText}>
-              {item.score !== null && item.max_points !== null
-                ? `${item.score} / ${item.max_points}`
+              {item.grade !== null && item.max_points !== null
+                ? `${item.grade} / ${item.max_points}`
                 : item.max_points !== null
                   ? `— / ${item.max_points}`
                   : '—'}
             </td>
-            <td>
-              <div className={styles.dateText}>
-                {item.send_at ? formatDate(item.send_at) : formatDate(item.deadline)}
-              </div>
-            </td>
+            <td className={styles.dateText}>{formatDate(item.deadline)}</td>
             <td>
               <StatusBadge status={item.status} />
             </td>
             <td>
-              {item.attempt_id ? (
+              {lessonSlug ? (
                 <Link
                   className={styles.linkCell}
-                  to={`/app/courses/${item.course_slug}/${item.lesson_slug}/homework/${item.homework_slug}`}
+                  to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${item.homework_slug}`}
                 >
                   Открыть <ChevronRight size={14} />
                 </Link>
               ) : (
-                <Link
-                  className={styles.linkCell}
-                  to={`/app/courses/${item.course_slug}/${item.lesson_slug}/homework/${item.homework_slug}`}
-                >
-                  Выполнить <ChevronRight size={14} />
-                </Link>
+                <span className={styles.dateText}>{item.lesson_title}</span>
               )}
             </td>
           </tr>
@@ -118,41 +112,46 @@ function StudentTable({ items }: { items: MyHomeworkStudentItem[] }) {
   );
 }
 
-function StudentView({ items }: { items: MyHomeworkStudentItem[] }) {
-  const todo = useMemo(
-    () => items.filter((i) => i.status === 'not_started' || i.status === 'draft'),
-    [items],
-  );
-  const pending = useMemo(
-    () => items.filter((i) => i.status === 'submitted'),
-    [items],
-  );
-  const reviewed = useMemo(
-    () => items.filter((i) => i.status === 'reviewed'),
-    [items],
-  );
+function StudentView({
+  items,
+  courseSlug,
+  lessonSlug,
+}: {
+  items: MyHomeworkStudentItem[];
+  courseSlug: string;
+  lessonSlug: string | undefined;
+}) {
+  const todo = useMemo(() => items.filter((i) => i.status === 'draft'), [items]);
+  const pending = useMemo(() => items.filter((i) => i.status === 'submitted'), [items]);
+  const reviewed = useMemo(() => items.filter((i) => i.status === 'reviewed'), [items]);
 
   return (
     <div className={styles.tabsWrap}>
-      <Tabs defaultValue="todo">
+      <Tabs defaultValue="all">
         <TabsList>
-          <TabsTrigger value="todo">К выполнению ({todo.length})</TabsTrigger>
+          <TabsTrigger value="all">Все ({items.length})</TabsTrigger>
+          <TabsTrigger value="todo">Черновики ({todo.length})</TabsTrigger>
           <TabsTrigger value="pending">Ожидает проверки ({pending.length})</TabsTrigger>
           <TabsTrigger value="reviewed">Проверено ({reviewed.length})</TabsTrigger>
         </TabsList>
+        <TabsContent value="all">
+          <div className={styles.card}>
+            <StudentTable items={items} courseSlug={courseSlug} lessonSlug={lessonSlug} />
+          </div>
+        </TabsContent>
         <TabsContent value="todo">
           <div className={styles.card}>
-            <StudentTable items={todo} />
+            <StudentTable items={todo} courseSlug={courseSlug} lessonSlug={lessonSlug} />
           </div>
         </TabsContent>
         <TabsContent value="pending">
           <div className={styles.card}>
-            <StudentTable items={pending} />
+            <StudentTable items={pending} courseSlug={courseSlug} lessonSlug={lessonSlug} />
           </div>
         </TabsContent>
         <TabsContent value="reviewed">
           <div className={styles.card}>
-            <StudentTable items={reviewed} />
+            <StudentTable items={reviewed} courseSlug={courseSlug} lessonSlug={lessonSlug} />
           </div>
         </TabsContent>
       </Tabs>
@@ -160,7 +159,7 @@ function StudentView({ items }: { items: MyHomeworkStudentItem[] }) {
   );
 }
 
-// ─── Teacher table ────────────────────────────────────────────────────────────
+// ─── Teacher ──────────────────────────────────────────────────────────────────
 
 function TeacherTable({
   items,
@@ -168,7 +167,7 @@ function TeacherTable({
   lessonSlug,
 }: {
   items: MyHomeworkTeacherAttempt[];
-  courseSlug: string | undefined;
+  courseSlug: string;
   lessonSlug: string | undefined;
 }) {
   if (items.length === 0) {
@@ -180,8 +179,8 @@ function TeacherTable({
       <thead>
         <tr>
           <th>Ученик</th>
-          <th>Выполнено</th>
-          <th>Сдано</th>
+          <th>Задание</th>
+          <th>Баллы</th>
           <th>Статус</th>
           <th />
         </tr>
@@ -189,30 +188,32 @@ function TeacherTable({
       <tbody>
         {items.map((item) => (
           <tr key={item.attempt_id}>
-            <td className={styles.studentName}>{item.student_name}</td>
+            <td className={styles.studentName}>
+              {item.student.first_name} {item.student.last_name}
+            </td>
+            <td className={styles.hwTitle}>{item.homework_title}</td>
             <td className={styles.scoreText}>
-              {item.score !== null && item.max_points !== null
-                ? `${item.score} / ${item.max_points}`
+              {item.grade !== null && item.max_points !== null
+                ? `${item.grade} / ${item.max_points}`
                 : item.max_points !== null
                   ? `— / ${item.max_points}`
                   : '—'}
             </td>
-            <td className={styles.dateText}>{formatDate(item.send_at)}</td>
             <td>
               <StatusBadge status={item.status} />
             </td>
             <td>
-              <Link
-                className={styles.linkCell}
-                to={
-                  courseSlug && lessonSlug
-                    ? `/app/courses/${courseSlug}/${lessonSlug}/homework/${item.homework_slug}/review/${item.attempt_id}`
-                    : `/app/courses/${item.course_slug}/${item.lesson_slug}/homework/${item.homework_slug}/review/${item.attempt_id}`
-                }
-              >
-                {item.status === 'submitted' ? 'Проверить' : 'Открыть'}{' '}
-                <ChevronRight size={14} />
-              </Link>
+              {lessonSlug ? (
+                <Link
+                  className={styles.linkCell}
+                  to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${item.homework_slug}/review/${item.attempt_id}`}
+                >
+                  {item.status === 'submitted' ? 'Проверить' : 'Открыть'}{' '}
+                  <ChevronRight size={14} />
+                </Link>
+              ) : (
+                <span className={styles.dateText}>—</span>
+              )}
             </td>
           </tr>
         ))}
@@ -227,17 +228,11 @@ function TeacherView({
   lessonSlug,
 }: {
   items: MyHomeworkTeacherAttempt[];
-  courseSlug: string | undefined;
+  courseSlug: string;
   lessonSlug: string | undefined;
 }) {
-  const waiting = useMemo(
-    () => items.filter((i) => i.status === 'submitted'),
-    [items],
-  );
-  const done = useMemo(
-    () => items.filter((i) => i.status === 'reviewed'),
-    [items],
-  );
+  const waiting = useMemo(() => items.filter((i) => i.status === 'submitted'), [items]);
+  const done = useMemo(() => items.filter((i) => i.status === 'reviewed'), [items]);
 
   return (
     <div className={styles.tabsWrap}>
@@ -271,8 +266,6 @@ function TeacherView({
 
 export default function MyHomeworksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { hasAny } = useRole();
-  const isTeacher = hasAny('teacher', 'moderator');
 
   const courseSlug = searchParams.get('course_slug') ?? undefined;
   const lessonSlug = searchParams.get('lesson_slug') ?? undefined;
@@ -298,12 +291,45 @@ export default function MyHomeworksPage() {
       } else {
         next.delete(key);
       }
-      // Reset lesson when course changes
-      if (key === 'course_slug') {
-        next.delete('lesson_slug');
-      }
+      if (key === 'course_slug') next.delete('lesson_slug');
       return next;
     });
+  }
+
+  function renderContent() {
+    if (!courseSlug) {
+      return (
+        <div className={styles.centered} style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
+          Выберите курс для просмотра заданий
+        </div>
+      );
+    }
+    if (homeworksQuery.isLoading) {
+      return <div className={styles.centered}><Spinner /></div>;
+    }
+    if (homeworksQuery.isError || !homeworksQuery.data) {
+      return (
+        <div className={styles.centered} style={{ color: 'var(--destructive)' }}>
+          Не удалось загрузить данные
+        </div>
+      );
+    }
+    if ('my_attempts' in homeworksQuery.data) {
+      return (
+        <StudentView
+          items={homeworksQuery.data.my_attempts.items}
+          courseSlug={courseSlug}
+          lessonSlug={lessonSlug}
+        />
+      );
+    }
+    return (
+      <TeacherView
+        items={homeworksQuery.data.student_attempts.items}
+        courseSlug={courseSlug}
+        lessonSlug={lessonSlug}
+      />
+    );
   }
 
   return (
@@ -321,7 +347,7 @@ export default function MyHomeworksPage() {
               onValueChange={(val) => setFilter('course_slug', val === '__all__' ? undefined : val)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Все курсы" />
+                <SelectValue placeholder="Выберите курс" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Все курсы</SelectItem>
@@ -359,27 +385,7 @@ export default function MyHomeworksPage() {
           )}
         </div>
 
-        {!courseSlug || !lessonSlug ? (
-          <div className={styles.centered} style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
-            Выберите курс и урок для просмотра заданий
-          </div>
-        ) : homeworksQuery.isLoading ? (
-          <div className={styles.centered}>
-            <Spinner />
-          </div>
-        ) : homeworksQuery.isError || !homeworksQuery.data ? (
-          <div className={styles.centered} style={{ color: 'var(--destructive)' }}>
-            Не удалось загрузить данные
-          </div>
-        ) : homeworksQuery.data.role === 'student' ? (
-          <StudentView items={homeworksQuery.data.items} />
-        ) : (
-          <TeacherView
-            items={homeworksQuery.data.items}
-            courseSlug={courseSlug}
-            lessonSlug={lessonSlug}
-          />
-        )}
+        {renderContent()}
       </div>
     </PageFrame>
   );

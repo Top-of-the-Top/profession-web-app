@@ -179,15 +179,13 @@ export const courseApi = {
   },
 
   getMyHomeworks(params: {
-    courseSlug?: string;
+    courseSlug: string;
     lessonSlug?: string;
   }): Promise<MyHomeworksResponse> {
-    const query = new URLSearchParams();
-    if (params.courseSlug) query.set('course_slug', params.courseSlug);
+    const query = new URLSearchParams({ course_slug: params.courseSlug });
     if (params.lessonSlug) query.set('lesson_slug', params.lessonSlug);
-    const qs = query.toString();
     return apiClient.request<MyHomeworksResponse>(
-      `/api/my-homeworks/${qs ? `?${qs}` : ''}`,
+      `/api/my-homeworks/?${query.toString()}`,
       { method: 'GET' },
     );
   },

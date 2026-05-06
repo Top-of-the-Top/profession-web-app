@@ -13,6 +13,11 @@ export function WebinarChat({ messages, uid, sendMessage }: WebinarChatProps) {
   const [input, setInput] = useState('');
   const sentinelRef = useRef<HTMLDivElement>(null);
   const canSend = input.trim().length > 0;
+  const formatTime = (value: number) =>
+    new Date(value).toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   useEffect(() => {
     sentinelRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,7 +38,10 @@ export function WebinarChat({ messages, uid, sendMessage }: WebinarChatProps) {
             key={msg.id}
             className={msg.senderId === String(uid) ? styles.msgOwn : styles.msgOther}
           >
-            <span className={styles.senderName}>{msg.senderName}</span>
+            <div className={styles.msgMeta}>
+              <span className={styles.senderName}>{msg.senderName}</span>
+              <span className={styles.msgTime}>{formatTime(msg.createdAt)}</span>
+            </div>
             <span className={styles.msgText}>{msg.text}</span>
           </div>
         ))}

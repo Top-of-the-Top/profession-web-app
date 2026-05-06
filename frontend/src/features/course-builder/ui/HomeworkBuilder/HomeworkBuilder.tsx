@@ -274,10 +274,13 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
       if (!q.title.trim()) { badIds.add(`title:${q.id}`); ok = false; }
       // score not set
       if (!q.score || q.score <= 0) { badIds.add(`score:${q.id}`); ok = false; }
-      // single: no correct answer marked
+      // single: no correct answer marked, or empty options
       if (q.type === 'single') {
         const sq = q as Extract<HomeworkQuestion, { type: 'single' }>;
         if (!sq.options.some((o) => o.isCorrect)) { badIds.add(`correct:${q.id}`); ok = false; }
+        for (const o of sq.options) {
+          if (!o.text.trim()) { badIds.add(`option:${o.id}`); ok = false; }
+        }
       }
     }
 
@@ -371,14 +374,22 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                       onClick={() => toggleCorrectOption(question, opt.id)}
                     />
                     <input
-                      className={styles.homeworkOptionInput}
+                      className={cn(
+                        styles.homeworkOptionInput,
+                        invalidIds.has(`option:${opt.id}`) ? styles.fieldInvalid : '',
+                      )}
                       placeholder="Вариант ответа"
                       value={opt.text}
-                      onChange={(e) =>
-                        updateOption(question.id, opt.id, {
-                          text: e.target.value,
-                        })
-                      }
+                      onChange={(e) => {
+                        updateOption(question.id, opt.id, { text: e.target.value });
+                        if (e.target.value.trim()) {
+                          setInvalidIds((prev) => {
+                            const s = new Set(prev);
+                            s.delete(`option:${opt.id}`);
+                            return s;
+                          });
+                        }
+                      }}
                     />
 
                     <button

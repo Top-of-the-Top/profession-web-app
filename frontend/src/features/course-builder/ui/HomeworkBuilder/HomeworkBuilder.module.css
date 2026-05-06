@@ -581,6 +581,12 @@
   background: #fff5f5 !important;
 }
 
+.homeworkOptionInput.fieldInvalid {
+  border-bottom-color: #f87171 !important;
+  background: transparent !important;
+  color: #b91c1c;
+}
+
 .fieldError {
   margin: 4px 0 0;
   font-size: 12px;

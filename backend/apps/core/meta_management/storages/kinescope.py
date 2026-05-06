@@ -19,7 +19,7 @@ API_BASE = 'https://api.kinescope.io/v1'
 UPLOADER_BASE = 'https://uploader.kinescope.io/v2'
 EMBED_URL_TEMPLATE = 'https://kinescope.io/embed/{video_id}'
 
-UPLOADED_STATUSES = {'processing', 'ready'}
+UPLOADED_STATUSES = {'processing', 'ready', 'done'}
 
 
 def _encode_header_value(value):

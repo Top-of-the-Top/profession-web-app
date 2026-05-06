@@ -101,14 +101,14 @@ class StudentAttemptsView(APIView):
     @extend_schema(
         summary='Мои домашки / попытки студентов',
         description=(
-            'Принимает `course_slug` (обязательный) и `lesson_slug` (необязательный). '
-            'Без `lesson_slug` возвращает попытки по всем урокам курса. '
-            'Студент получает `my_attempts`. '
-            'Преподаватель (автор курса) и модератор получают `student_attempts`.'
+            'Оба параметра опциональны. '
+            'Без параметров — все попытки по всем курсам. '
+            'С `course_slug` — по курсу. С `course_slug` + `lesson_slug` — по уроку. '
+            'Студент получает `my_attempts`, преподаватель/модератор — `student_attempts`.'
         ),
         tags=['Home'],
         parameters=[
-            OpenApiParameter('course_slug', OpenApiTypes.STR, OpenApiParameter.QUERY, required=True),
+            OpenApiParameter('course_slug', OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
             OpenApiParameter('lesson_slug', OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
         ],
         responses={
@@ -126,13 +126,13 @@ class StudentAttemptsView(APIView):
         course_slug = request.query_params.get('course_slug')
         lesson_slug = request.query_params.get('lesson_slug')
 
-        if not course_slug:
-            return _process_error(RequestValidationError('Необходимо передать course_slug'))
-
         user = request.user
         cache = caches['default']
 
-        if lesson_slug:
+        attempt_filter = {}
+        teacher_course = None
+
+        if lesson_slug and course_slug:
             lesson = get_object_or_404(
                 Lesson.objects.select_related('section__course'),
                 slug=lesson_slug,
@@ -142,12 +142,15 @@ class StudentAttemptsView(APIView):
             teacher_course = lesson.section.course
             list_cache_key = attempt_list_cache_key(lesson_slug)
             list_cache_key_user = attempt_list_cache_key(lesson_slug, user.id)
-        else:
+        elif course_slug:
             course = get_object_or_404(Course, slug=course_slug)
             attempt_filter = {'homework__lesson__section__course': course}
             teacher_course = course
             list_cache_key = attempt_list_by_course_cache_key(course_slug)
             list_cache_key_user = attempt_list_by_course_cache_key(course_slug, user.id)
+        else:
+            list_cache_key = f'default:attempt:list:all'
+            list_cache_key_user = f'default:attempt:list:all:{int(user.id)}'
 
         if user.is_moderator():
             cached = cache.get(list_cache_key)
@@ -164,7 +167,7 @@ class StudentAttemptsView(APIView):
             return Response(data, status=status.HTTP_200_OK)
 
         if user.is_teacher():
-            if not user.is_course_author(teacher_course):
+            if teacher_course is not None and not user.is_course_author(teacher_course):
                 return Response(
                     {'detail': 'Вы не являетесь автором этого курса'},
                     status=status.HTTP_403_FORBIDDEN,
@@ -172,9 +175,13 @@ class StudentAttemptsView(APIView):
             cached = cache.get(list_cache_key)
             if cached is not None:
                 return Response(cached, status=status.HTTP_200_OK)
+            authored_ids = list(
+                Course.objects.filter(authors=user).values_list('course_id', flat=True)
+            )
+            teacher_filter = {**attempt_filter, 'homework__lesson__section__course_id__in': authored_ids}
             attempts = (
                 Attempt.objects
-                .filter(**attempt_filter)
+                .filter(**teacher_filter)
                 .select_related('homework', 'user')
                 .order_by('-created_at')
             )

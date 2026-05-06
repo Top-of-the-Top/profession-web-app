@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Paperclip, FileText, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Paperclip, FileText, X, Clock, CheckCircle2 } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -411,6 +411,24 @@ export default function HomeworkSubmissionPage() {
         </div>
 
         <div className={styles.centeredColumn}>
+          {attempt.status === 'submitted' && (
+            <div className={styles.statusBannerSubmitted}>
+              <Clock size={16} className={styles.statusBannerIcon} />
+              <span>Работа отправлена и ожидает проверки преподавателем. Редактирование недоступно.</span>
+            </div>
+          )}
+          {attempt.status === 'reviewed' && (
+            <div className={styles.statusBannerReviewed}>
+              <CheckCircle2 size={16} className={styles.statusBannerIcon} />
+              <span>
+                Работа проверена.
+                {attempt.score != null && attempt.max_points != null && (
+                  <> Результат: <strong>{attempt.score}&thinsp;/&thinsp;{attempt.max_points}</strong> баллов.</>
+                )}
+              </span>
+            </div>
+          )}
+
           <div className={styles.topNav}>
             <button
               type="button"
@@ -453,7 +471,11 @@ export default function HomeworkSubmissionPage() {
           <div className={styles.contentGrid}>
             <section
               key={animationKey.current}
-              className={`${styles.itemCard} ${slideClass}`}
+              className={[
+                styles.itemCard,
+                !isDraft ? styles.itemCardReadOnly : '',
+                slideClass,
+              ].join(' ')}
             >
               <p className={styles.itemMeta}>
                 Задание {currentItem.number}: {currentItem.max_points ?? 0} балла
@@ -606,15 +628,30 @@ export default function HomeworkSubmissionPage() {
                   Дедлайн: {new Date(attempt.deadline).toLocaleString('ru-RU')}
                 </span>
               </div>
-              <div className={styles.sideActions}>
-                <Button
-                  type="button"
-                  disabled={!isDraft || !allAnswered || submitAttempt.isPending}
-                  onClick={() => setShowConfirmDialog(true)}
-                >
-                  {submitAttempt.isPending ? 'Отправка...' : 'Завершить'}
-                </Button>
-              </div>
+              {isDraft ? (
+                <div className={styles.sideActions}>
+                  <Button
+                    type="button"
+                    disabled={!allAnswered || submitAttempt.isPending}
+                    onClick={() => setShowConfirmDialog(true)}
+                  >
+                    {submitAttempt.isPending ? 'Отправка...' : 'Завершить'}
+                  </Button>
+                </div>
+              ) : attempt.status === 'submitted' ? (
+                <div className={styles.sideStatusChip} data-status="submitted">
+                  <Clock size={13} />
+                  На проверке
+                </div>
+              ) : attempt.status === 'reviewed' ? (
+                <div className={styles.sideStatusChip} data-status="reviewed">
+                  <CheckCircle2 size={13} />
+                  Проверено
+                  {attempt.score != null && attempt.max_points != null && (
+                    <span className={styles.sideScore}>{attempt.score}&thinsp;/&thinsp;{attempt.max_points}</span>
+                  )}
+                </div>
+              ) : null}
             </aside>
           </div>
         </div>

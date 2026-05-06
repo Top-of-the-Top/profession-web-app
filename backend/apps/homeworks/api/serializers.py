@@ -319,17 +319,8 @@ class AttemptReviewSerializer(serializers.Serializer):
     items = serializers.ListField(child=TaskReviewItemSerializer(), allow_empty=False)
 
 
-class ErrorDetailItemSerializer(serializers.Serializer):
-    number = serializers.IntegerField()
-    issue = serializers.CharField()
-
-
-class ErrorDetailsSerializer(serializers.Serializer):
-    items = ErrorDetailItemSerializer(many=True, required=False)
-
-
 class ErrorResponseSerializer(serializers.Serializer):
     status = serializers.CharField(default='error')
     code = serializers.CharField()
     message = serializers.CharField()
-    details = ErrorDetailsSerializer(required=False)
+    details = serializers.DictField(default=dict)

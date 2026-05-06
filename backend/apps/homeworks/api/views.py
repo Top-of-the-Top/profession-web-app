@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.courses.models import Homework, Lesson
-from apps.courses.api.schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
+from apps.courses.api.schema import SCHEMA_DETAIL
 from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from apps.courses.api.utils.cache_utils import (
     attempt_draft_cache_key,
@@ -18,7 +18,9 @@ from apps.homeworks.models import Attempt
 
 from ..services.attempt_service import AttemptService
 from ..services.review_service import ReviewService, TaskReviewItem
-from ..services.errors import HomeworkServiceError
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from apps.core.processors.error_processor import process_error_response as _process_error
+from ..services.errors import HomeworkServiceError, RequestValidationError, InternalError
 
 from .serializers import (
     AttemptSerializer,
@@ -276,19 +278,14 @@ class AttemptReviewView(APIView):
         )
 
         serializer = AttemptReviewSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except DRFValidationError as exc:
+            return _process_error(RequestValidationError(exc.detail))
         payload = serializer.validated_data
 
         if str(attempt.attempt_id) != str(payload['attempt_id']):
-            return Response(
-                {
-                    'status': 'error',
-                    'code': 'ATTEMPT_ID_MISMATCH',
-                    'message': 'attempt_id в теле не совпадает с URL.',
-                    'details': {},
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _process_error(RequestValidationError('attempt_id в теле не совпадает с URL.'))
 
         items = [
             TaskReviewItem(
@@ -334,7 +331,7 @@ class HomeworkAttemptSubmitView(APIView):
         request=AttemptSubmitSerializer,
         responses={
             201: AttemptSerializer,
-            400: SCHEMA_VALIDATION,
+            400: ErrorResponseSerializer,
             401: ErrorResponseSerializer,
             403: ErrorResponseSerializer,
             404: SCHEMA_DETAIL,
@@ -352,7 +349,10 @@ class HomeworkAttemptSubmitView(APIView):
             lesson__section__course__slug=course_slug,
         )
         serializer = AttemptSubmitSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except DRFValidationError as exc:
+            return _process_error(RequestValidationError(exc.detail))
         payload = serializer.validated_data
 
         service = AttemptService()

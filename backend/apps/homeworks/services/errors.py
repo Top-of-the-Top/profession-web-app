@@ -64,3 +64,26 @@ class ReviewPointsExceeded(HomeworkServiceError):
     code = 'REVIEW_POINTS_EXCEEDED'
     message = 'Выставленные баллы превышают максимум за задание.'
     status = status.HTTP_400_BAD_REQUEST
+
+
+class RequestValidationError(HomeworkServiceError):
+    code = 'VALIDATION_ERROR'
+    status = status.HTTP_400_BAD_REQUEST
+
+    def __init__(self, detail):
+        super().__init__(message=self._extract(detail))
+
+    @staticmethod
+    def _extract(detail):
+        if isinstance(detail, list):
+            return RequestValidationError._extract(detail[0]) if detail else 'Неверный запрос.'
+        if isinstance(detail, dict):
+            first = next(iter(detail.values()), None)
+            return RequestValidationError._extract(first) if first is not None else 'Неверный запрос.'
+        return str(detail)
+
+
+class InternalError(HomeworkServiceError):
+    code = 'INTERNAL_ERROR'
+    message = 'Внутренняя ошибка сервера.'
+    status = status.HTTP_500_INTERNAL_SERVER_ERROR

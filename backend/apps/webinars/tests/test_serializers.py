@@ -151,17 +151,23 @@ class RecordingListItemSerializerTest(BaseWebinarTestCase):
 
         self.assertEqual(data['kinescope_embed_url'], '')
 
-    @patch('apps.webinars.api.utils.kinescope_utils.generate_drm_token')
-    def test_embed_url_generated_for_ready_recording(self, mock_token):
-        mock_token.return_value = 'drm-token-123'
+    def test_embed_url_generated_for_ready_recording(self):
+        expected_url = 'https://kinescope.io/embed/vid123?drmauthtoken=drm-token-123'
         rec = Recording.objects.create(
             webinar=self.webinar,
             kinescope_upload_status='ready',
             kinescope_video_id='vid123',
         )
         request = self._request_with_user()
-        data = RecordingListItemSerializer(rec, context={'request': request}).data
+
+        mock_access = MagicMock()
+        mock_access.resolve_bound_url.return_value = expected_url
+
+        with patch('apps.webinars.api.serializers.build_access_api', return_value=mock_access):
+            data = RecordingListItemSerializer(rec, context={'request': request}).data
 
         self.assertIn('kinescope.io/embed/vid123', data['kinescope_embed_url'])
         self.assertIn('drmauthtoken=drm-token-123', data['kinescope_embed_url'])
-        mock_token.assert_called_once()
+        mock_access.resolve_bound_url.assert_any_call(
+            rec, role='webinar_recording', viewer=request.user, ttl_seconds=3600
+        )

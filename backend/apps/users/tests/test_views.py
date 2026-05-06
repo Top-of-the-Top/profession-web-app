@@ -335,12 +335,12 @@ class RecoverPasswordViewUnitTest(SimpleTestCase):
         response = RecoverPasswordView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data["detail"], "token и password обязательны")
+        self.assertEqual(response.data["detail"], "token и password_hash обязательны")
 
     def test_recover_invalid_token(self):
         request = self.factory.patch(
             "/api/auth/recover/set/",
-            {"token": "invalid", "password_hash": "NewStrongPass123!"},
+            {"token": "invalid", "password": "NewStrongPass123!"},
             format="json",
         )
 
@@ -354,7 +354,7 @@ class RecoverPasswordViewUnitTest(SimpleTestCase):
     def test_recover_success_mocked(self):
         request = self.factory.patch(
             "/api/auth/recover/set/",
-            {"token": "valid-token", "password_hash": "NewStrongPass123!"},
+            {"token": "valid-token", "password": "NewStrongPass123!"},
             format="json",
         )
 
@@ -615,7 +615,7 @@ class RecoverPasswordViewIntegrationTest(TestCase):
         new_password = 'newpass123'
         data = {
             'token': self.token,
-            'password_hash': new_password
+            'password': new_password
         }
         response = self.client.patch(self.url, data, format='json')
 
@@ -635,7 +635,7 @@ class RecoverPasswordViewIntegrationTest(TestCase):
 
         data = {
             'token': self.token,
-            'password_hash': 'newpass123'
+            'password': 'newpass123'
         }
         response = self.client.patch(self.url, data, format='json')
 
@@ -1182,14 +1182,14 @@ class ProfileViewIntegrationTest(TestCase):
     def test_update_profile_gender(self):
 
         data = {
-            'gender': 'Мужской'
+            'gender': 'М'
         }
         response = self.client.patch(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         profile = Profile.objects.get(user=self.user)
-        self.assertEqual(profile.gender, 'Мужской')
+        self.assertEqual(profile.gender, 'М')
 
     def test_profile_auto_created(self):
 

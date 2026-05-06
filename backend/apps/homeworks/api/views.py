@@ -12,6 +12,7 @@ from apps.courses.api.utils.cache_utils import (
     attempt_draft_cache_key,
     attempt_detail_cache_key,
     attempt_list_cache_key,
+    attempt_list_by_course_cache_key,
     invalidate_attempt_cache,
 )
 from apps.homeworks.models import Attempt
@@ -98,17 +99,17 @@ class StudentAttemptsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary='Мои домашки / попытки студентов по уроку',
+        summary='Мои домашки / попытки студентов',
         description=(
-            'Принимает `course_slug` и `lesson_slug` как query-параметры. '
-            'Студент получает `my_attempts` — только свои попытки с названиями курса и урока. '
-            'Преподаватель (автор курса) и модератор получают `student_attempts` — '
-            'попытки всех студентов с данными об ученике.'
+            'Принимает `course_slug` (обязательный) и `lesson_slug` (необязательный). '
+            'Без `lesson_slug` возвращает попытки по всем урокам курса. '
+            'Студент получает `my_attempts`. '
+            'Преподаватель (автор курса) и модератор получают `student_attempts`.'
         ),
         tags=['Home'],
         parameters=[
             OpenApiParameter('course_slug', OpenApiTypes.STR, OpenApiParameter.QUERY, required=True),
-            OpenApiParameter('lesson_slug', OpenApiTypes.STR, OpenApiParameter.QUERY, required=True),
+            OpenApiParameter('lesson_slug', OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
         ],
         responses={
             200: MyAttemptSerializer(many=True),
@@ -120,72 +121,78 @@ class StudentAttemptsView(APIView):
         },
     )
     def get(self, request):
+        from apps.courses.models import Course
+
         course_slug = request.query_params.get('course_slug')
         lesson_slug = request.query_params.get('lesson_slug')
 
-        if not course_slug or not lesson_slug:
-            return Response(
-                {'detail': 'Необходимо передать course_slug и lesson_slug'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        lesson = get_object_or_404(
-            Lesson.objects.select_related('section__course'),
-            slug=lesson_slug,
-            section__course__slug=course_slug,
-        )
+        if not course_slug:
+            return _process_error(RequestValidationError('Необходимо передать course_slug'))
 
         user = request.user
         cache = caches['default']
 
+        if lesson_slug:
+            lesson = get_object_or_404(
+                Lesson.objects.select_related('section__course'),
+                slug=lesson_slug,
+                section__course__slug=course_slug,
+            )
+            attempt_filter = {'homework__lesson': lesson}
+            teacher_course = lesson.section.course
+            list_cache_key = attempt_list_cache_key(lesson_slug)
+            list_cache_key_user = attempt_list_cache_key(lesson_slug, user.id)
+        else:
+            course = get_object_or_404(Course, slug=course_slug)
+            attempt_filter = {'homework__lesson__section__course': course}
+            teacher_course = course
+            list_cache_key = attempt_list_by_course_cache_key(course_slug)
+            list_cache_key_user = attempt_list_by_course_cache_key(course_slug, user.id)
+
         if user.is_moderator():
-            cache_key = attempt_list_cache_key(lesson_slug)
-            cached = cache.get(cache_key)
+            cached = cache.get(list_cache_key)
             if cached is not None:
                 return Response(cached, status=status.HTTP_200_OK)
             attempts = (
                 Attempt.objects
-                .filter(homework__lesson=lesson)
+                .filter(**attempt_filter)
                 .select_related('homework', 'user')
                 .order_by('-created_at')
             )
             data = {'student_attempts': {'items': StudentAttemptSerializer(attempts, many=True).data}}
-            cache.set(cache_key, data)
+            cache.set(list_cache_key, data)
             return Response(data, status=status.HTTP_200_OK)
 
         if user.is_teacher():
-            course = lesson.section.course
-            if not user.is_course_author(course):
+            if not user.is_course_author(teacher_course):
                 return Response(
                     {'detail': 'Вы не являетесь автором этого курса'},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            cache_key = attempt_list_cache_key(lesson_slug)
-            cached = cache.get(cache_key)
+            cached = cache.get(list_cache_key)
             if cached is not None:
                 return Response(cached, status=status.HTTP_200_OK)
             attempts = (
                 Attempt.objects
-                .filter(homework__lesson=lesson)
+                .filter(**attempt_filter)
                 .select_related('homework', 'user')
                 .order_by('-created_at')
             )
             data = {'student_attempts': {'items': StudentAttemptSerializer(attempts, many=True).data}}
-            cache.set(cache_key, data)
+            cache.set(list_cache_key, data)
             return Response(data, status=status.HTTP_200_OK)
 
-        cache_key = attempt_list_cache_key(lesson_slug, user.id)
-        cached = cache.get(cache_key)
+        cached = cache.get(list_cache_key_user)
         if cached is not None:
             return Response(cached, status=status.HTTP_200_OK)
         attempts = (
             Attempt.objects
-            .filter(homework__lesson=lesson, user=user)
+            .filter(**attempt_filter, user=user)
             .select_related('homework__lesson__section__course')
             .order_by('-created_at')
         )
         data = {'my_attempts': {'items': MyAttemptSerializer(attempts, many=True).data}}
-        cache.set(cache_key, data)
+        cache.set(list_cache_key_user, data)
         return Response(data, status=status.HTTP_200_OK)
 
 class AttemptDetailView(APIView):

@@ -249,12 +249,13 @@ class Homework(AbstractComponentModel, AutoIncrementMixin):
     max_points = models.PositiveIntegerField(default=0, verbose_name='Максимальный балл за домашку')
 
     def recalc_max_points(self):
-        total = (
-            sum(self.question_set.values_list('max_points', flat=True)) +
-            sum(self.task_set.values_list('max_points', flat=True))
-        )
-        self.max_points = total
-        self.save(update_fields=['max_points'])
+        questions_total = self.question_set.aggregate(
+            total=models.Sum('max_points')
+        )['total'] or 0
+        tasks_total = self.task_set.aggregate(
+            total=models.Sum('max_points')
+        )['total'] or 0
+        Homework.objects.filter(pk=self.pk).update(max_points=questions_total + tasks_total)
 
     def save(self, *args, **kwargs):
         if not self.slug:

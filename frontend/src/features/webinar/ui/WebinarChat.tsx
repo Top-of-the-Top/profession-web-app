@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '../model/useWebinarChat';
 import styles from './WebinarChat.module.css';
+import { Send } from 'lucide-react';
 
 interface WebinarChatProps {
   messages: ChatMessage[];
@@ -11,6 +12,7 @@ interface WebinarChatProps {
 export function WebinarChat({ messages, uid, sendMessage }: WebinarChatProps) {
   const [input, setInput] = useState('');
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const canSend = input.trim().length > 0;
 
   useEffect(() => {
     sentinelRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -48,8 +50,13 @@ export function WebinarChat({ messages, uid, sendMessage }: WebinarChatProps) {
           }}
           placeholder="Сообщение..."
         />
-        <button type="button" className={styles.sendBtn} onClick={handleSend}>
-          Отправить
+        <button
+          type="button"
+          className={styles.sendBtn}
+          onClick={handleSend}
+          disabled={!canSend}
+        >
+          <Send width={18} color='grey'/>
         </button>
       </div>
     </div>

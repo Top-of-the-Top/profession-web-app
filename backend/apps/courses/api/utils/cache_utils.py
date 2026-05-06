@@ -119,3 +119,39 @@ def cached_detail_response(cache_key, build_data):
     data = build_data()
     cache.set(cache_key, data)
     return Response(data)
+
+
+def invalidate_user_role_cache(user_id):
+    uid = int(user_id)
+    cache = default_cache()
+    cache.delete(course_list_cache_key(uid))
+    cache.delete(purchased_courses_cache_key(uid))
+    cache.delete(my_schedule_cache_key(uid))
+
+
+def attempt_draft_cache_key(user_id, homework_slug):
+    return f"default:attempt:draft:{int(user_id)}:{homework_slug}"
+
+
+def attempt_detail_cache_key(attempt_id):
+    return f"default:attempt:detail:{attempt_id}"
+
+
+def attempt_list_cache_key(lesson_slug, user_id=None):
+    if user_id is not None:
+        return f"default:attempt:list:{lesson_slug}:{int(user_id)}"
+    return f"default:attempt:list:{lesson_slug}"
+
+
+def attempt_list_by_course_cache_key(course_slug, user_id=None):
+    if user_id is not None:
+        return f"default:attempt:list:course:{course_slug}:{int(user_id)}"
+    return f"default:attempt:list:course:{course_slug}"
+
+
+def invalidate_attempt_cache(user_id, homework_slug, attempt_id, lesson_slug):
+    cache = default_cache()
+    cache.delete(attempt_draft_cache_key(user_id, homework_slug))
+    cache.delete(attempt_detail_cache_key(attempt_id))
+    cache.delete(attempt_list_cache_key(lesson_slug, user_id))
+    cache.delete(attempt_list_cache_key(lesson_slug))

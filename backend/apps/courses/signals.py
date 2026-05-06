@@ -1,4 +1,4 @@
-from django.db.models.signals import pre_delete, pre_save, post_save
+from django.db.models.signals import pre_delete, pre_save, post_save, post_delete
 from django.core.cache import caches
 from django.dispatch import receiver
 from django.utils import timezone
@@ -16,7 +16,7 @@ from apps.notifications.tasks import (
     send_single_email,
     send_mass_system_email,
 )
-from .api.utils.cache_utils import invalidate_lesson_detail_cache
+from .api.utils.cache_utils import invalidate_lesson_detail_cache, invalidate_user_role_cache
 from apps.webinars.models import Webinar, Recording
 from .models import (
     DEFAULT_COURSE_IMAGE,
@@ -290,3 +290,15 @@ def invalidate_lesson_cache_on_recording_change(sender, instance, **kwargs):
         return
     course_slug = section.course.slug
     invalidate_lesson_detail_cache(course_slug, lesson.slug)
+
+
+@receiver(pre_save, sender='users.User')
+def invalidate_cache_on_role_change(sender, instance, **kwargs):
+    if not instance.pk:
+        return
+    try:
+        old = sender.objects.get(pk=instance.pk)
+    except sender.DoesNotExist:
+        return
+    if old.role != instance.role:
+        invalidate_user_role_cache(instance.pk)

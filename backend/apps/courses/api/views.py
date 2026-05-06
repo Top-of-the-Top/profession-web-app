@@ -25,6 +25,7 @@ from .serializers import (
     TaskSerializer,
     QuestionSerializer,
     UserWebinarListItemSerializer,
+    MyContentCourseSerializer,
 )
 from rest_framework import generics
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
@@ -821,6 +822,36 @@ class QuestionCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(homework=homework)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class MyContentView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary="Мои курсы с уроками",
+        description=(
+            'Возвращает курсы пользователя с плоским списком уроков. '
+            'Студент видит купленные курсы и опубликованные уроки. '
+            'Преподаватель видит свои курсы со всеми уроками (включая черновики). '
+            'Модератор видит все курсы со всеми уроками.'
+        ),
+        tags=["Home"],
+        responses={
+            200: MyContentCourseSerializer(many=True),
+            401: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    )
+    def get(self, request):
+        user = request.user
+        include_drafts = user.is_moderator() or user.is_teacher()
+        courses = get_courses_for_user(user)
+        serializer = MyContentCourseSerializer(
+            courses,
+            many=True,
+            context={'include_drafts': include_drafts},
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class QuestionDetailView(APIView):

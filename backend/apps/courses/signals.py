@@ -254,6 +254,16 @@ def invalidate_cold_task_cache(sender, instance, **kwargs):
     invalidate_on_homework_tree_change(course_slug, lesson.slug, hw.slug)
 
 
+@receiver(post_save, sender=Task)
+def recalc_homework_max_points_on_task_save(sender, instance, **kwargs):
+    instance.homework.recalc_max_points()
+
+
+@receiver(post_delete, sender=Task)
+def recalc_homework_max_points_on_task_delete(sender, instance, **kwargs):
+    instance.homework.recalc_max_points()
+
+
 @receiver((pre_save, pre_delete), sender=Question)
 def invalidate_cold_question_cache(sender, instance, **kwargs):
     hw = instance.homework
@@ -263,6 +273,16 @@ def invalidate_cold_question_cache(sender, instance, **kwargs):
         return
     course_slug = section.course.slug
     invalidate_on_homework_tree_change(course_slug, lesson.slug, hw.slug)
+
+
+@receiver(post_save, sender=Question)
+def recalc_homework_max_points_on_question_save(sender, instance, **kwargs):
+    instance.homework.recalc_max_points()
+
+
+@receiver(post_delete, sender=Question)
+def recalc_homework_max_points_on_question_delete(sender, instance, **kwargs):
+    instance.homework.recalc_max_points()
 
 
 @receiver((pre_save, pre_delete), sender=PurchasedCourse)

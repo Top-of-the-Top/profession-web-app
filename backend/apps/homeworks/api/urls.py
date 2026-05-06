@@ -5,17 +5,12 @@ from .views import (
     AttemptReviewView,
     HomeworkAttemptView,
     HomeworkAttemptSubmitView,
-    HomeworkAttemptListView,
+    StudentAttemptsView,
 )
 
 app_name = 'homeworks'
 
 urlpatterns = [
-    path(
-        'courses/<slug:course_slug>/attempts/',
-        HomeworkAttemptListView.as_view(),
-        name='attempts-list',
-    ),
     path(
         'courses/<slug:course_slug>/homeworks/<slug:homework_slug>/attempt/',
         HomeworkAttemptView.as_view(),
@@ -35,5 +30,10 @@ urlpatterns = [
         'courses/<slug:course_slug>/attempts/<uuid:attempt_id>/review/',
         AttemptReviewView.as_view(),
         name='attempt-review',
+    ),
+    path(
+        'my-homeworks/',
+        StudentAttemptsView.as_view(),
+        name='my-homeworks',
     ),
 ]

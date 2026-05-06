@@ -142,7 +142,7 @@ class AttemptSerializer(serializers.ModelSerializer):
     homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
     deadline = serializers.DateTimeField(source='homework.deadline', read_only=True)
     score = serializers.IntegerField(source='grade', read_only=True, allow_null=True)
-    max_points = serializers.SerializerMethodField()
+    max_points = serializers.IntegerField(source='homework.max_points', read_only=True)
     items = serializers.SerializerMethodField()
 
     class Meta:
@@ -157,16 +157,6 @@ class AttemptSerializer(serializers.ModelSerializer):
             'items',
         )
         read_only_fields = fields
-
-    def get_max_points(self, obj):
-        homework = obj.homework
-        questions_total = sum(
-            q.max_points for q in homework.question_set.all()
-        )
-        tasks_total = sum(
-            t.max_points for t in homework.task_set.all()
-        )
-        return questions_total + tasks_total
 
     @extend_schema_field(PolymorphicProxySerializer(
         component_name='AttemptItem',
@@ -203,35 +193,59 @@ class AttemptSerializer(serializers.ModelSerializer):
         return items
 
 
-class AttemptListSerializer(serializers.ModelSerializer):
-  homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
-  homework_slug = serializers.SlugField(source='homework.slug', read_only=True)
-  deadline = serializers.DateTimeField(source='homework.deadline', read_only=True)
-  score = serializers.IntegerField(source='grade', read_only=True, allow_null=True)
-  max_points = serializers.SerializerMethodField()
+class MyAttemptSerializer(serializers.ModelSerializer):
+    homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
+    homework_slug = serializers.SlugField(source='homework.slug', read_only=True)
+    homework_title = serializers.CharField(source='homework.title', read_only=True)
+    deadline = serializers.DateTimeField(source='homework.deadline', read_only=True)
+    max_points = serializers.IntegerField(source='homework.max_points', read_only=True)
+    course_title = serializers.CharField(source='homework.lesson.section.course.title', read_only=True)
+    lesson_title = serializers.CharField(source='homework.lesson.title', read_only=True)
 
-  class Meta:
-    model = Attempt
-    fields = (
-      'attempt_id',
-      'homework_id',
-      'deadline',
-      'homework_slug',
-      'status',
-      'send_at',
-      'score',
-      'max_points',
-    )
+    class Meta:
+        model = Attempt
+        fields = (
+            'attempt_id',
+            'status',
+            'homework_id',
+            'homework_slug',
+            'homework_title',
+            'deadline',
+            'course_title',
+            'lesson_title',
+            'grade',
+            'max_points',
+        )
 
-  def get_max_points(self, obj):
-    homework = obj.homework
-    questions_total = sum(
-      q.max_points for q in homework.question_set.all()
-    )
-    tasks_total = sum(
-      t.max_points for t in homework.task_set.all()
-    )
-    return questions_total + tasks_total
+
+class StudentAttemptSerializer(serializers.ModelSerializer):
+    homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
+    homework_slug = serializers.SlugField(source='homework.slug', read_only=True)
+    homework_title = serializers.CharField(source='homework.title', read_only=True)
+    max_points = serializers.IntegerField(source='homework.max_points', read_only=True)
+    student = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Attempt
+        fields = (
+            'attempt_id',
+            'status',
+            'homework_id',
+            'homework_slug',
+            'homework_title',
+            'grade',
+            'max_points',
+            'student',
+        )
+
+    def get_student(self, obj):
+        user = obj.user
+        return {
+            'user_id': str(user.id),
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+        }
 
 class SubmitQuestionItemSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=['question'])

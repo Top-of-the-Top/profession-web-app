@@ -4,8 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from apps.homeworks.models import TaskReview
-from apps.courses.models import Homework
+from apps.courses.models import Homework, Lesson
 from apps.courses.api.schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
 from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from apps.homeworks.models import Attempt
@@ -19,7 +18,8 @@ from .serializers import (
     AttemptSubmitSerializer,
     AttemptReviewSerializer,
     ErrorResponseSerializer,
-    AttemptListSerializer,
+    MyAttemptSerializer,
+    StudentAttemptSerializer,
 )
 
 
@@ -80,18 +80,24 @@ class HomeworkAttemptView(APIView):
         )
 
 
-class HomeworkAttemptListView(APIView):
+class StudentAttemptsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary='Список попыток студента по курсу',
-        description='Все попытки текущего пользователя по домашкам курса, по убыванию даты.',
+        summary='Мои домашки / попытки студентов по уроку',
+        description=(
+            'Принимает `course_slug` и `lesson_slug` как query-параметры. '
+            'Студент получает `my_attempts` — только свои попытки с названиями курса и урока. '
+            'Преподаватель (автор курса) и модератор получают `student_attempts` — '
+            'попытки всех студентов с данными об ученике.'
+        ),
         tags=['Home'],
         parameters=[
-            OpenApiParameter('course_slug', OpenApiTypes.STR, OpenApiParameter.PATH),
+            OpenApiParameter('course_slug', OpenApiTypes.STR, OpenApiParameter.QUERY, required=True),
+            OpenApiParameter('lesson_slug', OpenApiTypes.STR, OpenApiParameter.QUERY, required=True),
         ],
         responses={
-            200: AttemptListSerializer(many=True),
+            200: MyAttemptSerializer(many=True),
             400: ErrorResponseSerializer,
             401: SCHEMA_DETAIL,
             403: ErrorResponseSerializer,
@@ -99,19 +105,64 @@ class HomeworkAttemptListView(APIView):
             500: ErrorResponseSerializer,
         },
     )
-    @require_course_enrollment
-    def get(self, request, course_slug):
+    def get(self, request):
+        course_slug = request.query_params.get('course_slug')
+        lesson_slug = request.query_params.get('lesson_slug')
+
+        if not course_slug or not lesson_slug:
+            return Response(
+                {'detail': 'Необходимо передать course_slug и lesson_slug'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        lesson = get_object_or_404(
+            Lesson.objects.select_related('section__course'),
+            slug=lesson_slug,
+            section__course__slug=course_slug,
+        )
+
+        user = request.user
+
+        if user.is_moderator():
+            attempts = (
+                Attempt.objects
+                .filter(homework__lesson=lesson)
+                .select_related('homework', 'user')
+                .order_by('-created_at')
+            )
+            return Response(
+                {'student_attempts': StudentAttemptSerializer(attempts, many=True).data},
+                status=status.HTTP_200_OK,
+            )
+
+        if user.is_teacher():
+            course = lesson.section.course
+            if not user.is_course_author(course):
+                return Response(
+                    {'detail': 'Вы не являетесь автором этого курса'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            attempts = (
+                Attempt.objects
+                .filter(homework__lesson=lesson)
+                .select_related('homework', 'user')
+                .order_by('-created_at')
+            )
+            return Response(
+                {'student_attempts': StudentAttemptSerializer(attempts, many=True).data},
+                status=status.HTTP_200_OK,
+            )
+
         attempts = (
             Attempt.objects
-            .filter(
-                user=request.user,
-                homework__lesson__section__course__slug=course_slug,
-            )
-            .select_related('homework')
-            .prefetch_related('homework__question_set', 'homework__task_set')
+            .filter(homework__lesson=lesson, user=user)
+            .select_related('homework__lesson__section__course')
             .order_by('-created_at')
         )
-        return Response(AttemptListSerializer(attempts, many=True).data, status=status.HTTP_200_OK)
+        return Response(
+            {'my_attempts': MyAttemptSerializer(attempts, many=True).data},
+            status=status.HTTP_200_OK,
+        )
 
 class AttemptDetailView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -291,4 +342,5 @@ class HomeworkAttemptSubmitView(APIView):
             AttemptSerializer(attempt, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
 

@@ -246,7 +246,15 @@ class Homework(AbstractComponentModel, AutoIncrementMixin):
     title = models.CharField(max_length=120, verbose_name='Название домашнего задания')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
     deadline = models.DateTimeField(verbose_name='Дедлайн')
+    max_points = models.PositiveIntegerField(default=0, verbose_name='Максимальный балл за домашку')
 
+    def recalc_max_points(self):
+        total = (
+            sum(self.question_set.values_list('max_points', flat=True)) +
+            sum(self.task_set.values_list('max_points', flat=True))
+        )
+        self.max_points = total
+        self.save(update_fields=['max_points'])
 
     def save(self, *args, **kwargs):
         if not self.slug:

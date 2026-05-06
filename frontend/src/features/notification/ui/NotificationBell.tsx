@@ -22,7 +22,6 @@ export function NotificationBell() {
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const notifications = useNotificationStore((s) => s.notifications);
-  const unreadCount = useNotificationStore((s) => s.unreadCount);
   const markRead = useNotificationStore((s) => s.markRead);
 
   const visible = notifications.slice(0, visibleCount);
@@ -67,15 +66,10 @@ export function NotificationBell() {
         <img
           src={notifications.length > 0 ? '/bell-full.svg' : '/bell.svg'}
           alt=""
-          width={22}
-          height={22}
+          width={25}
+          height={25}
           decoding="async"
         />
-        {unreadCount > 0 && (
-          <span className={styles.badge}>
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
       </button>
 
       {open && (

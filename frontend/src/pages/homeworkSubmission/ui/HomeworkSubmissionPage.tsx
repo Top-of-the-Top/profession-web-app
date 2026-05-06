@@ -17,6 +17,8 @@ import {
 import {
   useHomeworkAttempt,
   useHomeworkDetail,
+  useCourseBySlug,
+  useLessonBySlug,
 } from '@shared/api/queries/courses';
 import { useSubmitHomeworkAttempt } from '@shared/api/mutations/courses';
 import type {
@@ -67,6 +69,16 @@ function formatAnswerHtml(value: string): string {
   return trimmed;
 }
 
+function formatPointsLabel(points: number): string {
+  const mod10 = points % 10;
+  const mod100 = points % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${points} балл`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return `${points} балла`;
+  }
+  return `${points} баллов`;
+}
+
 function isHomeworkFileTask(item: HomeworkDetailItem): boolean {
   return (
     item.type === 'task' &&
@@ -91,6 +103,8 @@ export default function HomeworkSubmissionPage() {
   const navigate = useNavigate();
   const attemptQuery = useHomeworkAttempt(homeworkSlug);
   const detailQuery = useHomeworkDetail(courseSlug, lessonSlug, homeworkSlug);
+  const courseQuery = useCourseBySlug(courseSlug);
+  const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
   const submitAttempt = useSubmitHomeworkAttempt(homeworkSlug ?? '');
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -146,6 +160,14 @@ export default function HomeworkSubmissionPage() {
   const homeworkTitle = useMemo(
     () => detailQuery.data?.title || 'Домашнее задание',
     [detailQuery.data?.title],
+  );
+  const courseTitle = useMemo(
+    () => courseQuery.data?.title || 'Курс',
+    [courseQuery.data?.title],
+  );
+  const lessonTitle = useMemo(
+    () => lessonQuery.data?.title || 'Урок',
+    [lessonQuery.data?.title],
   );
 
   const handleUploadFile = async (item: HomeworkDetailItem, file: File) => {
@@ -338,6 +360,7 @@ export default function HomeworkSubmissionPage() {
       : homeworkTaskPromptText(currentItem as HomeworkDetailItem & { type: 'task' });
   const currentIsFileTask =
     currentItem.type === 'task' && isHomeworkFileTask(currentItem);
+  const currentItemPoints = currentItem.max_points ?? 0;
 
   const allAnswered = items.every((item) => answered.has(item.id));
 
@@ -393,13 +416,13 @@ export default function HomeworkSubmissionPage() {
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link to={`/app/courses/${courseSlug}`}>Курс</Link>
+                  <Link to={`/app/courses/${courseSlug}`}>{courseTitle}</Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link to={`/app/courses/${courseSlug}/${lessonSlug}`}>Урок</Link>
+                  <Link to={`/app/courses/${courseSlug}/${lessonSlug}`}>{lessonTitle}</Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
@@ -453,7 +476,7 @@ export default function HomeworkSubmissionPage() {
                     ].join(' ')}
                     onClick={() => animateTo(index)}
                   >
-                    {item.number}
+                    {index + 1}
                   </button>
                 );
               })}
@@ -478,7 +501,7 @@ export default function HomeworkSubmissionPage() {
               ].join(' ')}
             >
               <p className={styles.itemMeta}>
-                Задание {currentItem.number}: {currentItem.max_points ?? 0} балла
+                Задание {currentItemIndex + 1}: {formatPointsLabel(currentItemPoints)}
               </p>
               <p className={styles.itemTitle}>{currentPromptText}</p>
 

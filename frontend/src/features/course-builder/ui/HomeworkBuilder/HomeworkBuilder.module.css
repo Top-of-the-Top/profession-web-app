@@ -28,29 +28,113 @@
 }
 
 .homeworkSidebar {
-  width: 280px;
+  width: 260px;
   flex-shrink: 0;
   align-self: stretch;
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 0 8px rgba(15, 23, 42, 0.12);
-  padding: 12px;
+  padding: 14px 12px 12px;
   box-sizing: border-box;
-  min-height: 0;
-  max-height: 100%;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
 }
 
-.homeworkSidebarTitle {
-  font-size: 14px;
+.homeworkSidebarSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.homeworkSidebarSectionLabel {
+  margin: 0 0 2px;
+  font-size: 11px;
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+
+.homeworkSidebarDivider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 14px 0 12px;
+  flex-shrink: 0;
+}
+
+.homeworkSidebarEmpty {
+  margin: 0;
+  font-size: 12px;
+  color: #9ca3af;
+  padding: 6px 2px;
+}
+
+.homeworkSidebarBottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .homeworkSwitchList {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  flex: 1 1 0;
+  overflow-y: auto;
+  min-height: 0;
+  margin-bottom: 10px;
+  margin-top: 8px;
+}
+
+.homeworkSidebarAddBtn {
+  width: 100%;
+  border: 1.5px dashed #d1d5db;
+  background: transparent;
+  color: #6b7280;
+  border-radius: 10px;
+  padding: 9px 0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.homeworkSidebarAddBtn:hover:not(:disabled) {
+  border-color: #191970;
+  color: #191970;
+  background: #f0f1fb;
+}
+
+.homeworkSidebarAddBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.switchDialog {
+  max-width: 380px;
+  width: 90%;
+  padding: 24px 20px 18px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.22);
+}
+
+.switchDialogText {
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: #1d2939;
+  line-height: 1.5;
+}
+
+.switchDialogActions {
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -99,15 +183,7 @@
   color: #1d4ed8;
 }
 
-.homeworkHeader {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 0;
-  width: 100%;
-  margin: 0 0 10px;
-  box-sizing: border-box;
-}
+/* .homeworkHeader removed — fields now live in .homeworkSidebarSection */
 
 .homeworkTitleInput {
   flex: 1;
@@ -145,14 +221,16 @@
   border-bottom-color: #191970;
 }
 
-.homeworkLoadingHint {
-  width: min(920px, 100%);
-  margin: 0 auto 10px;
-  padding: 0 8px;
-  color: #64748b;
-  font-size: 12px;
-  box-sizing: border-box;
-  flex-shrink: 0;
+.homeworkLoadingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(2px);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .homeworkWrapper {
@@ -421,14 +499,98 @@
 
 .homeworkScoreLabel {
   font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+	margin: 0 10px 0 5px;
+}
+
+.deleteButton {
+	color: rgb(157, 2, 2);
+	transition: 0.4s;
+}
+.deleteButton:hover {
+	transform: scale(1.02);
+	color: rgb(189, 13, 13);
+}
+
+/* ── Score stepper ───────────────────────────────────────────────────────── */
+
+.homeworkScoreStepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f8fafc;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.homeworkScoreStepper:focus-within {
+  border-color: #191970;
+}
+
+.stepperInvalid {
+  border-color: #f87171 !important;
+  background: #fff5f5;
+}
+
+.stepperBtn {
+  border: none;
+  background: transparent;
+  padding: 5px 9px;
+  cursor: pointer;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  transition: background 0.12s, color 0.12s;
+}
+
+.stepperBtn:hover {
+  background: #e5e7eb;
+  color: #111827;
 }
 
 .homeworkScoreInput {
-  width: 56px;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.9);
-  padding: 2px 8px;
+  width: 44px;
+  border: none;
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  background: transparent;
+  padding: 5px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  color: #111827;
+  -moz-appearance: textfield;
+}
+
+.homeworkScoreInput::-webkit-inner-spin-button,
+.homeworkScoreInput::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.homeworkScoreInput:focus {
+  outline: none;
+}
+
+/* ── Inline validation ───────────────────────────────────────────────────── */
+
+.fieldInvalid {
+  border-color: #f87171 !important;
+  background: #fff5f5 !important;
+}
+
+.homeworkOptionInput.fieldInvalid {
+  border-bottom-color: #f87171 !important;
+  background: transparent !important;
+  color: #b91c1c;
+}
+
+.fieldError {
+  margin: 4px 0 0;
   font-size: 12px;
+  color: #ef4444;
 }
 
 .homeworkActionsBar {
@@ -473,9 +635,28 @@
 
 .homeworkCtaButtons {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
   margin-left: auto;
+}
+
+.unsavedIndicatorDirty,
+.unsavedIndicatorSaved {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.unsavedIndicatorDirty {
+  color: #92400e;
+  background-color: #fef3c7;
+}
+
+.unsavedIndicatorSaved {
+  color: #065f46;
+  background-color: #d1fae5;
 }
 .button {
   border-radius: 999px;

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { GripHorizontal, GripVertical, X, Trash2 } from 'lucide-react';
+import { GripHorizontal, GripVertical, X, Trash2, Minus, Plus } from 'lucide-react';
 import { useHomeworkStore } from '../../model/homeworkStore';
 import { cn } from '@shared/lib/utils';
-import { notifyWarning } from '@shared/lib/sileo/notify';
+import { Button, Modal, Spinner } from '@shared/ui';
 import {
   useCreateHomeworkWithItems,
   type CreateHomeworkWithItemsPayload,
@@ -35,6 +35,9 @@ interface HomeworkBuilderProps {
   courseSlug: string;
   lessonSlug: string;
   lessonHomeworks: LessonHomework[];
+  onSaved?: () => void;
+  onInitialized?: () => void;
+  hasUnsavedChanges?: boolean;
 }
 
 function toDatetimeLocalValue(value: string): string {
@@ -153,6 +156,9 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
   courseSlug,
   lessonSlug,
   lessonHomeworks,
+  onSaved,
+  onInitialized,
+  hasUnsavedChanges = false,
 }) => {
   const {
     layout,
@@ -170,21 +176,25 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
   } = useHomeworkStore();
 
   const [selectedHomeworkSlug, setSelectedHomeworkSlug] = useState<string>('new');
+  const [initializedForSlug, setInitializedForSlug] = useState<string | null>(null);
+  const [pendingSlug, setPendingSlug] = useState<string | null>(null);
+  const [showSwitchDialog, setShowSwitchDialog] = useState(false);
+  // ids of questions that failed validation — used for inline highlighting
+  const [invalidIds, setInvalidIds] = useState<Set<string>>(new Set());
+  const [titleInvalid, setTitleInvalid] = useState(false);
   const createMutation = useCreateHomeworkWithItems(courseSlug, lessonSlug);
   const selectedHomeworkQuery = useHomeworkDetail(
     courseSlug,
     lessonSlug,
     selectedHomeworkSlug === 'new' ? undefined : selectedHomeworkSlug,
+    { editorMode: true },
   );
   const switchItems = useMemo(
-    () => [
-      { slug: 'new', title: 'Новое ДЗ', type: 'draft' as CourseContentType },
-      ...lessonHomeworks.map((hw) => ({
-        slug: hw.homework_slug,
-        title: hw.title || hw.homework_slug,
-        type: hw.type,
-      })),
-    ],
+    () => lessonHomeworks.map((hw) => ({
+      slug: hw.homework_slug,
+      title: hw.title || hw.homework_slug,
+      type: hw.type,
+    })),
     [lessonHomeworks],
   );
 
@@ -198,7 +208,17 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
     });
   }, [lessonHomeworks]);
 
+  // Reset initializedForSlug whenever the user picks a different HW
   useEffect(() => {
+    setInitializedForSlug(null);
+    setInvalidIds(new Set());
+    setTitleInvalid(false);
+  }, [selectedHomeworkSlug]);
+
+  // Init the store exactly once per slug selection — never on refetch
+  useEffect(() => {
+    if (initializedForSlug === selectedHomeworkSlug) return;
+
     if (selectedHomeworkSlug === 'new') {
       initHomework(`${courseSlug}/${lessonSlug}`, {
         lessonId: `${courseSlug}/${lessonSlug}`,
@@ -206,42 +226,66 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
         deadline: '',
         questions: [],
       });
+      setInitializedForSlug('new');
+      setTimeout(() => onInitialized?.(), 0);
       return;
     }
+
     if (!selectedHomeworkQuery.data) return;
     initHomework(
       `${courseSlug}/${lessonSlug}`,
-      mapHomeworkDetailToLayout(
-        selectedHomeworkQuery.data,
-        `${courseSlug}/${lessonSlug}`,
-      ),
+      mapHomeworkDetailToLayout(selectedHomeworkQuery.data, `${courseSlug}/${lessonSlug}`),
     );
+    setInitializedForSlug(selectedHomeworkSlug);
+    setTimeout(() => onInitialized?.(), 0);
   }, [
     selectedHomeworkSlug,
+    initializedForSlug,
     selectedHomeworkQuery.data,
     courseSlug,
     lessonSlug,
     initHomework,
   ]);
 
+  const requestSwitchTo = (slug: string) => {
+    if (slug === selectedHomeworkSlug) return;
+    if (hasUnsavedChanges) {
+      setPendingSlug(slug);
+      setShowSwitchDialog(true);
+    } else {
+      setSelectedHomeworkSlug(slug);
+    }
+  };
+
   const handlePaletteClick = (type: HomeworkQuestionType) => {
     addQuestion(type);
   };
 
   const validate = (): boolean => {
-    if (!layout.title.trim()) {
-      notifyWarning({ title: 'Укажите название задания' });
-      return false;
+    const badIds = new Set<string>();
+    let ok = true;
+
+    const isTitleEmpty = !layout.title.trim();
+    setTitleInvalid(isTitleEmpty);
+    if (isTitleEmpty) ok = false;
+
+    for (const q of layout.questions) {
+      // title empty
+      if (!q.title.trim()) { badIds.add(`title:${q.id}`); ok = false; }
+      // score not set
+      if (!q.score || q.score <= 0) { badIds.add(`score:${q.id}`); ok = false; }
+      // single: no correct answer marked, or empty options
+      if (q.type === 'single') {
+        const sq = q as Extract<HomeworkQuestion, { type: 'single' }>;
+        if (!sq.options.some((o) => o.isCorrect)) { badIds.add(`correct:${q.id}`); ok = false; }
+        for (const o of sq.options) {
+          if (!o.text.trim()) { badIds.add(`option:${o.id}`); ok = false; }
+        }
+      }
     }
-    if (!layout.deadline) {
-      notifyWarning({ title: 'Укажите дедлайн' });
-      return false;
-    }
-    if (layout.questions.length === 0) {
-      notifyWarning({ title: 'Добавьте хотя бы один вопрос' });
-      return false;
-    }
-    return true;
+
+    setInvalidIds(badIds);
+    return ok;
   };
 
   const handleSave = (targetType: CourseContentType) => {
@@ -264,6 +308,7 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
       {
         onSuccess: (savedHomework) => {
           setSelectedHomeworkSlug(savedHomework.slug);
+          onSaved?.();
         },
       },
     );
@@ -329,19 +374,28 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                       onClick={() => toggleCorrectOption(question, opt.id)}
                     />
                     <input
-                      className={styles.homeworkOptionInput}
+                      className={cn(
+                        styles.homeworkOptionInput,
+                        invalidIds.has(`option:${opt.id}`) ? styles.fieldInvalid : '',
+                      )}
                       placeholder="Вариант ответа"
                       value={opt.text}
-                      onChange={(e) =>
-                        updateOption(question.id, opt.id, {
-                          text: e.target.value,
-                        })
-                      }
+                      onChange={(e) => {
+                        updateOption(question.id, opt.id, { text: e.target.value });
+                        if (e.target.value.trim()) {
+                          setInvalidIds((prev) => {
+                            const s = new Set(prev);
+                            s.delete(`option:${opt.id}`);
+                            return s;
+                          });
+                        }
+                      }}
                     />
 
                     <button
                       type="button"
                       className={styles.homeworkIconButton}
+                      disabled={options.length <= 2}
                       onClick={() => removeOption(question.id, opt.id)}
                       aria-label="Удалить вариант"
                     >
@@ -391,13 +445,15 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
 
   return (
     <div className={styles.homeworkLayout}>
-      {selectedHomeworkQuery.isFetching && selectedHomeworkSlug !== 'new' && (
-        <div className={styles.homeworkLoadingHint}>Загрузка выбранного ДЗ...</div>
-      )}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className={styles.homeworkMain}>
           <div className={styles.homeworkCanvasColumn}>
             <div className={styles.homeworkWrapper}>
+              {selectedHomeworkQuery.isFetching && selectedHomeworkSlug !== 'new' && (
+                <div className={styles.homeworkLoadingOverlay}>
+                  <Spinner />
+                </div>
+              )}
               <Droppable droppableId="questions" type="question">
                 {(provided) => (
                   <div
@@ -434,7 +490,10 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                                     </div>
                                   </div>
                                   <textarea
-                                    className={styles.homeworkQuestionTitle}
+                                    className={cn(
+                                      styles.homeworkQuestionTitle,
+                                      invalidIds.has(`title:${question.id}`) ? styles.fieldInvalid : '',
+                                    )}
                                     placeholder="Вопрос без заголовка"
                                     value={question.title}
                                     rows={1}
@@ -442,16 +501,26 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                                       e.currentTarget.style.height = 'auto';
                                       e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
                                     }}
-                                    onChange={(e) =>
-                                      updateQuestion(question.id, {
-                                        title: e.target.value,
-                                      })
-                                    }
+                                    onChange={(e) => {
+                                      updateQuestion(question.id, { title: e.target.value });
+                                      if (e.target.value.trim()) {
+                                        setInvalidIds((prev) => {
+                                          const next = new Set(prev);
+                                          next.delete(`title:${question.id}`);
+                                          return next;
+                                        });
+                                      }
+                                    }}
                                   />
                                 </div>
                                 <div className={styles.homeworkCardBody}>
                                   {question.type === 'single' ? (
-                                    renderOptions(question as SingleQuestion)
+                                    <>
+                                      {renderOptions(question as SingleQuestion)}
+                                      {invalidIds.has(`correct:${question.id}`) && (
+                                        <p className={styles.fieldError}>Отметьте верный ответ</p>
+                                      )}
+                                    </>
                                   ) : (
                                     <textarea
                                       className={styles.homeworkLongAnswer}
@@ -474,37 +543,50 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                                 </div>
 
                                 <div className={styles.homeworkCardFooter}>
-                                  <span className={styles.homeworkScoreLabel}>
-                                    Баллы
-                                  </span>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    className={styles.homeworkScoreInput}
-                                    value={
-                                      Number.isFinite(question.score) &&
-                                      question.score !== 0
-                                        ? question.score
-                                        : ''
-                                    }
-                                    onChange={(e) => {
-                                      const { value } = e.target;
-                                      if (value === '') {
-                                        updateQuestion(question.id, {
-                                          score: 0,
-                                        });
-                                        return;
-                                      }
-                                      const numeric = Number(value);
-                                      if (Number.isNaN(numeric)) return;
-                                      updateQuestion(question.id, {
-                                        score: numeric,
-                                      });
-                                    }}
-                                  />
+                                  <div className={cn(
+                                    styles.homeworkScoreStepper,
+                                    invalidIds.has(`score:${question.id}`) ? styles.stepperInvalid : '',
+                                  )}>
+                                    <button
+                                      type="button"
+                                      className={styles.stepperBtn}
+                                      onClick={() => {
+                                        const next = Math.max(0, (question.score ?? 0) - 1);
+                                        updateQuestion(question.id, { score: next });
+                                        if (next > 0) setInvalidIds((prev) => { const s = new Set(prev); s.delete(`score:${question.id}`); return s; });
+                                      }}
+                                    >
+                                      <Minus size={12} />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      className={styles.homeworkScoreInput}
+                                      value={question.score > 0 ? question.score : ''}
+                                      placeholder="0"
+                                      onChange={(e) => {
+                                        const numeric = e.target.value === '' ? 0 : Number(e.target.value);
+                                        if (Number.isNaN(numeric)) return;
+                                        updateQuestion(question.id, { score: numeric });
+                                        if (numeric > 0) setInvalidIds((prev) => { const s = new Set(prev); s.delete(`score:${question.id}`); return s; });
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      className={styles.stepperBtn}
+                                      onClick={() => {
+                                        const next = (question.score ?? 0) + 1;
+                                        updateQuestion(question.id, { score: next });
+                                        setInvalidIds((prev) => { const s = new Set(prev); s.delete(`score:${question.id}`); return s; });
+                                      }}
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                    <span className={styles.homeworkScoreLabel}>баллов</span>
+                                  </div>
                                   <button
                                     type="button"
-                                    className={styles.homeworkIconButton}
+                                    className={cn(styles.homeworkIconButton, styles.deleteButton)}
                                     onClick={() => removeQuestion(question.id)}
                                   >
                                     <Trash2 size={16} />
@@ -546,14 +628,9 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                 </button>
                 </div>
               <div className={styles.homeworkCtaButtons}>
-                <button
-                  type="button"
-                  className={`${styles.button} ${styles.buttonSecondary}`}
-                  disabled={createMutation.isPending || selectedHomeworkQuery.isFetching}
-                  onClick={() => handleSave('draft')}
-                >
-                  Сохранить черновик
-                </button>
+                <span className={hasUnsavedChanges ? styles.unsavedIndicatorDirty : styles.unsavedIndicatorSaved}>
+                  {createMutation.isPending ? 'Сохранение...' : hasUnsavedChanges ? 'Не сохранено' : 'Сохранено'}
+                </span>
                 <button
                   type="button"
                   className={`${styles.button} ${styles.buttonPrimary}`}
@@ -566,13 +643,18 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
             </div>
           </div>
           <aside className={styles.homeworkSidebar}>
-            <div className={styles.homeworkSidebarTitle}>Домашние задания</div>
-            <div className={styles.homeworkHeader}>
+            <div className={styles.homeworkSidebarSection}>
+              <p className={styles.homeworkSidebarSectionLabel}>
+                {selectedHomeworkSlug === 'new' ? 'Новое ДЗ' : 'Редактирование'}
+              </p>
               <input
-                className={styles.homeworkTitleInput}
+                className={cn(styles.homeworkTitleInput, titleInvalid ? styles.fieldInvalid : '')}
                 placeholder="Название домашнего задания"
                 value={layout.title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (e.target.value.trim()) setTitleInvalid(false);
+                }}
               />
               <input
                 type="datetime-local"
@@ -581,33 +663,72 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                 onChange={(e) => setDeadline(e.target.value)}
               />
             </div>
+
+            <div className={styles.homeworkSidebarDivider} />
+
+            <p className={styles.homeworkSidebarSectionLabel}>Прикреплённые ДЗ</p>
             <div className={styles.homeworkSwitchList}>
               {switchItems.map((item) => (
                 <button
                   key={item.slug}
                   type="button"
                   className={`${styles.homeworkSwitchButton} ${
-                    selectedHomeworkSlug === item.slug
-                      ? styles.homeworkSwitchButtonActive
-                      : ''
+                    selectedHomeworkSlug === item.slug ? styles.homeworkSwitchButtonActive : ''
                   }`}
-                  onClick={() => setSelectedHomeworkSlug(item.slug)}
+                  onClick={() => requestSwitchTo(item.slug)}
                   disabled={createMutation.isPending}
                 >
                   <span className={styles.homeworkSwitchTitle}>{item.title}</span>
-                  <span
-                    className={`${styles.homeworkSwitchType} ${
-                      item.type === 'published'
-                        ? styles.homeworkSwitchTypePublished
-                        : styles.homeworkSwitchTypeDraft
-                    }`}
-                  >
-                    {item.type === 'published' ? 'опубликовано' : 'черновик'}
+                  <span className={`${styles.homeworkSwitchType} ${
+                    item.type === 'published' ? styles.homeworkSwitchTypePublished : styles.homeworkSwitchTypeDraft
+                  }`}>
+                    {item.type === 'published' ? 'опубл.' : 'черновик'}
                   </span>
                 </button>
               ))}
+              {switchItems.length === 0 && (
+                <p className={styles.homeworkSidebarEmpty}>Нет прикреплённых ДЗ</p>
+              )}
             </div>
+
+            <button
+              type="button"
+              className={styles.homeworkSidebarAddBtn}
+              disabled={createMutation.isPending}
+              onClick={() => requestSwitchTo('new')}
+            >
+              + Новое ДЗ
+            </button>
           </aside>
+
+          <Modal
+            open={showSwitchDialog}
+            onClose={() => { setShowSwitchDialog(false); setPendingSlug(null); }}
+            panelClassName={styles.switchDialog}
+          >
+            <p className={styles.switchDialogText}>
+              Есть несохранённые изменения. Перейти без сохранения?
+            </p>
+            <div className={styles.switchDialogActions}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setShowSwitchDialog(false); setPendingSlug(null); }}
+              >
+                Остаться
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowSwitchDialog(false);
+                  if (pendingSlug !== null) setSelectedHomeworkSlug(pendingSlug);
+                  setPendingSlug(null);
+                }}
+              >
+                Перейти
+              </Button>
+            </div>
+          </Modal>
         </div>
       </DragDropContext>
     </div>

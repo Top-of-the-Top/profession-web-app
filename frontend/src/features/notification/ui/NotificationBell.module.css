@@ -9,48 +9,25 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
+  width: 40px;
   height: 36px;
   border: none;
   background: transparent;
   border-radius: 50%;
   cursor: pointer;
   color: #374151;
-  transition: background 0.18s ease, transform 0.18s ease;
   padding: 0;
+	transition: 0.2s;
+	transform: translateY(1px);
 }
 
-.bell:hover {
-  background: #f1f5f9;
+.bell:hover {	
   transform: scale(1.08);
 }
 
 .bell:focus-visible {
   outline: 2px solid #6366f1;
   outline-offset: 2px;
-}
-
-.bellIcon {
-  width: 22px;
-  height: 22px;
-}
-
-.badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 3px;
-  border-radius: 99px;
-  background: #ef4444;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 16px;
-  text-align: center;
-  pointer-events: none;
-  box-sizing: border-box;
 }
 
 .panel {

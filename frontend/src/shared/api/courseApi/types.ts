@@ -132,6 +132,7 @@ export interface HomeworkAttemptQuestionItem {
   number: number;
   text: string;
   answer_options: string[];
+  correct_ans: string | null;
   user_answer: string | null;
   max_points: number;
 }

@@ -20,6 +20,7 @@ import {
   WebinarPage,
   WebinarRecordPage,
   MyHomeworksPage,
+  SchedulePage,
   AppLayout,
 } from './lazyPages';
 import ProfileRoutePage from '@pages/profile/ui/ProfileRoutePage';
@@ -72,6 +73,7 @@ export const routes: AppRoute[] = [
       { index: true, element: <AppHomePage /> },
       { path: 'profile', element: <ProfileRoutePage /> },
       { path: 'homeworks', element: <MyHomeworksPage /> },
+      { path: 'schedule', element: <SchedulePage /> },
       { path: 'store', element: <CourseStorePage /> },
       {
         path: 'store/:slug',

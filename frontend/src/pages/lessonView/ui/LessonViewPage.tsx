@@ -54,6 +54,7 @@ import {
 } from '@shared/api/mutations/webinar';
 import { useToggleHomeworkType } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac';
+import { homeworkReviewNavigateState } from '@shared/lib/homeworkReviewNavigation';
 import { cn } from '@shared/lib/utils';
 import { AiChatPanel } from '../../../features/ai-chat';
 import { preloadWebinarRoute } from '@router/lazyPages';
@@ -264,6 +265,11 @@ const HomeworkWidget: React.FC<{
               isTeacher
                 ? `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}/review`
                 : `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`
+            }
+            state={
+              isTeacher
+                ? homeworkReviewNavigateState(`/app/courses/${courseSlug}/${lessonSlug}`)
+                : undefined
             }
             className={styles.homeworkButton}
           >

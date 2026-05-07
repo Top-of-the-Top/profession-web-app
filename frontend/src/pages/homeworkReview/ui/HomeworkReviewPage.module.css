@@ -10,8 +10,22 @@
   gap: 14px;
 }
 
-.breadcrumbWrap {
+.backNavWrap {
   width: 100%;
+}
+
+.backNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--profession-black-primary, #373734);
+  text-decoration: none;
+}
+
+.backNav:hover {
+  color: var(--profession-blue, #191970);
 }
 
 .steps {
@@ -152,6 +166,13 @@
   gap: 4px;
   cursor: pointer;
   color: #667085;
+  text-decoration: none;
+  font: inherit;
+  align-self: flex-start;
+}
+
+.backToList:hover {
+  color: var(--profession-blue, #191970);
 }
 
 .sideCardTitle {

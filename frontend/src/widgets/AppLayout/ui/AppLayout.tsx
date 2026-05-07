@@ -80,10 +80,10 @@ export default function AppLayout() {
       id: 'upload',
     },
     {
-      href: '/app/modify',
+      href: '/app/schedule',
       label: 'Расписание',
       icon: CalendarDays,
-      id: 'modify',
+      id: 'schedule',
     },
     {
       href: '/app/homeworks',

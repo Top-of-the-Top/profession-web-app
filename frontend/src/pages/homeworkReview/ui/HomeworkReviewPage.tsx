@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, PageFrame, RichTextEditor, SafeHtml, Spinner } from '@shared/ui';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { Button, PageFrame, RichTextEditor, SafeHtml, Spinner } from '@shared/ui';
+import { getHomeworkReviewBackHref } from '@shared/lib/homeworkReviewNavigation';
 import { useReviewHomeworkAttempt } from '@shared/api/mutations/courses';
 import { useHomeworkAttemptForReview, useHomeworkDetail } from '@shared/api/queries/courses';
 import { HOMEWORK_FILE_TASK_TEXT_PREFIX } from '../../../features/course-builder/model/homeworkTypes';
@@ -31,7 +32,7 @@ function taskPrompt(item: HomeworkAttemptTaskItem): string {
 }
 
 export default function HomeworkReviewPage() {
-  const navigate = useNavigate();
+  const location = useLocation();
   const { slug: courseSlug, lessonSlug, homeworkSlug, attemptId } = useParams<{
     slug: string;
     lessonSlug: string;
@@ -111,32 +112,18 @@ export default function HomeworkReviewPage() {
     );
   }
 
+  const backHref = getHomeworkReviewBackHref(location.state, courseSlug, lessonSlug);
+  const attemptsListPath = `/app/courses/${courseSlug}/${lessonSlug}/homework/${homeworkSlug}/review`;
+
   return (
     <PageFrame>
       <div className={styles.pageRoot}>
         <div className={styles.centeredColumn}>
-          <div className={styles.breadcrumbWrap}>
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link to={`/app/courses/${courseSlug}/${lessonSlug}`}>Урок</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${homeworkSlug}/review`}>
-                      Попытки
-                    </Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Проверка</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+          <div className={styles.backNavWrap}>
+            <Link to={backHref} className={styles.backNav}>
+              <ChevronLeft size={18} strokeWidth={2} aria-hidden />
+              Назад
+            </Link>
           </div>
 
           <div className={styles.steps}>
@@ -260,10 +247,14 @@ export default function HomeworkReviewPage() {
             </section>
 
             <aside className={styles.sideCard}>
-              <button type="button" className={styles.backToList} onClick={() => navigate(-1)}>
-                <ChevronLeft size={14} />
+              <Link
+                to={attemptsListPath}
+                state={location.state}
+                className={styles.backToList}
+              >
+                <ChevronLeft size={14} aria-hidden />
                 К списку попыток
-              </button>
+              </Link>
               <div className={styles.sideCardTitle}>{homeworkQuery.data.title}</div>
               <div className={styles.meta}>Попытка: {attemptId}</div>
               <div className={styles.meta}>

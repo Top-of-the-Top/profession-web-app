@@ -1,6 +1,8 @@
-import { Link, useParams } from 'react-router-dom';
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, PageFrame, Spinner } from '@shared/ui';
+import { ChevronLeft } from 'lucide-react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { Button, PageFrame, Spinner } from '@shared/ui';
 import { useHomeworkAttemptsByCourse } from '@shared/api/queries/courses';
+import { getHomeworkReviewBackHref } from '@shared/lib/homeworkReviewNavigation';
 import styles from './HomeworkReviewAttemptsPage.module.css';
 
 function formatDate(value: string | null): string {
@@ -13,6 +15,7 @@ function formatDate(value: string | null): string {
 }
 
 export default function HomeworkReviewAttemptsPage() {
+  const location = useLocation();
   const { slug: courseSlug, lessonSlug, homeworkSlug } = useParams<{
     slug: string;
     lessonSlug: string;
@@ -48,23 +51,15 @@ export default function HomeworkReviewAttemptsPage() {
   }
 
   const rows = attemptsQuery.data.filter((item) => item.homework_slug === homeworkSlug);
+  const backHref = getHomeworkReviewBackHref(location.state, courseSlug, lessonSlug);
 
   return (
     <PageFrame>
       <div className={styles.wrap}>
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link to={`/app/courses/${courseSlug}/${lessonSlug}`}>Урок</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Проверка ДЗ</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <Link to={backHref} className={styles.backNav}>
+          <ChevronLeft size={18} strokeWidth={2} aria-hidden />
+          Назад
+        </Link>
 
         <div className={styles.card}>
           <h2 className={styles.title}>Попытки по заданию</h2>
@@ -82,6 +77,7 @@ export default function HomeworkReviewAttemptsPage() {
                   <Link
                     className={styles.link}
                     to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${homeworkSlug}/review/${row.attempt_id}`}
+                    state={location.state}
                   >
                     {row.status === 'submitted' ? 'Проверить' : 'Открыть'}
                   </Link>

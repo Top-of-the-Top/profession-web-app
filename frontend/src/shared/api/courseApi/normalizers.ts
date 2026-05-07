@@ -199,6 +199,10 @@ function normalizeHomeworkAttemptItem(item: unknown): HomeworkAttemptItem | null
       answer_options: Array.isArray(question.answer_options)
         ? question.answer_options.map((option) => String(option))
         : [],
+      correct_ans:
+        (question as { correct_ans?: unknown }).correct_ans == null
+          ? null
+          : String((question as { correct_ans?: unknown }).correct_ans),
       user_answer:
         question.user_answer == null ? null : String(question.user_answer),
       max_points: Number(question.max_points ?? 0),

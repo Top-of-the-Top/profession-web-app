@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Clock, Search, Home } from 'lucide-react';
 import {
   PageFrame,
@@ -13,6 +13,7 @@ import {
 import { useMyHomeworks, useCoursesForHome, useCourseHomeBySlug } from '@shared/api/queries/courses';
 import type { MyHomeworkStudentItem, MyHomeworkTeacherAttempt } from '@shared/api/courseApi/types';
 import { cn } from '@shared/lib/utils';
+import { homeworkReviewNavigateState } from '@shared/lib/homeworkReviewNavigation';
 import styles from './MyHomeworksPage.module.css';
 
 function timeAgo(iso: string | null): string {
@@ -64,11 +65,14 @@ function TeacherView({
   items,
   courseSlug,
   lessonSlug,
+  reviewReturnHref,
 }: {
   items: MyHomeworkTeacherAttempt[];
   courseSlug: string | undefined;
   lessonSlug: string | undefined;
+  reviewReturnHref: string;
 }) {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('waiting');
   const [search, setSearch] = useState('');
 
@@ -140,9 +144,11 @@ function TeacherView({
                 <tr
                   key={item.attempt_id}
                   onClick={() => {
-                    if (lessonSlug) {
-                      window.location.href = `/app/courses/${courseSlug}/${lessonSlug}/homework/${item.homework_slug}/review/${item.attempt_id}`;
-                    }
+                    if (!lessonSlug || !courseSlug) return;
+                    navigate(
+                      `/app/courses/${courseSlug}/${lessonSlug}/homework/${item.homework_slug}/review/${item.attempt_id}`,
+                      { state: homeworkReviewNavigateState(reviewReturnHref) },
+                    );
                   }}
                 >
                   <td>
@@ -318,6 +324,10 @@ function StudentView({
 
 export default function MyHomeworksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const reviewReturnHref = useMemo(() => {
+    const s = searchParams.toString();
+    return s ? `/app/homeworks?${s}` : '/app/homeworks';
+  }, [searchParams]);
 
   const courseSlug = searchParams.get('course_slug') ?? undefined;
   const lessonSlug = searchParams.get('lesson_slug') ?? undefined;
@@ -374,6 +384,7 @@ export default function MyHomeworksPage() {
         items={homeworksQuery.data.student_attempts.items}
         courseSlug={courseSlug}
         lessonSlug={lessonSlug}
+        reviewReturnHref={reviewReturnHref}
       />
     );
   }

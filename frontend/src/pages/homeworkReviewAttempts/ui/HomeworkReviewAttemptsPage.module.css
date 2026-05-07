@@ -6,6 +6,21 @@
   gap: 14px;
 }
 
+.backNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--profession-black-primary, #373734);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.backNav:hover {
+  color: var(--profession-blue, #191970);
+}
+
 .card {
   background: #fff;
   border: 1px solid #eaecf0;

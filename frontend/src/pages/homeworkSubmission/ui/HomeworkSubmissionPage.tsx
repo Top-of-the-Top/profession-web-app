@@ -23,6 +23,7 @@ import {
 import { useSubmitHomeworkAttempt } from '@shared/api/mutations/courses';
 import type {
   HomeworkAttemptAttachment,
+  HomeworkAttemptItem,
   HomeworkDetailItem,
   SubmitHomeworkAttemptItemPayload,
 } from '@shared/api/courseApi';
@@ -94,6 +95,52 @@ function homeworkTaskPromptText(item: HomeworkDetailItem & { type: 'task' }): st
   return raw;
 }
 
+type ItemStatus = 'correct' | 'incorrect' | 'partily' | string;
+
+function statusLabel(s: ItemStatus): string {
+  if (s === 'correct') return 'Верно';
+  if (s === 'incorrect') return 'Неверно';
+  if (s === 'partily') return 'Частично верно';
+  return '';
+}
+
+function statusBadgeClass(s: ItemStatus): string {
+  if (s === 'correct') return styles.statusBadgeCorrect;
+  if (s === 'partily') return styles.statusBadgePartial;
+  if (s === 'incorrect') return styles.statusBadgeIncorrect;
+  return '';
+}
+
+/* Donut chart for side card */
+function DonutScore({ score, max }: { score: number; max: number }) {
+  const r = 44;
+  const cx = 56;
+  const cy = 56;
+  const circumference = 2 * Math.PI * r;
+  const pct = max > 0 ? Math.min(score / max, 1) : 0;
+  const dash = pct * circumference;
+  const gap = circumference - dash;
+
+  return (
+    <div className={styles.donutWrap}>
+      <svg width={112} height={112} viewBox="0 0 112 112">
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e4e7ec" strokeWidth={10} />
+        <circle
+          cx={cx} cy={cy} r={r} fill="none"
+          stroke="#22c55e" strokeWidth={10}
+          strokeDasharray={`${dash} ${gap}`}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${cx} ${cy})`}
+        />
+      </svg>
+      <div className={styles.donutCenter}>
+        <span className={styles.donutScore}>{score}</span>
+        <span className={styles.donutMax}>из {max}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function HomeworkSubmissionPage() {
   const { slug: courseSlug, lessonSlug, homeworkSlug } = useParams<{
     slug: string;
@@ -112,12 +159,10 @@ export default function HomeworkSubmissionPage() {
   const [uploadProgress, setUploadProgress] = useState<
     Record<string, { phase: string; percent: number; fileName: string } | null>
   >({});
-  // Set of item ids the user has confirmed with "Ответить"
   const [answered, setAnswered] = useState<Set<string>>(new Set());
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  // Slide animation: 'left' | 'right' | null
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null);
   const animationKey = useRef(0);
 
@@ -278,7 +323,6 @@ export default function HomeworkSubmissionPage() {
     setSlideDir(dir);
     animationKey.current += 1;
     setCurrentItemIndex(index);
-    // Reset animation class after it plays
     setTimeout(() => setSlideDir(null), 320);
   };
 
@@ -294,6 +338,24 @@ export default function HomeworkSubmissionPage() {
       </PageFrame>
     );
   }
+
+  // Derive these before any conditional returns so hooks are always called in the same order
+  const attempt = attemptQuery.data ?? null;
+  const detail = detailQuery.data ?? null;
+  const items = detail?.items ?? [];
+  const isDraft = attempt?.status === 'draft';
+  const isReviewed = attempt?.status === 'reviewed';
+
+  // Map detail item id → attempt item status (for bubble coloring in reviewed mode)
+  const itemStatusMap = useMemo<Map<string, ItemStatus>>(() => {
+    if (!isReviewed || !attempt) return new Map();
+    const map = new Map<string, ItemStatus>();
+    for (const ai of attempt.items) {
+      const id = ai.type === 'question' ? ai.question_id : ai.task_id;
+      if (id) map.set(id, ai.status ?? '');
+    }
+    return map;
+  }, [isReviewed, attempt]);
 
   if (attemptQuery.isLoading || detailQuery.isLoading) {
     return (
@@ -335,10 +397,8 @@ export default function HomeworkSubmissionPage() {
     );
   }
 
-  const attempt = attemptQuery.data;
-  const detail = detailQuery.data;
-  const items = detail.items;
-  const isDraft = attempt.status === 'draft';
+  // After guards, attempt is guaranteed non-null
+  const safeAttempt = attemptQuery.data!;
 
   if (items.length === 0) {
     return (
@@ -362,11 +422,29 @@ export default function HomeworkSubmissionPage() {
     currentItem.type === 'task' && isHomeworkFileTask(currentItem);
   const currentItemPoints = currentItem.max_points ?? 0;
 
+  // Find attempt item for current detail item (for status/review)
+  const currentAttemptItem: HomeworkAttemptItem | undefined = safeAttempt.items.find((ai) =>
+    ai.type === 'question'
+      ? ai.question_id === currentItem.id
+      : ai.task_id === currentItem.id,
+  );
+  const currentStatus: ItemStatus = currentAttemptItem?.status ?? '';
+
+  // Per-item result points (for reviewed state)
+  function itemResultPoints(attemptItem: HomeworkAttemptItem): number | null {
+    if (!isReviewed) return null;
+    if (attemptItem.type === 'question') {
+      return attemptItem.status === 'correct' ? attemptItem.max_points : 0;
+    }
+    return attemptItem.review?.points ?? null;
+  }
+
+  const currentResultPoints = currentAttemptItem ? itemResultPoints(currentAttemptItem) : null;
+
   const allAnswered = items.every((item) => answered.has(item.id));
 
   const handleAnswerCurrent = () => {
     setAnswered((prev) => new Set([...prev, currentItem.id]));
-    // Auto-advance to next unanswered, or stay if last
     const nextIndex = currentItemIndex < items.length - 1 ? currentItemIndex + 1 : currentItemIndex;
     if (nextIndex !== currentItemIndex) animateTo(nextIndex);
   };
@@ -380,7 +458,6 @@ export default function HomeworkSubmissionPage() {
 
   return (
     <PageFrame>
-      {/* Confirm submit dialog */}
       {showConfirmDialog && (
         <div className={styles.dialogOverlay}>
           <div className={styles.dialog}>
@@ -434,21 +511,10 @@ export default function HomeworkSubmissionPage() {
         </div>
 
         <div className={styles.centeredColumn}>
-          {attempt.status === 'submitted' && (
+          {safeAttempt.status === 'submitted' && (
             <div className={styles.statusBannerSubmitted}>
               <Clock size={16} className={styles.statusBannerIcon} />
               <span>Работа отправлена и ожидает проверки преподавателем. Редактирование недоступно.</span>
-            </div>
-          )}
-          {attempt.status === 'reviewed' && (
-            <div className={styles.statusBannerReviewed}>
-              <CheckCircle2 size={16} className={styles.statusBannerIcon} />
-              <span>
-                Работа проверена.
-                {attempt.score != null && attempt.max_points != null && (
-                  <> Результат: <strong>{attempt.score}&thinsp;/&thinsp;{attempt.max_points}</strong> баллов.</>
-                )}
-              </span>
             </div>
           )}
 
@@ -465,6 +531,7 @@ export default function HomeworkSubmissionPage() {
               {items.map((item, index) => {
                 const isActive = index === currentItemIndex;
                 const isAnswered = answered.has(item.id);
+                const reviewedStatus = itemStatusMap.get(item.id);
                 return (
                   <button
                     key={item.id}
@@ -473,6 +540,8 @@ export default function HomeworkSubmissionPage() {
                       styles.stepButton,
                       isActive ? styles.stepButtonActive : '',
                       !isActive && isAnswered ? styles.stepButtonAnswered : '',
+                      !isActive && reviewedStatus === 'correct' ? styles.stepButtonCorrect : '',
+                      !isActive && (reviewedStatus === 'incorrect' || reviewedStatus === 'partily') ? styles.stepButtonIncorrect : '',
                     ].join(' ')}
                     onClick={() => animateTo(index)}
                   >
@@ -500,58 +569,81 @@ export default function HomeworkSubmissionPage() {
                 slideClass,
               ].join(' ')}
             >
-              <p className={styles.itemMeta}>
-                Задание {currentItemIndex + 1}: {formatPointsLabel(currentItemPoints)}
-              </p>
+              {/* Header row: "Задание N: X баллов" + status badge */}
+              <div className={styles.itemMetaRow}>
+                <p className={styles.itemMeta}>
+                  Задание {currentItemIndex + 1}: {formatPointsLabel(currentItemPoints)}
+                </p>
+                {isReviewed && currentStatus && statusLabel(currentStatus) && (
+                  <span className={[styles.statusBadge, statusBadgeClass(currentStatus)].join(' ')}>
+                    {statusLabel(currentStatus)}
+                  </span>
+                )}
+              </div>
+
               <p className={styles.itemTitle}>{currentPromptText}</p>
 
               {currentItem.type === 'question' ? (
                 <div className={styles.optionsList}>
-                  {(currentItem.answer_options ?? []).map((option) => (
-                    <label
-                      key={option}
-                      className={[
-                        styles.optionLabel,
-                        answers[currentItem.id] === option ? styles.optionLabelSelected : '',
-                      ].join(' ')}
-                    >
-                      <input
-                        type="radio"
-                        name={currentItem.id}
-                        checked={answers[currentItem.id] === option}
-                        disabled={!isDraft}
-                        onChange={() => {
-                          const nextAnswers = { ...answers, [currentItem.id]: option };
-                          setAnswers(nextAnswers);
-                          persist(nextAnswers, attachments);
-                          setAnswered((prev) => {
-                            const next = new Set(prev);
-                            next.delete(currentItem.id);
-                            return next;
-                          });
-                        }}
-                      />
-                      <span>{option}</span>
-                    </label>
-                  ))}
+                  {(currentItem.answer_options ?? []).map((option) => {
+                    const userAnswer = isReviewed && currentAttemptItem?.type === 'question'
+                      ? currentAttemptItem.user_answer
+                      : answers[currentItem.id] ?? null;
+                    const isSelected = userAnswer === option;
+                    const correctAns = currentAttemptItem?.type === 'question' ? currentAttemptItem.correct_ans : null;
+                    const isCorrectOption = isReviewed && correctAns === option;
+                    const isWrongSelected = isReviewed && isSelected && !isCorrectOption;
+                    return (
+                      <label
+                        key={option}
+                        className={[
+                          styles.optionLabel,
+                          isSelected && !isReviewed ? styles.optionLabelSelected : '',
+                          isCorrectOption ? styles.optionLabelCorrect : '',
+                          isWrongSelected ? styles.optionLabelWrong : '',
+                        ].join(' ')}
+                      >
+                        <input
+                          type="radio"
+                          name={currentItem.id}
+                          checked={isSelected}
+                          disabled={!isDraft}
+                          onChange={() => {
+                            const nextAnswers = { ...answers, [currentItem.id]: option };
+                            setAnswers(nextAnswers);
+                            persist(nextAnswers, attachments);
+                            setAnswered((prev) => {
+                              const next = new Set(prev);
+                              next.delete(currentItem.id);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span>{option}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               ) : currentIsFileTask ? (
                 <div className={styles.taskAnswerWrap}>
+                  {isReviewed && <p className={styles.answerLabel}>Ваш ответ</p>}
                   <div className={styles.attachmentsBlock}>
-                    <label className={styles.uploadButton}>
-                      <input
-                        type="file"
-                        disabled={!isDraft || uploadProgress[currentItem.id] != null}
-                        onChange={(event) => {
-                          const file = event.currentTarget.files?.[0];
-                          if (!file) return;
-                          void handleUploadFile(currentItem, file);
-                          event.currentTarget.value = '';
-                        }}
-                      />
-                      <Paperclip size={14} />
-                      Прикрепить файл
-                    </label>
+                    {isDraft && (
+                      <label className={styles.uploadButton}>
+                        <input
+                          type="file"
+                          disabled={!isDraft || uploadProgress[currentItem.id] != null}
+                          onChange={(event) => {
+                            const file = event.currentTarget.files?.[0];
+                            if (!file) return;
+                            void handleUploadFile(currentItem, file);
+                            event.currentTarget.value = '';
+                          }}
+                        />
+                        <Paperclip size={14} />
+                        Прикрепить файл
+                      </label>
+                    )}
                     <ul className={styles.attachmentsList}>
                       {(attachments[currentItem.id] ?? []).map((attachment) => (
                         <li key={attachment.attachment_id} className={styles.attachmentItem}>
@@ -595,9 +687,28 @@ export default function HomeworkSubmissionPage() {
                       })()}
                     </ul>
                   </div>
+
+                  {/* Teacher comment for file task in reviewed state */}
+                  {isReviewed && currentAttemptItem?.type === 'task' && currentAttemptItem.review?.comment && (
+                    <div className={styles.reviewComment}>
+                      <div className={styles.reviewCommentHeader}>
+                        <div className={styles.reviewerAvatar}>
+                          {currentAttemptItem.review.reviewer?.first_name?.[0] ?? '?'}
+                        </div>
+                        <span className={styles.reviewerName}>
+                          {currentAttemptItem.review.reviewer
+                            ? `${currentAttemptItem.review.reviewer.first_name} ${currentAttemptItem.review.reviewer.last_name}`
+                            : 'Преподаватель'}
+                          <span className={styles.reviewerRole}> · Преподаватель</span>
+                        </span>
+                      </div>
+                      <SafeHtml className={styles.reviewCommentText} html={currentAttemptItem.review.comment ?? ''} />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className={`${styles.taskAnswerWrap} ${styles.taskTextAnswerWrap}`}>
+                  {isReviewed && <p className={styles.answerLabel}>Ваш ответ</p>}
                   {isDraft ? (
                     <div className={styles.answerEditorWrap}>
                       <RichTextEditor
@@ -624,6 +735,40 @@ export default function HomeworkSubmissionPage() {
                       html={formatAnswerHtml(answers[currentItem.id] ?? '')}
                     />
                   )}
+
+                  {/* Teacher comment for text task in reviewed state */}
+                  {isReviewed && currentAttemptItem?.type === 'task' && currentAttemptItem.review?.comment && (
+                    <div className={styles.reviewComment}>
+                      <div className={styles.reviewCommentHeader}>
+                        <div className={styles.reviewerAvatar}>
+                          {currentAttemptItem.review.reviewer?.first_name?.[0] ?? '?'}
+                        </div>
+                        <span className={styles.reviewerName}>
+                          {currentAttemptItem.review.reviewer
+                            ? `${currentAttemptItem.review.reviewer.first_name} ${currentAttemptItem.review.reviewer.last_name}`
+                            : 'Преподаватель'}
+                          <span className={styles.reviewerRole}> · Преподаватель</span>
+                        </span>
+                      </div>
+                      <SafeHtml className={styles.reviewCommentText} html={currentAttemptItem.review.comment ?? ''} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Result row at bottom */}
+              {isReviewed && currentResultPoints !== null && (
+                <div className={styles.resultRow}>
+                  <span className={styles.resultLabel}>Результат:</span>
+                  <span className={[
+                    styles.resultPoints,
+                    currentResultPoints === 0 ? styles.resultPointsZero : styles.resultPointsPositive,
+                  ].join(' ')}>
+                    {currentResultPoints} / {currentItemPoints}
+                  </span>
+                  <span className={styles.resultPointsUnit}>
+                    {formatPointsLabel(currentItemPoints).replace(/^\d+\s*/, '')}
+                  </span>
                 </div>
               )}
 
@@ -634,7 +779,7 @@ export default function HomeworkSubmissionPage() {
                     disabled={answered.has(currentItem.id)}
                     onClick={handleAnswerCurrent}
                   >
-                    Ответить
+                    Далее
                   </Button>
                 </div>
               )}
@@ -646,11 +791,23 @@ export default function HomeworkSubmissionPage() {
                 К списку домашних заданий
               </button>
               <div className={styles.sideCardTitle}>{homeworkTitle}</div>
-              <div className={styles.meta}>
-                <span className={styles.deadlineText}>
-                  Дедлайн: {new Date(attempt.deadline).toLocaleString('ru-RU')}
-                </span>
-              </div>
+
+              {/* Donut score for reviewed */}
+              {isReviewed && safeAttempt.score != null && safeAttempt.max_points != null && (
+                <DonutScore score={safeAttempt.score} max={safeAttempt.max_points} />
+              )}
+              {isReviewed && (safeAttempt.score != null || safeAttempt.max_points != null) && (
+                <p className={styles.donutLabel}>баллов</p>
+              )}
+
+              {!isReviewed && (
+                <div className={styles.meta}>
+                  <span className={styles.deadlineText}>
+                    Дедлайн: {new Date(safeAttempt.deadline).toLocaleString('ru-RU')}
+                  </span>
+                </div>
+              )}
+
               {isDraft ? (
                 <div className={styles.sideActions}>
                   <Button
@@ -661,18 +818,15 @@ export default function HomeworkSubmissionPage() {
                     {submitAttempt.isPending ? 'Отправка...' : 'Завершить'}
                   </Button>
                 </div>
-              ) : attempt.status === 'submitted' ? (
+              ) : safeAttempt.status === 'submitted' ? (
                 <div className={styles.sideStatusChip} data-status="submitted">
                   <Clock size={13} />
                   На проверке
                 </div>
-              ) : attempt.status === 'reviewed' ? (
+              ) : safeAttempt.status === 'reviewed' ? (
                 <div className={styles.sideStatusChip} data-status="reviewed">
                   <CheckCircle2 size={13} />
                   Проверено
-                  {attempt.score != null && attempt.max_points != null && (
-                    <span className={styles.sideScore}>{attempt.score}&thinsp;/&thinsp;{attempt.max_points}</span>
-                  )}
                 </div>
               ) : null}
             </aside>

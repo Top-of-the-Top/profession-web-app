@@ -61,6 +61,7 @@ class QuestionAttemptItemSerializer(serializers.Serializer):
     number = serializers.IntegerField(source='question.question_number', read_only=True)
     text = serializers.CharField(source='question.text', read_only=True)
     answer_options = serializers.JSONField(source='question.answer_options', read_only=True)
+    correct_ans = serializers.CharField(source='question.correct_ans', read_only=True, allow_null=True)
     user_answer = serializers.CharField(read_only=True, allow_null=True)
     max_points = serializers.IntegerField(source='question.max_points', read_only=True)
 

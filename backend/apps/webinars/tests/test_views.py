@@ -382,7 +382,7 @@ class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(response.data['uid'], 999999)
         self.assertEqual(response.data['rtc_token'], 'rtc-tok')
         self.assertEqual(response.data['rtm_token'], 'rtm-tok')
-        self.assertEqual(response.data['chat_channel_name'], '')
+        self.assertEqual(response.data['chat_channel_name'], 'chat-room-r')
         self.assertEqual(response.data['whiteboard_room_token'], 'wb-tok')
 
 

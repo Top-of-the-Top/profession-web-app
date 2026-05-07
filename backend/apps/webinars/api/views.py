@@ -416,6 +416,7 @@ class WebinarRecorderJoinView(APIView):
         rtc_token = generate_rtc_token(webinar.agora_channel_name, recorder_uid, ROLE_SUBSCRIBER)
         rtm_token = generate_rtm_token(recorder_uid)
         wb_token = generate_whiteboard_room_token(webinar.whiteboard_room_uuid, 'reader')
+        chat_channel_name = f'chat-{webinar.whiteboard_room_uuid}'
 
         return Response({
             'webinar_id': str(webinar.webinar_id),
@@ -423,7 +424,7 @@ class WebinarRecorderJoinView(APIView):
             'rtm_token': rtm_token,
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,
-            'chat_channel_name': '',
+            'chat_channel_name': chat_channel_name,
             'uid': recorder_uid,
             'user_name': 'Recorder',
             'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),

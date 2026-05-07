@@ -291,25 +291,7 @@ function PublisherInner({
           />
         ))}
       </div>
-
-      {!cameraOn ? (
-        <LocalParticipantStrip
-          name={selfLabel}
-          micOn={micOn}
-          cameraOn={cameraOn}
-          localMicrophoneTrack={localMicrophoneTrack}
-          localCameraTrack={localCameraTrack}
-        />
-      ) : null}
-
-      {remotesWithoutVideo.map((user) => (
-        <ObserverRemoteAudioStrip
-          key={user.uid}
-          user={user}
-          name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
-        />
-      ))}
-      {children}
+      {children ? <div className={styles.chatArea}>{children}</div> : null}
     </div>
   );
 }

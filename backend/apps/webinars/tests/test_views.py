@@ -349,6 +349,7 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(kwargs.get('role'), 'writer')
 
 
+@patch('apps.webinars.api.views.generate_rtm_token', return_value='rtm-tok')
 @patch('apps.webinars.api.views.generate_whiteboard_room_token', return_value='wb-tok')
 @patch('apps.webinars.api.views.generate_rtc_token', return_value='rtc-tok')
 class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
@@ -380,7 +381,7 @@ class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(response.data['role'], 'recorder')
         self.assertEqual(response.data['uid'], 999999)
         self.assertEqual(response.data['rtc_token'], 'rtc-tok')
-        self.assertEqual(response.data['rtm_token'], '')
+        self.assertEqual(response.data['rtm_token'], 'rtm-tok')
         self.assertEqual(response.data['chat_channel_name'], '')
         self.assertEqual(response.data['whiteboard_room_token'], 'wb-tok')
 
@@ -701,10 +702,10 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
         self.recording.refresh_from_db()
         self.assertEqual(self.recording.whiteboard_pdf_url, '')
 
-    def test_delete_pdf_returns_404_when_no_pdf(self):
+    def test_delete_pdf_is_idempotent_when_no_pdf(self):
         self.authenticate(self.teacher)
         response = self.client.delete(self.url_pdf(self.recording.recording_id))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_delete_forbidden_for_student(self):
         self.authenticate(self.student)

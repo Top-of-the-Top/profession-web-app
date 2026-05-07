@@ -10,7 +10,7 @@ from apps.payments.models import (
     Payment, PaymentItem
 )
 from apps.payments.tasks import (
-    process_payment_task, _handle_success, _handle_failure, ACCESS_DURATION_DAYS
+    process_payment_task, _handle_success, _handle_failure
 )
 from apps.payments.api.views import (
     CartPayView, PaymentListView, PaymentDetailView
@@ -65,11 +65,6 @@ class PaymentModelUnitTests(SimpleTestCase):
         mock_payment.mock_yookassa_id = mock_uuid
 
         self.assertIsInstance(mock_payment.mock_yookassa_id, uuid.UUID)
-
-    def test_access_duration_constant(self):
-        self.assertIsInstance(ACCESS_DURATION_DAYS, int)
-        self.assertEqual(ACCESS_DURATION_DAYS, 365)
-
 
 class PaymentItemModelUnitTests(SimpleTestCase):
 

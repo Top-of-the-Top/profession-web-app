@@ -178,39 +178,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   useEffect(() => { lessonSignatureRef.current = lessonSignature; }, [lessonSignature]);
   useEffect(() => { homeworkSignatureRef.current = homeworkSignature; }, [homeworkSignature]);
 
-  // homeworkBaseline is set via onInitialized callback after the store is first loaded
-
-  // When lesson is saved (savedRevision bumps), reset lesson baseline
-  useEffect(() => {
-    if (savedRevision === 0) return;
-    setLessonBaseline(lessonSignatureRef.current);
-  }, [savedRevision]);
-
-  const hasUnsavedLesson =
-    lessonBaseline !== null &&
-    lessonBaseline !== lessonSignature;
-  const hasUnsavedHomework =
-    homeworkBaseline !== null &&
-    homeworkBaseline !== homeworkSignature;
-  const hasUnsavedChanges = hasUnsavedLesson || hasUnsavedHomework;
-
-  const isSavedStatus = lessonBaseline === null || (!hasUnsavedLesson && !saving);
-
-  const blocker = useBlocker(hasUnsavedChanges && !allowNavigation);
-
-  const lessonSignature = JSON.stringify({
-    lesson: layout,
-    pendingUploadIds: Object.keys(pendingUploads).sort(),
-  });
-  const homeworkSignature = JSON.stringify(homeworkLayout);
-
-  const uploadingInProgress = hasPendingUploads();
-
-  const lessonSignatureRef = useRef(lessonSignature);
-  const homeworkSignatureRef = useRef(homeworkSignature);
-  useEffect(() => { lessonSignatureRef.current = lessonSignature; }, [lessonSignature]);
-  useEffect(() => { homeworkSignatureRef.current = homeworkSignature; }, [homeworkSignature]);
-
   // Set lesson baseline once on mount
   useEffect(() => {
     setLessonBaseline((prev) => prev === null ? lessonSignatureRef.current : prev);
@@ -234,77 +201,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   const isSavedStatus = lessonBaseline === null || (!hasUnsavedLesson && !saving);
 
   const blocker = useBlocker(hasUnsavedChanges && !allowNavigation);
-
-  useEffect(() => {
-    if (blocker.state !== 'blocked') return;
-    setLeaveDialogOpen(true);
-    setPendingNavigationAction(() => blocker.proceed);
-  }, [blocker]);
-
-  useEffect(() => {
-    if (!hasUnsavedChanges) return;
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [hasUnsavedChanges]);
-
-  const requestNavigation = useCallback(
-    (action: () => void) => {
-      if (!hasUnsavedChanges) {
-        action();
-        return;
-      }
-      setPendingNavigationAction(() => action);
-      setLeaveDialogOpen(true);
-    },
-    [hasUnsavedChanges],
-  );
-
-  // Tab switch: warn only if the *current* tab has unsaved changes
-  const requestTabSwitch = useCallback(
-    (tab: 'layout' | 'homework') => {
-      if (tab === activeTab) return;
-      const currentTabDirty =
-        activeTab === 'layout' ? hasUnsavedLesson : hasUnsavedHomework;
-      if (!currentTabDirty) {
-        setActiveTab(tab);
-        return;
-      }
-      setPendingNavigationAction(() => () => setActiveTab(tab));
-      setLeaveDialogOpen(true);
-    },
-    [activeTab, hasUnsavedLesson, hasUnsavedHomework],
-  );
-
-  const handleConfirmLeave = useCallback(() => {
-    const action = pendingNavigationAction;
-    setLeaveDialogOpen(false);
-    setPendingNavigationAction(null);
-    setConfirmedNavigationAction(() => action ?? null);
-    setAllowNavigation(true);
-  }, [pendingNavigationAction]);
-
-  const handleCancelLeave = useCallback(() => {
-    setLeaveDialogOpen(false);
-    setPendingNavigationAction(null);
-    if (blocker.state === 'blocked') {
-      blocker.reset();
-    }
-  }, [blocker]);
-
-  useEffect(() => {
-    if (!allowNavigation || !confirmedNavigationAction) return;
-    confirmedNavigationAction();
-    setConfirmedNavigationAction(null);
-  }, [allowNavigation, confirmedNavigationAction]);
-
-  useEffect(() => {
-    if (blocker.state === 'unblocked') {
-      setAllowNavigation(false);
-    }
-  }, [blocker.state]);
 
   useEffect(() => {
     if (blocker.state !== 'blocked') return;

@@ -7,4 +7,4 @@ class NotificationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Notification
-        exclude = ('read_by',)
+        fields = ('id', 'title', 'message', 'notification_type', 'created_at', 'is_read')

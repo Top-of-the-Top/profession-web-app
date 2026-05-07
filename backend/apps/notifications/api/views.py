@@ -49,10 +49,15 @@ PAGE_SIZE = 20
     tags=['Notifications'],
     summary='Список уведомлений пользователя',
     parameters=[
-        OpenApiParameter(name='before_id', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=False,
-                         description='ID уведомления — вернуть уведомления старше него'),
+        OpenApiParameter(
+            name='before_id',
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description='Вернуть уведомления с id строго меньше указанного (курсор пагинации)',
+        ),
     ],
-    responses={200: {'description': '{"results": [...], "has_more": bool}', 'content': {'application/json': {}}}},
+    responses={200: NotificationSerializer(many=True)},
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -66,18 +71,17 @@ def get_notifications_for_user(request):
         except (ValueError, TypeError):
             pass
 
-    notifications = list(qs[:PAGE_SIZE + 1])
-    has_more = len(notifications) > PAGE_SIZE
-    notifications = notifications[:PAGE_SIZE]
+    page = list(qs[:PAGE_SIZE + 1])
+    has_more = len(page) > PAGE_SIZE
 
-    serializer = NotificationSerializer(notifications, many=True)
+    serializer = NotificationSerializer(page[:PAGE_SIZE], many=True)
     return Response({'results': serializer.data, 'has_more': has_more})
 
 
 @extend_schema(
     tags=['Notifications'],
     summary='Пометить все уведомления пользователя как прочитанные',
-    responses={200: {'description': 'OK', 'content': {'application/json': {'example': {'marked': 5}}}}},
+    responses={200: {'description': '{"marked": int}', 'content': {'application/json': {}}}},
 )
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

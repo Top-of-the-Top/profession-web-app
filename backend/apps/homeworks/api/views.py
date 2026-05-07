@@ -375,6 +375,7 @@ class AttemptReviewView(APIView):
             homework_slug=attempt.homework.slug,
             attempt_id=attempt.attempt_id,
             lesson_slug=attempt.homework.lesson.slug,
+            course_slug=attempt.homework.lesson.section.course.slug,
         )
         return Response(
             AttemptSerializer(attempt, context={'request': request}).data,
@@ -440,6 +441,7 @@ class HomeworkAttemptSubmitView(APIView):
             homework_slug=homework_slug,
             attempt_id=attempt.attempt_id,
             lesson_slug=attempt.homework.lesson.slug,
+            course_slug=attempt.homework.lesson.section.course.slug,
         )
         return Response(
             AttemptSerializer(attempt, context={'request': request}).data,

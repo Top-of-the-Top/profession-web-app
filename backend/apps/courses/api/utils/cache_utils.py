@@ -151,9 +151,68 @@ def attempt_list_by_course_cache_key(course_slug, user_id=None):
     return f"default:attempt:list:course:{course_slug}"
 
 
-def invalidate_attempt_cache(user_id, homework_slug, attempt_id, lesson_slug):
+def _delete(cache, *keys):
+    for key in keys:
+        cache.delete(key)
+
+
+def _delete_pattern_or_key(cache, pattern, fallback_key):
+    if hasattr(cache, 'delete_pattern'):
+        cache.delete_pattern(pattern)
+    else:
+        cache.delete(fallback_key)
+
+
+def invalidate_attempt_cache(user_id, homework_slug, attempt_id, lesson_slug, course_slug):
     cache = default_cache()
-    cache.delete(attempt_draft_cache_key(user_id, homework_slug))
-    cache.delete(attempt_detail_cache_key(attempt_id))
-    cache.delete(attempt_list_cache_key(lesson_slug, user_id))
+    uid = int(user_id)
+
+    # черновик и детальная попытка
+    _delete(
+        cache,
+        attempt_draft_cache_key(uid, homework_slug),
+        attempt_detail_cache_key(attempt_id),
+    )
+
+    # списки по уроку — user-специфичный и общий (для учителя/модератора)
+    _delete_pattern_or_key(
+        cache,
+        f'default:attempt:list:{lesson_slug}:*',
+        attempt_list_cache_key(lesson_slug, uid),
+    )
     cache.delete(attempt_list_cache_key(lesson_slug))
+
+    # списки по курсу
+    _delete_pattern_or_key(
+        cache,
+        f'default:attempt:list:course:{course_slug}:*',
+        attempt_list_by_course_cache_key(course_slug, uid),
+    )
+    cache.delete(attempt_list_by_course_cache_key(course_slug))
+
+    # списки без фильтра (all)
+    _delete_pattern_or_key(
+        cache,
+        'default:attempt:list:all:*',
+        f'default:attempt:list:all:{uid}',
+    )
+    cache.delete('default:attempt:list:all')
+
+
+def invalidate_student_homework_list_cache(lesson_slug, course_slug):
+    cache = default_cache()
+    _delete_pattern_or_key(
+        cache,
+        f'default:attempt:list:{lesson_slug}:*',
+        attempt_list_cache_key(lesson_slug),
+    )
+    _delete_pattern_or_key(
+        cache,
+        f'default:attempt:list:course:{course_slug}:*',
+        attempt_list_by_course_cache_key(course_slug),
+    )
+    _delete_pattern_or_key(
+        cache,
+        'default:attempt:list:all:*',
+        'default:attempt:list:all',
+    )

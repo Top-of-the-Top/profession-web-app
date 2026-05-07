@@ -41,6 +41,37 @@
   /* background: #000; */
 }
 
+.rtmLogTag {
+  margin: 8px 8px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklch, var(--card) 88%, #fff);
+  overflow: hidden;
+}
+
+.rtmLogTagHeader {
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+}
+
+.rtmLogTagContent {
+  margin: 0;
+  padding: 8px 10px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--foreground);
+  max-height: 140px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .stateCenter {
   display: flex;
   align-items: center;

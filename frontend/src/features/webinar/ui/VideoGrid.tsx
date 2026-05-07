@@ -363,16 +363,17 @@ function SubscribeOnlyInner({
 
   if (!anyRemoteHasVideo) {
     return (
-      <div className={styles.gridObserverAudioOnly}>
-        {visibleRemoteUsers.map((user) => (
-          <div key={user.uid} className={styles.observerHiddenAudioMount}>
-            <RemoteUser
+      <div className={styles.gridObserver}>
+        <div className={styles.participantsArea}>
+          {visibleRemoteUsers.map((user) => (
+            <ObserverRemoteAudioStrip
+              key={user.uid}
               user={user}
-              playVideo={false}
-              style={{ width: '100%', height: '100%' }}
+              name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
             />
-          </div>
-        ))}
+          ))}
+        </div>
+        {children ? <div className={styles.chatArea}>{children}</div> : null}
       </div>
     );
   }

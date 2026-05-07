@@ -294,7 +294,12 @@ export default function WebinarRecordPage() {
     setRecorderAnyRemoteVideo(v);
   }, []);
   const isChatOpen = true;
-  const { messages: chatMessages, sendMessage } = useWebinarChat({
+  const {
+    messages: chatMessages,
+    sendMessage,
+    isConnected: chatConnected,
+    debugLogs: chatDebugLogs,
+  } = useWebinarChat({
     appId: session?.agora_app_id ?? '',
     rtmToken: session?.rtm_token ?? '',
     chatChannelName: session?.chat_channel_name ?? '',
@@ -431,11 +436,21 @@ export default function WebinarRecordPage() {
             onSubscribeOnlyAnyRemoteVideo={onSubscribeOnlyAnyRemoteVideo}
           >
             {isChatOpen && (
-              <WebinarChat
-                messages={chatMessages}
-                uid={session.uid}
-                sendMessage={sendMessage}
-              />
+              <>
+                <div className={styles.rtmLogTag}>
+                  <div className={styles.rtmLogTagHeader}>
+                    RTM {chatConnected ? 'connected' : 'disconnected'}
+                  </div>
+                  <div className={styles.rtmLogTagContent}>
+                    {chatDebugLogs.length > 0 ? chatDebugLogs.join('\n') : 'No RTM logs yet'}
+                  </div>
+                </div>
+                <WebinarChat
+                  messages={chatMessages}
+                  uid={session.uid}
+                  sendMessage={sendMessage}
+                />
+              </>
             )}
           </VideoGrid>
         </div>

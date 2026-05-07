@@ -100,9 +100,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
               await self._send_ws_message(ChatDeletedMessage())
           case GetHistoryRequest(chat_id=chat_id):
               history = await self.chat_service.get_chat_history(chat_id)
+              self.session_chat_history[chat_id] = deque(maxlen=20)
               for message in history:
-                if chat_id not in self.session_chat_history:
-                  self.session_chat_history[chat_id] = deque(maxlen=20)
+                  self.session_chat_history[chat_id].append(message.content)
               await self._send_ws_message(
                   HistoryReceivedMessage(chat_id=chat_id, history=history)
               )

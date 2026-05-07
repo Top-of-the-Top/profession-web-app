@@ -1,9 +1,11 @@
 from ..models import Notification
 from rest_framework import serializers
 
+
 class NotificationSerializer(serializers.ModelSerializer):
     image_url = serializers.ReadOnlyField()
+    is_read = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Notification
-        fields = '__all__'
+        exclude = ('read_by',)

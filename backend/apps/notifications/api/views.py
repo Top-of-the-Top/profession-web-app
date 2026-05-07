@@ -6,7 +6,7 @@ from django.http import StreamingHttpResponse, HttpResponse, HttpResponseNotAllo
 from rest_framework.response import Response
 from django.conf import settings
 from asgiref.sync import sync_to_async
-from django.db.models import Q
+from django.db.models import Q, Exists, OuterRef
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import AccessToken
@@ -23,6 +23,24 @@ RABBITMQ_RETRY_DELAY = 2
 logger = logging.getLogger(__name__)
 
 
+def _user_notifications_qs(user):
+    Through = Notification.read_by.through
+    purchased_course_ids = user.get_purchased_courses_ids()
+    return (
+        Notification.objects.filter(
+            Q(user=user) | Q(course_id__in=purchased_course_ids) | Q(notification_type=Notification.SYSTEM)
+        )
+        .distinct()
+        .annotate(
+            is_read=Exists(
+                Through.objects.filter(
+                    notification_id=OuterRef('pk'),
+                    user_id=user.pk,
+                )
+            )
+        )
+    )
+
 
 @extend_schema(
     tags=['Notifications'],
@@ -32,16 +50,35 @@ logger = logging.getLogger(__name__)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_notifications_for_user(request):
-    user = request.user
-
-    purchased_course_ids = user.get_purchased_courses_ids()
-
-    notifications = Notification.objects.filter(
-        Q(user=user) | Q(course_id__in=purchased_course_ids) | Q(notification_type=Notification.SYSTEM)
-    ).distinct()
-
+    notifications = _user_notifications_qs(request.user)
     serializer = NotificationSerializer(notifications, many=True)
     return Response(serializer.data)
+
+
+@extend_schema(
+    tags=['Notifications'],
+    summary='Пометить все уведомления пользователя как прочитанные',
+    responses={200: {'description': 'OK', 'content': {'application/json': {'example': {'marked': 5}}}}},
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_all_read(request):
+    user = request.user
+    Through = Notification.read_by.through
+
+    unread_ids = list(
+        _user_notifications_qs(user)
+        .filter(is_read=False)
+        .values_list('id', flat=True)
+    )
+
+    if unread_ids:
+        Through.objects.bulk_create(
+            [Through(notification_id=n_id, user_id=user.pk) for n_id in unread_ids],
+            ignore_conflicts=True,
+        )
+
+    return Response({'marked': len(unread_ids)})
 
 
 @extend_schema(

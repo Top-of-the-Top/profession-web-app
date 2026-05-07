@@ -37,6 +37,12 @@ class Notification(models.Model):
     title = models.CharField(max_length=255)
     message = models.TextField()
 
+    read_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='read_notifications',
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -1,12 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { Button, PageFrame, RichTextEditor, SafeHtml, Spinner } from '@shared/ui';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Button,
+  PageFrame,
+  RichTextEditor,
+  SafeHtml,
+  Spinner,
+} from '@shared/ui';
 import { getHomeworkReviewBackHref } from '@shared/lib/homeworkReviewNavigation';
 import { useReviewHomeworkAttempt } from '@shared/api/mutations/courses';
 import { useHomeworkAttemptForReview, useHomeworkDetail } from '@shared/api/queries/courses';
 import { HOMEWORK_FILE_TASK_TEXT_PREFIX } from '../../../features/course-builder/model/homeworkTypes';
 import type { HomeworkAttemptTaskItem, ReviewHomeworkAttemptItemPayload } from '@shared/api/courseApi';
+import { notifySuccess } from '@shared/lib/sileo/notify';
+import { useReviewDraft, readReviewDraft, clearReviewDraft } from '../lib/useReviewDraft';
 import styles from './HomeworkReviewPage.module.css';
 
 type ReviewDraft = {
@@ -33,6 +49,7 @@ function taskPrompt(item: HomeworkAttemptTaskItem): string {
 
 export default function HomeworkReviewPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { slug: courseSlug, lessonSlug, homeworkSlug, attemptId } = useParams<{
     slug: string;
     lessonSlug: string;
@@ -44,25 +61,61 @@ export default function HomeworkReviewPage() {
   const homeworkQuery = useHomeworkDetail(courseSlug, lessonSlug, homeworkSlug);
   const reviewMutation = useReviewHomeworkAttempt(courseSlug ?? '', attemptId ?? '');
 
+  const { persist: persistDraft } = useReviewDraft(attemptId);
+
   const items = attemptQuery.data?.items ?? [];
   const [step, setStep] = useState(0);
   const [drafts, setDrafts] = useState<Record<string, ReviewDraft>>({});
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!attemptQuery.data) return;
+    const isAlreadyReviewed = attemptQuery.data.status === 'reviewed';
+    const saved = !isAlreadyReviewed && attemptId ? readReviewDraft(attemptId) : null;
+
     const nextDrafts: Record<string, ReviewDraft> = {};
     for (const item of attemptQuery.data.items) {
       if (item.type !== 'task') continue;
-      nextDrafts[item.answer_id] = {
-        points: item.review?.points ?? 0,
-        comment: item.review?.comment ?? '',
-      };
+      // If reviewed — use server data; if draft in LS exists — prefer it; else default
+      if (isAlreadyReviewed) {
+        nextDrafts[item.answer_id] = {
+          points: item.review?.points ?? 0,
+          comment: item.review?.comment ?? '',
+        };
+      } else {
+        const ls = saved?.drafts[item.answer_id];
+        nextDrafts[item.answer_id] = {
+          points: ls?.points ?? item.review?.points ?? 0,
+          comment: ls?.comment ?? item.review?.comment ?? '',
+        };
+      }
     }
     setDrafts(nextDrafts);
-  }, [attemptQuery.data]);
+  }, [attemptQuery.data, attemptId]);
 
   const currentItem = items[step];
   const isReviewed = attemptQuery.data?.status === 'reviewed';
+
+  // Persist draft to localStorage on every change (skip when already reviewed)
+  useEffect(() => {
+    if (isReviewed || Object.keys(drafts).length === 0) return;
+    persistDraft(drafts);
+  }, [drafts, isReviewed, persistDraft]);
+
+  type StepBubbleState = 'correct' | 'wrong' | 'filled' | 'empty';
+
+  function stepBubbleState(item: (typeof items)[number]): StepBubbleState {
+    if (item.type === 'question') {
+      return item.status === 'correct' ? 'correct' : 'wrong';
+    }
+    if (isReviewed) {
+      const points = item.review?.points ?? 0;
+      return points > 0 ? 'correct' : 'wrong';
+    }
+    const d = drafts[item.answer_id];
+    if (d && (d.points > 0 || d.comment.trim())) return 'filled';
+    return 'empty';
+  }
 
   const reviewItems = useMemo(() => {
     const onlyTasks = items.filter((item): item is HomeworkAttemptTaskItem => item.type === 'task');
@@ -127,16 +180,27 @@ export default function HomeworkReviewPage() {
           </div>
 
           <div className={styles.steps}>
-            {items.map((item, idx) => (
-              <button
-                key={item.type === 'task' ? item.task_id : item.question_id}
-                type="button"
-                className={idx === step ? styles.stepActive : styles.step}
-                onClick={() => setStep(idx)}
-              >
-                {item.number}
-              </button>
-            ))}
+            {items.map((item, idx) => {
+              const bubbleState = stepBubbleState(item);
+              const cls = [
+                styles.step,
+                bubbleState === 'empty' ? styles.stepEmpty : '',
+                bubbleState === 'filled' ? styles.stepFilled : '',
+                bubbleState === 'correct' ? styles.stepCorrect : '',
+                bubbleState === 'wrong' ? styles.stepWrong : '',
+                idx === step ? styles.stepActive : '',
+              ].join(' ');
+              return (
+                <button
+                  key={item.type === 'task' ? item.task_id : item.question_id}
+                  type="button"
+                  className={cls}
+                  onClick={() => setStep(idx)}
+                >
+                  {item.number}
+                </button>
+              );
+            })}
           </div>
 
           <div className={styles.contentGrid}>
@@ -149,16 +213,27 @@ export default function HomeworkReviewPage() {
                 <div className={styles.questionBlock}>
                   <p className={styles.promptText}>{currentItem.text}</p>
                   <ul className={styles.optionList}>
-                    {currentItem.answer_options.map((option) => (
-                      <li key={option} className={styles.optionItem}>
-                        <input type="radio" readOnly checked={currentItem.user_answer === option} />
-                        <span>{option}</span>
-                      </li>
-                    ))}
+                    {currentItem.answer_options.map((option) => {
+                      const isSelected = currentItem.user_answer === option;
+                      const isCorrect = isSelected && currentItem.status === 'correct';
+                      const isWrong = isSelected && currentItem.status !== 'correct';
+                      return (
+                        <li
+                          key={option}
+                          className={[
+                            styles.optionItem,
+                            isCorrect ? styles.optionItemCorrect : '',
+                            isWrong ? styles.optionItemWrong : '',
+                            isSelected && !isCorrect && !isWrong ? styles.optionItemSelected : '',
+                          ].join(' ')}
+                        >
+                          <input type="radio" readOnly checked={isSelected} />
+                          <span>{option}</span>
+                        </li>
+                      );
+                    })}
                   </ul>
-                  <div className={styles.autoChecked}>
-                    Автопроверка: {currentItem.status === 'correct' ? 'верно' : 'неверно'}
-                  </div>
+                  
                 </div>
               ) : (
                 <>
@@ -233,12 +308,7 @@ export default function HomeworkReviewPage() {
                 ) : !isReviewed ? (
                   <Button
                     type="button"
-                    onClick={() => {
-                      reviewMutation.mutate({
-                        attempt_id: attemptId,
-                        items: reviewItems,
-                      });
-                    }}
+                    onClick={() => setConfirmOpen(true)}
                     disabled={reviewMutation.isPending}
                   >
                     {reviewMutation.isPending ? 'Сохранение...' : 'Отправить'}
@@ -267,6 +337,53 @@ export default function HomeworkReviewPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!open) setConfirmOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Отправить проверку?</AlertDialogTitle>
+            <AlertDialogDescription>
+              После отправки изменить оценки и комментарии будет нельзя.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reviewMutation.isPending}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={reviewMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                reviewMutation.mutate(
+                  { attempt_id: attemptId, items: reviewItems },
+                  {
+                    onSuccess: () => {
+                      if (attemptId) clearReviewDraft(attemptId);
+                      setConfirmOpen(false);
+                      notifySuccess({
+                        title: 'Проверка сохранена',
+                        description: 'Оценки отправлены студенту.',
+                      });
+                      window.setTimeout(() => {
+                        navigate(
+                          getHomeworkReviewBackHref(location.state, courseSlug, lessonSlug),
+                        );
+                      }, 1000);
+                    },
+                  },
+                );
+              }}
+            >
+              {reviewMutation.isPending ? 'Сохранение...' : 'Отправить'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageFrame>
   );
 }

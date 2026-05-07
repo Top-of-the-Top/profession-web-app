@@ -150,37 +150,91 @@
 .optionsList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .optionLabel {
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-radius: 10px;
-  padding: 12px 14px;
+  gap: 12px;
+  border-radius: 999px;
+  padding: 11px 18px;
   font-size: 15px;
   color: #1f2937;
   cursor: pointer;
   transition: background 0.15s;
+  border: 1.5px solid #e4e7ec;
+  background: #f9fafb;
+  user-select: none;
 }
 
-.optionLabel input {
+.optionLabel:hover:not(.optionLabelCorrect):not(.optionLabelWrong):not(.optionLabelEmpty):not(:has(input:disabled)) {
+  background: #ededf8;
+  border-color: #c5c3e8;
+}
+
+.optionLabel:has(input:disabled) {
+  cursor: default;
+}
+
+.optionLabelEmpty {
+  border-color: transparent;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* hide native radio */
+.optionLabel input[type='radio'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #c5c3e8;
+  background: #fff;
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
   margin: 0;
+}
+
+.optionLabel input[type='radio']:checked {
+  border-color: #211c84;
+  background: #211c84;
+  box-shadow: inset 0 0 0 3px #fff;
 }
 
 .optionLabelSelected {
   background: #d9d6f1;
+  border-color: #9b97d4;
+}
+
+.optionLabelSelected input[type='radio'] {
+  border-color: #211c84;
+  background: #211c84;
+  box-shadow: inset 0 0 0 3px #d9d6f1;
 }
 
 .optionLabelCorrect {
   background: #dcfce7;
-  border: 1.5px solid #86efac;
+  border-color: #86efac;
+}
+
+.optionLabelCorrect input[type='radio'] {
+  border-color: #22c55e;
+  background: #22c55e;
+  box-shadow: inset 0 0 0 3px #dcfce7;
 }
 
 .optionLabelWrong {
   background: #fee2e2;
-  border: 1.5px solid #fca5a5;
+  border-color: #fca5a5;
+}
+
+.optionLabelWrong input[type='radio'] {
+  border-color: #ef4444;
+  background: #ef4444;
+  box-shadow: inset 0 0 0 3px #fee2e2;
 }
 
 .taskAnswerWrap {

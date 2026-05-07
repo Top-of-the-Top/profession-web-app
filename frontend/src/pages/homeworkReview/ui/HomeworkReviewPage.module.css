@@ -34,20 +34,64 @@
   gap: 10px;
 }
 
-.step,
-.stepActive {
+.step {
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  border: 1px solid #d0d5dd;
+  border: 1.5px solid #d0d5dd;
   background: #fff;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2939;
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
-.stepActive {
-  background: #211c84;
-  color: #fff;
+.step.stepEmpty {
+  border-color: #d0d5dd;
+  color: #98a2b3;
+  background: #f2f4f7;
+}
+
+.step.stepFilled {
+  border-color: #d0d5dd;
+  color: #1d2939;
+  background: #fff;
+}
+
+.step.stepCorrect {
+  border-color: #16a34a;
+  color: #166534;
+  background: #fff;
+}
+
+.step.stepWrong {
+  border-color: #dc2626;
+  color: #b91c1c;
+  background: #fff;
+}
+
+.step.stepActive {
+  border-width: 2px;
+  box-shadow: 0 0 0 2px rgba(33, 28, 132, 0.18);
+}
+
+.step.stepActive.stepEmpty,
+.step.stepActive.stepFilled {
   border-color: #211c84;
+  color: #211c84;
+}
+
+.step.stepActive.stepCorrect {
+  border-color: #16a34a;
+  color: #166534;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+}
+
+.step.stepActive.stepWrong {
+  border-color: #dc2626;
+  color: #b91c1c;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
 }
 
 .contentGrid {
@@ -85,13 +129,68 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .optionItem {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  border-radius: 999px;
+  padding: 11px 18px;
+  font-size: 15px;
+  color: #1f2937;
+  border: 1.5px solid #e4e7ec;
+  background: #f9fafb;
+}
+
+.optionItem input[type='radio'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #c5c3e8;
+  background: #fff;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.optionItem input[type='radio']:checked {
+  border-color: #211c84;
+  background: #211c84;
+  box-shadow: inset 0 0 0 3px #f9fafb;
+}
+
+.optionItemSelected {
+  background: #d9d6f1;
+  border-color: #9b97d4;
+}
+
+.optionItemSelected input[type='radio']:checked {
+  box-shadow: inset 0 0 0 3px #d9d6f1;
+}
+
+.optionItemCorrect {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.optionItemCorrect input[type='radio']:checked {
+  border-color: #22c55e;
+  background: #22c55e;
+  box-shadow: inset 0 0 0 3px #dcfce7;
+}
+
+.optionItemWrong {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.optionItemWrong input[type='radio']:checked {
+  border-color: #ef4444;
+  background: #ef4444;
+  box-shadow: inset 0 0 0 3px #fee2e2;
 }
 
 .autoChecked {

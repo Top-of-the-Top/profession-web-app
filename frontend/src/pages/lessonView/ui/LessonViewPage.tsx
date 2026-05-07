@@ -208,79 +208,94 @@ const HomeworkWidget: React.FC<{
           {visible.length === 1 ? 'Задание' : 'Задания'}
         </span>
       </div>
-      {visible.map((hw) => (
-        <div key={hw.homework_id} className={styles.homeworkItem}>
-          {!isTeacher && (
-            <div className={styles.homeworkStatusRow}>
-              <span
-                className={
-                  attemptStatuses.get(hw.homework_slug) === 'reviewed'
-                    ? styles.hwBadgePublished
-                    : attemptStatuses.get(hw.homework_slug) === 'submitted'
-                      ? styles.hwBadgeDraft
-                      : styles.hwBadgePending
-                }
-              >
-                {attemptStatuses.get(hw.homework_slug) === 'reviewed'
-                  ? 'проверено'
-                  : attemptStatuses.get(hw.homework_slug) === 'submitted'
-                    ? 'отправлено'
-                    : 'не сдано'}
-              </span>
-            </div>
-          )}
-          {isTeacher && (
-            <div className={styles.homeworkStatusRow}>
-              <span
-                className={
-                  hw.type === 'published'
-                    ? styles.hwBadgePublished
-                    : styles.hwBadgeDraft
-                }
-              >
-                {hw.type === 'published' ? 'опубликовано' : 'черновик'}
-              </span>
-              <button
-                type="button"
-                className={styles.hwToggleButton}
-                disabled={toggleType.isPending}
-                onClick={() =>
-                  toggleType.mutate({
-                    homeworkSlug: hw.homework_slug,
-                    currentType: hw.type,
-                  })
-                }
-              >
-                {hw.type === 'published' ? 'В черновик' : 'Опубликовать'}
-              </button>
-            </div>
-          )}
-          {hw.deadline && (
-            <p className={styles.deadlineText}>
-              Дедлайн: {formatDeadline(hw.deadline)}
-            </p>
-          )}
-          <Link
-            to={
-              isTeacher
-                ? `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}/review`
-                : `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`
-            }
-            state={
-              isTeacher
-                ? homeworkReviewNavigateState(`/app/courses/${courseSlug}/${lessonSlug}`)
-                : undefined
-            }
-            className={styles.homeworkButton}
+      {visible.map((hw, index) => {
+        const status = attemptStatuses.get(hw.homework_slug);
+        const actionLabel = isTeacher
+          ? 'Открыть проверку'
+          : status === 'reviewed'
+            ? 'Посмотреть результат'
+            : status === 'submitted'
+              ? 'Посмотреть отправку'
+              : 'Сдать ДЗ';
+        return (
+          <div
+            key={hw.homework_id}
+            className={cn(
+              styles.homeworkItem,
+              index > 0 && styles.homeworkItemDivided,
+            )}
           >
-            {attemptStatuses.get(hw.homework_slug) === 'reviewed'
-              ? 'Посмотреть результат'
-              : attemptStatuses.get(hw.homework_slug) === 'submitted'
-                ? 'Посмотреть отправку'
-                : hw.title || 'Сдать ДЗ'}
-          </Link>
-        </div>
-      ))}
+            <p className={styles.homeworkItemTitle}>
+              {hw.title || `ДЗ #${index + 1}`}
+            </p>
+            {!isTeacher && (
+              <div className={styles.homeworkStatusRow}>
+                <span
+                  className={
+                    status === 'reviewed'
+                      ? styles.hwBadgePublished
+                      : status === 'submitted'
+                        ? styles.hwBadgeDraft
+                        : styles.hwBadgePending
+                  }
+                >
+                  {status === 'reviewed'
+                    ? 'проверено'
+                    : status === 'submitted'
+                      ? 'отправлено'
+                      : 'не сдано'}
+                </span>
+              </div>
+            )}
+            {isTeacher && (
+              <div className={styles.homeworkStatusRow}>
+                <span
+                  className={
+                    hw.type === 'published'
+                      ? styles.hwBadgePublished
+                      : styles.hwBadgeDraft
+                  }
+                >
+                  {hw.type === 'published' ? 'опубликовано' : 'черновик'}
+                </span>
+                <button
+                  type="button"
+                  className={styles.hwToggleButton}
+                  disabled={toggleType.isPending}
+                  onClick={() =>
+                    toggleType.mutate({
+                      homeworkSlug: hw.homework_slug,
+                      currentType: hw.type,
+                    })
+                  }
+                >
+                  {hw.type === 'published' ? 'В черновик' : 'Опубликовать'}
+                </button>
+              </div>
+            )}
+            {hw.deadline && (
+              <p className={styles.deadlineText}>
+                Дедлайн: {formatDeadline(hw.deadline)}
+              </p>
+            )}
+            <Link
+              to={
+                isTeacher
+                  ? `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}/review`
+                  : `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`
+              }
+              state={
+                isTeacher
+                  ? homeworkReviewNavigateState(`/app/courses/${courseSlug}/${lessonSlug}`)
+                  : undefined
+              }
+              className={styles.homeworkButton}
+            >
+              {actionLabel}
+            </Link>
+          </div>
+        );
+      })}
       <Link
         to={`/app/homeworks?course_slug=${courseSlug}&lesson_slug=${lessonSlug}`}
         className={styles.homeworkButton}

@@ -29,7 +29,7 @@ import type {
 } from '@shared/api/courseApi';
 import { uploadMediaAsset } from '@shared/lib/uploads/uploadMediaAsset';
 import { parseApiError } from '@shared/lib/api/parseApiError';
-import { notifyError } from '@shared/lib/sileo/notify';
+import { notifyError, notifySuccess } from '@shared/lib/sileo/notify';
 import {
   useHomeworkDraft,
   readDraft,
@@ -308,7 +308,13 @@ export default function HomeworkSubmissionPage() {
         items,
       });
       clearDraft(homeworkSlug);
-      await attemptQuery.refetch();
+      notifySuccess({
+        title: 'Домашнее задание отправлено',
+        description: 'Ожидайте проверку преподавателем.',
+      });
+      window.setTimeout(() => {
+        navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
+      }, 1000);
     } catch (err) {
       notifyError({
         title: 'Не удалось отправить ДЗ',
@@ -598,6 +604,7 @@ export default function HomeworkSubmissionPage() {
                         key={option}
                         className={[
                           styles.optionLabel,
+                          !option.trim() ? styles.optionLabelEmpty : '',
                           isSelected && !isReviewed ? styles.optionLabelSelected : '',
                           isCorrectOption ? styles.optionLabelCorrect : '',
                           isWrongSelected ? styles.optionLabelWrong : '',
@@ -782,7 +789,11 @@ export default function HomeworkSubmissionPage() {
                     }
                     onClick={handleAnswerCurrent}
                   >
-                    {uploadProgress[currentItem.id] != null ? 'Загрузка...' : 'Далее'}
+                    {uploadProgress[currentItem.id] != null
+                      ? 'Загрузка...'
+                      : currentItem.type === 'question'
+                        ? 'Ответить'
+                        : 'Далее'}
                   </Button>
                 </div>
               )}

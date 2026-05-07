@@ -28,6 +28,7 @@ function normalizeLessonRecordings(
   if (list.length > 0) {
     return list.map((recording) => ({
       recording_id: String(recording.recording_id ?? ''),
+      kind: recording.kind ?? 'recording',
       started_at: recording.started_at ?? null,
       ended_at: recording.ended_at ?? null,
       status: recording.status ?? 'processing',
@@ -56,6 +57,7 @@ function normalizeLessonRecordings(
   return [
     {
       recording_id: '',
+      kind: 'recording',
       started_at: content.started_at ?? null,
       ended_at: null,
       status: fallbackStatus,

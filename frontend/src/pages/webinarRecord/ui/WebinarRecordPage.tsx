@@ -436,23 +436,23 @@ export default function WebinarRecordPage() {
             onSubscribeOnlyAnyRemoteVideo={onSubscribeOnlyAnyRemoteVideo}
           >
             {isChatOpen && (
-              <>
-                <div className={styles.rtmLogTag}>
-                  <div className={styles.rtmLogTagHeader}>
-                    RTM {chatConnected ? 'connected' : 'disconnected'}
-                  </div>
-                  <div className={styles.rtmLogTagContent}>
-                    {chatDebugLogs.length > 0 ? chatDebugLogs.join('\n') : 'No RTM logs yet'}
-                  </div>
-                </div>
-                <WebinarChat
-                  messages={chatMessages}
-                  uid={session.uid}
-                  sendMessage={sendMessage}
-                />
-              </>
+              <WebinarChat
+                messages={chatMessages}
+                uid={session.uid}
+                sendMessage={sendMessage}
+              />
             )}
           </VideoGrid>
+        </div>
+      </div>
+      <div className={styles.rtmLogOverlay}>
+        <div className={styles.rtmLogTag}>
+          <div className={styles.rtmLogTagHeader}>
+            RTM {chatConnected ? 'connected' : 'disconnected'}
+          </div>
+          <div className={styles.rtmLogTagContent}>
+            {chatDebugLogs.length > 0 ? chatDebugLogs.join('\n') : 'No RTM logs yet'}
+          </div>
         </div>
       </div>
     </div>

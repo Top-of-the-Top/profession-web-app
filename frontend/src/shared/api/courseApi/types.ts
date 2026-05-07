@@ -298,9 +298,11 @@ export type KinescopeUploadStatus =
   | 'failed';
 
 export type RecordingStatus = 'recording' | 'processing' | 'ready' | 'failed';
+export type LessonRecordingKind = 'recording' | 'whiteboard_only';
 
 export interface LessonRecording {
   recording_id: string;
+  kind: LessonRecordingKind;
   started_at: string | null;
   ended_at: string | null;
   status: RecordingStatus;
@@ -397,6 +399,7 @@ export type RawLessonDetailResponse = {
     kinescope_upload_status?: KinescopeUploadStatus | null;
     recordings?: Array<{
       recording_id?: string;
+      kind?: LessonRecordingKind;
       started_at?: string | null;
       ended_at?: string | null;
       status?: RecordingStatus;

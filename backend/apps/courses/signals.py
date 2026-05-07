@@ -16,7 +16,17 @@ from apps.notifications.tasks import (
     send_single_email,
     send_mass_system_email,
 )
-from .api.utils.cache_utils import invalidate_lesson_detail_cache, invalidate_user_role_cache
+from .api.utils.cache_utils import (
+    course_list_cache_key,
+    invalidate_lesson_detail_cache,
+    invalidate_on_course_model_change,
+    invalidate_on_homework_tree_change,
+    invalidate_on_lesson_model_change,
+    invalidate_on_section_model_change,
+    invalidate_student_homework_list_cache,
+    invalidate_user_role_cache,
+    purchased_courses_cache_key,
+)
 from apps.webinars.models import Webinar, Recording
 from .models import (
     DEFAULT_COURSE_IMAGE,
@@ -212,14 +222,6 @@ def get_reminder_task_id_for_lesson(lesson_id, reminder_type, task_type):
     return str(int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15))
 
 
-from .api.utils.cache_utils import (
-    course_list_cache_key,
-    invalidate_on_course_model_change,
-    invalidate_on_homework_tree_change,
-    invalidate_on_lesson_model_change,
-    invalidate_on_section_model_change,
-    purchased_courses_cache_key,
-)
 
 
 @receiver((pre_save, pre_delete), sender=Course)

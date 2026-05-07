@@ -1,6 +1,7 @@
 :root {
 	--profession-blue: #191970;
 	--profession-blue-hover: #1A2A8A;
+	--profession-bg-blue: var(--profession-blue);
 	--profession-white-bg: #F8F8F6;
 	--profession-white-block: #EEEEF0;
 	--profession-white-block-hover: #DBDBE0;

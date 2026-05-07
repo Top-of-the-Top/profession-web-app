@@ -3,9 +3,22 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { GripHorizontal, GripVertical, X, Trash2, Minus, Plus } from 'lucide-react';
 import { useHomeworkStore } from '../../model/homeworkStore';
 import { cn } from '@shared/lib/utils';
-import { Button, Modal, Spinner } from '@shared/ui';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Button,
+  Modal,
+  Spinner,
+} from '@shared/ui';
 import {
   useCreateHomeworkWithItems,
+  useDeleteHomework,
   type CreateHomeworkWithItemsPayload,
 } from '@shared/api/mutations/courses';
 import { useHomeworkDetail } from '@shared/api/queries/courses';
@@ -182,7 +195,10 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
   // ids of questions that failed validation — used for inline highlighting
   const [invalidIds, setInvalidIds] = useState<Set<string>>(new Set());
   const [titleInvalid, setTitleInvalid] = useState(false);
+  const [noQuestionsError, setNoQuestionsError] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const createMutation = useCreateHomeworkWithItems(courseSlug, lessonSlug);
+  const deleteMutation = useDeleteHomework(courseSlug, lessonSlug);
   const selectedHomeworkQuery = useHomeworkDetail(
     courseSlug,
     lessonSlug,
@@ -213,6 +229,7 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
     setInitializedForSlug(null);
     setInvalidIds(new Set());
     setTitleInvalid(false);
+    setNoQuestionsError(false);
   }, [selectedHomeworkSlug]);
 
   // Init the store exactly once per slug selection — never on refetch
@@ -259,6 +276,7 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
 
   const handlePaletteClick = (type: HomeworkQuestionType) => {
     addQuestion(type);
+    setNoQuestionsError(false);
   };
 
   const validate = (): boolean => {
@@ -268,6 +286,9 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
     const isTitleEmpty = !layout.title.trim();
     setTitleInvalid(isTitleEmpty);
     if (isTitleEmpty) ok = false;
+
+    if (layout.questions.length === 0) { setNoQuestionsError(true); ok = false; }
+    else setNoQuestionsError(false);
 
     for (const q of layout.questions) {
       // title empty
@@ -626,6 +647,9 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                 >
                   + Файл
                 </button>
+                {noQuestionsError && (
+                  <p className={styles.fieldError}>Добавьте хотя бы один вопрос</p>
+                )}
                 </div>
               <div className={styles.homeworkCtaButtons}>
                 <span className={hasUnsavedChanges ? styles.unsavedIndicatorDirty : styles.unsavedIndicatorSaved}>
@@ -668,25 +692,48 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
 
             <p className={styles.homeworkSidebarSectionLabel}>Прикреплённые ДЗ</p>
             <div className={styles.homeworkSwitchList}>
+              {selectedHomeworkSlug === 'new' && (
+                <div className={`${styles.homeworkSwitchButton} ${styles.homeworkSwitchButtonActive}`}>
+                  <div className={styles.homeworkSwitchBody}>
+                    <span className={styles.homeworkSwitchTitle}>Новое ДЗ</span>
+                    <span className={`${styles.homeworkSwitchType} ${styles.homeworkSwitchTypeDraft}`}>
+                      черновик
+                    </span>
+                  </div>
+                </div>
+              )}
               {switchItems.map((item) => (
-                <button
+                <div
                   key={item.slug}
-                  type="button"
                   className={`${styles.homeworkSwitchButton} ${
                     selectedHomeworkSlug === item.slug ? styles.homeworkSwitchButtonActive : ''
                   }`}
-                  onClick={() => requestSwitchTo(item.slug)}
-                  disabled={createMutation.isPending}
                 >
-                  <span className={styles.homeworkSwitchTitle}>{item.title}</span>
-                  <span className={`${styles.homeworkSwitchType} ${
-                    item.type === 'published' ? styles.homeworkSwitchTypePublished : styles.homeworkSwitchTypeDraft
-                  }`}>
-                    {item.type === 'published' ? 'опубл.' : 'черновик'}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    className={styles.homeworkSwitchButtonMain}
+                    onClick={() => requestSwitchTo(item.slug)}
+                    disabled={createMutation.isPending}
+                  >
+                    <span className={styles.homeworkSwitchTitle}>{item.title}</span>
+                    <span className={`${styles.homeworkSwitchType} ${
+                      item.type === 'published' ? styles.homeworkSwitchTypePublished : styles.homeworkSwitchTypeDraft
+                    }`}>
+                      {item.type === 'published' ? 'опубл.' : 'черновик'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.homeworkSwitchDeleteBtn}
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(item.slug); }}
+                    disabled={deleteMutation.isPending}
+                    title="Удалить"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               ))}
-              {switchItems.length === 0 && (
+              {switchItems.length === 0 && selectedHomeworkSlug !== 'new' && (
                 <p className={styles.homeworkSidebarEmpty}>Нет прикреплённых ДЗ</p>
               )}
             </div>
@@ -700,6 +747,32 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
               + Новое ДЗ
             </button>
           </aside>
+
+          <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Удалить домашнее задание?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Это действие необратимо. Все вопросы и попытки студентов будут удалены.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Отмена</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={() => {
+                    if (!deleteTarget) return;
+                    const slug = deleteTarget;
+                    setDeleteTarget(null);
+                    if (selectedHomeworkSlug === slug) setSelectedHomeworkSlug('new');
+                    deleteMutation.mutate(slug);
+                  }}
+                >
+                  Удалить
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           <Modal
             open={showSwitchDialog}
@@ -719,6 +792,7 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
               </Button>
               <Button
                 type="button"
+                className={styles.homeworkDialogPrimaryBtn}
                 onClick={() => {
                   setShowSwitchDialog(false);
                   if (pendingSlug !== null) setSelectedHomeworkSlug(pendingSlug);

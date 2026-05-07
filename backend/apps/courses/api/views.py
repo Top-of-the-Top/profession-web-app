@@ -904,12 +904,11 @@ class MyContentView(APIView):
     )
     def get(self, request):
         user = request.user
-        include_drafts = user.is_moderator() or user.is_teacher()
         courses = get_courses_for_user(user)
         serializer = MyContentCourseSerializer(
             courses,
             many=True,
-            context={"include_drafts": include_drafts},
+            context={"request": request},
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
 

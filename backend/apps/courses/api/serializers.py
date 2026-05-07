@@ -620,7 +620,13 @@ class MyContentCourseSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(MyContentLessonSerializer(many=True))
     def get_lessons(self, obj):
-        include_drafts = self.context.get("include_drafts", False)
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request is not None else None
+        include_drafts = bool(
+            user is not None
+            and user.is_authenticated
+            and (user.is_moderator() or user.is_course_author(obj))
+        )
         if include_drafts:
             lesson_qs = Lesson.objects.filter(section__course=obj).order_by(
                 "section__section_number", "lesson_number"

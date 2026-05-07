@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.homeworks.apps.HomeworksConfig",
     "apps.webinars.apps.WebinarsConfig",
     "apps.ai_chat_bot.apps.AiChatBotConfig",
+    "apps.admin_panel.apps.AdminPanelConfig",
 ]
 
 USE_S3 = os.environ.get("USE_S3", "False") == "True"

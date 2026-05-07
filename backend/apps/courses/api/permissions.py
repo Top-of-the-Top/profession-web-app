@@ -12,9 +12,8 @@ from ..models import Course, Homework, Lesson, Section
 def get_courses_for_user(user):
     if user.is_moderator():
         return Course.objects.all()
-    if user.is_teacher():
-        return Course.objects.filter(authors=user)
-    return Course.objects.filter(course_id__in=user.get_purchased_courses_ids())
+    purchased_ids = user.get_purchased_courses_ids()
+    return Course.objects.filter(Q(authors=user) | Q(course_id__in=purchased_ids)).distinct()
 
 
 class CourseContentVisibility:
@@ -22,7 +21,7 @@ class CourseContentVisibility:
         self.user = user
         self.course = course
         self.is_moderator = user.is_moderator()
-        self.is_author = user.is_teacher() and user.is_course_author(course)
+        self.is_author = user.is_course_author(course)
         self.see_drafts = self.is_moderator or self.is_author
         self.include_drafts = self.see_drafts
         self.cache_scope = "all" if self.see_drafts else "pub"
@@ -89,12 +88,6 @@ def require_course_author(view_func):
         if request.user.is_moderator():
             return view_func(*args, **kwargs)
 
-        if not request.user.is_teacher():
-            return Response(
-                {"detail": "Доступ запрещен. Требуется роль преподавателя"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         course, error = _get_course_from_kwargs(kwargs)
         if error is not None:
             return error
@@ -131,7 +124,7 @@ def require_course_enrollment(view_func):
         except Course.DoesNotExist:
             return Response({"detail": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
 
-        if request.user.is_teacher() and request.user.is_course_author(course):
+        if request.user.is_course_author(course):
             return view_func(*args, **kwargs)
 
         if not request.user.is_enrolled(course):

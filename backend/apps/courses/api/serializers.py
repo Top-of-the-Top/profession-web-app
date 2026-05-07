@@ -57,6 +57,7 @@ class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
             'sub_title',
             'slug',
             'image_url',
+            'price',
         ]
 
     def get_image_url(self, obj):

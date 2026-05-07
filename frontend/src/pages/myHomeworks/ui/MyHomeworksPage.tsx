@@ -147,12 +147,13 @@ function TeacherView({
                 <tr
                   key={item.attempt_id}
                   onClick={() => {
-                    if (!lessonSlug || !courseSlug) return;
+                    if (!item.course_slug || !item.lesson_slug) return;
                     navigate(
-                      `/app/courses/${courseSlug}/${lessonSlug}/homework/${item.homework_slug}/review/${item.attempt_id}`,
+                      `/app/courses/${item.course_slug}/${item.lesson_slug}/homework/${item.homework_slug}/review/${item.attempt_id}`,
                       { state: homeworkReviewNavigateState(reviewReturnHref) },
                     );
                   }}
+                  style={{ cursor: item.course_slug && item.lesson_slug ? 'pointer' : 'default' }}
                 >
                   <td>
                     <div className={styles.cellStudent}>

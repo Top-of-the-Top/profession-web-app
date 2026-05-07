@@ -205,6 +205,7 @@ class MyAttemptSerializer(serializers.Serializer):
     lesson_title = serializers.CharField()
     grade = serializers.IntegerField(allow_null=True)
     max_points = serializers.IntegerField()
+    send_at = serializers.DateTimeField(allow_null=True)
 
 
 class StudentAttemptSerializer(serializers.ModelSerializer):

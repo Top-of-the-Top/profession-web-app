@@ -134,6 +134,7 @@ def _build_my_attempts(user, homework_filter):
             'lesson_title': hw.lesson.title,
             'grade': attempt.grade if attempt else None,
             'max_points': hw.max_points,
+            'send_at': attempt.send_at if attempt else None,
         })
     return items
 

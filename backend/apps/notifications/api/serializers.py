@@ -3,7 +3,6 @@ from rest_framework import serializers
 
 
 class NotificationSerializer(serializers.ModelSerializer):
-    image_url = serializers.ReadOnlyField()
     is_read = serializers.BooleanField(read_only=True)
 
     class Meta:

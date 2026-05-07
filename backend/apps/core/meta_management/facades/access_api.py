@@ -49,13 +49,12 @@ class AccessApi:
 
         content_type = ContentType.objects.get_for_model(content_object)
         usage = (
-            AssetUsage.objects
-            .filter(
+            AssetUsage.objects.filter(
                 content_type=content_type,
                 object_id=str(content_object.pk),
                 role=role,
             )
-            .select_related('asset')
+            .select_related("asset")
             .first()
         )
 
@@ -80,15 +79,11 @@ class AccessApi:
         content_type = ContentType.objects.get_for_model(type(objects[0]))
         object_ids = [str(o.pk) for o in objects]
 
-        usages = (
-            AssetUsage.objects
-            .filter(
-                content_type=content_type,
-                object_id__in=object_ids,
-                role=role,
-            )
-            .select_related('asset')
-        )
+        usages = AssetUsage.objects.filter(
+            content_type=content_type,
+            object_id__in=object_ids,
+            role=role,
+        ).select_related("asset")
 
         asset_by_object_id = {}
         for usage in usages:
@@ -123,14 +118,13 @@ class AccessApi:
         object_ids = [str(o.pk) for o in objects]
 
         usages = (
-            AssetUsage.objects
-            .filter(
+            AssetUsage.objects.filter(
                 content_type=content_type,
                 object_id__in=object_ids,
                 role=role,
             )
-            .select_related('asset')
-            .order_by('created_at')
+            .select_related("asset")
+            .order_by("created_at")
         )
 
         result = {key: [] for key in object_ids}
@@ -146,10 +140,12 @@ class AccessApi:
                 )
             except Exception:
                 url = None
-            result.setdefault(str(usage.object_id), []).append({
-                'asset': asset,
-                'url': url,
-            })
+            result.setdefault(str(usage.object_id), []).append(
+                {
+                    "asset": asset,
+                    "url": url,
+                }
+            )
         return result
 
     def register_external(self, owner, url, intent):

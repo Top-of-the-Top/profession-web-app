@@ -13,8 +13,8 @@ class BindingApi:
     def bind_for_user(self, user, asset_id, content_object, role):
         asset = self._service.get_asset(asset_id)
 
-        if user is None or asset.owner_id != getattr(user, 'pk', None):
-            raise AssetPermissionDenied(details={'asset_id': str(asset_id)})
+        if user is None or asset.owner_id != getattr(user, "pk", None):
+            raise AssetPermissionDenied(details={"asset_id": str(asset_id)})
 
         asset = self._ensure_committed(asset)
 
@@ -23,8 +23,8 @@ class BindingApi:
     def unbind_for_user(self, user, usage_id):
         usage = self._service.get_usage(usage_id)
 
-        if user is not None and usage.asset.owner_id != getattr(user, 'pk', None):
-            raise AssetPermissionDenied(details={'usage_id': str(usage_id)})
+        if user is not None and usage.asset.owner_id != getattr(user, "pk", None):
+            raise AssetPermissionDenied(details={"usage_id": str(usage_id)})
 
         self._service.unbind_usage(usage)
 
@@ -46,9 +46,9 @@ class BindingApi:
         object_id = str(content_object.pk)
 
         existing = list(
-            AssetUsage.objects
-            .filter(content_type=content_type, object_id=object_id, role=role)
-            .select_related('asset')
+            AssetUsage.objects.filter(
+                content_type=content_type, object_id=object_id, role=role
+            ).select_related("asset")
         )
         existing_by_asset = {str(u.asset_id): u for u in existing}
         existing_ids = set(existing_by_asset.keys())
@@ -59,8 +59,8 @@ class BindingApi:
         assets_to_bind = []
         for asset_id in to_add:
             asset = self._service.get_asset(asset_id)
-            if owner is not None and asset.owner_id != getattr(owner, 'pk', None):
-                raise AssetPermissionDenied(details={'asset_id': asset_id})
+            if owner is not None and asset.owner_id != getattr(owner, "pk", None):
+                raise AssetPermissionDenied(details={"asset_id": asset_id})
             asset = self._ensure_committed(asset)
             assets_to_bind.append(asset)
 

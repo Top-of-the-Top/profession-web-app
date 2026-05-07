@@ -1,25 +1,24 @@
-from .serializers import (
-    PaymentSerializer,
-    PaymentShortSerializer,
-)
-
-from ...carts.models import Cart, CartItem
-from ..tasks import process_payment_task
-from ..services import MockYooKassaService
-from ...courses.models import PurchasedCourse
 from decimal import Decimal
+
 from django.db import transaction
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema
 
+from ...carts.models import Cart, CartItem
+from ...courses.models import PurchasedCourse
 from ..models import Payment, PaymentItem
+from ..services import MockYooKassaService
+from ..tasks import process_payment_task
+from .serializers import PaymentSerializer, PaymentShortSerializer
 
 SCHEMA_401 = {
     "type": "object",
-    "properties": {"detail": {"type": "string", "description": "Токен отсутствует или недействителен."}},
+    "properties": {
+        "detail": {"type": "string", "description": "Токен отсутствует или недействителен."}
+    },
 }
 SCHEMA_404 = {
     "type": "object",
@@ -29,7 +28,11 @@ SCHEMA_400 = {
     "type": "object",
     "properties": {
         "error": {"type": "string"},
-        "course_ids": {"type": "array", "items": {"type": "integer"}, "description": "Опционально при уже купленных курсах."},
+        "course_ids": {
+            "type": "array",
+            "items": {"type": "integer"},
+            "description": "Опционально при уже купленных курсах.",
+        },
     },
 }
 
@@ -50,7 +53,10 @@ class CartPayView(APIView):
         tags=["Carts"],
         responses={
             204: None,
-            400: {"description": "Тело: { error } или { error, course_ids }. Корзина пуста или курсы уже куплены.", "schema": SCHEMA_400},
+            400: {
+                "description": "Тело: { error } или { error, course_ids }. Корзина пуста или курсы уже куплены.",
+                "schema": SCHEMA_400,
+            },
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
         },
     )
@@ -58,29 +64,30 @@ class CartPayView(APIView):
         cart, _ = Cart.objects.get_or_create(user=request.user)
         cart_items = CartItem.objects.filter(
             cart_id=cart,
-        ).select_related('course')
+        ).select_related("course")
 
         if not cart_items.exists():
             return Response(
-                {'error': 'Корзина пуста. Добавьте курсы перед оплатой.'},
+                {"error": "Корзина пуста. Добавьте курсы перед оплатой."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         already_purchased = PurchasedCourse.objects.filter(
             user=request.user,
             course__in=[item.course_id for item in cart_items],
-        ).values_list('course_id', flat=True)
+        ).values_list("course_id", flat=True)
 
         if already_purchased:
             return Response(
-                {'error': 'Некоторые курсы уже куплены.',
-                    'course_ids': list(already_purchased)},
+                {"error": "Некоторые курсы уже куплены.", "course_ids": list(already_purchased)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         with transaction.atomic():
-            from django.utils import timezone
             from datetime import timedelta
+
+            from django.utils import timezone
+
             from apps.courses.api.utils.cache_utils import purchased_courses_cache_key
 
             total_sum = sum(Decimal(item.course.price) for item in cart_items)
@@ -90,41 +97,47 @@ class CartPayView(APIView):
                 total_sum=total_sum,
             )
 
-            PaymentItem.objects.bulk_create([
-                PaymentItem(
-                    payment=payment,
-                    course=item.course,
-                    price=Decimal(item.course.price),
-                )
-                for item in cart_items
-            ])
+            PaymentItem.objects.bulk_create(
+                [
+                    PaymentItem(
+                        payment=payment,
+                        course=item.course,
+                        price=Decimal(item.course.price),
+                    )
+                    for item in cart_items
+                ]
+            )
 
             access_expires = timezone.now() + timedelta(days=365)
-            PurchasedCourse.objects.bulk_create([
-                PurchasedCourse(
-                    user=request.user,
-                    course=item.course,
-                    payment=payment,
-                    access_expires_at=access_expires,
-                )
-                for item in cart_items
-            ], ignore_conflicts=True)
+            PurchasedCourse.objects.bulk_create(
+                [
+                    PurchasedCourse(
+                        user=request.user,
+                        course=item.course,
+                        payment=payment,
+                        access_expires_at=access_expires,
+                    )
+                    for item in cart_items
+                ],
+                ignore_conflicts=True,
+            )
 
             CartItem.objects.filter(cart_id=cart).delete()
 
         from django.core.cache import caches
+
         cache = caches["default"]
         cache.delete(purchased_courses_cache_key(request.user.id))
         caches["hot"].delete(f"hot:carts:cart:{request.user.id}")
 
         yookassa_response = MockYooKassaService.create_payment(
             amount=payment.total_sum,
-            description=f'Оплата заказа #{payment.payment_id}',
+            description=f"Оплата заказа #{payment.payment_id}",
             idempotency_key=str(payment.mock_yookassa_id),
         )
 
         payment.mock_payment_url = yookassa_response.confirmation_url
-        payment.save(update_fields=['mock_payment_url', 'updated_at'])
+        payment.save(update_fields=["mock_payment_url", "updated_at"])
 
         process_payment_task.apply_async(
             args=[payment.payment_id],
@@ -172,18 +185,25 @@ class PaymentDetailView(APIView):
         responses={
             200: PaymentSerializer,
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
-            404: {"description": "Тело: { detail: 'Платёж не найден.' }. Чужие платежи тоже 404.", "schema": SCHEMA_404},
+            404: {
+                "description": "Тело: { detail: 'Платёж не найден.' }. Чужие платежи тоже 404.",
+                "schema": SCHEMA_404,
+            },
         },
     )
     def get(self, request, payment_id):
-        payment = Payment.objects.filter(
-            payment_id=payment_id,
-            user=request.user,
-        ).prefetch_related('items__course').first()
+        payment = (
+            Payment.objects.filter(
+                payment_id=payment_id,
+                user=request.user,
+            )
+            .prefetch_related("items__course")
+            .first()
+        )
 
         if payment is None:
             return Response(
-                {'detail': 'Платёж не найден.'},
+                {"detail": "Платёж не найден."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 

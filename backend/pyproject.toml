@@ -1,0 +1,8 @@
+[tool.black]
+line-length = 100
+target-version = ['py312']
+force-exclude = 'migrations/'
+
+[tool.isort]
+profile = "black"
+line_length = 100

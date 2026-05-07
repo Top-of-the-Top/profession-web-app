@@ -1,17 +1,19 @@
 from rest_framework import serializers
+
 from apps.courses.api.serializers import CourseDTOSerializer
+
 from ..models import Cart, CartItem
 
 
 class CartCourseSerializer(CourseDTOSerializer):
     class Meta(CourseDTOSerializer.Meta):
-        fields = CourseDTOSerializer.Meta.fields + ['price']
+        fields = CourseDTOSerializer.Meta.fields + ["price"]
 
 
 class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
-        fields = '__all__'
+        fields = "__all__"
 
 
 class CartSerializer(serializers.ModelSerializer):
@@ -19,4 +21,4 @@ class CartSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cart
-        fields = '__all__'
+        fields = "__all__"

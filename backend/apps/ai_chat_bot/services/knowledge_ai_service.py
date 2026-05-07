@@ -1,27 +1,28 @@
+import asyncio
 import logging
 import os
-import asyncio
-from apps.courses.models import Course
+
 from asgiref.sync import sync_to_async
+
 from apps.ai_chat_bot.services.base_service import YandexAIBase
+from apps.courses.models import Course
 
 logger = logging.getLogger(__name__)
 
 
 class YandexKnowledgeAIService(YandexAIBase):
-    
+
     async def update_course_context(self, course, file_paths):
         logger.info(f"Starting huge context update for course {course.title}")
-        
+
         old_vs_id = course.yandex_vs_id
         new_vs_id = None
 
         try:
-            new_file_ids = await asyncio.gather(*[self._upload_file(p) for p in file_paths])      
-            
+            new_file_ids = await asyncio.gather(*[self._upload_file(p) for p in file_paths])
+
             new_vs = await self.client.beta.vector_stores.create(
-                name=f"База знаний для курса {course.title}",
-                file_ids=[f.id for f in new_file_ids]
+                name=f"База знаний для курса {course.title}", file_ids=[f.id for f in new_file_ids]
             )
             new_vs_id = new_vs.id
 
@@ -44,10 +45,7 @@ class YandexKnowledgeAIService(YandexAIBase):
             logger.info(f"Uploading file {os.path.basename(file_path)}")
             try:
                 with open(file_path, "rb") as f:
-                    return await self.client.files.create(
-                        file=f, 
-                        purpose="assistants"
-                    )
+                    return await self.client.files.create(file=f, purpose="assistants")
             except Exception as e:
                 logger.error(f"Failed to upload file {file_path}: {e}")
                 raise
@@ -58,11 +56,13 @@ class YandexKnowledgeAIService(YandexAIBase):
             vs = await self.client.beta.vector_stores.retrieve(vs_id)
             if vs.status == "completed":
                 logger.info(f"Vector Store {vs_id} is READY")
-                return vs 
+                return vs
             if vs.status == "failed":
-                logger.error(f"Vector Store {vs_id} FAILED. Error: {getattr(vs, 'last_error', 'Unknown')}")
+                logger.error(
+                    f"Vector Store {vs_id} FAILED. Error: {getattr(vs, 'last_error', 'Unknown')}"
+                )
                 raise Exception(f"Vector Store {vs_id} creation failed")
-            
+
             await asyncio.sleep(interval)
 
     async def _delete_vector_store_by_id(self, vs_id, course_id):
@@ -86,7 +86,9 @@ class YandexKnowledgeAIService(YandexAIBase):
 
             deleted = await asyncio.gather(*(delete_file(f_id) for f_id in file_ids))
             success_count = sum(1 for i in deleted if i)
-            logger.info(f"Cleanup finished. Deleted VS {vs_id} and {success_count}/{len(file_ids)} files")
+            logger.info(
+                f"Cleanup finished. Deleted VS {vs_id} and {success_count}/{len(file_ids)} files"
+            )
 
         except Exception as e:
             logger.error(f"Critical error during VS deletion {vs_id}: {e}")

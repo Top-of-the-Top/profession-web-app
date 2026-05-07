@@ -1,9 +1,13 @@
-import openai
 import asyncio
+
+import openai
 from django.conf import settings
 
+
 class YandexAIBase:
-    _semaphore = asyncio.Semaphore(20) # Семафор нужен, чтобы избежать ошибки, когда у нас оч много запросов с 1ого IPшника.
+    _semaphore = asyncio.Semaphore(
+        20
+    )  # Семафор нужен, чтобы избежать ошибки, когда у нас оч много запросов с 1ого IPшника.
 
     def __init__(self):
         self.client = openai.AsyncOpenAI(

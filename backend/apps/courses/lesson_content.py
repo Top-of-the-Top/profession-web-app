@@ -1,9 +1,8 @@
 import json
 import re
 
-
 ASSET_URI_RE = re.compile(
-    r'asset://([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})',
+    r"asset://([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
     re.IGNORECASE,
 )
 
@@ -37,10 +36,10 @@ def substitute_asset_uris(document_str, uri_to_url):
 
 
 def parse_content_value(raw):
-    if raw is None or raw == '':
+    if raw is None or raw == "":
         return None
     if isinstance(raw, dict):
         return raw
     if isinstance(raw, str):
         return json.loads(raw)
-    raise TypeError('content must be object or JSON string')
+    raise TypeError("content must be object or JSON string")

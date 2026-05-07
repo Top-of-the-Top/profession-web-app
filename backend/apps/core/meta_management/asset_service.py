@@ -17,7 +17,6 @@ from .errors import (
 )
 from .policies import get_bind_policy, get_intent_policy
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -36,47 +35,47 @@ class AssetService:
         backend = self._backends.get(name)
         if backend is None:
             raise AssetStorageUnavailable(
-                message=f'Backend {name} не зарегистрирован.',
-                details={'backend': name},
+                message=f"Backend {name} не зарегистрирован.",
+                details={"backend": name},
             )
         return backend
 
     def _build_policy(self, intent_policy):
         return UploadPolicy(
-            backend=intent_policy['backend'],
-            max_size=intent_policy['max_size'],
-            mime_allowlist=intent_policy['mime_allowlist'],
-            default_visibility=intent_policy['default_visibility'],
-            default_role=intent_policy['default_role'],
+            backend=intent_policy["backend"],
+            max_size=intent_policy["max_size"],
+            mime_allowlist=intent_policy["mime_allowlist"],
+            default_visibility=intent_policy["default_visibility"],
+            default_role=intent_policy["default_role"],
         )
 
     def create_pending_asset(self, owner, intent, filename, mime_type, size):
         intent_policy = get_intent_policy(intent)
         if intent_policy is None:
-            raise AssetIntentNotAllowed(details={'intent': intent})
+            raise AssetIntentNotAllowed(details={"intent": intent})
 
-        if size <= 0 or size > intent_policy['max_size']:
+        if size <= 0 or size > intent_policy["max_size"]:
             raise AssetPolicyViolation(
-                message='Размер файла выходит за допустимые пределы.',
-                details={'size': size, 'max_size': intent_policy['max_size']},
+                message="Размер файла выходит за допустимые пределы.",
+                details={"size": size, "max_size": intent_policy["max_size"]},
             )
 
-        if intent_policy['mime_allowlist'] and mime_type not in intent_policy['mime_allowlist']:
+        if intent_policy["mime_allowlist"] and mime_type not in intent_policy["mime_allowlist"]:
             raise AssetPolicyViolation(
-                message='MIME-тип не разрешён для данного назначения.',
+                message="MIME-тип не разрешён для данного назначения.",
                 details={
-                    'mime_type': mime_type,
-                    'allowed': list(intent_policy['mime_allowlist']),
+                    "mime_type": mime_type,
+                    "allowed": list(intent_policy["mime_allowlist"]),
                 },
             )
 
-        backend_name = intent_policy['backend']
+        backend_name = intent_policy["backend"]
         backend = self.get_backend(backend_name)
 
         hint = StorageKeyHint(
             backend=backend_name,
             intent=intent,
-            owner_id=str(owner.pk) if owner is not None else '',
+            owner_id=str(owner.pk) if owner is not None else "",
             filename=filename,
         )
         storage_key, storage_meta = _normalize_build_storage_key(
@@ -86,11 +85,11 @@ class AssetService:
         asset = MediaAsset.objects.create(
             storage_backend=backend_name,
             storage_key=storage_key,
-            original_filename=filename or '',
-            mime_type=mime_type or '',
+            original_filename=filename or "",
+            mime_type=mime_type or "",
             size_bytes=size,
             status=AssetStatus.PENDING,
-            visibility=intent_policy['default_visibility'],
+            visibility=intent_policy["default_visibility"],
             owner=owner,
             storage_meta=storage_meta,
         )
@@ -100,15 +99,15 @@ class AssetService:
     def issue_upload_url(self, asset, intent):
         intent_policy = get_intent_policy(intent)
         if intent_policy is None:
-            raise AssetIntentNotAllowed(details={'intent': intent})
+            raise AssetIntentNotAllowed(details={"intent": intent})
 
-        if intent_policy['backend'] != asset.storage_backend:
+        if intent_policy["backend"] != asset.storage_backend:
             raise AssetPolicyViolation(
-                message='Intent не соответствует backend ассета.',
+                message="Intent не соответствует backend ассета.",
                 details={
-                    'intent': intent,
-                    'intent_backend': intent_policy['backend'],
-                    'asset_backend': asset.storage_backend,
+                    "intent": intent,
+                    "intent_backend": intent_policy["backend"],
+                    "asset_backend": asset.storage_backend,
                 },
             )
 
@@ -128,21 +127,21 @@ class AssetService:
 
         if asset.status != AssetStatus.PENDING:
             raise AssetStatusInvalid(
-                details={'asset_id': str(asset.asset_id), 'status': asset.status},
+                details={"asset_id": str(asset.asset_id), "status": asset.status},
             )
 
         backend = self.get_backend(asset.storage_backend)
         meta = backend.head(asset.storage_key)
         if meta is None:
             raise AssetCommitMismatch(
-                message='Файл не найден в хранилище.',
-                details={'storage_key': asset.storage_key},
+                message="Файл не найден в хранилище.",
+                details={"storage_key": asset.storage_key},
             )
 
         if asset.size_bytes and meta.size_bytes != asset.size_bytes:
             raise AssetCommitMismatch(
-                message='Размер загруженного файла не совпадает с заявленным.',
-                details={'declared': asset.size_bytes, 'actual': meta.size_bytes},
+                message="Размер загруженного файла не совпадает с заявленным.",
+                details={"declared": asset.size_bytes, "actual": meta.size_bytes},
             )
 
         asset.size_bytes = meta.size_bytes
@@ -150,43 +149,45 @@ class AssetService:
             asset.mime_type = meta.mime_type
         asset.status = AssetStatus.READY
         asset.committed_at = timezone.now()
-        asset.save(update_fields=[
-            'size_bytes',
-            'mime_type',
-            'status',
-            'committed_at',
-        ])
+        asset.save(
+            update_fields=[
+                "size_bytes",
+                "mime_type",
+                "status",
+                "committed_at",
+            ]
+        )
 
         return asset
 
     def register_server_asset(self, owner, intent, filename, mime_type, body):
         intent_policy = get_intent_policy(intent)
         if intent_policy is None:
-            raise AssetIntentNotAllowed(details={'intent': intent})
+            raise AssetIntentNotAllowed(details={"intent": intent})
 
         size = len(body)
-        if size <= 0 or size > intent_policy['max_size']:
+        if size <= 0 or size > intent_policy["max_size"]:
             raise AssetPolicyViolation(
-                message='Размер файла выходит за допустимые пределы.',
-                details={'size': size, 'max_size': intent_policy['max_size']},
+                message="Размер файла выходит за допустимые пределы.",
+                details={"size": size, "max_size": intent_policy["max_size"]},
             )
 
-        if intent_policy['mime_allowlist'] and mime_type not in intent_policy['mime_allowlist']:
+        if intent_policy["mime_allowlist"] and mime_type not in intent_policy["mime_allowlist"]:
             raise AssetPolicyViolation(
-                message='MIME-тип не разрешён для данного назначения.',
+                message="MIME-тип не разрешён для данного назначения.",
                 details={
-                    'mime_type': mime_type,
-                    'allowed': list(intent_policy['mime_allowlist']),
+                    "mime_type": mime_type,
+                    "allowed": list(intent_policy["mime_allowlist"]),
                 },
             )
 
-        backend_name = intent_policy['backend']
+        backend_name = intent_policy["backend"]
         backend = self.get_backend(backend_name)
 
         hint = StorageKeyHint(
             backend=backend_name,
             intent=intent,
-            owner_id=str(owner.pk) if owner is not None else '',
+            owner_id=str(owner.pk) if owner is not None else "",
             filename=filename,
         )
         storage_key, storage_meta = _normalize_build_storage_key(
@@ -198,12 +199,11 @@ class AssetService:
         asset = MediaAsset.objects.create(
             storage_backend=backend_name,
             storage_key=storage_key,
-            original_filename=filename or '',
-            mime_type=mime_type or '',
+            original_filename=filename or "",
+            mime_type=mime_type or "",
             size_bytes=size,
-
             status=AssetStatus.READY,
-            visibility=intent_policy['default_visibility'],
+            visibility=intent_policy["default_visibility"],
             owner=owner,
             committed_at=timezone.now(),
             storage_meta=storage_meta,
@@ -213,17 +213,16 @@ class AssetService:
     def register_external_asset(self, owner, url, intent):
         intent_policy = get_intent_policy(intent)
         if intent_policy is None:
-            raise AssetIntentNotAllowed(details={'intent': intent})
+            raise AssetIntentNotAllowed(details={"intent": intent})
 
         asset = MediaAsset.objects.create(
-            storage_backend='external',
+            storage_backend="external",
             storage_key=url,
-            original_filename='',
-            mime_type='',
+            original_filename="",
+            mime_type="",
             size_bytes=0,
-
             status=AssetStatus.READY,
-            visibility=intent_policy['default_visibility'],
+            visibility=intent_policy["default_visibility"],
             owner=owner,
             committed_at=timezone.now(),
         )
@@ -235,8 +234,8 @@ class AssetService:
         backend_name,
         storage_key,
         owner,
-        original_filename='',
-        mime_type='',
+        original_filename="",
+        mime_type="",
         size_bytes=0,
         visibility,
         storage_meta=None,
@@ -249,8 +248,8 @@ class AssetService:
         return MediaAsset.objects.create(
             storage_backend=backend_name,
             storage_key=storage_key,
-            original_filename=original_filename or '',
-            mime_type=mime_type or '',
+            original_filename=original_filename or "",
+            mime_type=mime_type or "",
             size_bytes=size_bytes,
             status=AssetStatus.PENDING,
             visibility=visibility,
@@ -262,27 +261,27 @@ class AssetService:
         bind_policy = get_bind_policy(role)
         if bind_policy is None:
             raise AssetPolicyViolation(
-                message='Неизвестная роль привязки.',
-                details={'role': role},
+                message="Неизвестная роль привязки.",
+                details={"role": role},
             )
 
-        allow_pending = bind_policy.get('allow_pending_asset', False)
+        allow_pending = bind_policy.get("allow_pending_asset", False)
         if asset.status != AssetStatus.READY:
             if not (allow_pending and asset.status == AssetStatus.PENDING):
                 raise AssetStatusInvalid(
-                    details={'asset_id': str(asset.asset_id), 'status': asset.status},
+                    details={"asset_id": str(asset.asset_id), "status": asset.status},
                 )
 
-        if asset.storage_backend not in bind_policy['allowed_backends']:
+        if asset.storage_backend not in bind_policy["allowed_backends"]:
             raise AssetPolicyViolation(
-                message='Backend ассета не допускается для данной роли.',
-                details={'role': role, 'backend': asset.storage_backend},
+                message="Backend ассета не допускается для данной роли.",
+                details={"role": role, "backend": asset.storage_backend},
             )
 
         content_type = ContentType.objects.get_for_model(content_object)
         object_id = str(content_object.pk)
 
-        max_usages = bind_policy['max_usages_per_target']
+        max_usages = bind_policy["max_usages_per_target"]
         if max_usages is not None:
             current = AssetUsage.objects.filter(
                 content_type=content_type,
@@ -291,8 +290,8 @@ class AssetService:
             ).count()
             if current >= max_usages:
                 raise AssetPolicyViolation(
-                    message='Превышен лимит привязок ассетов для этой сущности.',
-                    details={'role': role, 'limit': max_usages},
+                    message="Превышен лимит привязок ассетов для этой сущности.",
+                    details={"role": role, "limit": max_usages},
                 )
 
         try:
@@ -306,9 +305,9 @@ class AssetService:
         except IntegrityError:
             raise AssetBindConflict(
                 details={
-                    'asset_id': str(asset.asset_id),
-                    'role': role,
-                    'object_id': object_id,
+                    "asset_id": str(asset.asset_id),
+                    "role": role,
+                    "object_id": object_id,
                 },
             )
 
@@ -321,7 +320,7 @@ class AssetService:
     def resolve_asset_url(self, asset, viewer=None, ttl_seconds=300):
         if asset.status != AssetStatus.READY:
             raise AssetStatusInvalid(
-                details={'asset_id': str(asset.asset_id), 'status': asset.status},
+                details={"asset_id": str(asset.asset_id), "status": asset.status},
             )
         backend = self.get_backend(asset.storage_backend)
         return backend.resolve_url(asset, viewer=viewer, ttl_seconds=ttl_seconds)
@@ -330,7 +329,7 @@ class AssetService:
         try:
             return MediaAsset.objects.get(pk=asset_id)
         except MediaAsset.DoesNotExist:
-            raise AssetNotFound(details={'asset_id': str(asset_id)})
+            raise AssetNotFound(details={"asset_id": str(asset_id)})
 
     def get_asset_by_storage_key(self, storage_key, backend=None):
         qs = MediaAsset.objects.filter(storage_key=storage_key)
@@ -340,9 +339,9 @@ class AssetService:
 
     def get_usage(self, usage_id):
         try:
-            return AssetUsage.objects.select_related('asset').get(pk=usage_id)
+            return AssetUsage.objects.select_related("asset").get(pk=usage_id)
         except AssetUsage.DoesNotExist:
             raise AssetNotFound(
-                message='Привязка не найдена.',
-                details={'usage_id': str(usage_id)},
+                message="Привязка не найдена.",
+                details={"usage_id": str(usage_id)},
             )

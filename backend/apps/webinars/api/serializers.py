@@ -2,16 +2,15 @@ from rest_framework import serializers
 
 from apps.core.meta_management.factory import build_access_api
 
-from ..models import Webinar, Recording
+from ..models import Recording, Webinar
 
-
-RECORDING_WHITEBOARD_CONTEXT_KEY = 'whiteboard_url_by_recording_id'
+RECORDING_WHITEBOARD_CONTEXT_KEY = "whiteboard_url_by_recording_id"
 
 
 def build_recording_whiteboard_map(recordings, access=None):
     access = access or build_access_api()
     try:
-        return access.resolve_bound_urls_map(recordings, role='whiteboard_pdf')
+        return access.resolve_bound_urls_map(recordings, role="whiteboard_pdf")
     except Exception:
         return {}
 
@@ -20,11 +19,18 @@ class WebinarSerializer(serializers.ModelSerializer):
     class Meta:
         model = Webinar
         fields = [
-            'webinar_id', 'lesson', 'status',
-            'started_by', 'started_at', 'ended_at',
+            "webinar_id",
+            "lesson",
+            "status",
+            "started_by",
+            "started_at",
+            "ended_at",
         ]
         read_only_fields = [
-            'webinar_id', 'started_by', 'started_at', 'ended_at',
+            "webinar_id",
+            "started_by",
+            "started_at",
+            "ended_at",
         ]
 
 
@@ -66,35 +72,35 @@ class RecordingListItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recording
         fields = (
-            'recording_id',
-            'started_at',
-            'ended_at',
-            'status',
-            'kinescope_upload_status',
-            'kinescope_embed_url',
-            'whiteboard_pdf_url',
-            'kind',
+            "recording_id",
+            "started_at",
+            "ended_at",
+            "status",
+            "kinescope_upload_status",
+            "kinescope_embed_url",
+            "whiteboard_pdf_url",
+            "kind",
         )
 
     def get_kind(self, obj):
         if not obj.recording_url and not obj.kinescope_video_id:
-            return 'whiteboard_only'
-        return 'recording'
+            return "whiteboard_only"
+        return "recording"
 
     def get_kinescope_embed_url(self, obj):
-        request = self.context.get('request')
+        request = self.context.get("request")
         viewer = request.user if request and request.user.is_authenticated else None
 
         try:
             url = build_access_api().resolve_bound_url(
                 obj,
-                role='webinar_recording',
+                role="webinar_recording",
                 viewer=viewer,
                 ttl_seconds=3600,
             )
-            return url or ''
+            return url or ""
         except Exception:
-            return ''
+            return ""
 
     def get_whiteboard_pdf_url(self, obj):
         mapping = self.context.get(RECORDING_WHITEBOARD_CONTEXT_KEY)
@@ -105,10 +111,9 @@ class RecordingListItemSerializer(serializers.ModelSerializer):
         else:
             access = build_access_api()
             try:
-                url = access.resolve_bound_url(obj, role='whiteboard_pdf')
+                url = access.resolve_bound_url(obj, role="whiteboard_pdf")
             except Exception:
                 url = None
             if url:
                 return url
-        return obj.whiteboard_pdf_url or ''
-    
+        return obj.whiteboard_pdf_url or ""

@@ -22,12 +22,11 @@ class ReviewService:
     def review_attempt(self, *, attempt: Attempt, reviewer, items: list[TaskReviewItem]) -> Attempt:
         if attempt.status != Attempt.SUBMITTED_STATUS:
             raise AttemptNotSubmitted(
-                details={'attempt_id': str(attempt.attempt_id), 'status': attempt.status}
+                details={"attempt_id": str(attempt.attempt_id), "status": attempt.status}
             )
 
         task_answers = {
-            str(ta.answer_id): ta
-            for ta in attempt.task_answers.select_related('task').all()
+            str(ta.answer_id): ta for ta in attempt.task_answers.select_related("task").all()
         }
 
         self._validate_items(items, task_answers)
@@ -38,19 +37,25 @@ class ReviewService:
                 TaskReview.objects.update_or_create(
                     answer=ta,
                     defaults={
-                        'reviewer': reviewer,
-                        'points': item.points,
-                        'comment': item.comment,
+                        "reviewer": reviewer,
+                        "points": item.points,
+                        "comment": item.comment,
                     },
                 )
-                ta.status = TaskAnswer.CORRECT_STATUS if item.points >= ta.task.max_points else (
-                    TaskAnswer.PARTIAL_STATUS if item.points > 0 else TaskAnswer.INCORRECT_STATUS
+                ta.status = (
+                    TaskAnswer.CORRECT_STATUS
+                    if item.points >= ta.task.max_points
+                    else (
+                        TaskAnswer.PARTIAL_STATUS
+                        if item.points > 0
+                        else TaskAnswer.INCORRECT_STATUS
+                    )
                 )
-                ta.save(update_fields=['status'])
+                ta.save(update_fields=["status"])
 
             attempt.grade = self._calculate_total_grade(attempt, items)
             attempt.status = Attempt.REVIEWED_STATUS
-            attempt.save(update_fields=['grade', 'status'])
+            attempt.save(update_fields=["grade", "status"])
 
         attempt.refresh_from_db()
         return attempt
@@ -59,15 +64,13 @@ class ReviewService:
         for item in items:
             ta = task_answers.get(item.task_answer_id)
             if ta is None:
-                raise ReviewItemNotFound(
-                    details={'task_answer_id': item.task_answer_id}
-                )
+                raise ReviewItemNotFound(details={"task_answer_id": item.task_answer_id})
             if item.points > ta.task.max_points:
                 raise ReviewPointsExceeded(
                     details={
-                        'task_answer_id': item.task_answer_id,
-                        'points': item.points,
-                        'max_points': ta.task.max_points,
+                        "task_answer_id": item.task_answer_id,
+                        "points": item.points,
+                        "max_points": ta.task.max_points,
                     }
                 )
 

@@ -207,7 +207,9 @@ export interface MyHomeworkStudentItem {
   homework_slug: string;
   homework_title: string;
   deadline: string | null;
+  course_slug: string;
   course_title: string;
+  lesson_slug: string;
   lesson_title: string;
   grade: number | null;
   max_points: number | null;
@@ -228,6 +230,8 @@ export interface MyHomeworkTeacherAttempt {
   homework_id: string;
   homework_slug: string;
   homework_title: string;
+  course_slug: string;
+  lesson_slug: string;
   grade: number | null;
   max_points: number | null;
   send_at: string | null;

@@ -130,7 +130,9 @@ def _build_my_attempts(user, homework_filter):
             'homework_slug': hw.slug,
             'homework_title': hw.title,
             'deadline': hw.deadline,
+            'course_slug': hw.lesson.section.course.slug,
             'course_title': hw.lesson.section.course.title,
+            'lesson_slug': hw.lesson.slug,
             'lesson_title': hw.lesson.title,
             'grade': attempt.grade if attempt else None,
             'max_points': hw.max_points,
@@ -206,7 +208,10 @@ class StudentAttemptsView(APIView):
             attempts = (
                 Attempt.objects
                 .filter(**attempt_filter)
-                .select_related('homework', 'user')
+                .select_related(
+                    'homework__lesson__section__course',
+                    'user',
+                )
                 .order_by('-created_at')
             )
             data = {'student_attempts': {'items': StudentAttemptSerializer(attempts, many=True).data}}
@@ -229,7 +234,10 @@ class StudentAttemptsView(APIView):
             attempts = (
                 Attempt.objects
                 .filter(**teacher_filter)
-                .select_related('homework', 'user')
+                .select_related(
+                    'homework__lesson__section__course',
+                    'user',
+                )
                 .order_by('-created_at')
             )
             data = {'student_attempts': {'items': StudentAttemptSerializer(attempts, many=True).data}}

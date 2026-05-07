@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Clock, Search, Home } from 'lucide-react';
+import { Check, Clock, Search, Home } from 'lucide-react';
 import {
   PageFrame,
   Spinner,
@@ -39,7 +39,7 @@ function StatusIcon({ status }: { status: string }) {
   if (status === 'reviewed') {
     return (
       <span className={cn(styles.statusIcon, styles.statusIconReviewed)}>
-        <CheckCircle2 size={18} strokeWidth={2.5} />
+        <Check size={18} strokeWidth={2.5} />
       </span>
     );
   }
@@ -63,13 +63,9 @@ type Tab = 'waiting' | 'done' | 'all';
 
 function TeacherView({
   items,
-  courseSlug,
-  lessonSlug,
   reviewReturnHref,
 }: {
   items: MyHomeworkTeacherAttempt[];
-  courseSlug: string | undefined;
-  lessonSlug: string | undefined;
   reviewReturnHref: string;
 }) {
   const navigate = useNavigate();
@@ -210,13 +206,10 @@ function formatDeadlineFull(iso: string | null): { date: string; time: string } 
 
 function StudentView({
   items,
-  courseSlug,
-  lessonSlug,
 }: {
   items: MyHomeworkStudentItem[];
-  courseSlug: string | undefined;
-  lessonSlug: string | undefined;
 }) {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<StudentTab>('todo');
   const [search, setSearch] = useState('');
 
@@ -290,13 +283,13 @@ function StudentView({
             <tbody>
               {filtered.map((item) => {
                 const dl = formatDeadlineFull(item.deadline);
-                const href = lessonSlug && courseSlug
-                  ? `/app/courses/${courseSlug}/${lessonSlug}/homework/${item.homework_slug}`
+                const href = item.course_slug && item.lesson_slug
+                  ? `/app/courses/${item.course_slug}/${item.lesson_slug}/homework/${item.homework_slug}`
                   : undefined;
                 return (
                   <tr
                     key={item.attempt_id}
-                    onClick={() => { if (href) window.location.href = href; }}
+                    onClick={() => { if (href) navigate(href); }}
                     style={{ cursor: href ? 'pointer' : 'default' }}
                   >
                     <td>
@@ -395,19 +388,11 @@ export default function MyHomeworksPage() {
       );
     }
     if ('my_attempts' in homeworksQuery.data) {
-      return (
-        <StudentView
-          items={homeworksQuery.data.my_attempts.items}
-          courseSlug={courseSlug}
-          lessonSlug={lessonSlug}
-        />
-      );
+      return <StudentView items={homeworksQuery.data.my_attempts.items} />;
     }
     return (
       <TeacherView
         items={homeworksQuery.data.student_attempts.items}
-        courseSlug={courseSlug}
-        lessonSlug={lessonSlug}
         reviewReturnHref={reviewReturnHref}
       />
     );

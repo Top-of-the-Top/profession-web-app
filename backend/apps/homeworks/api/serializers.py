@@ -201,7 +201,9 @@ class MyAttemptSerializer(serializers.Serializer):
     homework_slug = serializers.SlugField()
     homework_title = serializers.CharField()
     deadline = serializers.DateTimeField(allow_null=True)
+    course_slug = serializers.SlugField()
     course_title = serializers.CharField()
+    lesson_slug = serializers.SlugField()
     lesson_title = serializers.CharField()
     grade = serializers.IntegerField(allow_null=True)
     max_points = serializers.IntegerField()
@@ -213,6 +215,12 @@ class StudentAttemptSerializer(serializers.ModelSerializer):
     homework_slug = serializers.SlugField(source='homework.slug', read_only=True)
     homework_title = serializers.CharField(source='homework.title', read_only=True)
     max_points = serializers.IntegerField(source='homework.max_points', read_only=True)
+    course_slug = serializers.SlugField(
+        source='homework.lesson.section.course.slug', read_only=True,
+    )
+    lesson_slug = serializers.SlugField(
+        source='homework.lesson.slug', read_only=True,
+    )
     student = serializers.SerializerMethodField()
 
     class Meta:
@@ -223,6 +231,8 @@ class StudentAttemptSerializer(serializers.ModelSerializer):
             'homework_id',
             'homework_slug',
             'homework_title',
+            'course_slug',
+            'lesson_slug',
             'grade',
             'send_at',
             'max_points',

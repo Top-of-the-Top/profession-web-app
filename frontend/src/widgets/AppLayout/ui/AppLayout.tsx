@@ -27,9 +27,6 @@ function isLessonEditorPage(pathname: string) {
   return pathname.includes('/courses/') && pathname.endsWith('/edit');
 }
 
-function isLessonEditorPage(pathname: string) {
-  return pathname.includes('/courses/') && pathname.endsWith('/edit');
-}
 
 export default function AppLayout() {
   const { pathname } = useLocation();
@@ -48,27 +45,37 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (hasToken && user) {
+      console.log('[notifications:rest] initial fetch start');
       void notificationsApi
         .getAll()
-        .then((notifications) => {
-          setInitial(
-            notifications.map((n) => ({
-              id: n.id,
-              title: n.title,
-              message: n.message,
-              created_at: new Date(n.created_at),
-            }))
-          );
+        .then((response) => {
+          console.log('[notifications:rest] initial fetch success', {
+            count: response.results.length,
+            has_more: response.has_more,
+            ids: response.results.map((n) => n.id),
+          });
+          const mapped = response.results.map((n) => ({
+            id: n.id,
+            title: n.title,
+            message: n.message,
+            notification_type: n.notification_type,
+            is_read: n.is_read,
+            created_at: new Date(n.created_at),
+          }));
+          setInitial(mapped, response.has_more);
         })
-        .catch(() => {
-          setInitial([]);
+        .catch((err) => {
+          console.error('[notifications:rest] initial fetch failed', err);
+          setInitial([], false);
         })
         .finally(() => {
+          console.log('[notifications:rest] initial fetch done, connect SSE');
           connectNotificationSSE();
         });
       return;
     }
 
+    console.log('[notifications:rest] no user/token, disconnect SSE');
     disconnectNotificationSSE();
     return () => {
       disconnectNotificationSSE();

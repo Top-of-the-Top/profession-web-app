@@ -168,7 +168,6 @@ export default function HomeworkSubmissionPage() {
 
   const { persist, persistDebounced } = useHomeworkDraft(homeworkSlug);
 
-  const { persist, persistDebounced } = useHomeworkDraft(homeworkSlug);
 
   useEffect(() => {
     const attempt = attemptQuery.data;

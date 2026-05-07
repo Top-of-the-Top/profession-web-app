@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNotificationStore } from '../model/notification.store';
+import { notificationsApi } from '@shared/api/notificationsApi';
 import styles from './NotificationBell.module.css';
-
-const PAGE_SIZE = 10;
 
 function formatDate(d: Date): string {
   return d.toLocaleString('ru-RU', {
@@ -14,27 +13,57 @@ function formatDate(d: Date): string {
   });
 }
 
+function mapDTO(n: { id: number; title: string; message: string; notification_type: import('@shared/api/notificationsApi').NotificationType; is_read: boolean; created_at: string }) {
+  return {
+    id: n.id,
+    title: n.title,
+    message: n.message,
+    notification_type: n.notification_type,
+    is_read: n.is_read,
+    created_at: new Date(n.created_at),
+  };
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const notifications = useNotificationStore((s) => s.notifications);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const hasMore = useNotificationStore((s) => s.hasMore);
   const markRead = useNotificationStore((s) => s.markRead);
-
-  const visible = notifications.slice(0, visibleCount);
-  const hasMore = visibleCount < notifications.length;
+  const appendPage = useNotificationStore((s) => s.appendPage);
 
   function handleOpen() {
-    setOpen((v) => {
-      if (!v) {
-        markRead();
-        setVisibleCount(PAGE_SIZE);
-      }
-      return !v;
+    setOpen((v) => !v);
+  }
+
+  function handleMarkAllRead() {
+    if (unreadCount === 0) return;
+    const prevState = useNotificationStore.getState();
+    markRead();
+    void notificationsApi.markAllRead().catch(() => {
+      useNotificationStore.setState({
+        notifications: prevState.notifications,
+        unreadCount: prevState.unreadCount,
+      });
     });
+  }
+
+  function handleLoadMore() {
+    if (isLoadingMore || !hasMore || notifications.length === 0) return;
+    const beforeId = notifications[notifications.length - 1]?.id;
+    if (typeof beforeId !== 'number') return;
+    setIsLoadingMore(true);
+    void notificationsApi
+      .getAll(beforeId)
+      .then((response) => {
+        appendPage(response.results.map(mapDTO), response.has_more);
+      })
+      .finally(() => setIsLoadingMore(false));
   }
 
   // close on outside click
@@ -64,26 +93,45 @@ export function NotificationBell() {
         onClick={handleOpen}
       >
         <img
-          src={notifications.length > 0 ? '/bell-full.svg' : '/bell.svg'}
+          src={unreadCount > 0 ? '/bell-full.svg' : '/bell.svg'}
           alt=""
           width={25}
           height={25}
           decoding="async"
         />
+        
       </button>
 
       {open && (
         <div ref={panelRef} className={styles.panel} role="dialog" aria-label="Список уведомлений">
-          <p className={styles.panelTitle}>Уведомления</p>
+          <div className={styles.panelHeader}>
+            <p className={styles.panelTitle}>Уведомления</p>
+            {unreadCount > 0 && (
+              <button className={styles.markAllRead} onClick={handleMarkAllRead}>
+                Отметить все прочитанными
+              </button>
+            )}
+          </div>
 
           {notifications.length === 0 && (
             <p className={styles.empty}>Уведомлений нет</p>
           )}
 
-          {visible.length > 0 && (
+          {notifications.length > 0 && (
             <ul className={styles.list}>
-              {visible.map((n) => (
-                <li key={n.id} className={styles.item}>
+              {notifications.map((n) => (
+                <li key={n.id} className={[styles.item, !n.is_read ? styles.itemUnread : ''].join(' ')}>
+                  {!n.is_read && (
+                    <img
+                      src="/bell-full.svg"
+                      alt=""
+                      width={8}
+                      height={8}
+                      className={styles.itemUnreadIcon}
+                      decoding="async"
+                      aria-hidden
+                    />
+                  )}
                   <span className={styles.itemTitle}>{n.title}</span>
                   <span className={styles.itemMessage}>{n.message}</span>
                   <span className={styles.itemDate}>{formatDate(n.created_at)}</span>
@@ -93,12 +141,15 @@ export function NotificationBell() {
           )}
 
           {hasMore && (
-            <button
-              className={styles.loadMore}
-              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-            >
-              Загрузить ещё
-            </button>
+            <div className={styles.actionsRow}>
+              <button
+                className={styles.loadMore}
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? 'Загрузка...' : 'Загрузить ещё'}
+              </button>
+            </div>
           )}
         </div>
       )}

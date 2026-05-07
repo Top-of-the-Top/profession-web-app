@@ -27,7 +27,7 @@ import os
 import img2pdf
 import logging
 
-from apps.core.meta_management.factory import build_upload_api, build_binding_api, build_access_api
+from apps.core.meta_management.factory import build_upload_api, build_binding_api
 from apps.core.processors.error_processor import process_error_response
 from apps.core.meta_management.errors import AssetError
 from apps.courses.api.utils.cache_utils import invalidate_lesson_detail_cache

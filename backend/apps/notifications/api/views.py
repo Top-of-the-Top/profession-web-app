@@ -69,7 +69,7 @@ def get_notifications_for_user(request):
         try:
             qs = qs.filter(id__lt=int(before_id))
         except (ValueError, TypeError):
-            pass
+            logger.debug("Invalid before_id query parameter: %r; skipping cursor filter", before_id)
 
     page = list(qs[:PAGE_SIZE + 1])
     has_more = len(page) > PAGE_SIZE

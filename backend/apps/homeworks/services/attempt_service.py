@@ -4,7 +4,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
-from apps.core.meta_management.errors import AssetError, AssetNotFound, AssetPermissionDenied
+from apps.core.meta_management.errors import AssetError, AssetNotFound
 from apps.core.meta_management.factory import build_asset_service, build_binding_api
 from apps.core.models import AssetStatus
 from apps.homeworks.models import Attempt, QuestionAnswer, TaskAnswer

@@ -1,6 +1,10 @@
+import logging
+
 from ...models import AssetStatus
 from ..dto import InitiateResult
 from ..errors import AssetPermissionDenied
+
+logger = logging.getLogger(__name__)
 
 
 class UploadApi:
@@ -44,7 +48,11 @@ class UploadApi:
                     task_id=f'commit-{asset.asset_id}',
                 )
         except Exception:
-            pass
+            logger.exception(
+                "Failed to trigger commit for pending asset (asset_id=%s, backend=%s)",
+                asset.asset_id,
+                asset.storage_backend,
+            )
 
     def commit_for_user(self, user, asset_id):
         asset = self._authorize(user, asset_id)

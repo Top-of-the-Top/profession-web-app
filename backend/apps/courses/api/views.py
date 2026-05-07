@@ -3,12 +3,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from django.utils.dateparse import parse_datetime
 from apps.webinars.models import Webinar
 from ..models import (
     Course,
     Section,
     Task,
     Question,
+    Homework,
 )
 from .serializers import (
     CourseDTOSerializer,
@@ -24,14 +26,16 @@ from .serializers import (
     SectionSerializer,
     TaskSerializer,
     QuestionSerializer,
-    UserWebinarListItemSerializer,
+    MyContentCourseSerializer,
+    ScheduleItemSerializer,
+    ScheduleResponseSerializer,
 )
 from rest_framework import generics
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 from apps.core.api.permissions import require_moderator
 from django.core.cache import caches
-from django.db.models import F, Q
+from django.db.models import Q
 from .schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
 from .utils.cache_utils import (
     cached_detail_response,
@@ -257,46 +261,113 @@ class MyScheduleView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Расписание вебинаров по моим курсам",
+        summary="Расписание по моим курсам",
+        description=(
+            'Возвращает список объектов расписания (вебинары и дедлайны домашних заданий) '
+            'в заданном диапазоне дат. '
+            'Студент видит объекты своих купленных курсов. '
+            'Преподаватель видит объекты своих курсов (в том числе черновики). '
+            'Модератор видит всё.'
+        ),
         tags=["Home"],
+        parameters=[
+            OpenApiParameter(
+                name='start_date',
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Начало диапазона (ISO 8601)',
+            ),
+            OpenApiParameter(
+                name='end_date',
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Конец диапазона (ISO 8601)',
+            ),
+        ],
         responses={
-            200: UserWebinarListItemSerializer(many=True),
+            200: ScheduleResponseSerializer,
+            400: {"schema": SCHEMA_DETAIL},
             401: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         },
     )
     def get(self, request):
-        cache = caches["cold"]
-        key = my_schedule_cache_key(request.user.id)
+        start_date = None
+        end_date = None
+        raw_start = request.query_params.get('start_date')
+        raw_end = request.query_params.get('end_date')
+        if raw_start:
+            start_date = parse_datetime(raw_start)
+            if start_date is None:
+                return Response({'detail': 'Неверный формат start_date'}, status=status.HTTP_400_BAD_REQUEST)
+        if raw_end:
+            end_date = parse_datetime(raw_end)
+            if end_date is None:
+                return Response({'detail': 'Неверный формат end_date'}, status=status.HTTP_400_BAD_REQUEST)
+
+        cache = caches['default']
+        key = my_schedule_cache_key(request.user.id, start_date, end_date)
         cached = cache.get(key)
         if cached is not None:
             return Response(cached)
+
         user = request.user
-        qs = Webinar.objects.all()
+        authored_ids = set()
+        enrolled_ids = set()
+
         if not user.is_moderator():
             authored_ids = set(
                 Course.objects.filter(authors=user).values_list('course_id', flat=True)
             )
             enrolled_ids = set(user.get_purchased_courses_ids())
+
+        webinar_qs = Webinar.objects.select_related('lesson__section__course')
+        homework_qs = Homework.objects.select_related('lesson__section__course')
+
+        if not user.is_moderator():
             only_enrolled = enrolled_ids - authored_ids
             published_chain = published_lesson_hierarchy_q()
-            q = Q(lesson__section__course_id__in=authored_ids)
-            if only_enrolled:
-                q |= Q(lesson__section__course_id__in=only_enrolled) & published_chain
-            qs = qs.filter(q)
 
-        rows = (
-            qs.values(
-                'started_at',
-                'ended_at',
-                course_title=F('lesson__section__course__title'),
-                course_slug=F('lesson__section__course__slug'),
-                lesson_title=F('lesson__title'),
-                lesson_slug=F('lesson__slug'),
-            )
-            .order_by(F('started_at').desc(nulls_last=True), '-created_at')
-        )
-        data = list(rows)
+            webinar_q = Q(lesson__section__course_id__in=authored_ids)
+            if only_enrolled:
+                webinar_q |= Q(lesson__section__course_id__in=only_enrolled) & published_chain
+            webinar_qs = webinar_qs.filter(webinar_q)
+
+            homework_q = Q(lesson__section__course_id__in=authored_ids)
+            if only_enrolled:
+                homework_q |= Q(lesson__section__course_id__in=only_enrolled) & published_chain
+            homework_qs = homework_qs.filter(homework_q)
+
+        webinar_qs = webinar_qs.exclude(started_at=None)
+        homework_qs = homework_qs.exclude(deadline=None)
+
+        if start_date:
+            webinar_qs = webinar_qs.filter(started_at__gte=start_date)
+            homework_qs = homework_qs.filter(deadline__gte=start_date)
+        if end_date:
+            webinar_qs = webinar_qs.filter(started_at__lte=end_date)
+            homework_qs = homework_qs.filter(deadline__lte=end_date)
+
+        items = []
+        for webinar in webinar_qs:
+            items.append({
+                'type': ScheduleItemSerializer.TYPE_WEBINAR,
+                'datetime': webinar.started_at,
+                'course_title': webinar.lesson.section.course.title,
+                'title': webinar.lesson.title,
+            })
+        for homework in homework_qs:
+            items.append({
+                'type': ScheduleItemSerializer.TYPE_HOMEWORK,
+                'datetime': homework.deadline,
+                'course_title': homework.lesson.section.course.title,
+                'title': homework.title,
+            })
+
+        items.sort(key=lambda x: x['datetime'])
+        data = {'items': items}
         cache.set(key, data)
         return Response(data)
 
@@ -821,6 +892,36 @@ class QuestionCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(homework=homework)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class MyContentView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary="Мои курсы с уроками",
+        description=(
+            'Возвращает курсы пользователя с плоским списком уроков. '
+            'Студент видит купленные курсы и опубликованные уроки. '
+            'Преподаватель видит свои курсы со всеми уроками (включая черновики). '
+            'Модератор видит все курсы со всеми уроками.'
+        ),
+        tags=["Home"],
+        responses={
+            200: MyContentCourseSerializer(many=True),
+            401: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    )
+    def get(self, request):
+        user = request.user
+        include_drafts = user.is_moderator() or user.is_teacher()
+        courses = get_courses_for_user(user)
+        serializer = MyContentCourseSerializer(
+            courses,
+            many=True,
+            context={'include_drafts': include_drafts},
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class QuestionDetailView(APIView):

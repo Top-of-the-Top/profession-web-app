@@ -55,7 +55,6 @@ class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
             'course_id',
             'title',
             'sub_title',
-            'price',
             'slug',
             'image_url',
         ]
@@ -583,3 +582,46 @@ class UserWebinarListItemSerializer(serializers.Serializer):
     lesson_slug = serializers.CharField()
     started_at = serializers.DateTimeField(allow_null=True)
     ended_at = serializers.DateTimeField(allow_null=True)
+
+
+class ScheduleItemSerializer(serializers.Serializer):
+    TYPE_WEBINAR = 'webinar'
+    TYPE_HOMEWORK = 'homework'
+
+    type = serializers.ChoiceField(choices=[TYPE_WEBINAR, TYPE_HOMEWORK])
+    datetime = serializers.DateTimeField()
+    course_title = serializers.CharField()
+    title = serializers.CharField()
+
+
+class ScheduleResponseSerializer(serializers.Serializer):
+    items = ScheduleItemSerializer(many=True)
+
+
+class MyContentLessonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = ['lesson_id', 'slug', 'title']
+
+
+class MyContentCourseSerializer(serializers.ModelSerializer):
+    lessons = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Course
+        fields = ['course_id', 'slug', 'title', 'lessons']
+
+    @extend_schema_field(MyContentLessonSerializer(many=True))
+    def get_lessons(self, obj):
+        include_drafts = self.context.get('include_drafts', False)
+        if include_drafts:
+            lesson_qs = Lesson.objects.filter(section__course=obj).order_by(
+                'section__section_number', 'lesson_number'
+            )
+        else:
+            lesson_qs = Lesson.objects.filter(
+                section__course=obj,
+                type=Lesson.PUBLISHED_STATUS,
+                section__type=Section.PUBLISHED_STATUS,
+            ).order_by('section__section_number', 'lesson_number')
+        return MyContentLessonSerializer(lesson_qs, many=True).data

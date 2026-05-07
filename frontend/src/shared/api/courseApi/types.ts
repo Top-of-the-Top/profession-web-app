@@ -109,6 +109,21 @@ export interface HomeworkAttemptAttachment {
   file_extension: string;
 }
 
+export interface HomeworkTaskReviewReviewer {
+  first_name: string;
+  last_name: string;
+  avatar_url: string | null;
+}
+
+export interface HomeworkTaskReview {
+  task_review_id: string;
+  points: number;
+  comment: string | null;
+  reviewer: HomeworkTaskReviewReviewer | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface HomeworkAttemptQuestionItem {
   type: 'question';
   question_id: string;
@@ -117,6 +132,7 @@ export interface HomeworkAttemptQuestionItem {
   number: number;
   text: string;
   answer_options: string[];
+  correct_ans: string | null;
   user_answer: string | null;
   max_points: number;
 }
@@ -129,9 +145,8 @@ export interface HomeworkAttemptTaskItem {
   number: number;
   text: string;
   user_answer: string | null;
-  points: number | null;
   max_points: number;
-  teacher_comment: string | null;
+  review: HomeworkTaskReview | null;
   file_attachments: HomeworkAttemptAttachment[];
 }
 
@@ -171,6 +186,71 @@ export interface SubmitHomeworkAttemptPayload {
   attempt_id: string;
   send_at: string;
   items: SubmitHomeworkAttemptItemPayload[];
+}
+
+export interface HomeworkAttemptListItem {
+  attempt_id: string;
+  homework_id: string;
+  deadline: string;
+  homework_slug: string;
+  status: HomeworkAttemptStatus;
+  send_at: string | null;
+  score: number | null;
+  max_points: number | null;
+}
+
+// GET /api/my-homeworks/ — student view
+export interface MyHomeworkStudentItem {
+  attempt_id: string;
+  status: HomeworkAttemptStatus;
+  homework_id: string;
+  homework_slug: string;
+  homework_title: string;
+  deadline: string | null;
+  course_slug: string;
+  course_title: string;
+  lesson_slug: string;
+  lesson_title: string;
+  grade: number | null;
+  max_points: number | null;
+  send_at: string | null;
+}
+
+// GET /api/my-homeworks/ — teacher view
+export interface MyHomeworkTeacherStudent {
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface MyHomeworkTeacherAttempt {
+  attempt_id: string;
+  status: HomeworkAttemptStatus;
+  homework_id: string;
+  homework_slug: string;
+  homework_title: string;
+  course_slug: string;
+  lesson_slug: string;
+  grade: number | null;
+  max_points: number | null;
+  send_at: string | null;
+  student: MyHomeworkTeacherStudent;
+}
+
+export type MyHomeworksResponse =
+  | { my_attempts: { items: MyHomeworkStudentItem[] } }
+  | { student_attempts: { items: MyHomeworkTeacherAttempt[] } };
+
+export interface ReviewHomeworkAttemptItemPayload {
+  task_answer_id: string;
+  points: number;
+  comment?: string | null;
+}
+
+export interface ReviewHomeworkAttemptPayload {
+  attempt_id: string;
+  items: ReviewHomeworkAttemptItemPayload[];
 }
 
 export interface HomeworkCreatePayload {
@@ -358,9 +438,19 @@ export type RawHomeworkAttemptTaskItem = {
   number?: unknown;
   text?: unknown;
   user_answer?: unknown;
-  points?: unknown;
   max_points?: unknown;
-  teacher_comment?: unknown;
+  review?: {
+    task_review_id?: unknown;
+    points?: unknown;
+    comment?: unknown;
+    reviewer?: {
+      first_name?: unknown;
+      last_name?: unknown;
+      avatar_url?: unknown;
+    } | null;
+    created_at?: unknown;
+    updated_at?: unknown;
+  } | null;
   file_attachments?: unknown;
 };
 
@@ -371,5 +461,7 @@ export type RawHomeworkAttempt = {
   deadline?: unknown;
   score?: unknown;
   max_points?: unknown;
+  send_at?: unknown;
+  homework_slug?: unknown;
   items?: unknown;
 };

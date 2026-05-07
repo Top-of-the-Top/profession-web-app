@@ -1,0 +1,242 @@
+.page {
+  min-height: 100%;
+  padding: 0;
+}
+
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.navArrow {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  color: #667085;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.navArrow:hover {
+  background: var(--background, #fff);
+  color: #1d2939;
+}
+
+.headerTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.monthLabel {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1d2939;
+}
+
+.rangeLabel {
+  font-size: 0.9375rem;
+  color: #667085;
+  font-weight: 400;
+}
+
+/* ── Grid ── */
+.grid {
+  background: var(--background, #fff);
+  border: 1px solid var(--border, #e4e7ec);
+  border-radius: 16px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: auto 1fr;
+  min-height: 560px;
+}
+
+/* Day header row */
+.dayHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 8px 12px;
+  border-bottom: 1px solid var(--border, #e4e7ec);
+  border-right: 1px solid var(--border, #e4e7ec);
+}
+
+.dayHeader:last-child {
+  border-right: none;
+}
+
+.dayName {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #667085;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dayNum {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1d2939;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.dayNumToday {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #fff;
+  background: #211c84;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+/* Day columns */
+.dayCol {
+  padding: 10px 8px;
+  border-right: 1px solid var(--border, #e4e7ec);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 200px;
+  vertical-align: top;
+}
+
+.dayCol:last-child {
+  border-right: none;
+}
+
+.dayColToday {
+  background: #eef1fa;
+}
+
+.colSpinner {
+  display: flex;
+  justify-content: center;
+  padding-top: 24px;
+}
+
+/* ── Event cards ── */
+
+/* Webinar card — yellow */
+.cardWebinar {
+  background: #fffde7;
+  border-radius: 10px;
+  border-left: 4px solid #f9e04b;
+  padding: 10px 12px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.cardWebinar:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* Homework card — pink */
+.cardHomework {
+  background: #fff0f6;
+  border-radius: 10px;
+  border-left: 4px solid #f868a0;
+  padding: 10px 12px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.cardHomework:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* Icon + time/type row */
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.cardIconWebinar {
+  color: #b59a00;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cardIconHomework {
+  color: #e91e7a;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Right side of header: time on top, type below */
+.cardHeaderMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cardTime {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #1d2939;
+  line-height: 1.2;
+}
+
+.cardTypeWebinar {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #b59a00;
+}
+
+.cardTypeHomework {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #e91e7a;
+}
+
+.cardTitle {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #1d2939;
+  line-height: 1.3;
+}
+
+.cardCourse {
+  font-size: 0.75rem;
+  color: #e91e7a;
+  font-weight: 400;
+}
+
+.cardWebinar .cardCourse {
+  color: #b59a00;
+}

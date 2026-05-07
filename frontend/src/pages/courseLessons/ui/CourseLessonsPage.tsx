@@ -198,7 +198,7 @@ export default function CourseLessonsPage() {
   const attemptQueries = useQueries({
     queries: homeworkSlugs.map((homeworkSlug) => ({
       queryKey: courseKeys.homeworkAttempt(homeworkSlug),
-      queryFn: () => courseApi.getHomeworkAttempt(homeworkSlug),
+      queryFn: () => courseApi.getHomeworkAttempt(slug ?? '', homeworkSlug),
       staleTime: 30_000,
     })),
   });

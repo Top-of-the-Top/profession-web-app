@@ -16,7 +16,17 @@ from apps.notifications.tasks import (
     send_single_email,
     send_mass_system_email,
 )
-from .api.utils.cache_utils import invalidate_lesson_detail_cache, invalidate_user_role_cache
+from .api.utils.cache_utils import (
+    course_list_cache_key,
+    invalidate_lesson_detail_cache,
+    invalidate_on_course_model_change,
+    invalidate_on_homework_tree_change,
+    invalidate_on_lesson_model_change,
+    invalidate_on_section_model_change,
+    invalidate_student_homework_list_cache,
+    invalidate_user_role_cache,
+    purchased_courses_cache_key,
+)
 from apps.webinars.models import Webinar, Recording
 from .models import (
     DEFAULT_COURSE_IMAGE,
@@ -96,6 +106,15 @@ def track_homework_changes(sender, instance, **kwargs):
         instance._old_deadline = old.deadline
     except Homework.DoesNotExist:
         pass
+
+
+@receiver((post_save, post_delete), sender=Homework)
+def invalidate_student_cache_on_homework_change(sender, instance, **kwargs):
+    lesson = instance.lesson
+    section = lesson.section
+    if section is None:
+        return
+    invalidate_student_homework_list_cache(lesson.slug, section.course.slug)
 
 
 @receiver(post_save, sender=Homework)
@@ -203,14 +222,6 @@ def get_reminder_task_id_for_lesson(lesson_id, reminder_type, task_type):
     return str(int(hashlib.md5(unique_key.encode()).hexdigest(), 16) % (10 ** 15))
 
 
-from .api.utils.cache_utils import (
-    course_list_cache_key,
-    invalidate_on_course_model_change,
-    invalidate_on_homework_tree_change,
-    invalidate_on_lesson_model_change,
-    invalidate_on_section_model_change,
-    purchased_courses_cache_key,
-)
 
 
 @receiver((pre_save, pre_delete), sender=Course)
@@ -254,6 +265,16 @@ def invalidate_cold_task_cache(sender, instance, **kwargs):
     invalidate_on_homework_tree_change(course_slug, lesson.slug, hw.slug)
 
 
+@receiver(post_save, sender=Task)
+def recalc_homework_max_points_on_task_save(sender, instance, **kwargs):
+    instance.homework.recalc_max_points()
+
+
+@receiver(post_delete, sender=Task)
+def recalc_homework_max_points_on_task_delete(sender, instance, **kwargs):
+    instance.homework.recalc_max_points()
+
+
 @receiver((pre_save, pre_delete), sender=Question)
 def invalidate_cold_question_cache(sender, instance, **kwargs):
     hw = instance.homework
@@ -263,6 +284,16 @@ def invalidate_cold_question_cache(sender, instance, **kwargs):
         return
     course_slug = section.course.slug
     invalidate_on_homework_tree_change(course_slug, lesson.slug, hw.slug)
+
+
+@receiver(post_save, sender=Question)
+def recalc_homework_max_points_on_question_save(sender, instance, **kwargs):
+    instance.homework.recalc_max_points()
+
+
+@receiver(post_delete, sender=Question)
+def recalc_homework_max_points_on_question_delete(sender, instance, **kwargs):
+    instance.homework.recalc_max_points()
 
 
 @receiver((pre_save, pre_delete), sender=PurchasedCourse)

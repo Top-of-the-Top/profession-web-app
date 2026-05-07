@@ -17,12 +17,13 @@
 }
 .topbar {
   height: 70px;
-  background: white;
+  background: var(--profession-white-bg);
   display: flex;
   align-items: center;
   padding: 0 20px 0 15px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  z-index: 10;
+	border-bottom: 2px solid #E5E5E5;
+  z-index: 30;
   flex-shrink: 0;
 	justify-content: space-between;
 }
@@ -83,7 +84,7 @@
   min-height: 0;
   overflow-y: auto;
   box-sizing: border-box;
-  background-color: #e2e8f0;
+  background-color: var(--profession-blue-bg);
   display: flex;
   flex-direction: column;
 	scrollbar-gutter: stable;
@@ -133,7 +134,7 @@
   border-right: 1px solid #E6E6E6;
   display: flex;
   flex-direction: column;
-  background-color: white;
+  background-color: var(--profession-white-bg);
   overflow-y: visible;
   overflow-x: visible;
   z-index: 20;
@@ -174,11 +175,12 @@
   align-items: center;
   padding: 0 !important;
   background-color: #f8fafc !important;
-  border-radius: 12px;
+  border-radius: 8px;
   transition: background-color 0.2s ease, transform 0.2s ease, filter 0.2s ease;
 }
 .navIcon {
   width: 25px;
+	color: var(--profession-black-primary);
   height: 25px;
 }
 
@@ -193,7 +195,7 @@
   justify-content: center;
   align-items: center;
   text-decoration: none;
-  border-radius: var(--radius-md, 8px);
+  border-radius: 4px;
   width: 100%;
   min-height: 50px;
 }
@@ -252,7 +254,7 @@
 .navLink:not(.navLinkActive):hover .navButton,
 .navLink:not(.navLinkActive):focus-visible .navButton,
 .navLink:not(.navLinkActive):focus-within .navButton {
-  background-color: #eef2ff !important;
+  background-color: var(--profession-white-block) !important;
   filter: brightness(1.06);
 }
 

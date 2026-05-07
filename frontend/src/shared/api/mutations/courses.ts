@@ -13,6 +13,7 @@ import {
   type LessonCreatePayload,
   type LessonPatchPayload,
   type SubmitHomeworkAttemptPayload,
+  type ReviewHomeworkAttemptPayload,
   type QuestionCreatePayload,
   type SectionCreatePayload,
   type SectionPatchPayload,
@@ -692,21 +693,54 @@ export function useDeleteHomework(
   });
 }
 
-export function useSubmitHomeworkAttempt(homeworkSlug: string) {
+export function useSubmitHomeworkAttempt(
+  courseSlug: string,
+  homeworkSlug: string,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: SubmitHomeworkAttemptPayload) =>
-      courseApi.submitHomeworkAttempt(homeworkSlug, payload),
+      courseApi.submitHomeworkAttempt(courseSlug, homeworkSlug, payload),
     onSuccess: () => {
       notifySuccess({ title: 'Домашнее задание отправлено' });
       void qc.invalidateQueries({
         queryKey: courseKeys.homeworkAttempt(homeworkSlug),
+      });
+      void qc.invalidateQueries({
+        queryKey: courseKeys.homeworkAttemptsByCourse(courseSlug),
       });
       void qc.invalidateQueries({ queryKey: courseKeys.all });
     },
     onError: (err) => {
       notifyError({
         title: 'Не удалось отправить домашнее задание',
+        description: errMsg(err),
+      });
+    },
+  });
+}
+
+export function useReviewHomeworkAttempt(
+  courseSlug: string,
+  attemptId: string,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ReviewHomeworkAttemptPayload) =>
+      courseApi.reviewHomeworkAttempt(courseSlug, attemptId, payload),
+    onSuccess: () => {
+      notifySuccess({ title: 'Проверка сохранена' });
+      void qc.invalidateQueries({
+        queryKey: courseKeys.homeworkAttemptReview(courseSlug, attemptId),
+      });
+      void qc.invalidateQueries({
+        queryKey: courseKeys.homeworkAttemptsByCourse(courseSlug),
+      });
+      void qc.invalidateQueries({ queryKey: courseKeys.all });
+    },
+    onError: (err) => {
+      notifyError({
+        title: 'Не удалось сохранить проверку',
         description: errMsg(err),
       });
     },

@@ -5,7 +5,7 @@ import { useLessonBySlug } from '@shared/api/queries/courses';
 import { useSaveLessonContent } from '@shared/api/mutations/courses';
 import { CourseBuilder, useLessonBuilderStore } from '../../../features/course-builder';
 import type { SubmitPayload } from '../../../features/course-builder';
-import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
+import { parseLessonLayoutFromContentString, normalizeLessonLayoutForEditor } from '../../../features/course-builder/model/types';
 import styles from './LessonEditPage.module.css';
 
 export default function LessonEditPage() {
@@ -23,6 +23,7 @@ export default function LessonEditPage() {
   const saveMutation = useSaveLessonContent(courseSlug ?? '', lessonSlug ?? '');
   const [initialized, setInitialized] = useState(false);
   const [savedRevision, setSavedRevision] = useState(0);
+  const [initialLessonSignature, setInitialLessonSignature] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setInitialized(false);
@@ -31,7 +32,9 @@ export default function LessonEditPage() {
   useEffect(() => {
     if (!lessonDetail || initialized) return;
     try {
-      const layout = parseLessonLayoutFromContentString(lessonDetail.document);
+      const layout = normalizeLessonLayoutForEditor(
+        parseLessonLayoutFromContentString(lessonDetail.document),
+      );
       useLessonBuilderStore.getState().initialize(layout);
     } catch {
       useLessonBuilderStore.getState().initialize({
@@ -40,6 +43,10 @@ export default function LessonEditPage() {
         blocks: [],
       });
     }
+    const { layout, pendingUploads } = useLessonBuilderStore.getState();
+    setInitialLessonSignature(
+      JSON.stringify({ lesson: layout, pendingUploadIds: Object.keys(pendingUploads).sort() }),
+    );
     setInitialized(true);
   }, [lessonDetail, initialized]);
 
@@ -93,6 +100,7 @@ export default function LessonEditPage() {
         onSave={handleSave}
         saving={saveMutation.isPending}
         savedRevision={savedRevision}
+        initialLessonSignature={initialLessonSignature}
       />
     </PageFrame>
   );

@@ -19,11 +19,16 @@ const importMap = {
   lessonView: () => import('@pages/lessonView/ui/LessonViewPage'),
   homeworkSubmission: () =>
     import('@pages/homeworkSubmission/ui/HomeworkSubmissionPage'),
+  homeworkReview: () => import('@pages/homeworkReview/ui/HomeworkReviewPage'),
+  homeworkReviewAttempts: () =>
+    import('@pages/homeworkReviewAttempts/ui/HomeworkReviewAttemptsPage'),
   lessonEdit: () => import('@pages/lessonEdit/ui/LessonEditPage'),
   cart: () => import('@pages/cart/Cart'),
   lessonPreview: () => import('@pages/lessonPreview/ui/LessonPreviewPage'),
   webinar: () => import('@pages/webinar/ui/WebinarPage'),
   webinarRecord: () => import('@pages/webinarRecord/ui/WebinarRecordPage'),
+  myHomeworks: () => import('@pages/myHomeworks/ui/MyHomeworksPage'),
+  schedule: () => import('@pages/schedule/ui/SchedulePage'),
 };
 
 export const LandingPage = lazy(importMap.landing);
@@ -43,11 +48,15 @@ export const CoursePreviewPage = lazy(importMap.coursePreview);
 export const CourseLessonsPage = lazy(importMap.courseLessons);
 export const LessonViewPage = lazy(importMap.lessonView);
 export const HomeworkSubmissionPage = lazy(importMap.homeworkSubmission);
+export const HomeworkReviewPage = lazy(importMap.homeworkReview);
+export const HomeworkReviewAttemptsPage = lazy(importMap.homeworkReviewAttempts);
 export const LessonEditPage = lazy(importMap.lessonEdit);
 export const CartPage = lazy(importMap.cart);
 export const LessonPreviewPage = lazy(importMap.lessonPreview);
 export const WebinarPage = lazy(importMap.webinar);
 export const WebinarRecordPage = lazy(importMap.webinarRecord);
+export const MyHomeworksPage = lazy(importMap.myHomeworks);
+export const SchedulePage = lazy(importMap.schedule);
 
 export function runWhenIdle(fn: () => void, timeoutMs = 2500): void {
   if (typeof requestIdleCallback === 'function') {
@@ -88,6 +97,10 @@ export function prefetchAppSidebarHref(href: string): void {
   }
   if (href === '/app/store') {
     void importMap.courseStore();
+    return;
+  }
+  if (href === '/app/schedule') {
+    void importMap.schedule();
     return;
   }
 }

@@ -21,3 +21,9 @@ body {
   color: var(--color-foreground, #000000);
 	
 }
+
+[data-sileo-viewport] [data-sileo-description],
+[data-sileo-viewport][data-theme='light'] [data-sileo-description],
+[data-sileo-viewport][data-theme='dark'] [data-sileo-description] {
+  color: #344054;
+}

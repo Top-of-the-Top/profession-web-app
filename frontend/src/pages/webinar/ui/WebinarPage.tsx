@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { XIcon } from 'lucide-react';
@@ -16,8 +16,10 @@ import {
   VideoGrid,
   WhiteboardPanel,
   WebinarControls,
+  WebinarChat,
   connectWebinarSSE,
   useMediaControls,
+  useWebinarChat,
   buildRtcUidLabelMap,
   type WhiteboardPanelHandle,
 } from '../../../features/webinar';
@@ -36,16 +38,34 @@ export default function WebinarPage() {
   const { data: session, isLoading, isError } = joinQuery;
   const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
 
-  const rtcUidToLabel = useMemo(() => {
-    if (!session) return undefined;
-    return buildRtcUidLabelMap({
-      uid: session.uid,
-      userName: session.user_name,
-      includeRecorderSlot: true,
-    });
+  const [rtcUidToLabel, setRtcUidToLabel] = useState<Record<number, string> | undefined>(undefined);
+  useEffect(() => {
+    if (!session) return;
+    setRtcUidToLabel(
+      buildRtcUidLabelMap({ uid: session.uid, userName: session.user_name, includeRecorderSlot: true }),
+    );
   }, [session]);
 
+  const handlePeerLabel = useCallback((rtcUid: number, label: string) => {
+    setRtcUidToLabel((prev) => {
+      if (prev?.[rtcUid] === label) return prev;
+      return { ...prev, [rtcUid]: label };
+    });
+  }, []);
+
   const { micOn, cameraOn, toggleMic, toggleCamera } = useMediaControls();
+
+  const { messages: chatMessages, sendMessage } = useWebinarChat({
+    appId: session?.agora_app_id ?? '',
+    rtmToken: session?.rtm_token ?? '',
+    chatChannelName: session?.chat_channel_name ?? '',
+    uid: session?.uid ?? 0,
+    userName: session?.user_name ?? '',
+    onPeerLabel: handlePeerLabel,
+  });
+
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const handleToggleChat = useCallback(() => setIsChatOpen((v) => !v), []);
 
   const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null);
   const [recorderBotInChannel, setRecorderBotInChannel] = useState(false);
@@ -396,13 +416,22 @@ export default function WebinarPage() {
             onRecorderChannelPresence={handleRecorderChannelPresence}
             micOn={micOn}
             cameraOn={cameraOn}
-          />
+          >
+            {isChatOpen && (
+              <WebinarChat
+                messages={chatMessages}
+                uid={session.uid}
+                sendMessage={sendMessage}
+              />
+            )}
+          </VideoGrid>
         </div>
       </div>
 
       <WebinarControls
         micOn={micOn}
         cameraOn={cameraOn}
+        isChatOpen={isChatOpen}
         canManageWebinar={canManageWebinar}
         teacherRecordingLive={teacherRecordingLive}
         studentRecordingVisible={studentRecordingVisible}
@@ -417,6 +446,7 @@ export default function WebinarPage() {
         }
         onToggleMic={toggleMic}
         onToggleCamera={toggleCamera}
+        onToggleChat={handleToggleChat}
         onStartRecording={handleStartRecording}
         onStopRecording={handleStopRecording}
         onLeave={handleLeave}

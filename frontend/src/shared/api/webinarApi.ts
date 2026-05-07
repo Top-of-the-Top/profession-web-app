@@ -13,6 +13,8 @@ export interface WebinarJoinResponse {
   whiteboard_room_token: string;
   whiteboard_region: string;
   role: WebinarRole;
+  rtm_token: string;
+  chat_channel_name: string;
   webinar_id?: string;
 }
 

@@ -21,6 +21,7 @@ interface VideoGridBaseProps {
   uid: number;
   rtcUidToLabel?: Record<number, string>;
   onRecorderChannelPresence?: (present: boolean) => void;
+  children?: ReactNode;
 }
 
 interface VideoGridPublisherProps extends VideoGridBaseProps {
@@ -172,6 +173,7 @@ function PublisherInner({
   onRecorderChannelPresence,
   micOn,
   cameraOn,
+  children,
 }: PublisherInnerProps) {
   // Memoize so useJoin doesn't see a new object every render and re-join.
   const joinOptions = useMemo(
@@ -287,6 +289,7 @@ function PublisherInner({
           name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
         />
       ))}
+      {children}
     </div>
   );
 }
@@ -430,7 +433,9 @@ export function VideoGrid(props: VideoGridProps) {
           onRecorderChannelPresence={props.onRecorderChannelPresence}
           micOn={props.micOn}
           cameraOn={props.cameraOn}
-        />
+        >
+          {props.children}
+        </PublisherInner>
       )}
     </AgoraRTCProvider>
   );

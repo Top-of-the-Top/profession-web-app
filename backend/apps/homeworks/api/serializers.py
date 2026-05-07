@@ -61,6 +61,7 @@ class QuestionAttemptItemSerializer(serializers.Serializer):
     number = serializers.IntegerField(source='question.question_number', read_only=True)
     text = serializers.CharField(source='question.text', read_only=True)
     answer_options = serializers.JSONField(source='question.answer_options', read_only=True)
+    correct_ans = serializers.CharField(source='question.correct_ans', read_only=True, allow_null=True)
     user_answer = serializers.CharField(read_only=True, allow_null=True)
     max_points = serializers.IntegerField(source='question.max_points', read_only=True)
 
@@ -71,6 +72,34 @@ class QuestionAttemptItemSerializer(serializers.Serializer):
         return obj.status or NOT_REVIEWED_LABEL
 
 
+class ReviewerSerializer(serializers.Serializer):
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+    avatar_url = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_avatar_url(self, obj):
+        profile = getattr(obj, 'profile', None)
+        if profile is None:
+            return None
+        return profile.avatar_url or None
+
+
+class TaskReviewReadSerializer(serializers.Serializer):
+    task_review_id = serializers.UUIDField(read_only=True)
+    points = serializers.IntegerField(read_only=True)
+    comment = serializers.CharField(read_only=True, allow_null=True)
+    reviewer = serializers.SerializerMethodField()
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    @extend_schema_field(ReviewerSerializer(allow_null=True))
+    def get_reviewer(self, obj):
+        if obj.reviewer is None:
+            return None
+        return ReviewerSerializer(obj.reviewer).data
+
+
 class TaskAttemptItemSerializer(serializers.Serializer):
     type = serializers.SerializerMethodField()
     task_id = serializers.UUIDField(source='task.task_id', read_only=True)
@@ -79,9 +108,8 @@ class TaskAttemptItemSerializer(serializers.Serializer):
     number = serializers.IntegerField(source='task.task_number', read_only=True)
     text = serializers.CharField(source='task.text', read_only=True)
     user_answer = serializers.CharField(read_only=True, allow_null=True)
-    points = serializers.SerializerMethodField()
     max_points = serializers.IntegerField(source='task.max_points', read_only=True)
-    teacher_comment = serializers.SerializerMethodField()
+    review = serializers.SerializerMethodField()
     file_attachments = serializers.SerializerMethodField()
 
     def get_type(self, obj):
@@ -90,11 +118,13 @@ class TaskAttemptItemSerializer(serializers.Serializer):
     def get_status(self, obj):
         return obj.status or NOT_REVIEWED_LABEL
 
-    def get_points(self, obj):
-        return getattr(obj, 'points', None)
-
-    def get_teacher_comment(self, obj):
-        return getattr(obj, 'teacher_comment', None)
+    @extend_schema_field(TaskReviewReadSerializer(allow_null=True))
+    def get_review(self, obj):
+        try:
+            review = obj.review
+        except AttributeError:
+            return None
+        return TaskReviewReadSerializer(review).data
 
     @extend_schema_field(FileAttachmentSerializer(many=True))
     def get_file_attachments(self, obj):
@@ -113,7 +143,7 @@ class AttemptSerializer(serializers.ModelSerializer):
     homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
     deadline = serializers.DateTimeField(source='homework.deadline', read_only=True)
     score = serializers.IntegerField(source='grade', read_only=True, allow_null=True)
-    max_points = serializers.SerializerMethodField()
+    max_points = serializers.IntegerField(source='homework.max_points', read_only=True)
     items = serializers.SerializerMethodField()
 
     class Meta:
@@ -129,16 +159,6 @@ class AttemptSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
-    def get_max_points(self, obj):
-        homework = obj.homework
-        questions_total = sum(
-            q.max_points for q in homework.question_set.all()
-        )
-        tasks_total = sum(
-            t.max_points for t in homework.task_set.all()
-        )
-        return questions_total + tasks_total
-
     @extend_schema_field(PolymorphicProxySerializer(
         component_name='AttemptItem',
         resource_type_field_name='type',
@@ -149,7 +169,7 @@ class AttemptSerializer(serializers.ModelSerializer):
         many=True,
     ))
     def get_items(self, obj):
-        task_answers = list(obj.task_answers.select_related('task').all())
+        task_answers = list(obj.task_answers.select_related('task', 'review', 'review__reviewer', 'review__reviewer__profile').all())
 
         request = self.context.get('request')
         viewer = getattr(request, 'user', None) if request is not None else None
@@ -174,35 +194,59 @@ class AttemptSerializer(serializers.ModelSerializer):
         return items
 
 
-class AttemptListSerializer(serializers.ModelSerializer):
-  homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
-  homework_slug = serializers.SlugField(source='homework.slug', read_only=True)
-  deadline = serializers.DateTimeField(source='homework.deadline', read_only=True)
-  score = serializers.IntegerField(source='grade', read_only=True, allow_null=True)
-  max_points = serializers.SerializerMethodField()
+class MyAttemptSerializer(serializers.Serializer):
+    attempt_id = serializers.UUIDField(allow_null=True)
+    status = serializers.CharField()
+    homework_id = serializers.UUIDField()
+    homework_slug = serializers.SlugField()
+    homework_title = serializers.CharField()
+    deadline = serializers.DateTimeField(allow_null=True)
+    course_slug = serializers.SlugField()
+    course_title = serializers.CharField()
+    lesson_slug = serializers.SlugField()
+    lesson_title = serializers.CharField()
+    grade = serializers.IntegerField(allow_null=True)
+    max_points = serializers.IntegerField()
+    send_at = serializers.DateTimeField(allow_null=True)
 
-  class Meta:
-    model = Attempt
-    fields = (
-      'attempt_id',
-      'homework_id',
-      'deadline',
-      'homework_slug',
-      'status',
-      'send_at',
-      'score',
-      'max_points',
-    )
 
-  def get_max_points(self, obj):
-    homework = obj.homework
-    questions_total = sum(
-      q.max_points for q in homework.question_set.all()
+class StudentAttemptSerializer(serializers.ModelSerializer):
+    homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
+    homework_slug = serializers.SlugField(source='homework.slug', read_only=True)
+    homework_title = serializers.CharField(source='homework.title', read_only=True)
+    max_points = serializers.IntegerField(source='homework.max_points', read_only=True)
+    course_slug = serializers.SlugField(
+        source='homework.lesson.section.course.slug', read_only=True,
     )
-    tasks_total = sum(
-      t.max_points for t in homework.task_set.all()
+    lesson_slug = serializers.SlugField(
+        source='homework.lesson.slug', read_only=True,
     )
-    return questions_total + tasks_total
+    student = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Attempt
+        fields = (
+            'attempt_id',
+            'status',
+            'homework_id',
+            'homework_slug',
+            'homework_title',
+            'course_slug',
+            'lesson_slug',
+            'grade',
+            'send_at',
+            'max_points',
+            'student',
+        )
+
+    def get_student(self, obj):
+        user = obj.user
+        return {
+            'user_id': str(user.id),
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+        }
 
 class SubmitQuestionItemSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=['question'])
@@ -264,17 +308,20 @@ class AttemptSubmitSerializer(serializers.Serializer):
     items = serializers.ListField(child=SubmitItemField(), allow_empty=False)
 
 
-class ErrorDetailItemSerializer(serializers.Serializer):
-    number = serializers.IntegerField()
-    issue = serializers.CharField()
+class TaskReviewItemSerializer(serializers.Serializer):
+    task_answer_id = serializers.UUIDField()
+    points = serializers.IntegerField(min_value=0)
+    comment = serializers.CharField(
+        max_length=1500, allow_blank=True, allow_null=True, required=False, default=None
+    )
 
-
-class ErrorDetailsSerializer(serializers.Serializer):
-    items = ErrorDetailItemSerializer(many=True, required=False)
+class AttemptReviewSerializer(serializers.Serializer):
+    attempt_id = serializers.UUIDField()
+    items = serializers.ListField(child=TaskReviewItemSerializer(), allow_empty=False)
 
 
 class ErrorResponseSerializer(serializers.Serializer):
     status = serializers.CharField(default='error')
     code = serializers.CharField()
     message = serializers.CharField()
-    details = ErrorDetailsSerializer(required=False)
+    details = serializers.DictField(default=dict)

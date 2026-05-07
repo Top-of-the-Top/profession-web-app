@@ -4,6 +4,7 @@ import {
   normalizeCourseHomeResponse,
   normalizeCoursesResponse,
   normalizeHomeworkAttempt,
+  normalizeHomeworkAttemptsList,
   normalizeLessonDetailRead,
   normalizeMyCoursesList,
 } from './normalizers';
@@ -15,12 +16,14 @@ import type {
   CourseLessonDetail,
   CoursePatchPayload,
   HomeworkAttempt,
+  HomeworkAttemptListItem,
   HomeworkCreatePayload,
   HomeworkDetail,
   HomeworkPatchPayload,
   Lesson,
   LessonCreatePayload,
   LessonPatchPayload,
+  MyHomeworksResponse,
   QuestionCreatePayload,
   QuestionPatchPayload,
   RawCourseBySlugResponse,
@@ -31,6 +34,7 @@ import type {
   SectionCreatePayload,
   SectionPatchPayload,
   SectionRecord,
+  ReviewHomeworkAttemptPayload,
   SubmitHomeworkAttemptPayload,
   TaskCreatePayload,
   TaskPatchPayload,
@@ -174,6 +178,19 @@ export const courseApi = {
     return courseApi.getMyCourses();
   },
 
+  getMyHomeworks(params: {
+    courseSlug?: string;
+    lessonSlug?: string;
+  }): Promise<MyHomeworksResponse> {
+    const query = new URLSearchParams();
+    if (params.courseSlug) query.set('course_slug', params.courseSlug);
+    if (params.lessonSlug) query.set('lesson_slug', params.lessonSlug);
+    return apiClient.request<MyHomeworksResponse>(
+      `/api/my-homeworks/?${query.toString()}`,
+      { method: 'GET' },
+    );
+  },
+
   createHomework(
     courseSlug: string,
     lessonSlug: string,
@@ -196,23 +213,68 @@ export const courseApi = {
     );
   },
 
-  getHomeworkAttempt(homeworkSlug: string): Promise<HomeworkAttempt> {
+  getHomeworkAttempt(
+    courseSlug: string,
+    homeworkSlug: string,
+  ): Promise<HomeworkAttempt> {
     return apiClient
-      .request<RawHomeworkAttempt>(`/api/homeworks/${homeworkSlug}/attempt/`, {
+      .request<RawHomeworkAttempt>(
+        `/api/courses/${courseSlug}/homeworks/${homeworkSlug}/attempt/`,
+        {
+          method: 'GET',
+        },
+      )
+      .then(normalizeHomeworkAttempt);
+  },
+
+  submitHomeworkAttempt(
+    courseSlug: string,
+    homeworkSlug: string,
+    payload: SubmitHomeworkAttemptPayload,
+  ): Promise<HomeworkAttempt> {
+    return apiClient
+      .request<RawHomeworkAttempt>(
+        `/api/courses/${courseSlug}/homeworks/${homeworkSlug}/attempt/submit/`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        },
+      )
+      .then(normalizeHomeworkAttempt);
+  },
+
+  getHomeworkAttemptsByCourse(courseSlug: string): Promise<HomeworkAttemptListItem[]> {
+    return apiClient
+      .request<unknown>(`/api/courses/${courseSlug}/attempts/`, {
+        method: 'GET',
+      })
+      .then(normalizeHomeworkAttemptsList);
+  },
+
+  getHomeworkAttemptForReview(
+    courseSlug: string,
+    attemptId: string,
+  ): Promise<HomeworkAttempt> {
+    return apiClient
+      .request<RawHomeworkAttempt>(`/api/courses/${courseSlug}/attempts/${attemptId}/`, {
         method: 'GET',
       })
       .then(normalizeHomeworkAttempt);
   },
 
-  submitHomeworkAttempt(
-    homeworkSlug: string,
-    payload: SubmitHomeworkAttemptPayload,
+  reviewHomeworkAttempt(
+    courseSlug: string,
+    attemptId: string,
+    payload: ReviewHomeworkAttemptPayload,
   ): Promise<HomeworkAttempt> {
     return apiClient
-      .request<RawHomeworkAttempt>(`/api/homeworks/${homeworkSlug}/attempt/submit`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      })
+      .request<RawHomeworkAttempt>(
+        `/api/courses/${courseSlug}/attempts/${attemptId}/review/`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        },
+      )
       .then(normalizeHomeworkAttempt);
   },
 

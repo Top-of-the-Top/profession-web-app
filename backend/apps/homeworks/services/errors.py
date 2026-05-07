@@ -36,13 +36,39 @@ class AttemptValidationError(HomeworkServiceError):
     status = status.HTTP_400_BAD_REQUEST
 
 
-class UploadFileTooLarge(HomeworkServiceError):
-    code = 'FILE_TOO_LARGE'
-    message = 'Файл больше 10 МБ.'
-    status = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+
+class AttemptNotSubmitted(HomeworkServiceError):
+    code = 'ATTEMPT_NOT_SUBMITTED'
+    message = 'Попытка ещё не отправлена на проверку.'
+    status = status.HTTP_409_CONFLICT
 
 
-class StorageUnavailable(HomeworkServiceError):
-    code = 'STORAGE_ERROR'
-    message = 'Не удалось связаться с облачным хранилищем.'
-    status = status.HTTP_503_SERVICE_UNAVAILABLE
+class ReviewItemNotFound(HomeworkServiceError):
+    code = 'REVIEW_ITEM_NOT_FOUND'
+    message = 'Ответ на задание не найден в данной попытке.'
+    status = status.HTTP_400_BAD_REQUEST
+
+
+class ReviewPointsExceeded(HomeworkServiceError):
+    code = 'REVIEW_POINTS_EXCEEDED'
+    message = 'Выставленные баллы превышают максимум за задание.'
+    status = status.HTTP_400_BAD_REQUEST
+
+
+class RequestValidationError(HomeworkServiceError):
+    code = 'VALIDATION_ERROR'
+    status = status.HTTP_400_BAD_REQUEST
+
+    def __init__(self, detail):
+        super().__init__(message=self._extract(detail))
+
+    @staticmethod
+    def _extract(detail):
+        if isinstance(detail, list):
+            return RequestValidationError._extract(detail[0]) if detail else 'Неверный запрос.'
+        if isinstance(detail, dict):
+            first = next(iter(detail.values()), None)
+            return RequestValidationError._extract(first) if first is not None else 'Неверный запрос.'
+        return str(detail)
+
+

@@ -28,6 +28,8 @@ import {
   type HomeworkQuestionType,
   type HomeworkOption,
   HOMEWORK_FILE_TASK_TEXT_PREFIX,
+  validateHomeworkLayout,
+  isHomeworkValid,
 } from '../../model/homeworkTypes';
 import type {
   CourseContentType,
@@ -76,40 +78,15 @@ function mapHomeworkDetailToLayout(
         text,
         isCorrect: item.correct_ans === text,
       }));
-      return {
-        id: item.id,
-        type: 'single',
-        title: item.text,
-        score: item.max_points ?? 0,
-        options,
-      };
+      return { id: item.id, type: 'single', title: item.text, score: item.max_points ?? 0, options };
     }
     const taskText = item.text;
     if (taskText.startsWith(HOMEWORK_FILE_TASK_TEXT_PREFIX)) {
-      const body = taskText.slice(HOMEWORK_FILE_TASK_TEXT_PREFIX.length);
-      return {
-        id: item.id,
-        type: 'file',
-        title: '',
-        description: body,
-        score: item.max_points ?? 0,
-      };
+      return { id: item.id, type: 'file', title: '', description: taskText.slice(HOMEWORK_FILE_TASK_TEXT_PREFIX.length), score: item.max_points ?? 0 };
     }
-    return {
-      id: item.id,
-      type: 'text',
-      title: taskText,
-      description: '',
-      score: item.max_points ?? 0,
-    };
+    return { id: item.id, type: 'text', title: taskText, description: '', score: item.max_points ?? 0 };
   });
-
-  return {
-    lessonId,
-    title: detail.title,
-    deadline: toDatetimeLocalValue(detail.deadline),
-    questions,
-  };
+  return { lessonId, title: detail.title, deadline: toDatetimeLocalValue(detail.deadline), questions };
 }
 
 function mapLayoutToPayload(
@@ -117,52 +94,30 @@ function mapLayoutToPayload(
   targetType: CourseContentType,
 ): CreateHomeworkWithItemsPayload {
   const items: CreateHomeworkWithItemsPayload['items'] = [];
-
   for (const q of layout.questions) {
     if (q.type === 'single') {
       const correctOpt = q.options.find((o) => o.isCorrect);
-      items.push({
-        kind: 'question',
-        payload: {
-          text: q.title,
-          answer_options: q.options.map((o) => o.text),
-          correct_ans: correctOpt?.text ?? null,
-        },
-      });
+      items.push({ kind: 'question', payload: { text: q.title, answer_options: q.options.map((o) => o.text), correct_ans: correctOpt?.text ?? null } });
     } else if (q.type === 'file') {
-      const body =
-        q.title ||
-        (q as Extract<HomeworkQuestion, { type: 'file' }>).description;
+      const body = q.title || (q as Extract<HomeworkQuestion, { type: 'file' }>).description;
       const marked = `${HOMEWORK_FILE_TASK_TEXT_PREFIX}${body}`;
-      items.push({
-        kind: 'task',
-        payload: {
-          text: marked.length > 200 ? marked.slice(0, 200) : marked,
-          max_points: q.score,
-        },
-      });
+      items.push({ kind: 'task', payload: { text: marked.length > 200 ? marked.slice(0, 200) : marked, max_points: q.score } });
     } else {
-      const body =
-        q.title ||
-        (q as Extract<HomeworkQuestion, { type: 'text' }>).description;
-      items.push({
-        kind: 'task',
-        payload: {
-          text: body.length > 200 ? body.slice(0, 200) : body,
-          max_points: q.score,
-        },
-      });
+      const body = q.title || (q as Extract<HomeworkQuestion, { type: 'text' }>).description;
+      items.push({ kind: 'task', payload: { text: body.length > 200 ? body.slice(0, 200) : body, max_points: q.score } });
     }
   }
-
   return {
-    homework: {
-      title: layout.title,
-      deadline: new Date(layout.deadline).toISOString(),
-      type: targetType,
-    },
+    homework: { title: layout.title, deadline: layout.deadline ? new Date(layout.deadline).toISOString() : '', type: targetType },
     items,
   };
+}
+
+// per-question touched fields
+interface QuestionTouched {
+  title: boolean;
+  score: boolean;
+  correct: boolean;
 }
 
 export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
@@ -192,11 +147,16 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
   const [initializedForSlug, setInitializedForSlug] = useState<string | null>(null);
   const [pendingSlug, setPendingSlug] = useState<string | null>(null);
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
-  // ids of questions that failed validation — used for inline highlighting
-  const [invalidIds, setInvalidIds] = useState<Set<string>>(new Set());
-  const [titleInvalid, setTitleInvalid] = useState(false);
-  const [noQuestionsError, setNoQuestionsError] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  // sidebar field touched state
+  const [titleTouched, setTitleTouched] = useState(false);
+  const [deadlineTouched, setDeadlineTouched] = useState(false);
+  // per-question touched map
+  const [questionTouched, setQuestionTouched] = useState<Record<string, QuestionTouched>>({});
+
+  const errors = useMemo(() => validateHomeworkLayout(layout), [layout]);
+
   const createMutation = useCreateHomeworkWithItems(courseSlug, lessonSlug);
   const deleteMutation = useDeleteHomework(courseSlug, lessonSlug);
   const selectedHomeworkQuery = useHomeworkDetail(
@@ -206,235 +166,148 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
     { editorMode: true },
   );
   const switchItems = useMemo(
-    () => lessonHomeworks.map((hw) => ({
-      slug: hw.homework_slug,
-      title: hw.title || hw.homework_slug,
-      type: hw.type,
-    })),
+    () => lessonHomeworks.map((hw) => ({ slug: hw.homework_slug, title: hw.title || hw.homework_slug, type: hw.type })),
     [lessonHomeworks],
   );
 
   useEffect(() => {
     setSelectedHomeworkSlug((current) => {
-      if (current !== 'new' && lessonHomeworks.some((h) => h.homework_slug === current)) {
-        return current;
-      }
+      if (current !== 'new' && lessonHomeworks.some((h) => h.homework_slug === current)) return current;
       if (lessonHomeworks.length === 0) return 'new';
       return lessonHomeworks[0].homework_slug;
     });
   }, [lessonHomeworks]);
 
-  // Reset initializedForSlug whenever the user picks a different HW
   useEffect(() => {
     setInitializedForSlug(null);
-    setInvalidIds(new Set());
-    setTitleInvalid(false);
-    setNoQuestionsError(false);
+    setTitleTouched(false);
+    setDeadlineTouched(false);
+    setQuestionTouched({});
   }, [selectedHomeworkSlug]);
 
-  // Init the store exactly once per slug selection — never on refetch
   useEffect(() => {
     if (initializedForSlug === selectedHomeworkSlug) return;
-
     if (selectedHomeworkSlug === 'new') {
-      initHomework(`${courseSlug}/${lessonSlug}`, {
-        lessonId: `${courseSlug}/${lessonSlug}`,
-        title: '',
-        deadline: '',
-        questions: [],
-      });
+      initHomework(`${courseSlug}/${lessonSlug}`, { lessonId: `${courseSlug}/${lessonSlug}`, title: '', deadline: '', questions: [] });
       setInitializedForSlug('new');
       setTimeout(() => onInitialized?.(), 0);
       return;
     }
-
     if (!selectedHomeworkQuery.data) return;
-    initHomework(
-      `${courseSlug}/${lessonSlug}`,
-      mapHomeworkDetailToLayout(selectedHomeworkQuery.data, `${courseSlug}/${lessonSlug}`),
-    );
+    initHomework(`${courseSlug}/${lessonSlug}`, mapHomeworkDetailToLayout(selectedHomeworkQuery.data, `${courseSlug}/${lessonSlug}`));
     setInitializedForSlug(selectedHomeworkSlug);
     setTimeout(() => onInitialized?.(), 0);
-  }, [
-    selectedHomeworkSlug,
-    initializedForSlug,
-    selectedHomeworkQuery.data,
-    courseSlug,
-    lessonSlug,
-    initHomework,
-  ]);
+  }, [selectedHomeworkSlug, initializedForSlug, selectedHomeworkQuery.data, courseSlug, lessonSlug, initHomework]);
 
-  const requestSwitchTo = (slug: string) => {
-    if (slug === selectedHomeworkSlug) return;
-    if (hasUnsavedChanges) {
-      setPendingSlug(slug);
-      setShowSwitchDialog(true);
-    } else {
-      setSelectedHomeworkSlug(slug);
-    }
+  const touchQuestion = (id: string, field: keyof QuestionTouched) => {
+    setQuestionTouched((prev) => ({
+      ...prev,
+      [id]: { ...{ title: false, score: false, correct: false }, ...prev[id], [field]: true },
+    }));
   };
 
-  const handlePaletteClick = (type: HomeworkQuestionType) => {
-    addQuestion(type);
-    setNoQuestionsError(false);
-  };
-
-  const validate = (): boolean => {
-    const badIds = new Set<string>();
-    let ok = true;
-
-    const isTitleEmpty = !layout.title.trim();
-    setTitleInvalid(isTitleEmpty);
-    if (isTitleEmpty) ok = false;
-
-    if (layout.questions.length === 0) { setNoQuestionsError(true); ok = false; }
-    else setNoQuestionsError(false);
-
-    for (const q of layout.questions) {
-      // title empty
-      if (!q.title.trim()) { badIds.add(`title:${q.id}`); ok = false; }
-      // score not set
-      if (!q.score || q.score <= 0) { badIds.add(`score:${q.id}`); ok = false; }
-      // single: no correct answer marked, or empty options
-      if (q.type === 'single') {
-        const sq = q as Extract<HomeworkQuestion, { type: 'single' }>;
-        if (!sq.options.some((o) => o.isCorrect)) { badIds.add(`correct:${q.id}`); ok = false; }
-        for (const o of sq.options) {
-          if (!o.text.trim()) { badIds.add(`option:${o.id}`); ok = false; }
-        }
-      }
-    }
-
-    setInvalidIds(badIds);
-    return ok;
-  };
-
-  const handleSave = (targetType: CourseContentType) => {
+  const touchAllAndSave = (targetType: CourseContentType) => {
     if (selectedHomeworkSlug !== 'new' && selectedHomeworkQuery.isFetching) return;
-    if (!validate()) return;
+    // mark everything touched so all errors become visible
+    setTitleTouched(true);
+    setDeadlineTouched(true);
+    const allTouched: Record<string, QuestionTouched> = {};
+    for (const q of layout.questions) {
+      allTouched[q.id] = { title: true, score: true, correct: true };
+    }
+    setQuestionTouched(allTouched);
+    if (!isHomeworkValid(errors)) return;
     const payload = mapLayoutToPayload(layout, targetType);
     const isEditing = selectedHomeworkSlug !== 'new';
     createMutation.mutate(
       {
         ...payload,
         homeworkSlug: isEditing ? selectedHomeworkSlug : undefined,
-        previousItems:
-          isEditing && selectedHomeworkQuery.data
-            ? selectedHomeworkQuery.data.items.map((item) => ({
-                id: item.id,
-                type: item.type,
-              }))
-            : [],
+        previousItems: isEditing && selectedHomeworkQuery.data
+          ? selectedHomeworkQuery.data.items.map((item) => ({ id: item.id, type: item.type }))
+          : [],
       },
-      {
-        onSuccess: (savedHomework) => {
-          setSelectedHomeworkSlug(savedHomework.slug);
-          onSaved?.();
-        },
-      },
+      { onSuccess: (savedHomework) => { setSelectedHomeworkSlug(savedHomework.slug); onSaved?.(); } },
     );
   };
 
-  const toggleCorrectOption = (question: SingleQuestion, optionId: string) => {
-    const nextOptions: HomeworkOption[] = question.options.map((opt) => {
-      if (opt.id !== optionId) {
-        return { ...opt, isCorrect: false };
-      }
-      const nextValue = !opt.isCorrect;
-      return { ...opt, isCorrect: nextValue };
-    });
+  const requestSwitchTo = (slug: string) => {
+    if (slug === selectedHomeworkSlug) return;
+    if (hasUnsavedChanges) { setPendingSlug(slug); setShowSwitchDialog(true); }
+    else setSelectedHomeworkSlug(slug);
+  };
 
-    updateQuestion(question.id, {
-      options: nextOptions,
-    } as unknown as Partial<HomeworkQuestion>);
+  const toggleCorrectOption = (question: SingleQuestion, optionId: string) => {
+    const nextOptions: HomeworkOption[] = question.options.map((opt) => ({
+      ...opt,
+      isCorrect: opt.id === optionId ? !opt.isCorrect : false,
+    }));
+    updateQuestion(question.id, { options: nextOptions } as unknown as Partial<HomeworkQuestion>);
+    touchQuestion(question.id, 'correct');
   };
 
   const renderOptions = (question: SingleQuestion) => {
+    const qErr = errors.questions[question.id];
+    const qt = questionTouched[question.id];
     const options: HomeworkOption[] = question.options;
 
     return (
-      <Droppable
-        droppableId={`options-${question.id}`}
-        type="option"
-        direction="vertical"
-      >
+      <Droppable droppableId={`options-${question.id}`} type="option" direction="vertical">
         {(provided) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={styles.homeworkOptions}
-          >
-            {options.map((opt, index: number) => (
-              <Draggable
-                key={opt.id}
-                draggableId={`option-${opt.id}`}
-                index={index}
-              >
-                {(dragProvided) => (
-                  <div
-                    ref={dragProvided.innerRef}
-                    {...dragProvided.draggableProps}
-                    className={cn(
-                      styles.homeworkOptionRow,
-                      opt.isCorrect ? styles.homeworkOptionRowCorrect : ''
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className={styles.homeworkIconButton}
-                      {...dragProvided.dragHandleProps}
-                      aria-label="Перетащить вариант"
+          <div ref={provided.innerRef} {...provided.droppableProps} className={styles.homeworkOptions}>
+            {options.map((opt, index: number) => {
+              const isDuplicate = qErr?.duplicateOptionIds.has(opt.id) ?? false;
+              return (
+                <Draggable key={opt.id} draggableId={`option-${opt.id}`} index={index}>
+                  {(dragProvided) => (
+                    <div
+                      ref={dragProvided.innerRef}
+                      {...dragProvided.draggableProps}
+                      className={cn(styles.homeworkOptionRow, opt.isCorrect ? styles.homeworkOptionRowCorrect : '')}
                     >
-                      <GripVertical size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.homeworkOptionRadio} ${
-                        opt.isCorrect ? styles.homeworkOptionRadioActive : ''
-                      }`}
-                      onClick={() => toggleCorrectOption(question, opt.id)}
-                    />
-                    <input
-                      className={cn(
-                        styles.homeworkOptionInput,
-                        invalidIds.has(`option:${opt.id}`) ? styles.fieldInvalid : '',
+                      <button type="button" className={styles.homeworkIconButton} {...dragProvided.dragHandleProps} aria-label="Перетащить вариант">
+                        <GripVertical size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.homeworkOptionRadio} ${opt.isCorrect ? styles.homeworkOptionRadioActive : ''}`}
+                        onClick={() => toggleCorrectOption(question, opt.id)}
+                      />
+                      <input
+                        className={cn(styles.homeworkOptionInput, isDuplicate ? styles.fieldInvalidDuplicate : '')}
+                        placeholder="Вариант ответа"
+                        value={opt.text}
+                        onChange={(e) => updateOption(question.id, opt.id, { text: e.target.value })}
+                      />
+                      {isDuplicate && (
+                        <span className={styles.duplicateHint} title="Совпадает с другим вариантом">!</span>
                       )}
-                      placeholder="Вариант ответа"
-                      value={opt.text}
-                      onChange={(e) => {
-                        updateOption(question.id, opt.id, { text: e.target.value });
-                        if (e.target.value.trim()) {
-                          setInvalidIds((prev) => {
-                            const s = new Set(prev);
-                            s.delete(`option:${opt.id}`);
-                            return s;
-                          });
-                        }
-                      }}
-                    />
-
-                    <button
-                      type="button"
-                      className={styles.homeworkIconButton}
-                      disabled={options.length <= 2}
-                      onClick={() => removeOption(question.id, opt.id)}
-                      aria-label="Удалить вариант"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                )}
-              </Draggable>
-            ))}
+                      <button
+                        type="button"
+                        className={styles.homeworkIconButton}
+                        disabled={options.length <= 2}
+                        onClick={() => removeOption(question.id, opt.id)}
+                        aria-label="Удалить вариант"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                </Draggable>
+              );
+            })}
             {provided.placeholder}
 
-            <button
-              type="button"
-              className={styles.homeworkAddOption}
-              onClick={() => addOption(question.id)}
-            >
+            <button type="button" className={styles.homeworkAddOption} onClick={() => addOption(question.id)}>
               Добавить вариант
             </button>
+
+            {(qErr?.duplicateOptionIds.size ?? 0) > 0 && (
+              <p className={styles.fieldError}>Варианты должны быть уникальными</p>
+            )}
+            {qt?.correct && (qErr?.noCorrect ?? false) && (
+              <p className={styles.fieldError}>Отметьте верный ответ</p>
+            )}
           </div>
         )}
       </Droppable>
@@ -448,21 +321,13 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
   }) => {
     const { source, destination, type } = result;
     if (!source || !destination) return;
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
-      return;
-    }
-
-    if (type === 'option') {
-      const questionId = source.droppableId.replace('options-', '');
-      reorderOptions(questionId, source.index, destination.index);
-      return;
-    }
-
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+    if (type === 'option') { reorderOptions(source.droppableId.replace('options-', ''), source.index, destination.index); return; }
     reorderQuestions(source.index, destination.index);
   };
+
+  const titleError = titleTouched && errors.title;
+  const deadlineError = deadlineTouched && errors.deadline;
 
   return (
     <div className={styles.homeworkLayout}>
@@ -471,114 +336,63 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
           <div className={styles.homeworkCanvasColumn}>
             <div className={styles.homeworkWrapper}>
               {selectedHomeworkQuery.isFetching && selectedHomeworkSlug !== 'new' && (
-                <div className={styles.homeworkLoadingOverlay}>
-                  <Spinner />
-                </div>
+                <div className={styles.homeworkLoadingOverlay}><Spinner /></div>
               )}
               <Droppable droppableId="questions" type="question">
                 {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={styles.homeworkList}
-                  >
+                  <div ref={provided.innerRef} {...provided.droppableProps} className={styles.homeworkList}>
                     <div className={styles.homeworkInner}>
-                      {layout.questions.map(
-                        (question: HomeworkQuestion, index: number) => (
-                          <Draggable
-                            key={question.id}
-                            draggableId={String(question.id)}
-                            index={index}
-                          >
+                      {layout.questions.map((question: HomeworkQuestion, index: number) => {
+                        const qErr = errors.questions[question.id];
+                        const qt = questionTouched[question.id];
+                        const showTitleErr = (qt?.title ?? false) && (qErr?.title ?? false);
+                        const showScoreErr = (qt?.score ?? false) && (qErr?.score ?? false);
+                        return (
+                          <Draggable key={question.id} draggableId={String(question.id)} index={index}>
                             {(dragProvided) => (
                               <div
                                 ref={dragProvided.innerRef}
                                 {...dragProvided.draggableProps}
-                                className={styles.homeworkCard}
+                                className={cn(
+                                  styles.homeworkCard,
+                                  showTitleErr || showScoreErr ? styles.homeworkCardInvalid : '',
+                                )}
                               >
                                 <div className={styles.homeworkCardHeaderWrapper}>
                                   <div className={styles.homeworkCardHeader}>
                                     <div className={styles.homeworkCardHeaderLeft}>
-                                      <span className={styles.homeworkQuestionTypeBadge}>
-                                        {QUESTION_TYPE_LABELS[question.type]}
-                                      </span>
-                                      <span
-                                        className={styles.homeworkDragHandle}
-                                        {...dragProvided.dragHandleProps}
-                                      >
-                                        <GripHorizontal size={14} />
-                                      </span>
+                                      <span className={styles.homeworkQuestionTypeBadge}>{QUESTION_TYPE_LABELS[question.type]}</span>
+                                      <span className={styles.homeworkDragHandle} {...dragProvided.dragHandleProps}><GripHorizontal size={14} /></span>
                                     </div>
                                   </div>
                                   <textarea
-                                    className={cn(
-                                      styles.homeworkQuestionTitle,
-                                      invalidIds.has(`title:${question.id}`) ? styles.fieldInvalid : '',
-                                    )}
+                                    className={cn(styles.homeworkQuestionTitle, showTitleErr ? styles.fieldInvalid : '')}
                                     placeholder="Вопрос без заголовка"
                                     value={question.title}
                                     rows={1}
-                                    onInput={(e) => {
-                                      e.currentTarget.style.height = 'auto';
-                                      e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
-                                    }}
-                                    onChange={(e) => {
-                                      updateQuestion(question.id, { title: e.target.value });
-                                      if (e.target.value.trim()) {
-                                        setInvalidIds((prev) => {
-                                          const next = new Set(prev);
-                                          next.delete(`title:${question.id}`);
-                                          return next;
-                                        });
-                                      }
-                                    }}
+                                    onInput={(e) => { e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`; }}
+                                    onChange={(e) => updateQuestion(question.id, { title: e.target.value })}
+                                    onBlur={() => touchQuestion(question.id, 'title')}
                                   />
+                                  {showTitleErr && <p className={styles.fieldError}>Введите текст вопроса</p>}
                                 </div>
                                 <div className={styles.homeworkCardBody}>
-                                  {question.type === 'single' ? (
-                                    <>
-                                      {renderOptions(question as SingleQuestion)}
-                                      {invalidIds.has(`correct:${question.id}`) && (
-                                        <p className={styles.fieldError}>Отметьте верный ответ</p>
-                                      )}
-                                    </>
-                                  ) : (
-                                    <textarea
-                                      className={styles.homeworkLongAnswer}
-                                      placeholder="Опишите задание"
-                                      value={
-                                        (
-                                          question as Extract<
-                                            HomeworkQuestion,
-                                            { type: 'text' } | { type: 'file' }
-                                          >
-                                        ).description ?? ''
-                                      }
-                                      onChange={(e) =>
-                                        updateQuestion(question.id, {
-                                          description: e.target.value,
-                                        } as unknown as Partial<HomeworkQuestion>)
-                                      }
-                                    />
-                                  )}
+                                  {question.type === 'single'
+                                    ? renderOptions(question as SingleQuestion)
+                                    : (
+                                      <textarea
+                                        className={styles.homeworkLongAnswer}
+                                        placeholder="Опишите задание"
+                                        value={(question as Extract<HomeworkQuestion, { type: 'text' } | { type: 'file' }>).description ?? ''}
+                                        onChange={(e) => updateQuestion(question.id, { description: e.target.value } as unknown as Partial<HomeworkQuestion>)}
+                                      />
+                                    )}
                                 </div>
-
                                 <div className={styles.homeworkCardFooter}>
-                                  <div className={cn(
-                                    styles.homeworkScoreStepper,
-                                    invalidIds.has(`score:${question.id}`) ? styles.stepperInvalid : '',
-                                  )}>
-                                    <button
-                                      type="button"
-                                      className={styles.stepperBtn}
-                                      onClick={() => {
-                                        const next = Math.max(0, (question.score ?? 0) - 1);
-                                        updateQuestion(question.id, { score: next });
-                                        if (next > 0) setInvalidIds((prev) => { const s = new Set(prev); s.delete(`score:${question.id}`); return s; });
-                                      }}
-                                    >
-                                      <Minus size={12} />
-                                    </button>
+                                  <div className={cn(styles.homeworkScoreStepper, showScoreErr ? styles.stepperInvalid : '')}>
+                                    <button type="button" className={styles.stepperBtn}
+                                      onClick={() => { updateQuestion(question.id, { score: Math.max(0, (question.score ?? 0) - 1) }); touchQuestion(question.id, 'score'); }}
+                                    ><Minus size={12} /></button>
                                     <input
                                       type="number"
                                       min={0}
@@ -587,37 +401,25 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                                       placeholder="0"
                                       onChange={(e) => {
                                         const numeric = e.target.value === '' ? 0 : Number(e.target.value);
-                                        if (Number.isNaN(numeric)) return;
-                                        updateQuestion(question.id, { score: numeric });
-                                        if (numeric > 0) setInvalidIds((prev) => { const s = new Set(prev); s.delete(`score:${question.id}`); return s; });
+                                        if (!Number.isNaN(numeric)) updateQuestion(question.id, { score: numeric });
                                       }}
+                                      onBlur={() => touchQuestion(question.id, 'score')}
                                     />
-                                    <button
-                                      type="button"
-                                      className={styles.stepperBtn}
-                                      onClick={() => {
-                                        const next = (question.score ?? 0) + 1;
-                                        updateQuestion(question.id, { score: next });
-                                        setInvalidIds((prev) => { const s = new Set(prev); s.delete(`score:${question.id}`); return s; });
-                                      }}
-                                    >
-                                      <Plus size={12} />
-                                    </button>
+                                    <button type="button" className={styles.stepperBtn}
+                                      onClick={() => { updateQuestion(question.id, { score: (question.score ?? 0) + 1 }); touchQuestion(question.id, 'score'); }}
+                                    ><Plus size={12} /></button>
                                     <span className={styles.homeworkScoreLabel}>баллов</span>
                                   </div>
-                                  <button
-                                    type="button"
-                                    className={cn(styles.homeworkIconButton, styles.deleteButton)}
-                                    onClick={() => removeQuestion(question.id)}
-                                  >
+                                  {showScoreErr && <span className={styles.scoreError}>укажите баллы</span>}
+                                  <button type="button" className={cn(styles.homeworkIconButton, styles.deleteButton)} onClick={() => removeQuestion(question.id)}>
                                     <Trash2 size={16} />
                                   </button>
                                 </div>
                               </div>
                             )}
                           </Draggable>
-                        )
-                      )}
+                        );
+                      })}
                       {provided.placeholder}
                     </div>
                   </div>
@@ -626,31 +428,10 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
             </div>
             <div className={styles.homeworkActionsBar}>
               <div className={styles.homeworkAddButtons}>
-                <button
-                  type="button"
-                  className={styles.homeworkAddQuestionButton}
-                  onClick={() => handlePaletteClick('single')}
-                >
-                  + Варианты ответов
-                </button>
-                <button
-                  type="button"
-                  className={styles.homeworkAddQuestionButton}
-                  onClick={() => handlePaletteClick('text')}
-                >
-                  + Развернутый ответ
-                </button>
-                <button
-                  type="button"
-                  className={styles.homeworkAddQuestionButton}
-                  onClick={() => handlePaletteClick('file')}
-                >
-                  + Файл
-                </button>
-                {noQuestionsError && (
-                  <p className={styles.fieldError}>Добавьте хотя бы один вопрос</p>
-                )}
-                </div>
+                <button type="button" className={styles.homeworkAddQuestionButton} onClick={() => addQuestion('single')}>+ Варианты ответов</button>
+                <button type="button" className={styles.homeworkAddQuestionButton} onClick={() => addQuestion('text')}>+ Развернутый ответ</button>
+                <button type="button" className={styles.homeworkAddQuestionButton} onClick={() => addQuestion('file')}>+ Файл</button>
+              </div>
               <div className={styles.homeworkCtaButtons}>
                 <span className={hasUnsavedChanges ? styles.unsavedIndicatorDirty : styles.unsavedIndicatorSaved}>
                   {createMutation.isPending ? 'Сохранение...' : hasUnsavedChanges ? 'Не сохранено' : 'Сохранено'}
@@ -659,33 +440,39 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                   type="button"
                   className={`${styles.button} ${styles.buttonPrimary}`}
                   disabled={createMutation.isPending || selectedHomeworkQuery.isFetching}
-                  onClick={() => handleSave('published')}
+                  onClick={() => touchAllAndSave('published')}
                 >
                   Прикрепить ДЗ
                 </button>
               </div>
             </div>
           </div>
+
           <aside className={styles.homeworkSidebar}>
             <div className={styles.homeworkSidebarSection}>
-              <p className={styles.homeworkSidebarSectionLabel}>
-                {selectedHomeworkSlug === 'new' ? 'Новое ДЗ' : 'Редактирование'}
-              </p>
-              <input
-                className={cn(styles.homeworkTitleInput, titleInvalid ? styles.fieldInvalid : '')}
-                placeholder="Название домашнего задания"
-                value={layout.title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  if (e.target.value.trim()) setTitleInvalid(false);
-                }}
-              />
-              <input
-                type="datetime-local"
-                className={styles.homeworkDeadlineInput}
-                value={layout.deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-              />
+              <p className={styles.homeworkSidebarSectionLabel}>{selectedHomeworkSlug === 'new' ? 'Новое ДЗ' : 'Редактирование'}</p>
+
+              <div className={cn(styles.tooltipWrap, titleError ? styles.tooltipWrapError : '')}>
+                <input
+                  className={cn(styles.homeworkTitleInput, titleError ? styles.fieldInvalidUnderline : '')}
+                  placeholder="Название домашнего задания"
+                  value={layout.title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={() => setTitleTouched(true)}
+                />
+                {titleError && <span className={styles.tooltip}>Введите название</span>}
+              </div>
+
+              <div className={cn(styles.tooltipWrap, deadlineError ? styles.tooltipWrapError : '')}>
+                <input
+                  type="datetime-local"
+                  className={cn(styles.homeworkDeadlineInput, deadlineError ? styles.fieldInvalidUnderline : '')}
+                  value={layout.deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  onBlur={() => setDeadlineTouched(true)}
+                />
+                {deadlineError && <span className={styles.tooltip}>Укажите дедлайн</span>}
+              </div>
             </div>
 
             <div className={styles.homeworkSidebarDivider} />
@@ -696,39 +483,19 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
                 <div className={`${styles.homeworkSwitchButton} ${styles.homeworkSwitchButtonActive}`}>
                   <div className={styles.homeworkSwitchBody}>
                     <span className={styles.homeworkSwitchTitle}>Новое ДЗ</span>
-                    <span className={`${styles.homeworkSwitchType} ${styles.homeworkSwitchTypeDraft}`}>
-                      черновик
-                    </span>
+                    <span className={`${styles.homeworkSwitchType} ${styles.homeworkSwitchTypeDraft}`}>черновик</span>
                   </div>
                 </div>
               )}
               {switchItems.map((item) => (
-                <div
-                  key={item.slug}
-                  className={`${styles.homeworkSwitchButton} ${
-                    selectedHomeworkSlug === item.slug ? styles.homeworkSwitchButtonActive : ''
-                  }`}
-                >
-                  <button
-                    type="button"
-                    className={styles.homeworkSwitchButtonMain}
-                    onClick={() => requestSwitchTo(item.slug)}
-                    disabled={createMutation.isPending}
-                  >
+                <div key={item.slug} className={`${styles.homeworkSwitchButton} ${selectedHomeworkSlug === item.slug ? styles.homeworkSwitchButtonActive : ''}`}>
+                  <button type="button" className={styles.homeworkSwitchButtonMain} onClick={() => requestSwitchTo(item.slug)} disabled={createMutation.isPending}>
                     <span className={styles.homeworkSwitchTitle}>{item.title}</span>
-                    <span className={`${styles.homeworkSwitchType} ${
-                      item.type === 'published' ? styles.homeworkSwitchTypePublished : styles.homeworkSwitchTypeDraft
-                    }`}>
+                    <span className={`${styles.homeworkSwitchType} ${item.type === 'published' ? styles.homeworkSwitchTypePublished : styles.homeworkSwitchTypeDraft}`}>
                       {item.type === 'published' ? 'опубл.' : 'черновик'}
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    className={styles.homeworkSwitchDeleteBtn}
-                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(item.slug); }}
-                    disabled={deleteMutation.isPending}
-                    title="Удалить"
-                  >
+                  <button type="button" className={styles.homeworkSwitchDeleteBtn} onClick={(e) => { e.stopPropagation(); setDeleteTarget(item.slug); }} disabled={deleteMutation.isPending} title="Удалить">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -738,12 +505,7 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
               )}
             </div>
 
-            <button
-              type="button"
-              className={styles.homeworkSidebarAddBtn}
-              disabled={createMutation.isPending}
-              onClick={() => requestSwitchTo('new')}
-            >
+            <button type="button" className={styles.homeworkSidebarAddBtn} disabled={createMutation.isPending} onClick={() => requestSwitchTo('new')}>
               + Новое ДЗ
             </button>
           </aside>
@@ -752,55 +514,22 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Удалить домашнее задание?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Это действие необратимо. Все вопросы и попытки студентов будут удалены.
-                </AlertDialogDescription>
+                <AlertDialogDescription>Это действие необратимо. Все вопросы и попытки студентов будут удалены.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Отмена</AlertDialogCancel>
-                <AlertDialogAction
-                  variant="destructive"
-                  onClick={() => {
-                    if (!deleteTarget) return;
-                    const slug = deleteTarget;
-                    setDeleteTarget(null);
-                    if (selectedHomeworkSlug === slug) setSelectedHomeworkSlug('new');
-                    deleteMutation.mutate(slug);
-                  }}
-                >
+                <AlertDialogAction className={styles.deleteActionBtn} onClick={() => { if (!deleteTarget) return; const slug = deleteTarget; setDeleteTarget(null); if (selectedHomeworkSlug === slug) setSelectedHomeworkSlug('new'); deleteMutation.mutate(slug); }}>
                   Удалить
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
 
-          <Modal
-            open={showSwitchDialog}
-            onClose={() => { setShowSwitchDialog(false); setPendingSlug(null); }}
-            panelClassName={styles.switchDialog}
-          >
-            <p className={styles.switchDialogText}>
-              Есть несохранённые изменения. Перейти без сохранения?
-            </p>
+          <Modal open={showSwitchDialog} onClose={() => { setShowSwitchDialog(false); setPendingSlug(null); }} panelClassName={styles.switchDialog}>
+            <p className={styles.switchDialogText}>Есть несохранённые изменения. Перейти без сохранения?</p>
             <div className={styles.switchDialogActions}>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => { setShowSwitchDialog(false); setPendingSlug(null); }}
-              >
-                Остаться
-              </Button>
-              <Button
-                type="button"
-                className={styles.homeworkDialogPrimaryBtn}
-                onClick={() => {
-                  setShowSwitchDialog(false);
-                  if (pendingSlug !== null) setSelectedHomeworkSlug(pendingSlug);
-                  setPendingSlug(null);
-                }}
-              >
-                Перейти
-              </Button>
+              <Button type="button" variant="outline" onClick={() => { setShowSwitchDialog(false); setPendingSlug(null); }}>Остаться</Button>
+              <Button type="button" className={styles.homeworkDialogPrimaryBtn} onClick={() => { setShowSwitchDialog(false); if (pendingSlug !== null) setSelectedHomeworkSlug(pendingSlug); setPendingSlug(null); }}>Перейти</Button>
             </div>
           </Modal>
         </div>

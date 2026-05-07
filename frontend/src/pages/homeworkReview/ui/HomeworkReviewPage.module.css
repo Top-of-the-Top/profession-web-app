@@ -125,11 +125,21 @@
   font-size: 14px;
 }
 
-.fieldLabel input {
-  width: 96px;
+.pointsSelect {
+  width: 160px;
   border: 1px solid #d0d5dd;
   border-radius: 8px;
-  padding: 6px 8px;
+  padding: 6px 10px;
+  font: inherit;
+  background: #fff;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.pointsSelect:disabled {
+  background: #f9fafb;
+  cursor: default;
+  color: #667085;
 }
 
 .editorWrap {
@@ -182,6 +192,28 @@
 
 .meta {
   color: #475467;
+}
+
+.reviewedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #027a48;
+  font-size: 13px;
+  font-weight: 600;
+  align-self: flex-start;
+}
+
+.reviewedBadge::before {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #12b76a;
 }
 
 .centered {

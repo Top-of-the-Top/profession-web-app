@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sanitizeEditorHtml } from '@shared/lib/html/sanitizeEditorHtml';
 import type { HomeworkLayout } from './homeworkTypes';
 import { HomeworkLayoutSchema } from './homeworkTypes';
 
@@ -93,6 +94,15 @@ export const parseLessonLayoutFromContentString = (raw: string): LessonLayout =>
   }
   return LessonLayoutSchema.parse(parsed);
 };
+
+export const normalizeLessonLayoutForEditor = (layout: LessonLayout): LessonLayout => ({
+  ...layout,
+  blocks: layout.blocks.map((block) =>
+    block.type === 'text'
+      ? { ...block, html: sanitizeEditorHtml(block.html) }
+      : block,
+  ),
+});
 
 export const serializeLessonLayout = (layout: LessonLayout): LessonLayoutDTO => {
   return LessonLayoutSchema.parse(layout);

@@ -115,13 +115,28 @@
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: var(--muted);
-  color: var(--muted-foreground);
+  background: var(--profession-white-block, #eeeef0);
+  color: var(--profession-grey-primary, #7b7974);
 }
 
 .tabActiveCount {
   background: var(--primary);
   color: var(--primary-foreground);
+}
+
+.tabCountStudentTodo {
+  background: #e2ebff;
+  color: #396fdb;
+}
+
+.tabCountStudentPending {
+  background: #f5d6a9;
+  color: #b77d2c;
+}
+
+.tabCountStudentReviewed {
+  background: #e0f3df;
+  color: #3bc531;
 }
 
 /* search */
@@ -165,8 +180,28 @@
   border-collapse: collapse;
 }
 
-.table th {
+.table th,
+.table td {
+  text-align: center;
+}
+
+.table th:first-child,
+.table td:first-child {
   text-align: left;
+}
+
+.table th:last-child,
+.table td:last-child {
+  text-align: right;
+}
+
+.colHomework,
+.table th.colHomework,
+.table td.colHomework {
+  text-align: left;
+}
+
+.table th {
   padding: 12px 20px;
   font-size: 0.6875rem;
   font-weight: 600;
@@ -174,10 +209,6 @@
   letter-spacing: 0.06em;
   color: var(--muted-foreground);
   border-bottom: 1px solid var(--border);
-}
-
-.table th:last-child {
-  text-align: right;
 }
 
 .table td {
@@ -203,6 +234,7 @@
 .cellStudent {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
 }
 
@@ -219,7 +251,7 @@
 
 .scoreCell {
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 550;
   color: var(--foreground);
 }
 
@@ -228,9 +260,6 @@
   color: var(--foreground);
 }
 
-.statusCell {
-  text-align: right;
-}
 
 .statusIcon {
   display: inline-flex;
@@ -275,7 +304,7 @@
 
 .deadlineDate {
   font-size: 0.9375rem;
-  font-weight: 700;
+  font-weight: 550;
   color: var(--foreground);
   white-space: nowrap;
 }
@@ -287,7 +316,6 @@
 }
 
 .arrowCell {
-  text-align: right;
   width: 52px;
 }
 

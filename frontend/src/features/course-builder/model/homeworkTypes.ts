@@ -64,3 +64,76 @@ export const serializeHomeworkLayout = (
   return HomeworkLayoutSchema.parse(layout);
 };
 
+// ── Reactive validation ───────────────────────────────────────────────────────
+
+export interface HomeworkErrors {
+  title: boolean;
+  deadline: boolean;
+  noQuestions: boolean;
+  questions: Record<string, QuestionErrors>;
+}
+
+export interface QuestionErrors {
+  title: boolean;
+  score: boolean;
+  noCorrect: boolean;
+  tooFewOptions: boolean;
+  duplicateOptionIds: Set<string>;
+}
+
+export function validateHomeworkLayout(layout: HomeworkLayout): HomeworkErrors {
+  const questions: Record<string, QuestionErrors> = {};
+
+  for (const q of layout.questions) {
+    const qErr: QuestionErrors = {
+      title: !q.title.trim(),
+      score: !q.score || q.score <= 0,
+      noCorrect: false,
+      tooFewOptions: false,
+      duplicateOptionIds: new Set(),
+    };
+
+    if (q.type === 'single') {
+      qErr.tooFewOptions = q.options.length < 2;
+      qErr.noCorrect = !q.options.some((o) => o.isCorrect);
+
+      // find duplicate option texts (case-insensitive, trimmed)
+      const seen = new Map<string, string>(); // normalised text → first option id
+      for (const opt of q.options) {
+        const key = opt.text.trim().toLowerCase();
+        if (!key) continue;
+        const firstId = seen.get(key);
+        if (firstId === undefined) {
+          seen.set(key, opt.id);
+        } else {
+          qErr.duplicateOptionIds.add(opt.id);
+          qErr.duplicateOptionIds.add(firstId);
+        }
+      }
+    }
+
+    questions[q.id] = qErr;
+  }
+
+  const deadlineDate = new Date(layout.deadline);
+
+  return {
+    title: !layout.title.trim(),
+    deadline: !layout.deadline.trim() || Number.isNaN(deadlineDate.getTime()),
+    noQuestions: layout.questions.length === 0,
+    questions,
+  };
+}
+
+export function isHomeworkValid(errors: HomeworkErrors): boolean {
+  if (errors.title || errors.deadline || errors.noQuestions) return false;
+  return Object.values(errors.questions).every(
+    (q) =>
+      !q.title &&
+      !q.score &&
+      !q.noCorrect &&
+      !q.tooFewOptions &&
+      q.duplicateOptionIds.size === 0,
+  );
+}
+

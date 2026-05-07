@@ -50,7 +50,9 @@ export default function HomeworkReviewAttemptsPage() {
     );
   }
 
-  const rows = attemptsQuery.data.filter((item) => item.homework_slug === homeworkSlug);
+  const rows = attemptsQuery.data.filter(
+    (item) => item.homework_slug === homeworkSlug && item.status !== 'draft',
+  );
   const backHref = getHomeworkReviewBackHref(location.state, courseSlug, lessonSlug);
 
   return (

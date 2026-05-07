@@ -776,10 +776,13 @@ export default function HomeworkSubmissionPage() {
                 <div className={styles.answerActionRow}>
                   <Button
                     type="button"
-                    disabled={answered.has(currentItem.id)}
+                    disabled={
+                      answered.has(currentItem.id) ||
+                      uploadProgress[currentItem.id] != null
+                    }
                     onClick={handleAnswerCurrent}
                   >
-                    Далее
+                    {uploadProgress[currentItem.id] != null ? 'Загрузка...' : 'Далее'}
                   </Button>
                 </div>
               )}

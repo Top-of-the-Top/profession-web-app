@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Video, Clock } from 'lucide-react';
 import { PageFrame, Spinner } from '@shared/ui';
 import { useSchedule } from '@shared/api/queries/schedule';
 import type { ScheduleItem } from '@shared/api/scheduleApi';
 import styles from './SchedulePage.module.css';
+import { cn } from '@shared/lib/utils';
 
 const RU_MONTHS: Record<number, string> = {
   0: 'Январь', 1: 'Февраль', 2: 'Март', 3: 'Апрель',
@@ -75,7 +76,7 @@ function EventCard({ item }: { item: ScheduleItem }) {
           <Clock size={15} className={styles.cardIconHomework} />
         )}
         <div className={styles.cardHeaderMeta}>
-          <span className={styles.cardTime}>{formatTime(item.datetime)}</span>
+          <span className={cn(styles.cardTime, isWebinar ? styles.cardTypeWebinar : styles.cardTypeHomework)}>{formatTime(item.datetime)}</span>
           <span className={isWebinar ? styles.cardTypeWebinar : styles.cardTypeHomework}>
             {isWebinar ? 'Вебинар' : 'ДД задания'}
           </span>
@@ -110,22 +111,19 @@ export default function SchedulePage() {
 
   const { data, isFetching } = useSchedule(rangeStartIso, rangeEndIso);
 
-  // Accumulate all ever-fetched items across range expansions so switching
-  // weeks that are already in cache never shows empty columns mid-fetch.
-  const accumulatedRef = useRef<Map<string, ScheduleItem>>(new Map());
+  const [accumulated, setAccumulated] = useState<Map<string, ScheduleItem>>(new Map());
   useEffect(() => {
     if (!data) return;
-    for (const item of data.items) {
-      const key = `${item.datetime}::${item.title}`;
-      accumulatedRef.current.set(key, item);
-    }
+    setAccumulated((prev) => {
+      const next = new Map(prev);
+      for (const item of data.items) {
+        next.set(`${item.datetime}::${item.title}`, item);
+      }
+      return next;
+    });
   }, [data]);
 
-  const allItems = useMemo(() => {
-    // Rebuild when data changes; snapshot the ref value.
-    return Array.from(accumulatedRef.current.values());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  const allItems = useMemo(() => Array.from(accumulated.values()), [accumulated]);
 
   const weekEnd = addDays(weekStart, 6);
 

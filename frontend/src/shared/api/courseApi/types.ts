@@ -211,6 +211,7 @@ export interface MyHomeworkStudentItem {
   lesson_title: string;
   grade: number | null;
   max_points: number | null;
+  send_at: string | null;
 }
 
 // GET /api/my-homeworks/ — teacher view

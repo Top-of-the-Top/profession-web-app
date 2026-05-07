@@ -41,6 +41,7 @@ interface CourseBuilderProps {
   onSave: (payload: SubmitPayload) => void;
   saving?: boolean;
   savedRevision?: number;
+  initialLessonSignature?: string;
 }
 
 const BLOCK_LABELS: Record<BlockType, string> = {
@@ -121,6 +122,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   onSave,
   saving,
   savedRevision = 0,
+  initialLessonSignature,
 }) => {
   const navigate = useNavigate();
   const {
@@ -140,7 +142,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     layout: homeworkLayout,
   } = useHomeworkStore();
 
-  const [mounted, setMounted] = useState(false);
   const [collapsedEditors, setCollapsedEditors] = useState<
     Record<string, boolean>
   >({});
@@ -156,10 +157,13 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     null,
   );
   // Separate baselines for lesson and homework so saves are tracked independently
-  const [lessonBaseline, setLessonBaseline] = useState<string | null>(null);
+  const [lessonBaseline, setLessonBaseline] = useState<string | null>(
+    initialLessonSignature ?? null,
+  );
   const [homeworkBaseline, setHomeworkBaseline] = useState<string | null>(null);
   const [allowNavigation, setAllowNavigation] = useState(false);
   const titleMeasureRef = useRef<HTMLSpanElement | null>(null);
+  const gridViewportRef = useRef<HTMLDivElement | null>(null);
 
   const lessonSignature = JSON.stringify({
     lesson: layout,
@@ -174,12 +178,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   useEffect(() => { lessonSignatureRef.current = lessonSignature; }, [lessonSignature]);
   useEffect(() => { homeworkSignatureRef.current = homeworkSignature; }, [homeworkSignature]);
 
-  // Set lesson baseline once on mount
-  useEffect(() => {
-    setLessonBaseline((prev) => prev === null ? lessonSignatureRef.current : prev);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // homeworkBaseline is set via onInitialized callback after the store is first loaded
 
   // When lesson is saved (savedRevision bumps), reset lesson baseline
@@ -189,9 +187,11 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   }, [savedRevision]);
 
   const hasUnsavedLesson =
-    lessonBaseline !== null && lessonBaseline !== lessonSignature;
+    lessonBaseline !== null &&
+    lessonBaseline !== lessonSignature;
   const hasUnsavedHomework =
-    homeworkBaseline !== null && homeworkBaseline !== homeworkSignature;
+    homeworkBaseline !== null &&
+    homeworkBaseline !== homeworkSignature;
   const hasUnsavedChanges = hasUnsavedLesson || hasUnsavedHomework;
 
   const isSavedStatus = lessonBaseline === null || (!hasUnsavedLesson && !saving);
@@ -269,11 +269,25 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     }
   }, [blocker.state]);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useLayoutEffect(() => {
+    const viewport = gridViewportRef.current;
+    if (viewport) viewport.scrollTop = 0;
+    let cancelled = false;
+    const outer = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        gridViewportRef.current?.scrollTo({ top: 0, left: 0 });
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(outer);
+    };
+  }, [courseSlug, lessonSlug]);
+
 
   useEffect(() => {
+    layoutChangeCountRef.current = 0;
     initHomework(`${courseSlug}/${lessonSlug}`);
   }, [courseSlug, lessonSlug, initHomework]);
 
@@ -293,8 +307,16 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     draggableHandle: '.block-drag-handle',
   } as const;
 
+  // GridLayout fires onLayoutChange immediately on mount with compacted positions.
+  // We skip that first call so it doesn't dirty the baseline.
+  const layoutChangeCountRef = useRef(0);
+
   const onLayoutChange = useCallback(
     (currentLayout: Layout) => {
+      if (layoutChangeCountRef.current === 0) {
+        layoutChangeCountRef.current = 1;
+        return;
+      }
       layout.blocks.forEach((block) => {
         const item = currentLayout.find((l: LayoutItem) => l.i === block.id);
         if (!item) return;
@@ -648,7 +670,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
           {activeTab === 'layout' && (
             <div className={styles.layoutColumn}>
               <div className={styles.gridWrapper}>
-                <div className={styles.gridViewport}>
+                <div ref={gridViewportRef} className={styles.gridViewport}>
                   <div
                     className={styles.gridCanvas}
                     style={{ width: GRID_FIXED_WIDTH, minWidth: GRID_FIXED_WIDTH }}
@@ -662,7 +684,7 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
                       rowHeight={ROW_HEIGHT}
                       margin={[GRID_GAP, GRID_GAP]}
                       measureBeforeMount={false}
-                      useCSSTransforms={mounted}
+                      useCSSTransforms={true}
                       compactType="vertical"
                       preventCollision={false}
                       onLayoutChange={onLayoutChange}
@@ -795,7 +817,11 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
               lessonSlug={lessonSlug}
               lessonHomeworks={lessonHomeworks}
               hasUnsavedChanges={hasUnsavedHomework}
-              onInitialized={() => setHomeworkBaseline(homeworkSignatureRef.current)}
+              onInitialized={() => {
+                requestAnimationFrame(() => {
+                  setHomeworkBaseline(homeworkSignatureRef.current);
+                });
+              }}
               onSaved={() => setHomeworkBaseline(homeworkSignatureRef.current)}
             />
           )}

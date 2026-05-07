@@ -666,16 +666,92 @@
   background: #fff5f5 !important;
 }
 
-.homeworkOptionInput.fieldInvalid {
+/* underline-only variant for borderless inputs (title, deadline) */
+.fieldInvalidUnderline {
   border-bottom-color: #f87171 !important;
-  background: transparent !important;
-  color: #b91c1c;
+}
+
+.homeworkOptionInput.fieldInvalidDuplicate {
+  border-bottom-color: #f59e0b !important;
+  color: #92400e;
+}
+
+.homeworkCardInvalid {
+  box-shadow: 0 0 0 1.5px #fca5a5, 0 0 8px rgba(15, 23, 42, 0.18);
+}
+
+.duplicateHint {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #b45309;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.scoreError {
+  font-size: 11px;
+  color: #ef4444;
+  white-space: nowrap;
 }
 
 .fieldError {
   margin: 4px 0 0;
   font-size: 12px;
   color: #ef4444;
+}
+
+/* ── Tooltip for sidebar fields ──────────────────────────────────────────── */
+
+.tooltipWrap {
+  position: relative;
+}
+
+.tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: #1f2937;
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 12px;
+  border: 5px solid transparent;
+  border-top-color: #1f2937;
+}
+
+.tooltipWrapError .tooltip {
+  display: block;
+}
+
+/* ── Destructive dialog action ───────────────────────────────────────────── */
+
+.deleteActionBtn {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  border-color: #fca5a5 !important;
+}
+
+.deleteActionBtn:hover {
+  background: #fecaca !important;
 }
 
 .homeworkActionsBar {

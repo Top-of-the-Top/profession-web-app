@@ -78,8 +78,9 @@ function TeacherView({
 
   const waiting = useMemo(() => items.filter((i) => i.status === 'submitted'), [items]);
   const done = useMemo(() => items.filter((i) => i.status === 'reviewed'), [items]);
+  const allVisible = useMemo(() => items.filter((i) => i.status !== 'draft'), [items]);
 
-  const baseList = tab === 'waiting' ? waiting : tab === 'done' ? done : items;
+  const baseList = tab === 'waiting' ? waiting : tab === 'done' ? done : allVisible;
 
   const filtered = useMemo(() => {
     if (!search.trim()) return baseList;
@@ -92,7 +93,7 @@ function TeacherView({
   }, [baseList, search]);
 
   function tabCount(t: Tab) {
-    return t === 'waiting' ? waiting.length : t === 'done' ? done.length : items.length;
+    return t === 'waiting' ? waiting.length : t === 'done' ? done.length : allVisible.length;
   }
 
   return (
@@ -107,7 +108,13 @@ function TeacherView({
               onClick={() => setTab(t)}
             >
               {t === 'waiting' ? 'Ждут проверки' : t === 'done' ? 'Проверены' : 'Все'}
-              <span className={cn(styles.tabCount, tab === t && styles.tabActiveCount)}>
+              <span
+                className={cn(
+                  styles.tabCount,
+                  tab === t && t === 'waiting' && styles.tabCountStudentPending,
+                  tab === t && t === 'done' && styles.tabCountStudentReviewed,
+                )}
+              >
                 {tabCount(t)}
               </span>
             </button>
@@ -133,7 +140,7 @@ function TeacherView({
             <thead>
               <tr>
                 <th>Ученик</th>
-                <th>Домашнее задание</th>
+                <th className={styles.colHomework}>Домашнее задание</th>
                 <th>Выполнено</th>
                 <th>Сдано</th>
                 <th>Статус</th>
@@ -159,7 +166,7 @@ function TeacherView({
                       <span className={styles.studentEmail}>{item.student.email}</span>
                     </div>
                   </td>
-                  <td>
+                  <td className={styles.colHomework}>
                     <div className={styles.hwTitle}>{item.homework_title}</div>
                   </td>
                   <td>
@@ -243,7 +250,14 @@ function StudentView({
               onClick={() => setTab(key)}
             >
               {label}
-              <span className={cn(styles.tabCount, tab === key && styles.tabActiveCount)}>
+              <span
+                className={cn(
+                  styles.tabCount,
+                  tab === key && key === 'todo' && styles.tabCountStudentTodo,
+                  tab === key && key === 'pending' && styles.tabCountStudentPending,
+                  tab === key && key === 'reviewed' && styles.tabCountStudentReviewed,
+                )}
+              >
                 {count}
               </span>
             </button>
@@ -269,7 +283,7 @@ function StudentView({
               <tr>
                 <th>Домашнее задание</th>
                 <th>Баллы</th>
-                <th>Дедлайн</th>
+                <th>{tab === 'pending' ? 'Сдано' : 'Дедлайн'}</th>
                 <th />
               </tr>
             </thead>
@@ -293,16 +307,26 @@ function StudentView({
                     </td>
                     <td>
                       <span className={styles.scoreCell}>
-                        {item.grade !== null
-                          ? `${item.grade} / ${item.max_points ?? '?'}`
-                          : item.max_points !== null
-                            ? `— / ${item.max_points}`
-                            : '—'}
+                        {item.status === 'draft'
+                          ? item.max_points !== null
+                            ? `${item.max_points}`
+                            : '—'
+                          : item.grade !== null
+                            ? `${item.grade} / ${item.max_points ?? '?'}`
+                            : item.max_points !== null
+                              ? `— / ${item.max_points}`
+                              : '—'}
                       </span>
                     </td>
                     <td>
-                      <div className={styles.deadlineDate}>{dl.date}</div>
-                      {dl.time && <div className={styles.deadlineTime}>{dl.time}</div>}
+                      {item.status === 'submitted' && item.send_at ? (
+                        <span className={styles.dateCell}>{timeAgo(item.send_at)}</span>
+                      ) : (
+                        <>
+                          <div className={styles.deadlineDate}>{dl.date}</div>
+                          {dl.time && <div className={styles.deadlineTime}>{dl.time}</div>}
+                        </>
+                      )}
                     </td>
                     <td className={styles.arrowCell}>
                       <span className={styles.arrowBtn}>

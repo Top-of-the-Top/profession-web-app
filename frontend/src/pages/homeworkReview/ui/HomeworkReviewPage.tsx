@@ -180,16 +180,12 @@ export default function HomeworkReviewPage() {
                   <div className={styles.reviewForm}>
                     <label className={styles.fieldLabel}>
                       Количество баллов
-                      <input
-                        type="number"
-                        min={0}
-                        max={currentItem.max_points}
+                      <select
                         value={drafts[currentItem.answer_id]?.points ?? 0}
                         disabled={isReviewed}
+                        className={styles.pointsSelect}
                         onChange={(e) => {
-                          const parsed = Number(e.target.value);
-                          const next = Number.isFinite(parsed) ? parsed : 0;
-                          const bounded = Math.max(0, Math.min(currentItem.max_points, next));
+                          const bounded = Number(e.target.value);
                           setDrafts((prev) => ({
                             ...prev,
                             [currentItem.answer_id]: {
@@ -198,7 +194,11 @@ export default function HomeworkReviewPage() {
                             },
                           }));
                         }}
-                      />
+                      >
+                        {Array.from({ length: currentItem.max_points + 1 }, (_, i) => (
+                          <option key={i} value={i}>{pointsLabel(i)}</option>
+                        ))}
+                      </select>
                     </label>
                     <div className={styles.editorWrap}>
                       <RichTextEditor
@@ -226,23 +226,24 @@ export default function HomeworkReviewPage() {
                 <Button type="button" variant="outline" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>
                   Назад
                 </Button>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    if (step < items.length - 1) {
-                      setStep((s) => s + 1);
-                      return;
-                    }
-                    if (isReviewed) return;
-                    reviewMutation.mutate({
-                      attempt_id: attemptId,
-                      items: reviewItems,
-                    });
-                  }}
-                  disabled={reviewMutation.isPending}
-                >
-                  {step < items.length - 1 ? 'Далее' : reviewMutation.isPending ? 'Сохранение...' : 'Отправить'}
-                </Button>
+                {step < items.length - 1 ? (
+                  <Button type="button" onClick={() => setStep((s) => s + 1)}>
+                    Далее
+                  </Button>
+                ) : !isReviewed ? (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      reviewMutation.mutate({
+                        attempt_id: attemptId,
+                        items: reviewItems,
+                      });
+                    }}
+                    disabled={reviewMutation.isPending}
+                  >
+                    {reviewMutation.isPending ? 'Сохранение...' : 'Отправить'}
+                  </Button>
+                ) : null}
               </div>
             </section>
 
@@ -257,9 +258,11 @@ export default function HomeworkReviewPage() {
               </Link>
               <div className={styles.sideCardTitle}>{homeworkQuery.data.title}</div>
               <div className={styles.meta}>Попытка: {attemptId}</div>
-              <div className={styles.meta}>
-                Статус: {attemptQuery.data.status === 'reviewed' ? 'проверено' : 'на проверке'}
-              </div>
+              {isReviewed ? (
+                <div className={styles.reviewedBadge}>Проверено</div>
+              ) : (
+                <div className={styles.meta}>Статус: на проверке</div>
+              )}
             </aside>
           </div>
         </div>

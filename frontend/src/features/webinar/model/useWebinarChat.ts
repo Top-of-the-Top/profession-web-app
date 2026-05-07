@@ -23,6 +23,7 @@ interface UseWebinarChatParams {
 interface UseWebinarChatReturn {
   messages: ChatMessage[];
   sendMessage: (text: string) => void;
+  broadcastPresence: () => void;
   isConnected: boolean;
 }
 
@@ -68,6 +69,8 @@ export function useWebinarChat({
   onPeerLabelRef.current = onPeerLabel;
   const userNameRef = useRef(userName);
   userNameRef.current = userName;
+  // Written by the effect so the stable broadcastPresence callback can call it.
+  const publishPresenceRef = useRef<(() => void) | null>(null);
 
   const disabled = !rtmToken || !chatChannelName || !appId || !uid;
 
@@ -95,6 +98,7 @@ export function useWebinarChat({
         )
         .catch(() => {});
     };
+    publishPresenceRef.current = publishPresence;
 
     // Broadcast own presence, then repeat a few times for late joiners.
     const schedulePresenceBroadcast = () => {
@@ -214,9 +218,10 @@ export function useWebinarChat({
       rtm.removeEventListener('message', messageHandler);
       rtm.removeEventListener('status', statusHandler as Parameters<typeof rtm.addEventListener<'status'>>[1]);
       rtm.unsubscribe(chatChannelName).catch(() => {}).finally(() => rtm.logout().catch(() => {}));
+      publishPresenceRef.current = null;
       setIsConnected(false);
     };
-  }, [appId, rtmToken, chatChannelName, uid, userName, disabled]);
+  }, [appId, rtmToken, chatChannelName, uid, disabled]);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -248,5 +253,9 @@ export function useWebinarChat({
     [chatChannelName, isConnected, uid],
   );
 
-  return { messages, sendMessage, isConnected };
+  const broadcastPresence = useCallback(() => {
+    publishPresenceRef.current?.();
+  }, []);
+
+  return { messages, sendMessage, broadcastPresence, isConnected };
 }

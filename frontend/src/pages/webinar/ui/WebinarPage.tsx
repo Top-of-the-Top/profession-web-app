@@ -55,7 +55,7 @@ export default function WebinarPage() {
 
   const { micOn, cameraOn, toggleMic, toggleCamera } = useMediaControls();
 
-  const { messages: chatMessages, sendMessage } = useWebinarChat({
+  const { messages: chatMessages, sendMessage, broadcastPresence } = useWebinarChat({
     appId: session?.agora_app_id ?? '',
     rtmToken: session?.rtm_token ?? '',
     chatChannelName: session?.chat_channel_name ?? '',
@@ -414,6 +414,7 @@ export default function WebinarPage() {
             uid={session.uid}
             rtcUidToLabel={rtcUidToLabel}
             onRecorderChannelPresence={handleRecorderChannelPresence}
+            onRemoteUserJoined={broadcastPresence}
             micOn={micOn}
             cameraOn={cameraOn}
           >

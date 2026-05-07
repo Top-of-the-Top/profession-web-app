@@ -679,22 +679,24 @@ const LessonRecordingCard: React.FC<{
         </div>
       )}
 
-      {isTeacher && recording.recording_id && !isWhiteboardOnly && (
+      {isTeacher && recording.recording_id && (
         <div className={styles.recordingActions}>
-          <button
-            type="button"
-            className={styles.recordingActionButton}
-            onClick={() =>
-              onRequestDeleteRecording({
-                recordingId: recording.recording_id,
-                dateLabel,
-              })
-            }
-            disabled={deleteRecordingPending || isLeaving}
-          >
-            <Trash2 size={16} />
-            {deleteRecordingPending || isLeaving ? 'Удаление...' : 'Удалить запись'}
-          </button>
+          {!isWhiteboardOnly && (
+            <button
+              type="button"
+              className={styles.recordingActionButton}
+              onClick={() =>
+                onRequestDeleteRecording({
+                  recordingId: recording.recording_id,
+                  dateLabel,
+                })
+              }
+              disabled={deleteRecordingPending || isLeaving}
+            >
+              <Trash2 size={16} />
+              {deleteRecordingPending || isLeaving ? 'Удаление...' : 'Удалить запись'}
+            </button>
+          )}
           {hasPdf && (
             <button
               type="button"
@@ -707,7 +709,7 @@ const LessonRecordingCard: React.FC<{
               }
               disabled={deletePdfPending}
             >
-              <FileDown size={16} />
+              <Trash2 size={16} />
               {deletePdfPending ? 'Удаление...' : 'Удалить PDF'}
             </button>
           )}

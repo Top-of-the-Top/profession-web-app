@@ -21,6 +21,7 @@ interface VideoGridBaseProps {
   uid: number;
   rtcUidToLabel?: Record<number, string>;
   onRecorderChannelPresence?: (present: boolean) => void;
+  onRemoteUserJoined?: () => void;
   children?: ReactNode;
 }
 
@@ -143,6 +144,21 @@ function ObserverRemoteAudioStrip({
   );
 }
 
+function useNotifyRemoteUserJoined(
+  remoteUsers: ReturnType<typeof useRemoteUsers>,
+  onRemoteUserJoined: VideoGridBaseProps['onRemoteUserJoined'],
+) {
+  const prevCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    const visible = remoteUsers.filter((u) => Number(u.uid) !== WEBINAR_RECORDER_RTC_UID);
+    const count = visible.length;
+    if (prevCountRef.current !== null && count > prevCountRef.current) {
+      onRemoteUserJoined?.();
+    }
+    prevCountRef.current = count;
+  }, [remoteUsers, onRemoteUserJoined]);
+}
+
 function useNotifyRecorderPresence(
   remoteUsers: ReturnType<typeof useRemoteUsers>,
   onRecorderChannelPresence: VideoGridBaseProps['onRecorderChannelPresence'],
@@ -171,6 +187,7 @@ function PublisherInner({
   uid,
   rtcUidToLabel,
   onRecorderChannelPresence,
+  onRemoteUserJoined,
   micOn,
   cameraOn,
   children,
@@ -205,6 +222,7 @@ function PublisherInner({
 
   const remoteUsers = useRemoteUsers();
   useNotifyRecorderPresence(remoteUsers, onRecorderChannelPresence);
+  useNotifyRemoteUserJoined(remoteUsers, onRemoteUserJoined);
   const visibleRemoteUsers = useMemo(
     () =>
       remoteUsers.filter(
@@ -303,6 +321,7 @@ function SubscribeOnlyInner({
   uid,
   rtcUidToLabel,
   onRecorderChannelPresence,
+  onRemoteUserJoined,
   onSubscribeOnlyAnyRemoteVideo,
   children,
 }: VideoGridBaseProps & {
@@ -316,6 +335,7 @@ function SubscribeOnlyInner({
 
   const remoteUsers = useRemoteUsers();
   useNotifyRecorderPresence(remoteUsers, onRecorderChannelPresence);
+  useNotifyRemoteUserJoined(remoteUsers, onRemoteUserJoined);
   const visibleRemoteUsers = useMemo(
     () =>
       remoteUsers.filter(
@@ -428,6 +448,7 @@ export function VideoGrid(props: VideoGridProps) {
           uid={props.uid}
           rtcUidToLabel={props.rtcUidToLabel}
           onRecorderChannelPresence={props.onRecorderChannelPresence}
+          onRemoteUserJoined={props.onRemoteUserJoined}
           onSubscribeOnlyAnyRemoteVideo={props.onSubscribeOnlyAnyRemoteVideo}
           children={props.children}
         />
@@ -439,6 +460,7 @@ export function VideoGrid(props: VideoGridProps) {
           uid={props.uid}
           rtcUidToLabel={props.rtcUidToLabel}
           onRecorderChannelPresence={props.onRecorderChannelPresence}
+          onRemoteUserJoined={props.onRemoteUserJoined}
           micOn={props.micOn}
           cameraOn={props.cameraOn}
         >

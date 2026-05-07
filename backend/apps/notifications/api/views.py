@@ -6,7 +6,7 @@ from django.http import StreamingHttpResponse, HttpResponse, HttpResponseNotAllo
 from rest_framework.response import Response
 from django.conf import settings
 from asgiref.sync import sync_to_async
-from django.db.models import Q
+from django.db.models import Q, Exists, OuterRef
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import AccessToken
@@ -23,25 +23,85 @@ RABBITMQ_RETRY_DELAY = 2
 logger = logging.getLogger(__name__)
 
 
+def _user_notifications_qs(user):
+    Through = Notification.read_by.through
+    purchased_course_ids = user.get_purchased_courses_ids()
+    return (
+        Notification.objects.filter(
+            Q(user=user) | Q(course_id__in=purchased_course_ids) | Q(notification_type=Notification.SYSTEM)
+        )
+        .distinct()
+        .annotate(
+            is_read=Exists(
+                Through.objects.filter(
+                    notification_id=OuterRef('pk'),
+                    user_id=user.pk,
+                )
+            )
+        )
+    )
+
+
+PAGE_SIZE = 20
+
 
 @extend_schema(
     tags=['Notifications'],
     summary='Список уведомлений пользователя',
+    parameters=[
+        OpenApiParameter(
+            name='before_id',
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description='Вернуть уведомления с id строго меньше указанного (курсор пагинации)',
+        ),
+    ],
     responses={200: NotificationSerializer(many=True)},
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_notifications_for_user(request):
+    qs = _user_notifications_qs(request.user)
+
+    before_id = request.GET.get('before_id')
+    if before_id:
+        try:
+            qs = qs.filter(id__lt=int(before_id))
+        except (ValueError, TypeError):
+            pass
+
+    page = list(qs[:PAGE_SIZE + 1])
+    has_more = len(page) > PAGE_SIZE
+
+    serializer = NotificationSerializer(page[:PAGE_SIZE], many=True)
+    return Response({'results': serializer.data, 'has_more': has_more})
+
+
+@extend_schema(
+    tags=['Notifications'],
+    summary='Пометить все уведомления пользователя как прочитанные',
+    responses={200: {'description': '{"marked": int}', 'content': {'application/json': {}}}},
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_all_read(request):
     user = request.user
+    Through = Notification.read_by.through
 
-    purchased_course_ids = user.get_purchased_courses_ids()
+    unread_ids = list(
+        _user_notifications_qs(user)
+        .filter(is_read=False)
+        .values_list('id', flat=True)
+    )
 
-    notifications = Notification.objects.filter(
-        Q(user=user) | Q(course_id__in=purchased_course_ids) | Q(notification_type=Notification.SYSTEM)
-    ).distinct()
+    if unread_ids:
+        Through.objects.bulk_create(
+            [Through(notification_id=n_id, user_id=user.pk) for n_id in unread_ids],
+            ignore_conflicts=True,
+        )
 
-    serializer = NotificationSerializer(notifications, many=True)
-    return Response(serializer.data)
+    return Response({'marked': len(unread_ids)})
 
 
 @extend_schema(

@@ -167,14 +167,12 @@ def invalidate_attempt_cache(user_id, homework_slug, attempt_id, lesson_slug, co
     cache = default_cache()
     uid = int(user_id)
 
-    # черновик и детальная попытка
     _delete(
         cache,
         attempt_draft_cache_key(uid, homework_slug),
         attempt_detail_cache_key(attempt_id),
     )
 
-    # списки по уроку — user-специфичный и общий (для учителя/модератора)
     _delete_pattern_or_key(
         cache,
         f'default:attempt:list:{lesson_slug}:*',
@@ -182,7 +180,6 @@ def invalidate_attempt_cache(user_id, homework_slug, attempt_id, lesson_slug, co
     )
     cache.delete(attempt_list_cache_key(lesson_slug))
 
-    # списки по курсу
     _delete_pattern_or_key(
         cache,
         f'default:attempt:list:course:{course_slug}:*',
@@ -190,7 +187,6 @@ def invalidate_attempt_cache(user_id, homework_slug, attempt_id, lesson_slug, co
     )
     cache.delete(attempt_list_by_course_cache_key(course_slug))
 
-    # списки без фильтра (all)
     _delete_pattern_or_key(
         cache,
         'default:attempt:list:all:*',

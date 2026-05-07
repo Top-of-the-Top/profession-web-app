@@ -297,8 +297,6 @@ export default function WebinarRecordPage() {
   const {
     messages: chatMessages,
     sendMessage,
-    isConnected: chatConnected,
-    debugLogs: chatDebugLogs,
   } = useWebinarChat({
     appId: session?.agora_app_id ?? '',
     rtmToken: session?.rtm_token ?? '',
@@ -443,16 +441,6 @@ export default function WebinarRecordPage() {
               />
             )}
           </VideoGrid>
-        </div>
-      </div>
-      <div className={styles.rtmLogOverlay}>
-        <div className={styles.rtmLogTag}>
-          <div className={styles.rtmLogTagHeader}>
-            RTM {chatConnected ? 'connected' : 'disconnected'}
-          </div>
-          <div className={styles.rtmLogTagContent}>
-            {chatDebugLogs.length > 0 ? chatDebugLogs.join('\n') : 'No RTM logs yet'}
-          </div>
         </div>
       </div>
     </div>

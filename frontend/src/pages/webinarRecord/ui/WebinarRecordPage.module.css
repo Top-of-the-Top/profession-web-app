@@ -41,48 +41,6 @@
   /* background: #000; */
 }
 
-.rtmLogTag {
-  width: min(980px, 86vw);
-  border: 1px solid #2b2b2b;
-  border-radius: 12px;
-  background: #000;
-  overflow: hidden;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
-}
-
-.rtmLogOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 20000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.rtmLogTagHeader {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: #9ca3af;
-  border-bottom: 1px solid #2b2b2b;
-  text-transform: uppercase;
-}
-
-.rtmLogTagContent {
-  margin: 0;
-  padding: 14px;
-  font-family: ui-monospace, monospace;
-  font-size: 0.92rem;
-  line-height: 1.35;
-  color: #f9fafb;
-  max-height: min(56vh, 560px);
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
 .stateCenter {
   display: flex;
   align-items: center;

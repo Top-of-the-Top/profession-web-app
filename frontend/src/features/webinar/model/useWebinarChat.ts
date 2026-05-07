@@ -24,7 +24,6 @@ interface UseWebinarChatReturn {
   messages: ChatMessage[];
   sendMessage: (text: string) => void;
   isConnected: boolean;
-  debugLogs: string[];
 }
 
 // Publish own presence into the channel so peers can map uid → name.
@@ -70,35 +69,10 @@ export function useWebinarChat({
   const userNameRef = useRef(userName);
   userNameRef.current = userName;
 
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  const appendLog = useCallback((message: string) => {
-    if (!mountedRef.current) return;
-    const time = new Date().toLocaleTimeString('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    setDebugLogs((prev) => {
-      const next = [...prev, `[${time}] ${message}`];
-      return next.slice(-80);
-    });
-  }, []);
-
   const disabled = !rtmToken || !chatChannelName || !appId || !uid;
 
   useEffect(() => {
-    if (disabled) {
-      appendLog(
-        `RTM disabled: appId=${Boolean(appId)} token=${Boolean(rtmToken)} channel=${Boolean(chatChannelName)} uid=${uid}`,
-      );
-      return;
-    }
+    if (disabled) return;
 
     let mounted = true;
     let reconnectCount = 0;
@@ -108,7 +82,6 @@ export function useWebinarChat({
 
     const rtm = new RTM(appId, String(uid));
     rtmRef.current = rtm;
-    appendLog(`RTM instance created for uid=${uid}`);
 
     // --- helpers ---
 
@@ -120,8 +93,7 @@ export function useWebinarChat({
           JSON.stringify({ type: 'presence', rtcUid: uid, userName: userNameRef.current }),
           { channelType: 'MESSAGE' },
         )
-        .then(() => appendLog('presence sent'))
-        .catch((err: unknown) => appendLog(`presence send failed: ${String(err)}`));
+        .catch(() => {});
     };
 
     // Broadcast own presence, then repeat a few times for late joiners.
@@ -244,7 +216,7 @@ export function useWebinarChat({
       rtm.unsubscribe(chatChannelName).catch(() => {}).finally(() => rtm.logout().catch(() => {}));
       setIsConnected(false);
     };
-  }, [appId, rtmToken, chatChannelName, uid, userName, disabled, appendLog]);
+  }, [appId, rtmToken, chatChannelName, uid, userName, disabled]);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -271,14 +243,10 @@ export function useWebinarChat({
           JSON.stringify({ text: trimmed, senderName: userNameRef.current, createdAt }),
           { channelType: 'MESSAGE' },
         )
-        .then(() => appendLog(`publish success: ${trimmed.slice(0, 40)}`))
-        .catch((err: unknown) => {
-          appendLog(`publish error: ${String(err)}`);
-          console.error('[RTM] publish error', err);
-        });
+        .catch((err: unknown) => console.error('[RTM] publish error', err));
     },
     [chatChannelName, isConnected, uid],
   );
 
-  return { messages, sendMessage, isConnected, debugLogs };
+  return { messages, sendMessage, isConnected };
 }

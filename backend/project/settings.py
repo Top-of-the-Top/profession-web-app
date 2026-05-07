@@ -282,6 +282,7 @@ if os.getenv('CI') or 'test' in sys.argv:
     CELERY_TASK_EAGER_PROPAGATES=True
     BROKER_BACKEND='memory'
     CELERY_BROKER_URL='memory://'
+    CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
 else:
     CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
     CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')

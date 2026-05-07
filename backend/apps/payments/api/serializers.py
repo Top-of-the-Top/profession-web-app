@@ -1,10 +1,16 @@
 from rest_framework import serializers
-from apps.courses.api.serializers import CourseDTOSerializer
+from apps.courses.models import Course
 from ..models import Payment, PaymentItem
 
 
+class PaymentCourseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = ['course_id', 'title', 'sub_title', 'price', 'slug']
+
+
 class PaymentItemSerializer(serializers.ModelSerializer):
-    course = CourseDTOSerializer(read_only=True)
+    course = PaymentCourseSerializer(read_only=True)
 
     class Meta:
         model = PaymentItem

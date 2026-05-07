@@ -1,6 +1,8 @@
 import os
+
 from django.core.management.base import BaseCommand
-from apps.webinars.api.utils.kinescope_utils import setup_drm_auth
+
+from apps.core.meta_management.factory import build_asset_service
 
 
 class Command(BaseCommand):
@@ -27,9 +29,11 @@ class Command(BaseCommand):
         username = options['username'] or os.getenv('KINESCOPE_DRM_AUTH_USERNAME', '')
         password = options['password'] or os.getenv('KINESCOPE_DRM_AUTH_PASSWORD', '')
 
-        result = setup_drm_auth(
+        backend = build_asset_service().get_backend('kinescope')
+        result = backend.configure_drm_auth(
             callback_url=options['url'],
             username=username,
             password=password,
+            strict=True,
         )
         self.stdout.write(self.style.SUCCESS(f'DRM auth зарегистрирован: {result}'))

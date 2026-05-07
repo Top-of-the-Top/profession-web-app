@@ -1,35 +1,39 @@
 from django.urls import path
 
 from .views import (
-    HomeworkAttemptSubmitView,
+    AttemptDetailView,
+    AttemptReviewView,
     HomeworkAttemptView,
-    HomeworkAttemptListView,
-    UploadFileAttachmentView
+    HomeworkAttemptSubmitView,
+    StudentAttemptsView,
 )
-
 
 app_name = 'homeworks'
 
-
 urlpatterns = [
     path(
-        'homeworks/<slug:homework_slug>/attempt/',
+        'courses/<slug:course_slug>/homeworks/<slug:homework_slug>/attempt/',
         HomeworkAttemptView.as_view(),
         name='attempt',
     ),
     path(
-        'homeworks/<slug:homework_slug>/attempt/submit',
+        'courses/<slug:course_slug>/homeworks/<slug:homework_slug>/attempt/submit/',
         HomeworkAttemptSubmitView.as_view(),
         name='attempt-submit',
     ),
     path(
-        'homeworks/<slug:homework_slug>/attempt/upload_file',
-        UploadFileAttachmentView.as_view(), 
-        name='attempt-upload'
+        'courses/<slug:course_slug>/attempts/<uuid:attempt_id>/',
+        AttemptDetailView.as_view(),
+        name='attempt-detail',
     ),
     path(
-        'homeworks/attempts/',
-        HomeworkAttemptListView.as_view(),
-        name='attempts-list',
+        'courses/<slug:course_slug>/attempts/<uuid:attempt_id>/review/',
+        AttemptReviewView.as_view(),
+        name='attempt-review',
+    ),
+    path(
+        'my-homeworks/',
+        StudentAttemptsView.as_view(),
+        name='my-homeworks',
     ),
 ]

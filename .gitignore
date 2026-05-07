@@ -3,6 +3,9 @@ frontend/node_modules
 frontend/dist
 frontend/.vite
 
+backend/celerybeat-schedule
+backend/celerybeat-schedule-shm
+backend/celerybeat-schedule-wal
 
 # Общее
 .DS_Store
@@ -33,3 +36,7 @@ __pycache__/
 .cursor/
 .claude/
 docs/
+
+celerybeat-schedule-wal
+celerybeat-schedule
+celerybeat-schedule-shm

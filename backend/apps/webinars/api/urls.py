@@ -40,6 +40,11 @@ urlpatterns = [
         name='recording-pdf',
     ),
     path(
+        'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/final-pdf/',
+        views.WebinarFinalPdfView.as_view(),
+        name='webinar-final-pdf',
+    ),
+    path(
         'courses/<slug:course_slug>/lessons/<slug:lesson_slug>/recordings/<uuid:recording_id>/',
         views.RecordingDeleteView.as_view(),
         name='recording-delete',

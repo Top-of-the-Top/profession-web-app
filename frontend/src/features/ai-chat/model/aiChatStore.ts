@@ -67,8 +67,10 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
   removeChat: (chatId) =>
     set((state) => {
       const chats = state.chats.filter((chat) => chat.chat_id !== chatId);
-      const { [chatId]: _removed, ...historyByChatId } = state.historyByChatId;
-      const { [chatId]: _removedVisibleStart, ...visibleStartByChatId } = state.visibleStartByChatId;
+      const historyByChatId = { ...state.historyByChatId };
+      const visibleStartByChatId = { ...state.visibleStartByChatId };
+      delete historyByChatId[chatId];
+      delete visibleStartByChatId[chatId];
 
       const shouldResetActive = state.activeChatId === chatId;
       const nextActive = shouldResetActive ? (chats[0]?.chat_id ?? null) : state.activeChatId;

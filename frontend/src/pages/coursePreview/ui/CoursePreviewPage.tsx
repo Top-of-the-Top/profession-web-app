@@ -80,10 +80,14 @@ export default function CoursePreviewPage() {
           </div>
           <aside className={styles.sidebar}>
             <div className={styles.priceCard}>
-              <div className={styles.priceHeader}>
+              <Skeleton className={styles.skeletonPriceBadge} />
+              <div className={styles.priceBlock}>
                 <Skeleton className={styles.skeletonPriceLabel} />
                 <Skeleton className={styles.skeletonPriceValue} />
               </div>
+              <div className={styles.priceDivider} />
+              <Skeleton className={styles.skeletonPriceDetail} />
+              <Skeleton className={styles.skeletonPriceDetail} />
               <Skeleton className={styles.skeletonSelectButton} />
             </div>
           </aside>
@@ -129,9 +133,21 @@ export default function CoursePreviewPage() {
 
         <aside className={styles.sidebar}>
           <div className={styles.priceCard}>
-            <div className={styles.priceHeader}>
-              <span>Сумма</span>
-              <span className={styles.price}>{course.price} ₽</span>
+            <div className={styles.priceBadge}>СТОИМОСТЬ КУРСА</div>
+            <div className={styles.priceBlock}>
+              <span className={styles.priceLabel}>Сумма</span>
+              <span className={styles.price}>{course.price.toLocaleString('ru-RU')} ₽</span>
+            </div>
+            <div className={styles.priceDivider} />
+            <div className={styles.priceDetails}>
+              <div className={styles.priceDetailRow}>
+                <span className={styles.priceDetailKey}>Длительность</span>
+                <span className={styles.priceDetailValue}>3 месяца</span>
+              </div>
+              <div className={styles.priceDetailRow}>
+                <span className={styles.priceDetailKey}>Формат</span>
+                <span className={styles.priceDetailValue}>Онлайн</span>
+              </div>
             </div>
             <Button
               className={styles.selectButton}

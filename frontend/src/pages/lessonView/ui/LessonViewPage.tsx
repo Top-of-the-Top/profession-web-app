@@ -1,8 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Home, Clock3, Video, CircleCheck, FileDown, Trash2 } from 'lucide-react';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -11,6 +26,7 @@ import {
   BreadcrumbSeparator,
   Button,
   PageFrame,
+  SafeHtml,
   Spinner,
 } from '@shared/ui';
 import type { LessonLayout, Block } from '../../../features/course-builder';
@@ -38,7 +54,10 @@ import {
 } from '@shared/api/mutations/webinar';
 import { useToggleHomeworkType } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac';
+import { homeworkReviewNavigateState } from '@shared/lib/homeworkReviewNavigation';
+import { cn } from '@shared/lib/utils';
 import { AiChatPanel } from '../../../features/ai-chat';
+import { preloadWebinarRoute } from '@router/lazyPages';
 import styles from './LessonViewPage.module.css';
 
 const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
@@ -50,11 +69,7 @@ const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
     FONT_SIZE_STEPS[DEFAULT_FONT_SIZE_INDEX];
 
   return (
-    <div
-      className={styles.textBlock}
-      style={{ fontSize }}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <SafeHtml className={styles.textBlock} style={{ fontSize }} html={html} />
   );
 };
 
@@ -156,7 +171,7 @@ const HomeworkWidget: React.FC<{
       ? []
       : visible.map((homework) => ({
           queryKey: courseKeys.homeworkAttempt(homework.homework_slug),
-          queryFn: () => courseApi.getHomeworkAttempt(homework.homework_slug),
+          queryFn: () => courseApi.getHomeworkAttempt(courseSlug, homework.homework_slug),
           staleTime: 30_000,
         })),
   });
@@ -193,70 +208,101 @@ const HomeworkWidget: React.FC<{
           {visible.length === 1 ? 'Задание' : 'Задания'}
         </span>
       </div>
-      {visible.map((hw) => (
-        <div key={hw.homework_id} className={styles.homeworkItem}>
-          {!isTeacher && (
-            <div className={styles.homeworkStatusRow}>
-              <span
-                className={
-                  attemptStatuses.get(hw.homework_slug) === 'reviewed'
-                    ? styles.hwBadgePublished
-                    : attemptStatuses.get(hw.homework_slug) === 'submitted'
-                      ? styles.hwBadgeDraft
-                      : styles.hwBadgePending
-                }
-              >
-                {attemptStatuses.get(hw.homework_slug) === 'reviewed'
-                  ? 'проверено'
-                  : attemptStatuses.get(hw.homework_slug) === 'submitted'
-                    ? 'отправлено'
-                    : 'не сдано'}
-              </span>
-            </div>
-          )}
-          {isTeacher && (
-            <div className={styles.homeworkStatusRow}>
-              <span
-                className={
-                  hw.type === 'published'
-                    ? styles.hwBadgePublished
-                    : styles.hwBadgeDraft
-                }
-              >
-                {hw.type === 'published' ? 'опубликовано' : 'черновик'}
-              </span>
-              <button
-                type="button"
-                className={styles.hwToggleButton}
-                disabled={toggleType.isPending}
-                onClick={() =>
-                  toggleType.mutate({
-                    homeworkSlug: hw.homework_slug,
-                    currentType: hw.type,
-                  })
-                }
-              >
-                {hw.type === 'published' ? 'В черновик' : 'Опубликовать'}
-              </button>
-            </div>
-          )}
-          {hw.deadline && (
-            <p className={styles.deadlineText}>
-              Дедлайн: {formatDeadline(hw.deadline)}
-            </p>
-          )}
-          <Link
-            to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`}
-            className={styles.homeworkButton}
+      {visible.map((hw, index) => {
+        const status = attemptStatuses.get(hw.homework_slug);
+        const actionLabel = isTeacher
+          ? 'Открыть проверку'
+          : status === 'reviewed'
+            ? 'Посмотреть результат'
+            : status === 'submitted'
+              ? 'Посмотреть отправку'
+              : 'Сдать ДЗ';
+        return (
+          <div
+            key={hw.homework_id}
+            className={cn(
+              styles.homeworkItem,
+              index > 0 && styles.homeworkItemDivided,
+            )}
           >
-            {attemptStatuses.get(hw.homework_slug) === 'reviewed'
-              ? 'Посмотреть результат'
-              : attemptStatuses.get(hw.homework_slug) === 'submitted'
-                ? 'Посмотреть отправку'
-                : hw.title || 'Сдать ДЗ'}
-          </Link>
-        </div>
-      ))}
+            <p className={styles.homeworkItemTitle}>
+              {hw.title || `ДЗ #${index + 1}`}
+            </p>
+            {!isTeacher && (
+              <div className={styles.homeworkStatusRow}>
+                <span
+                  className={
+                    status === 'reviewed'
+                      ? styles.hwBadgePublished
+                      : status === 'submitted'
+                        ? styles.hwBadgeDraft
+                        : styles.hwBadgePending
+                  }
+                >
+                  {status === 'reviewed'
+                    ? 'проверено'
+                    : status === 'submitted'
+                      ? 'отправлено'
+                      : 'не сдано'}
+                </span>
+              </div>
+            )}
+            {isTeacher && (
+              <div className={styles.homeworkStatusRow}>
+                <span
+                  className={
+                    hw.type === 'published'
+                      ? styles.hwBadgePublished
+                      : styles.hwBadgeDraft
+                  }
+                >
+                  {hw.type === 'published' ? 'опубликовано' : 'черновик'}
+                </span>
+                <button
+                  type="button"
+                  className={styles.hwToggleButton}
+                  disabled={toggleType.isPending}
+                  onClick={() =>
+                    toggleType.mutate({
+                      homeworkSlug: hw.homework_slug,
+                      currentType: hw.type,
+                    })
+                  }
+                >
+                  {hw.type === 'published' ? 'В черновик' : 'Опубликовать'}
+                </button>
+              </div>
+            )}
+            {hw.deadline && (
+              <p className={styles.deadlineText}>
+                Дедлайн: {formatDeadline(hw.deadline)}
+              </p>
+            )}
+            <Link
+              to={
+                isTeacher
+                  ? `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}/review`
+                  : `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`
+              }
+              state={
+                isTeacher
+                  ? homeworkReviewNavigateState(`/app/courses/${courseSlug}/${lessonSlug}`)
+                  : undefined
+              }
+              className={styles.homeworkButton}
+            >
+              {actionLabel}
+            </Link>
+          </div>
+        );
+      })}
+      <Link
+        to={`/app/homeworks?course_slug=${courseSlug}&lesson_slug=${lessonSlug}`}
+        className={styles.homeworkButton}
+        style={{ marginTop: 8, opacity: 0.7, fontSize: '0.8rem' }}
+      >
+        Все ДЗ урока
+      </Link>
     </div>
   );
 };
@@ -401,20 +447,28 @@ const WebinarWidget: React.FC<{
 }> = ({ courseSlug, lessonSlug, isTeacher, webinarStatus }) => {
   const navigate = useNavigate();
   const startWebinar = useStartWebinar(courseSlug, lessonSlug);
+  const [isJoiningWebinar, setIsJoiningWebinar] = useState(false);
 
   const webinarUrl = `/app/courses/${courseSlug}/${lessonSlug}/webinar`;
 
   const handleStartWebinar = () => {
     startWebinar.mutate(undefined, {
-      onSuccess: () => navigate(webinarUrl),
+      onSuccess: async () => {
+        setIsJoiningWebinar(true);
+        await preloadWebinarRoute();
+        navigate(webinarUrl);
+      },
+      onSettled: () => {
+        setIsJoiningWebinar(false);
+      },
     });
   };
 
-  const handleJoinLive = () => {
+  const handleJoinLive = async () => {
+    setIsJoiningWebinar(true);
+    await preloadWebinarRoute();
     navigate(webinarUrl);
   };
-
-  
 
   if (webinarStatus === 'live') {
     return (
@@ -422,27 +476,79 @@ const WebinarWidget: React.FC<{
         <button
           type="button"
           className={styles.quickLinkButton}
-          onClick={handleJoinLive}
+          onPointerEnter={() => {
+            void preloadWebinarRoute();
+          }}
+          onFocus={() => {
+            void preloadWebinarRoute();
+          }}
+          onClick={() => {
+            void handleJoinLive();
+          }}
+          disabled={isJoiningWebinar}
         >
           <Video size={20} />
-          <span>Вернуться в звонок</span>
+          <span>
+            {isJoiningWebinar
+              ? 'Переход...'
+              : isTeacher
+                ? 'Вернуться в звонок'
+                : 'Войти в вебинар'}
+          </span>
         </button>
       </div>
     );
   }
 
-  if (!isTeacher) return null;
+  if (!isTeacher) {
+    if (webinarStatus === 'pending') {
+      return (
+        <div className={styles.linksRow}>
+          <button
+            type="button"
+            className={styles.quickLinkButton}
+            onPointerEnter={() => {
+              void preloadWebinarRoute();
+            }}
+            onFocus={() => {
+              void preloadWebinarRoute();
+            }}
+            onClick={() => {
+              void handleJoinLive();
+            }}
+            disabled={isJoiningWebinar}
+          >
+            <Video size={20} />
+            <span>{isJoiningWebinar ? 'Переход...' : 'Войти в вебинар'}</span>
+          </button>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className={styles.linksRow}>
       <button
         type="button"
         className={styles.quickLinkButton}
+        onPointerEnter={() => {
+          void preloadWebinarRoute();
+        }}
+        onFocus={() => {
+          void preloadWebinarRoute();
+        }}
         onClick={handleStartWebinar}
-        disabled={startWebinar.isPending}
+        disabled={startWebinar.isPending || isJoiningWebinar}
       >
         <Video size={20} />
-        <span>{startWebinar.isPending ? 'Запуск...' : 'Начать вебинар'}</span>
+        <span>
+          {startWebinar.isPending
+            ? 'Запуск...'
+            : isJoiningWebinar
+              ? 'Переход...'
+              : 'Начать вебинар'}
+        </span>
       </button>
     </div>
   );
@@ -464,23 +570,52 @@ const LessonEditWidget: React.FC<{
   );
 };
 
+type RecordingDeleteConfirm =
+  | null
+  | { kind: 'recording'; recordingId: string; dateLabel: string }
+  | { kind: 'pdf'; recordingId: string; dateLabel: string };
+
 const LessonRecordingCard: React.FC<{
   recording: LessonRecording;
   isTeacher: boolean;
-  onDeletePdf: (recordingId: string) => void;
-  onDeleteRecording: (recordingId: string) => void;
+  onRequestDeletePdf: (payload: { recordingId: string; dateLabel: string }) => void;
+  onRequestDeleteRecording: (payload: {
+    recordingId: string;
+    dateLabel: string;
+  }) => void;
   deletePdfPending: boolean;
   deleteRecordingPending: boolean;
+  isLeaving?: boolean;
+  onLeavingRemoveComplete?: () => void;
 }> = ({
   recording,
   isTeacher,
-  onDeletePdf,
-  onDeleteRecording,
+  onRequestDeletePdf,
+  onRequestDeleteRecording,
   deletePdfPending,
   deleteRecordingPending,
+  isLeaving,
+  onLeavingRemoveComplete,
 }) => {
+  const leaveExitDoneRef = useRef(false);
+
+  useEffect(() => {
+    if (!isLeaving || !onLeavingRemoveComplete) {
+      leaveExitDoneRef.current = false;
+      return;
+    }
+    leaveExitDoneRef.current = false;
+    const timerId = window.setTimeout(() => {
+      if (leaveExitDoneRef.current) return;
+      leaveExitDoneRef.current = true;
+      onLeavingRemoveComplete();
+    }, 450);
+    return () => window.clearTimeout(timerId);
+  }, [isLeaving, onLeavingRemoveComplete]);
+
   const pdfLink = recording.whiteboard_pdf_url?.trim();
   const hasPdf = !!pdfLink && /^https?:\/\//i.test(pdfLink);
+  const isWhiteboardOnly = recording.kind === 'whiteboard_only';
   const dateLabel = recording.started_at
     ? new Intl.DateTimeFormat('ru-RU', {
         day: 'numeric',
@@ -491,32 +626,43 @@ const LessonRecordingCard: React.FC<{
     : 'Запись без даты';
 
   return (
-    <article className={styles.recordingCard}>
+    <article
+      className={cn(styles.recordingCard, isLeaving && styles.recordingCardLeaving)}
+      onAnimationEnd={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (!isLeaving || !onLeavingRemoveComplete) return;
+        if (leaveExitDoneRef.current) return;
+        leaveExitDoneRef.current = true;
+        onLeavingRemoveComplete();
+      }}
+    >
       <div className={styles.recordingCardHead}>
-        <h3 className={styles.recordingCardTitle}>{dateLabel}</h3>
+        <h3 className={styles.recordingCardTitle}>
+          {isWhiteboardOnly ? 'Доска вебинара' : dateLabel}
+        </h3>
       </div>
 
-      {recording.kinescope_upload_status === 'ready' &&
-      recording.kinescope_embed_url ? (
-        <div className={styles.recordingIframeWrap}>
-          <iframe
-            src={recording.kinescope_embed_url}
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-            allowFullScreen
-            className={styles.recordingIframe}
-            title="Запись урока"
-          />
-        </div>
-      ) : recording.kinescope_upload_status === 'failed' ? (
-        <div className={styles.recordingFailed}>
-          Не удалось обработать запись
-        </div>
-      ) : (
-        <div className={styles.recordingStatus}>
-          <Spinner />
-          <span>Запись обрабатывается…</span>
-        </div>
-      )}
+      {!isWhiteboardOnly &&
+        (recording.kinescope_upload_status === 'ready' &&
+        recording.kinescope_embed_url ? (
+          <div className={styles.recordingIframeWrap}>
+            <iframe
+              src={recording.kinescope_embed_url}
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              allowFullScreen
+              className={styles.recordingIframe}
+              title="Запись урока"
+            />
+          </div>
+        ) : recording.kinescope_upload_status === 'failed' ? (
+          <div className={styles.recordingFailed}>
+            Не удалось обработать запись
+          </div>
+        ) : (
+          <div className={styles.recordingStatus}>
+            <span>Запись скоро появится</span>
+          </div>
+        ))}
 
       {hasPdf && (
         <div className={styles.whiteboardPdfRow}>
@@ -533,22 +679,32 @@ const LessonRecordingCard: React.FC<{
         </div>
       )}
 
-      {isTeacher && recording.recording_id && (
+      {isTeacher && recording.recording_id && !isWhiteboardOnly && (
         <div className={styles.recordingActions}>
           <button
             type="button"
             className={styles.recordingActionButton}
-            onClick={() => onDeleteRecording(recording.recording_id)}
-            disabled={deleteRecordingPending}
+            onClick={() =>
+              onRequestDeleteRecording({
+                recordingId: recording.recording_id,
+                dateLabel,
+              })
+            }
+            disabled={deleteRecordingPending || isLeaving}
           >
             <Trash2 size={16} />
-            {deleteRecordingPending ? 'Удаление...' : 'Удалить запись'}
+            {deleteRecordingPending || isLeaving ? 'Удаление...' : 'Удалить запись'}
           </button>
           {hasPdf && (
             <button
               type="button"
               className={styles.recordingActionButton}
-              onClick={() => onDeletePdf(recording.recording_id)}
+              onClick={() =>
+                onRequestDeletePdf({
+                  recordingId: recording.recording_id,
+                  dateLabel,
+                })
+              }
               disabled={deletePdfPending}
             >
               <FileDown size={16} />
@@ -560,6 +716,9 @@ const LessonRecordingCard: React.FC<{
     </article>
   );
 };
+
+const TITLE_CENTER_MIN_WIDTH = 130;
+const TITLE_CENTER_MAX_WIDTH = 560;
 
 /* ── Page ── */
 
@@ -581,6 +740,20 @@ export default function LessonViewPage() {
   const lessonDetail = lessonQuery.data;
   const deleteRecordingPdf = useDeleteRecordingPdf(courseSlug ?? '', lessonSlug ?? '');
   const deleteRecording = useDeleteRecording(courseSlug ?? '', lessonSlug ?? '');
+  const [recordingDeleteConfirm, setRecordingDeleteConfirm] =
+    useState<RecordingDeleteConfirm>(null);
+  const [leavingRecordingId, setLeavingRecordingId] = useState<string | null>(null);
+  const leavingRecordingIdRef = useRef<string | null>(null);
+  const titleMeasureRef = useRef<HTMLSpanElement>(null);
+  const [titleCenterWidth, setTitleCenterWidth] = useState(TITLE_CENTER_MIN_WIDTH);
+
+  const completeRecordingLeaveAnimation = useCallback(() => {
+    const id = leavingRecordingIdRef.current;
+    if (!id) return;
+    leavingRecordingIdRef.current = null;
+    deleteRecording.mutate(id);
+    setLeavingRecordingId(null);
+  }, [deleteRecording]);
 
   const lessonLayout = useMemo<LessonLayout | null>(() => {
     if (!lessonDetail?.document) return null;
@@ -594,6 +767,18 @@ export default function LessonViewPage() {
       };
     }
   }, [lessonDetail]);
+
+  useLayoutEffect(() => {
+    const node = titleMeasureRef.current;
+    if (!node) return;
+    const measured = Math.ceil(node.getBoundingClientRect().width) + 44;
+    setTitleCenterWidth(
+      Math.min(
+        TITLE_CENTER_MAX_WIDTH,
+        Math.max(TITLE_CENTER_MIN_WIDTH, measured),
+      ),
+    );
+  }, [lessonDetail?.title]);
 
   const loading = lessonQuery.isLoading;
   if (loading) {
@@ -667,9 +852,59 @@ export default function LessonViewPage() {
         <div className={styles.mainColumn}>
           <div className={styles.lessonHeader}>
             <div className={styles.lessonHeaderTrapezoid}>
-              <h1 className={styles.lessonTitleTrapezoid}>
-                {lessonDetail.title}
-              </h1>
+              <svg
+                className={styles.lessonHeaderCapLeft}
+                width="36"
+                height="50"
+                viewBox="0 0 36 50"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                <path
+                  d="M0.526002 49.5C0.0639109 49.5 5.86287 35.1201 10.4607 7.34502C11.1094 3.42623 14.4713 0.5 18.4434 0.5H35.526C35.2499 0.5 35.026 0.73128 35.026 1.00742V49.0062C35.026 49.2823 35.2499 49.5 35.526 49.5H0.526002Z"
+                  fill="#fff"
+                  stroke="#fff"
+                />
+              </svg>
+              <div
+                className={styles.lessonHeaderCenter}
+                style={{ width: `${titleCenterWidth}px` }}
+              >
+                <svg
+                  className={styles.lessonHeaderCenterSvg}
+                  width="82"
+                  height="50"
+                  viewBox="0 0 82 50"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  preserveAspectRatio="none"
+                  aria-hidden
+                >
+                  <rect width="82" height="50" fill="#fff" />
+                </svg>
+                <h1 className={styles.lessonTitleTrapezoid}>
+                  {lessonDetail.title}
+                </h1>
+                <span ref={titleMeasureRef} className={styles.titleMeasure}>
+                  {lessonDetail.title || '\u00a0'}
+                </span>
+              </div>
+              <svg
+                className={styles.lessonHeaderCapRight}
+                width="36"
+                height="50"
+                viewBox="0 0 36 50"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                <path
+                  d="M35.0052 49.5C35.4673 49.5 29.6684 35.1201 25.0705 7.34502C24.4218 3.42623 21.0599 0.5 17.0878 0.5H0.00523758C0.28138 0.5 0.505238 0.73128 0.505238 1.00742V49.0062C0.505238 49.2823 0.28138 49.5 0.00523758 49.5H35.0052Z"
+                  fill="#fff"
+                  stroke="#fff"
+                />
+              </svg>
             </div>
           </div>
 
@@ -684,14 +919,34 @@ export default function LessonViewPage() {
                       key={`${recording.recording_id}-${recording.started_at ?? 'recording'}`}
                       recording={recording}
                       isTeacher={isTeacher}
-                      onDeletePdf={(recordingId) => {
-                        deleteRecordingPdf.mutate(recordingId);
+                      onRequestDeletePdf={({ recordingId, dateLabel }) => {
+                        setRecordingDeleteConfirm({
+                          kind: 'pdf',
+                          recordingId,
+                          dateLabel,
+                        });
                       }}
-                      onDeleteRecording={(recordingId) => {
-                        deleteRecording.mutate(recordingId);
+                      onRequestDeleteRecording={({ recordingId, dateLabel }) => {
+                        setRecordingDeleteConfirm({
+                          kind: 'recording',
+                          recordingId,
+                          dateLabel,
+                        });
                       }}
-                      deletePdfPending={deleteRecordingPdf.isPending}
-                      deleteRecordingPending={deleteRecording.isPending}
+                      deletePdfPending={
+                        deleteRecordingPdf.isPending &&
+                        deleteRecordingPdf.variables === recording.recording_id
+                      }
+                      deleteRecordingPending={
+                        deleteRecording.isPending &&
+                        deleteRecording.variables === recording.recording_id
+                      }
+                      isLeaving={leavingRecordingId === recording.recording_id}
+                      onLeavingRemoveComplete={
+                        leavingRecordingId === recording.recording_id
+                          ? completeRecordingLeaveAnimation
+                          : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -729,6 +984,52 @@ export default function LessonViewPage() {
         </aside>
       </div>
       </div>
+
+      <AlertDialog
+        open={recordingDeleteConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open) setRecordingDeleteConfirm(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {recordingDeleteConfirm?.kind === 'pdf'
+                ? 'Удалить PDF доски?'
+                : 'Удалить запись?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {recordingDeleteConfirm?.kind === 'pdf'
+                ? `PDF для записи «${recordingDeleteConfirm.dateLabel}» будет удалён без возможности восстановления.`
+                : `Запись «${recordingDeleteConfirm?.dateLabel ?? ''}» будет удалена без возможности восстановления.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRecordingDeleteConfirm(null)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                recordingDeleteConfirm?.kind === 'pdf'
+                  ? deleteRecordingPdf.isPending
+                  : deleteRecording.isPending
+              }
+              onClick={() => {
+                if (!recordingDeleteConfirm) return;
+                if (recordingDeleteConfirm.kind === 'pdf') {
+                  deleteRecordingPdf.mutate(recordingDeleteConfirm.recordingId);
+                } else {
+                  leavingRecordingIdRef.current = recordingDeleteConfirm.recordingId;
+                  setLeavingRecordingId(recordingDeleteConfirm.recordingId);
+                }
+                setRecordingDeleteConfirm(null);
+              }}
+            >
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageFrame>
   );
 }

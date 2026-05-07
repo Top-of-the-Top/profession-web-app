@@ -12,6 +12,7 @@ import {
 import { useCourses } from '@shared/api/queries/courses';
 import { useCart } from '@shared/api/queries/cart';
 import { useAddToCart } from '@shared/api/mutations/cart';
+import { preloadCourseDetailsRoutes } from '@router/lazyPages';
 import styles from './CourseStorePage.module.css';
 
 const FALLBACK_IMAGE =
@@ -21,14 +22,36 @@ interface CourseCardProps {
   course: CourseDTO;
   onClick: () => void;
   onAddToCart: () => void;
+  onPrefetch: () => void;
   disabled?: boolean;
   inCart?: boolean;
   isAdding?: boolean;
 }
 
-const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart, isAdding }: CourseCardProps) => {
+const CourseCard = ({
+  course,
+  onClick,
+  onAddToCart,
+  onPrefetch,
+  disabled,
+  inCart,
+  isAdding,
+}: CourseCardProps) => {
   return (
-    <div className={styles.courseCard}>
+    <div
+      className={styles.courseCard}
+      onPointerEnter={onPrefetch}
+      onFocus={onPrefetch}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
       <div className={styles.courseHeader}>
         <h3 className={styles.courseTitle}>{course.title}</h3>
         <p className={styles.courseDescription}>{course.sub_title}</p>
@@ -53,10 +76,9 @@ const CourseCard = ({ course, onClick, onAddToCart, disabled, inCart, isAdding }
         <Button 
           variant="ghost" 
           className={styles.detailsButton}
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
+          onPointerEnter={onPrefetch}
+          onFocus={onPrefetch}
+          onClick={onClick}
         >
           <div className={styles.iconWrapper}>
             <ArrowUpRight className={styles.arrowIcon} size={25} />
@@ -117,6 +139,7 @@ export default function CourseStorePage() {
   const inCartSlugs = new Set(cart?.courses?.map((c) => c.slug) ?? []);
 
   const handleCourseClick = (slug: string) => {
+    preloadCourseDetailsRoutes();
     navigate(`/app/store/${slug}`);
   };
 
@@ -188,6 +211,7 @@ export default function CourseStorePage() {
               course={course}
               onClick={() => handleCourseClick(course.slug)}
               onAddToCart={() => handleAddToCart(course.slug, course.title)}
+              onPrefetch={preloadCourseDetailsRoutes}
               disabled={addToCart.isPending && addToCart.variables === course.slug}
               isAdding={addToCart.isPending && addToCart.variables === course.slug}
               inCart={inCartSlugs.has(course.slug)}

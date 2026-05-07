@@ -107,7 +107,7 @@ class Course(AbstractComponentModel):
         blank=True,
         verbose_name='Kinescope folder id'
     )
-    yandex_vs_id = models.CharField( # Это хранилище с данными для курса, там хранится контекст курса
+    yandex_vs_id = models.CharField(
         max_length=255,
         blank=True,
         null=True,
@@ -246,7 +246,16 @@ class Homework(AbstractComponentModel, AutoIncrementMixin):
     title = models.CharField(max_length=120, verbose_name='Название домашнего задания')
     slug = models.SlugField(max_length=120, verbose_name='URL', blank=True)
     deadline = models.DateTimeField(verbose_name='Дедлайн')
+    max_points = models.PositiveIntegerField(default=0, verbose_name='Максимальный балл за домашку')
 
+    def recalc_max_points(self):
+        questions_total = self.question_set.aggregate(
+            total=models.Sum('max_points')
+        )['total'] or 0
+        tasks_total = self.task_set.aggregate(
+            total=models.Sum('max_points')
+        )['total'] or 0
+        Homework.objects.filter(pk=self.pk).update(max_points=questions_total + tasks_total)
 
     def save(self, *args, **kwargs):
         if not self.slug:

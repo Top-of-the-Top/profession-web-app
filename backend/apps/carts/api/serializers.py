@@ -3,6 +3,11 @@ from apps.courses.api.serializers import CourseDTOSerializer
 from ..models import Cart, CartItem
 
 
+class CartCourseSerializer(CourseDTOSerializer):
+    class Meta(CourseDTOSerializer.Meta):
+        fields = CourseDTOSerializer.Meta.fields + ['price']
+
+
 class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
@@ -10,7 +15,7 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 
 class CartSerializer(serializers.ModelSerializer):
-    courses = CourseDTOSerializer(many=True, read_only=True)
+    courses = CartCourseSerializer(many=True, read_only=True)
 
     class Meta:
         model = Cart

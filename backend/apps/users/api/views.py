@@ -1,10 +1,16 @@
 from django.utils import timezone
 import os
+import logging
 import hashlib
-from django.core.cache import cache
-from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from django.http import HttpResponseRedirect
+from django.conf import settings
+from urllib.parse import urlencode
+import httpx
+from django.core.cache import cache
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from .errors import VerificationError
@@ -27,23 +33,31 @@ from .serializers import (
     EmailRegisterSerializer,
     VerifyRegisterSerializer,
     RecoverPasswordPhoneSerializer,
+    RefreshTokenRequestSerializer,
+    RecoverPasswordRequestSerializer,
+    ResetPasswordRequestSerializer,
+    CodeSentResponseSerializer,
+    RateLimitedResponseSerializer,
+    DetailOnlyResponseSerializer,
+    ResetPasswordSuccessSerializer,
+    SimpleStatusResponseSerializer,
+    ResetPasswordPhoneTokenResponseSerializer,
 )
-from .utils.crypto_utils import encrypt_data
+from apps.core.api.serializers import AssetErrorResponseSerializer
+
+from .utils.token_utils import get_tokens_for_user, set_reset_token
 from .utils.notification_utils import (
+    send_verification_sms,
+    send_verification_email,
     send_reset_password_email,
     send_reset_password_sms,
-    send_verification_email,
-    send_verification_sms,
 )
+from .utils.verification_utils import generate_verification_code_for_user, verify_code
+from .utils.crypto_utils import encrypt_data
 from .utils.registration_utils import (
-    check_contact_rate_limit,
     generate_registration_code,
     verify_registration_code,
-)
-from .utils.token_utils import get_tokens_for_user, set_reset_token
-from .utils.verification_utils import (
-    generate_verification_code_for_user,
-    verify_code,
+    check_contact_rate_limit,
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
@@ -71,9 +85,10 @@ SCHEMA_500 = {
     },
 }
 
+logger = logging.getLogger(__name__)
+
 
 class RegisterView(APIView):
-
     permission_classes = []
 
     @extend_schema(
@@ -82,35 +97,16 @@ class RegisterView(APIView):
             "Двухэтапная регистрация. "
             "Передайте email или phone_number с password. "
             "На указанный контакт отправляется 6 значный код. "
-            "Для завершения отправьте код на /api/auth/register/verify/."
+            "Для завершения отправьте код на /api/auth/register/verify/.\n\n"
+            "**403**: без контактов — объект с **detail**. "
+            "При ошибках вложенной валидации тело может быть **{ поле: [сообщения] }**, как у DRF."
         ),
         tags=["Users"],
         request=RegisterSerializer,
         responses={
-            200: {
-                "description": "Код отправлен.",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "status": {"type": "string", "example": "code_sent"},
-                        "detail": {"type": "string"},
-                    },
-                },
-            },
-            403: {
-                "description": "Ошибка валидации.",
-                "schema": SCHEMA_VALIDATION_ERROR
-            },
-            429: {
-                "description": "Слишком частые запросы.",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "detail": {"type": "string"},
-                        "retry_after": {"type": "integer"},
-                    },
-                },
-            },
+            200: CodeSentResponseSerializer,
+            403: DetailOnlyResponseSerializer,
+            429: RateLimitedResponseSerializer,
         },
     )
     def post(self, request):
@@ -122,12 +118,12 @@ class RegisterView(APIView):
                 {'detail': MSG_CONTACT_REQUIRED},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        
+
         if phone and not email:
             serializer = PhoneRegisterSerializer(data=request.data)
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
-            
+
             phone_numder = serializer.validated_data['phone_number']
             password = serializer.validated_data['password']
 
@@ -183,16 +179,15 @@ class VerifyRegisterView(APIView):
         description=(
             "Второй шаг регистрации. "
             "Передайте phone_number или email и 6 значный код. "
-            "При успехе создаётся аккаунт и возвращаются JWT токены."
+            "При успехе создаётся аккаунт и возвращаются JWT токены.\n\n"
+            "Ответ **400**: либо стандартные ошибки полей DRF ({field: [msg]}), "
+            "либо при неверном коде объект **{ \"error\", \"detail\" }**."
         ),
         tags=["Users"],
         request=VerifyRegisterSerializer,
         responses={
             200: TokenResponseSerializer,
-            400: {
-                "description": "Неверный или истёкший код.",
-                "schema": SCHEMA_VALIDATION_ERROR,
-            },
+            400: SCHEMA_VALIDATION_ERROR,
         },
     )
 
@@ -246,7 +241,8 @@ class LoginView(APIView):
         request=LoginSerializer,
         responses={
             200: TokenResponseSerializer,
-            400: {"description": "Ошибка валидации.", "schema": SCHEMA_VALIDATION_ERROR},
+            400: SCHEMA_VALIDATION_ERROR,
+            429: RateLimitedResponseSerializer,
         },
     )
     def post(self, request):
@@ -298,6 +294,7 @@ class RefreshTokenView(APIView):
             "Выдаёт новую пару access и refresh токенов по действующему refresh_token."
         ),
         tags=["Users"],
+        request=RefreshTokenRequestSerializer,
         responses={
             200: TokenResponseSerializer,
             401: {"description": "refresh_token отсутствует или недействителен.", "schema": SCHEMA_401},
@@ -332,10 +329,12 @@ class ResetPasswordView(APIView):
             "На email отправляется ссылка, на телефон SMS код."
         ),
         tags=["Users"],
+        request=ResetPasswordRequestSerializer,
         responses={
-            200: {"description": "Ссылка или код отправлены.", "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
-            403: {"description": "Контакт не указан или пользователь не найден.", "schema": SCHEMA_403},
-            500: {"description": "Ошибка отправки.", "schema": SCHEMA_500},
+            200: ResetPasswordSuccessSerializer,
+            403: SCHEMA_403,
+            429: RateLimitedResponseSerializer,
+            500: SCHEMA_500,
         },
     )
     def post(self, request):
@@ -408,22 +407,23 @@ class RecoverPasswordView(APIView):
         summary="Установка нового пароля",
         description=(
             "Завершение сброса пароля. "
-            "Передайте token (из письма) и password_hash (новый пароль). "
-            "При успехе возвращаются JWT токены."
+            "При успехе возвращаются JWT токены. "
+            "**password_hash**: тело содержит новый пароль (plain); имя поля историческое."
         ),
         tags=["Users"],
+        request=RecoverPasswordRequestSerializer,
         responses={
             200: TokenResponseSerializer,
-            403: {"description": "Токен отсутствует, невалиден или истёк.", "schema": SCHEMA_403},
+            403: SCHEMA_403,
         },
     )
 
     def patch(self, request):
         token = request.data.get('token')
-        password = request.data.get('password_hash')
+        password = request.data.get('password')
         if not token or not password:
             return Response(
-                {'detail': 'token и password обязательны'},
+                {'detail': 'token и password_hash обязательны'},
                 status=status.HTTP_403_FORBIDDEN
             )
         user = User.objects.filter(
@@ -455,17 +455,9 @@ class RecoverPasswordPhoneView(APIView):
         tags=["Users"],
         request=RecoverPasswordPhoneSerializer,
         responses={
-            200: {
-                "description": "Код подтверждён, токен выдан.",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "token": {"type": "string", "description": "Токен для сброса пароля"},
-                    },
-                },
-            },
+            200: ResetPasswordPhoneTokenResponseSerializer,
             400: {
-                "description": "Неверный или истёкший код.",
+                "description": "Неверный код — **{ \"error\", \"detail\" }**; иначе ошибки полей DRF.",
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
             403: {
@@ -530,19 +522,33 @@ class ProfileView(APIView):
                 self.profile = profile
 
         wrapper = UserProfileWrapper(user, profile)
-        serializer = UserProfileSerializer(wrapper)
+        serializer = UserProfileSerializer(wrapper, context={'request': request})
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
         summary="Обновление профиля",
-        description="Частичное обновление профиля текущего пользователя.",
+        description=(
+            "Частичное обновление профиля. "
+            "**gender**: на вход можно передать М, Ж, Мужской или Женский; в БД хранится короткая форма (М/Ж). "
+            "**avatar_asset_id** — единое поле для управления фото профиля в этой же ручке PATCH /api/profile/: "
+            "передайте UUID ассета после успешной загрузки и `ready` на /api/uploads/…, "
+            "или передайте `null`, чтобы удалить текущий аватар.\n\n"
+            "**400**: ошибки валидации DRF (**{поле:[…]}**) или ошибка при привязке аватара в форме "
+            "**{status, code, message, details}**. "
+            "**403 / 404 / 409 / 503** возможны только при ошибке bind ассета (с тем же телом ошибки)."
+        ),
         tags=["Users"],
         request=UpdateProfileSerializer,
         responses={
-            200: {"description": "Профиль обновлён.", "schema": {"type": "object", "properties": {"status": {"type": "string", "example": "success"}}}},
-            400: {"description": "Ошибка валидации.", "schema": SCHEMA_VALIDATION_ERROR},
+            200: SimpleStatusResponseSerializer,
+            400: SCHEMA_VALIDATION_ERROR,
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            403: AssetErrorResponseSerializer,
+            404: AssetErrorResponseSerializer,
+            409: AssetErrorResponseSerializer,
+            429: RateLimitedResponseSerializer,
+            503: AssetErrorResponseSerializer,
         },
     )
     def patch(self, request):
@@ -596,14 +602,47 @@ class ProfileView(APIView):
             profile.gender = data['gender']
         if 'birthday' in data:
             profile.birthday = data['birthday']
-        if 'avatar' in data:
-            profile.avatar = data['avatar']
         profile.save()
+
+        if 'avatar_asset_id' in data:
+            from apps.core.meta_management.factory import build_binding_api
+            from apps.core.meta_management.errors import AssetError
+            from apps.core.processors.error_processor import process_error_response
+            from apps.core.models import AssetUsage
+            from django.contrib.contenttypes.models import ContentType
+            try:
+                build_binding_api().sync_single(    
+                    content_object=profile,
+                    role='user_avatar',
+                    asset_id=data['avatar_asset_id'],
+                    owner=user,
+                )
+            except AssetError as exc:
+                return process_error_response(exc)
+
+            # Fail fast if binding was not applied for the requested asset.
+            bound = AssetUsage.objects.filter(
+                content_type=ContentType.objects.get_for_model(profile),
+                object_id=str(profile.pk),
+                role='user_avatar',
+                asset_id=data['avatar_asset_id'],
+            ).exists()
+            if data['avatar_asset_id'] is not None and not bound:
+                return Response(
+                    {
+                        'status': 'error',
+                        'code': 'avatar_bind_not_applied',
+                        'message': 'Не удалось привязать новый аватар к профилю.',
+                        'details': {'asset_id': str(data['avatar_asset_id'])},
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
 
         return Response(
             {'status': 'success'},
             status=status.HTTP_200_OK
         )
+
 
 class VerifyEmailChangeView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -618,15 +657,11 @@ class VerifyEmailChangeView(APIView):
         tags=["Users"],
         request=VerifyCodeSerializer,
         responses={
-            200: {
-                "description": "Email обновлён.",
-                "schema": {
-                    "type": "object",
-                    "properties": {"status": {"type": "string", "example": "success"}},
-                },
-            },
+            200: SimpleStatusResponseSerializer,
             400: {
-                "description": "Неверный код, неверный формат, дубликат email или ошибка валидации.",
+                "description": (
+                    "Неверный/дублирующий код, ошибки формата **или** объект **{ «error», «detail» }** после verify_code."
+                ),
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
@@ -680,15 +715,12 @@ class VerifyPhoneChangeView(APIView):
         tags=["Users"],
         request=VerifyCodeSerializer,
         responses={
-            200: {
-                "description": "Телефон обновлён.",
-                "schema": {
-                    "type": "object",
-                    "properties": {"status": {"type": "string", "example": "success"}},
-                },
-            },
+            200: SimpleStatusResponseSerializer,
             400: {
-                "description": "Неверный код, неверный формат, дубликат телефона или ошибка валидации.",
+                "description": (
+                    "Неверный/дублирующий код или **{ «error», «detail» }** после verify_code; "
+                    "также объект с **«detail»** при дубликате телефона."
+                ),
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
             401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
@@ -728,4 +760,318 @@ class VerifyPhoneChangeView(APIView):
             )
 
         return Response({'status': 'success'}, status=status.HTTP_200_OK)
-    
+
+
+class YandexCallbackAPIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        code = request.query_params.get('code')
+        state = request.query_params.get('state')
+        error = request.query_params.get('error')
+
+        params = {"provider": "yandex"}
+
+        if code:
+            cache.set(f"oauth:yandex:state:{state}", 1, timeout=600)
+            params.update({'code': code, 'state': state})
+        elif error:
+            params.update({
+                'error': error,
+                'error_description': request.query_params.get('error_description', '')
+            })
+            if state:
+                params['state'] = state
+        else:
+            params['error'] = 'invalid_callback_payload'
+
+        target_url = f"{settings.FRONTEND_OAUTH_YANDEX_REDIRECT_URI}?{urlencode(params)}"
+        return HttpResponseRedirect(target_url)
+
+
+class YandexOauth2APIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def _validate_state(self, state):
+        key = f"oauth:yandex:state:{state}"
+        return bool(cache.delete(key))
+
+    def _exchange_code_for_token(self, code):
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": settings.YANDEX_CLIENT_ID,
+            "client_secret": settings.YANDEX_CLIENT_SECRET,
+        }
+        try:
+            response = httpx.post("https://oauth.yandex.ru/token", data=data, timeout=5.0)
+            if response.status_code == 200:
+                return response.json()
+        except httpx.RequestError:
+            return None
+        return None
+
+    def _get_yandex_user_info(self, token):
+        headers = {"Authorization": f"OAuth {token}"}
+        try:
+            resp = httpx.get("https://login.yandex.ru/info?format=json", headers=headers, timeout=5.0)
+            return resp.json() if resp.status_code == 200 else {}
+        except httpx.RequestError:
+            return {}
+
+    def _sync_user_profile(self, user, user_info, *, is_new):
+        user_fields_changed = []
+
+        first_name = (user_info.get('first_name') or '').strip()
+        last_name = (user_info.get('last_name') or '').strip()
+
+        if first_name and (is_new or not user.first_name):
+            user.first_name = first_name
+            user_fields_changed.append('first_name')
+        if last_name and (is_new or not user.last_name):
+            user.last_name = last_name
+            user_fields_changed.append('last_name')
+
+        if user_fields_changed:
+            user.save(update_fields=user_fields_changed)
+
+        profile, _ = Profile.objects.get_or_create(user=user)
+        profile_fields_changed = []
+
+        birthday_raw = user_info.get('birthday')
+        if birthday_raw and (is_new or not profile.birthday):
+            from datetime import date
+            try:
+                parsed_birthday = date.fromisoformat(birthday_raw)
+                if parsed_birthday.year > 0:
+                    profile.birthday = parsed_birthday
+                    profile_fields_changed.append('birthday')
+            except (ValueError, AttributeError):
+                pass
+
+        sex = user_info.get('sex')
+        if sex and (is_new or not profile.gender):
+            gender_map = {'male': 'М', 'female': 'Ж'}
+            mapped = gender_map.get(sex)
+            if mapped:
+                profile.gender = mapped
+                profile_fields_changed.append('gender')
+
+        if profile_fields_changed:
+            profile.save(update_fields=profile_fields_changed)
+
+    def post(self, request):
+        code = request.data.get('code')
+        state = request.data.get('state')
+
+        if not code or not state:
+            return Response({"error": "invalid_request", "detail": "Code and state are required."}, status=400)
+
+        if not self._validate_state(state):
+            return Response(
+                {"error": "invalid_state", "detail": "OAuth state is invalid or expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        yandex_tokens = self._exchange_code_for_token(code)
+        if not yandex_tokens:
+            return Response({"error": "invalid_code"}, status=400)
+
+        user_info = self._get_yandex_user_info(yandex_tokens['access_token'])
+        email = user_info.get('default_email')
+        default_phone = user_info.get('default_phone') or {}
+        phone = default_phone.get('number') if isinstance(default_phone, dict) else None
+
+        if not email and not phone:
+            return Response({"error": "missing_required_profile_data"}, status=400)
+
+        email_enc = encrypt_data(str(email)) if email else None
+        phone_enc = encrypt_data(str(phone)) if phone else None
+
+        user = None
+        if email_enc:
+            user = User.objects.filter(email_cipher=email_enc).first()
+        if not user and phone_enc:
+            user = User.objects.filter(phone_cipher=phone_enc).first()
+
+        is_new = user is None
+        if is_new:
+            user = User.objects.create(
+                email_cipher=email_enc,
+                phone_cipher=phone_enc,
+                role='student',
+            )
+
+        self._sync_user_profile(user, user_info, is_new=is_new)
+
+        return Response(get_tokens_for_user(user), status=200)
+
+
+class VKCallbackAPIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        code = request.query_params.get('code')
+        state = request.query_params.get('state')
+        device_id = request.query_params.get('device_id')
+        error = request.query_params.get('error')
+
+        params = {"provider": "vk"}
+
+        if code:
+            cache.set(f"oauth:vk:state:{state}", 1, timeout=600)
+            params.update({
+                'code': code,
+                'state': state,
+                'device_id': device_id
+            })
+        elif error:
+            params.update({
+                'error': error,
+                'error_description': request.query_params.get('error_description', '')
+            })
+            if state:
+                params['state'] = state
+        else:
+            params['error'] = 'invalid_callback_payload'
+
+        target_url = f"{settings.FRONTEND_OAUTH_VK_REDIRECT_URI}?{urlencode(params)}"
+        return HttpResponseRedirect(target_url)
+
+
+class VKOAauth2APIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def _validate_state(self, state):
+        key = f"oauth:vk:state:{state}"
+        return bool(cache.delete(key))
+
+    def _sync_vk_profile(self, user, vk_user, *, is_new):
+        user_fields_changed = []
+
+        first_name = vk_user.get('first_name', '').strip()
+        last_name = vk_user.get('last_name', '').strip()
+
+        if first_name and (is_new or not user.first_name):
+            user.first_name = first_name
+            user_fields_changed.append('first_name')
+        if last_name and (is_new or not user.last_name):
+            user.last_name = last_name
+            user_fields_changed.append('last_name')
+
+        if user_fields_changed:
+            user.save(update_fields=user_fields_changed)
+
+        profile, _ = Profile.objects.get_or_create(user=user)
+
+        vk_sex = vk_user.get('sex')
+        if vk_sex and (is_new or not profile.gender):
+            profile.gender = 'М' if vk_sex == 2 else 'Ж'
+
+        profile.save()
+
+    def _exchange_code_for_tokens(self, code, code_verifier, device_id):
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "code_verifier": code_verifier,
+            "device_id": device_id,
+            "client_id": settings.VK_CLIENT_ID,
+            "client_secret": settings.VK_CLIENT_SECRET,
+            "redirect_uri": settings.VK_REDIRECT_URI,
+        }
+        try:
+            response = httpx.post("https://id.vk.com/oauth2/auth", data=data, timeout=5.0)
+
+            if response.status_code != 200:
+                logger.error(f"VK Exchange Failed: Status {response.status_code}, Response: {response.text}")
+                return None
+
+            logger.info("VK Exchange Success: Tokens received.")
+            return response.json()
+        except httpx.RequestError as e:
+            logger.exception(f"VK Exchange Network Error: {str(e)}")
+            return None
+
+    def _get_vk_user_info(self, access_token):
+        data = {
+            "access_token": access_token,
+            "client_id": settings.VK_CLIENT_ID,
+        }
+
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        try:
+            resp = httpx.post(
+                "https://id.vk.ru/oauth2/user_info",
+                data=data,
+                headers=headers,
+                timeout=5.0
+            )
+
+            if resp.status_code == 200:
+                data = resp.json()
+                if 'error' in data:
+                    return {}
+
+                return data
+
+            return {}
+
+        except httpx.RequestError as e:
+            logger.exception(f"VK UserInfo Connection Error: {str(e)}")
+            return {}
+
+    def post(self, request):
+        code = request.data.get('code')
+        state = request.data.get('state')
+        code_verifier = request.data.get('code_verifier')
+        device_id = request.data.get('device_id')
+
+        if not all([code, state, code_verifier, device_id]):
+            return Response({"error": "invalid_request"}, status=400)
+
+        if not self._validate_state(state):
+            return Response({"error": "invalid_state"}, status=400)
+
+        vk_tokens = self._exchange_code_for_tokens(code, code_verifier, device_id)
+        if not vk_tokens or 'access_token' not in vk_tokens:
+            return Response({"error": "invalid_code"}, status=400)
+
+        user_info = self._get_vk_user_info(vk_tokens['access_token'])
+        vk_user = user_info.get('user', {})
+        email = vk_user.get('email')
+        phone = vk_user.get('phone')
+
+        if not email and not phone:
+            return Response({
+                "error": "missing_required_profile_data",
+                "details": user_info
+            }, status=400)
+
+        email_enc = encrypt_data(str(email)) if email else None
+        phone_enc = encrypt_data(str(phone)) if phone else None
+
+        user = None
+        if email_enc:
+            user = User.objects.filter(email_cipher=email_enc).first()
+        if not user and phone_enc:
+            user = User.objects.filter(phone_cipher=phone_enc).first()
+
+        is_new = user is None
+        if is_new:
+            user = User.objects.create_user(
+                email_cipher=email_enc,
+                phone_cipher=phone_enc,
+                role='student'
+            )
+
+        self._sync_vk_profile(user, vk_user, is_new=is_new)
+
+        return Response(get_tokens_for_user(user), status=200)

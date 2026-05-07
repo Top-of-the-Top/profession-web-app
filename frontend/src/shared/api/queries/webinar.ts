@@ -18,7 +18,9 @@ export function useWebinarJoin(
     queryFn: () => webinarApi.join(courseSlug!, lessonSlug!),
     enabled: !!courseSlug && !!lessonSlug,
     staleTime: Infinity,
+    gcTime: 0,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: false,
   });
 }

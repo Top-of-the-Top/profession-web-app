@@ -1,12 +1,9 @@
 import logging
-from datetime import timedelta
 
 from celery import shared_task
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
-
-ACCESS_DURATION_DAYS = 365
 
 
 @shared_task(
@@ -35,7 +32,7 @@ def process_payment_task(self, payment_id: int):
 
     yookassa_result = MockYooKassaService.fetch_payment_status(
         str(payment.mock_yookassa_id),
-    )  # Получаем статус платежа из (мок) ЮKassa.
+    )
 
     if yookassa_result['paid']:
         return _handle_success(payment)
@@ -43,47 +40,16 @@ def process_payment_task(self, payment_id: int):
         return _handle_failure(self, payment)
 
 
-def _handle_success(payment):  # Это метод - обработка успешного платежа.
-    from ..courses.models import PurchasedCourse
-    from ..carts.models import Cart, CartItem
-
+def _handle_success(payment):
     payment.status = 'success'
     payment.paid_at = timezone.now()
     payment.save(update_fields=['status', 'paid_at', 'updated_at'])
 
-    access_expires = timezone.now() + timedelta(days=ACCESS_DURATION_DAYS)
+    logger.info('Payment %s успешен для пользователя %s', payment.payment_id, payment.user_id)
 
-    payment_items = payment.items.select_related('course').all()
-
-    created_count = 0
-    for item in payment_items:  # Для каждого курса в платеже создаем объект в PurchasedCourse.
-        _, created = PurchasedCourse.objects.get_or_create(
-            user=payment.user,
-            course=item.course,
-            defaults={
-                'payment': payment,
-                'access_expires_at': access_expires,
-            },
-        )
-        if created:
-            created_count += 1
-
-    # Очищаем текущую корзину пользователя.
-    CartItem.objects.filter(cart_id__user=payment.user).delete()
-
-    logger.info(
-        'Payment %s успешен: %d курсов добавлено пользователю %s',
-        payment.payment_id, created_count, payment.user_id,
-    )
-
-    return {
-        'status': 'success',
-        'payment_id': payment.payment_id,
-        'courses_added': created_count,
-    }
+    return {'status': 'success', 'payment_id': payment.payment_id}
 
 
-# Это метод - обработка неудачного платежа.
 def _handle_failure(task_instance, payment):
     payment.status = 'failed'
     payment.save(update_fields=['status', 'updated_at'])

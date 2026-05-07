@@ -6,5 +6,3 @@ class HomeworksConfig(AppConfig):
     name = 'apps.homeworks'
     verbose_name = 'Домашние задания'
 
-    def ready(self):
-        from . import signals

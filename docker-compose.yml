@@ -80,7 +80,10 @@ services:
     env_file:
       - ./backend/.env
     environment:
+      - PYTHONPATH=/app
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+    volumes:
+      - ./backend:/app
     networks:
       - app_network
 

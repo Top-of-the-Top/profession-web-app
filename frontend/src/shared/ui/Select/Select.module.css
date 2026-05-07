@@ -89,7 +89,7 @@
   transform-origin: var(--radix-select-content-transform-origin);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background-color: var(--color-popover);
+  background-color: var(--profession-white-bg);
   box-shadow: var(--shadow-md);
   color: var(--color-popover-foreground);
 
@@ -114,8 +114,9 @@
 
   /* State */
   &[data-state="open"] {
-    animation-duration: var(--default-transition-duration);
-    animation-timing-function: var(--ease-out);
+    animation-duration: var(--dialog-motion-duration);
+    animation-timing-function: var(--dialog-motion-ease);
+    animation-fill-mode: both;
   }
 
   &[data-state="open"][data-side="top"] {
@@ -130,14 +131,14 @@
     animation-name: var(--animate-slide-left);
   }
 
-  &t[data-state="open"][data-side="right"] {
+  &[data-state="open"][data-side="right"] {
     animation-name: var(--animate-slide-right);
   }
 }
 
 .select-viewport {
   padding: var(--spacing);
-	background-color: white;
+	background-color: var(--profession-white-bg);
 
   /* Position (popper) */
   &[data-is-popper="true"] {
@@ -168,7 +169,7 @@
   cursor: default;
   user-select: none;
   gap: calc(var(--spacing) * 2);
-	background-color: white;
+	background-color: var(--profession-white-bg);
 
   & > svg {
     flex-shrink: 0;
@@ -235,5 +236,11 @@
 :global(.dark) {
   .select-trigger {
     background-color: color-mix(in oklab, var(--color-input) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .select-content[data-state="open"] {
+    animation-duration: 0.01ms;
   }
 }

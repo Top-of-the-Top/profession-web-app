@@ -13,6 +13,10 @@ export const courseKeys = {
     [...courseKeys.all, courseSlug, 'lessons', lessonSlug, 'homework', homeworkSlug] as const,
   homeworkAttempt: (homeworkSlug: string) =>
     [...courseKeys.all, 'homework-attempt', homeworkSlug] as const,
+  homeworkAttemptsByCourse: (courseSlug: string) =>
+    [...courseKeys.all, courseSlug, 'attempts'] as const,
+  homeworkAttemptReview: (courseSlug: string, attemptId: string) =>
+    [...courseKeys.all, courseSlug, 'attempts', attemptId] as const,
 };
 
 export function useCourses() {
@@ -48,22 +52,15 @@ export function useCourseHomeBySlug(slug: string | undefined) {
 export function useLessonBySlug(
   courseSlug: string | undefined,
   lessonSlug: string | undefined,
+  opts?: { editorMode?: boolean },
 ) {
   return useQuery({
     queryKey: courseKeys.lesson(courseSlug!, lessonSlug!),
     queryFn: () => courseApi.getLessonBySlug(courseSlug!, lessonSlug!),
     enabled: !!courseSlug && !!lessonSlug,
-    refetchInterval: (query) => {
-      const recordings = query.state.data?.recordings ?? [];
-      return recordings.some(
-        (recording) =>
-          recording.kinescope_upload_status === 'pending' ||
-          recording.kinescope_upload_status === 'uploading' ||
-          recording.kinescope_upload_status === 'processing',
-      )
-        ? 10_000
-        : false;
-    },
+    // In editor mode never auto-refetch — would clobber unsaved work
+    staleTime: opts?.editorMode ? Infinity : 30_000,
+    refetchOnWindowFocus: opts?.editorMode ? false : true,
   });
 }
 
@@ -71,18 +68,59 @@ export function useHomeworkDetail(
   courseSlug: string | undefined,
   lessonSlug: string | undefined,
   homeworkSlug: string | undefined,
+  opts?: { editorMode?: boolean },
 ) {
   return useQuery({
     queryKey: courseKeys.homework(courseSlug!, lessonSlug!, homeworkSlug!),
     queryFn: () => courseApi.getHomeworkDetail(courseSlug!, lessonSlug!, homeworkSlug!),
     enabled: !!courseSlug && !!lessonSlug && !!homeworkSlug,
+    staleTime: opts?.editorMode ? Infinity : 30_000,
+    refetchOnWindowFocus: opts?.editorMode ? false : true,
   });
 }
 
-export function useHomeworkAttempt(homeworkSlug: string | undefined) {
+export function useHomeworkAttempt(
+  courseSlug: string | undefined,
+  homeworkSlug: string | undefined,
+) {
   return useQuery({
     queryKey: courseKeys.homeworkAttempt(homeworkSlug!),
-    queryFn: () => courseApi.getHomeworkAttempt(homeworkSlug!),
-    enabled: !!homeworkSlug,
+    queryFn: () => courseApi.getHomeworkAttempt(courseSlug!, homeworkSlug!),
+    enabled: !!courseSlug && !!homeworkSlug,
+  });
+}
+
+export function useHomeworkAttemptsByCourse(courseSlug: string | undefined) {
+  return useQuery({
+    queryKey: courseKeys.homeworkAttemptsByCourse(courseSlug!),
+    queryFn: () => courseApi.getHomeworkAttemptsByCourse(courseSlug!),
+    enabled: !!courseSlug,
+  });
+}
+
+export function useHomeworkAttemptForReview(
+  courseSlug: string | undefined,
+  attemptId: string | undefined,
+) {
+  return useQuery({
+    queryKey: courseKeys.homeworkAttemptReview(courseSlug!, attemptId!),
+    queryFn: () => courseApi.getHomeworkAttemptForReview(courseSlug!, attemptId!),
+    enabled: !!courseSlug && !!attemptId,
+  });
+}
+
+export const myHomeworksKeys = {
+  all: ['my-homeworks'] as const,
+  filtered: (courseSlug?: string, lessonSlug?: string) =>
+    [...myHomeworksKeys.all, courseSlug ?? '', lessonSlug ?? ''] as const,
+};
+
+export function useMyHomeworks(
+  courseSlug?: string,
+  lessonSlug?: string,
+) {
+  return useQuery({
+    queryKey: myHomeworksKeys.filtered(courseSlug, lessonSlug),
+    queryFn: () => courseApi.getMyHomeworks({ courseSlug, lessonSlug }),
   });
 }

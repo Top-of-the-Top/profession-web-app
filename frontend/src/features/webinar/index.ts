@@ -1,5 +1,11 @@
 export { VideoGrid } from './ui/VideoGrid';
+export { buildRtcUidLabelMap, WEBINAR_RECORDER_RTC_UID } from './lib/rtcUidLabels';
 export { WhiteboardPanel } from './ui/WhiteboardPanel';
 export type { WhiteboardPanelHandle } from './ui/WhiteboardPanel';
 export { WebinarControls } from './ui/WebinarControls';
+export { WebinarChat } from './ui/WebinarChat';
 export { useMediaControls } from './lib/useMediaControls';
+export { useWebinarChat } from './model/useWebinarChat';
+export type { ChatMessage } from './model/useWebinarChat';
+export { connectWebinarSSE } from './model/webinar.sse';
+export type { WebinarSseEvent } from './model/webinar.sse';

@@ -1,5 +1,5 @@
-import { Button } from '@shared/ui';
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -9,17 +9,26 @@ import {
   FieldGroup,
   FieldLabel,
   Input,
+  OAuthButtons,
 } from '@shared/ui';
-import { cn } from '@shared/lib/utils';
 import styles from './LoginPage.module.css';
 import { useState } from 'react';
 import { useUserStore } from '@entities/user/model/userStore';
 import { loginUser } from '../api';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ZodError } from 'zod';
+import { Eye, EyeOff } from 'lucide-react';
 import { parseApiError } from '@shared/lib/api/parseApiError';
+import {
+  consumeAuthLogoutReason,
+  type AuthLogoutReason,
+} from '@shared/lib/auth/logoutReason';
 import { messageForApiFailure, notifyError } from '@shared/lib/sileo/notify';
-import { preloadRegisterRoute, preloadResetRoute } from '@router/lazyPages';
+import {
+  preloadRegisterRoute,
+  preloadResetRoute,
+  warmAppAfterAuth,
+} from '@router/lazyPages';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginFormSchema, type LoginFormValues } from '@shared/utils/formSchemas';
@@ -45,10 +54,42 @@ function notifyLoginFailure(err: unknown) {
   notifyError({ title: msg.title, description: msg.description });
 }
 
+function getLogoutReasonText(reason: AuthLogoutReason | null): string | null {
+  if (reason === 'refresh_token_expired') {
+    return 'Сессия истекла: refresh-токен просрочен. Войдите снова.';
+  }
+  if (reason === 'refresh_token_invalid') {
+    return 'Сессия сброшена: refresh-токен невалиден. Войдите снова.';
+  }
+  if (reason === 'refresh_token_missing') {
+    return 'Сессия завершена: refresh-токен отсутствует. Войдите снова.';
+  }
+  if (reason === 'refresh_token_unavailable') {
+    return 'Сеанс завершен: сервер авторизации недоступен. Войдите снова.';
+  }
+  return null;
+}
+
+type LoginLocationState = {
+  from?: {
+    pathname?: string;
+    search?: string;
+    hash?: string;
+  };
+  authReason?: AuthLogoutReason | null;
+};
+
 export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as LoginLocationState | null;
   const login = useUserStore((s) => s.login);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [logoutReasonText] = useState<string | null>(() => {
+    const reason = locationState?.authReason ?? consumeAuthLogoutReason();
+    return getLogoutReasonText(reason ?? null);
+  });
   const {
     register,
     handleSubmit,
@@ -63,7 +104,14 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
     try {
       const payload = await loginUser({ emailOrPhone, password });
       await login(payload);
-      navigate('/app', { replace: true });
+      await warmAppAfterAuth();
+      const from = locationState?.from;
+      const fromPath = from?.pathname
+        ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`
+        : null;
+      const redirectTo =
+        fromPath && fromPath.startsWith('/app') ? fromPath : '/app';
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       if (err instanceof ZodError) {
         notifyError({
@@ -84,8 +132,13 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
         <img className={styles.logo} src="profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
-            <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>Войти</CardTitle>
+            <CardTitle className={styles.formTitleOverride}>Войти</CardTitle>
             <CardDescription>Введите данные ниже, чтобы войти в систему</CardDescription>
+            {logoutReasonText ? (
+              <CardDescription className={styles.authNotice}>
+                {logoutReasonText}
+              </CardDescription>
+            ) : null}
           </CardHeader>
           <CardContent className={styles.cardContent}>
             <form onSubmit={handleSubmit(onSubmit)}>
@@ -109,22 +162,32 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                   <div className={styles.passwordHeader}>
                     <FieldLabel htmlFor="password">Пароль</FieldLabel>
                   </div>
-                  <Input
-                    id="password"
-                    type="password"
-                    autoComplete="password"
-                    placeholder="Пароль"
-                    className={styles.input}
-                    disabled={loading}
-                    {...register('password')}
-                  />
+                  <div className={styles.passwordInputWrap}>
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="password"
+                      placeholder="Пароль"
+                      className={styles.input}
+                      disabled={loading}
+                      {...register('password')}
+                    />
+                    <button
+                      type="button"
+                      className={styles.passwordToggle}
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                      disabled={loading}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                   {errors.password?.message ? (
                     <CardDescription>{errors.password.message}</CardDescription>
                   ) : null}
                 </Field>
                 <Field>
                   <Button
-                    style={{ fontSize: '14px' }}
                     type="submit"
                     className={styles.submitButton}
                     disabled={loading}
@@ -134,28 +197,9 @@ export default function LoginForm({ ...props }: React.ComponentProps<'div'>) {
                   <div className={styles.divider}>
                     <span>или</span>
                   </div>
-                  <div className={styles.socialButtons}>
-                    <Button
-                      variant="outline"
-                      type="button"
-                      className={cn(styles.socialButton, styles.loginVk)}
-                    >
-                      <span className={styles.socialIcon}>
-                        <img src="login/vk.svg" alt="" />
-                      </span>
-                      Войти с VK ID
-                    </Button>
-                    <Button
-                      variant="outline"
-                      type="button"
-                      className={cn(styles.socialButton, styles.loginYa)}
-                    >
-                      <span className={styles.socialIcon}>
-                        <img src="login/ya.svg" alt="" />
-                      </span>
-                      Войти с Яндекс ID
-                    </Button>
-                  </div>
+                  <OAuthButtons
+                    containerClassName={styles.socialButtons}
+                  />
                   <div className={styles.linksContainer}>
                     <div className={styles.linkRow}>
                       <span>Нет аккаунта? </span>

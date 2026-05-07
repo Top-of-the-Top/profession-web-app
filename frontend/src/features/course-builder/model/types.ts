@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sanitizeEditorHtml } from '@shared/lib/html/sanitizeEditorHtml';
 import type { HomeworkLayout } from './homeworkTypes';
 import { HomeworkLayoutSchema } from './homeworkTypes';
 
@@ -33,6 +34,7 @@ export type TextBlock = z.infer<typeof TextBlockSchema>;
 export const PhotoBlockSchema = BaseBlockSchema.extend({
   type: z.literal('photo'),
   url: z.string().optional().default(''),
+  assetId: z.string().optional(),
 });
 
 export type PhotoBlock = z.infer<typeof PhotoBlockSchema>;
@@ -40,6 +42,7 @@ export type PhotoBlock = z.infer<typeof PhotoBlockSchema>;
 export const VideoBlockSchema = BaseBlockSchema.extend({
   type: z.literal('video'),
   url: z.string().optional().default(''),
+  assetId: z.string().optional(),
 });
 
 export type VideoBlock = z.infer<typeof VideoBlockSchema>;
@@ -91,6 +94,15 @@ export const parseLessonLayoutFromContentString = (raw: string): LessonLayout =>
   }
   return LessonLayoutSchema.parse(parsed);
 };
+
+export const normalizeLessonLayoutForEditor = (layout: LessonLayout): LessonLayout => ({
+  ...layout,
+  blocks: layout.blocks.map((block) =>
+    block.type === 'text'
+      ? { ...block, html: sanitizeEditorHtml(block.html) }
+      : block,
+  ),
+});
 
 export const serializeLessonLayout = (layout: LessonLayout): LessonLayoutDTO => {
   return LessonLayoutSchema.parse(layout);

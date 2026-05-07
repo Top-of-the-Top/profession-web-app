@@ -3,6 +3,8 @@ export { default as LoginPage } from "./login/ui/LoginPage";
 export { default as RegistrationPage } from "./register/ui/RegistrationPage";
 export { default as ResetPage } from "./reset/ui/ResetPage";
 export { default as RecoverPage } from "./recover/ui/RecoverPage";
+export { default as OAuthVkCallbackPage } from "./oauth-vk-callback/ui/OAuthVkCallbackPage";
+export { default as OAuthYandexCallbackPage } from "./oauth-yandex-callback/ui/OAuthYandexCallbackPage";
 export { default as ProfilePage } from "./profile/ui/ProfilePage";
 export { default as AppHomePage } from './home/ui/AppHomePage';
 export { default as CourseStorePage } from './store/ui/CourseStorePage'
@@ -14,3 +16,5 @@ export { default as LessonEditPage } from './lessonEdit/ui/LessonEditPage'
 export { default as LessonPreviewPage } from './lessonPreview/ui/LessonPreviewPage'
 export { default as LessonViewPage } from './lessonView/ui/LessonViewPage'
 export { default as HomeworkSubmissionPage } from './homeworkSubmission/ui/HomeworkSubmissionPage'
+export { default as HomeworkReviewPage } from './homeworkReview/ui/HomeworkReviewPage'
+export { default as HomeworkReviewAttemptsPage } from './homeworkReviewAttempts/ui/HomeworkReviewAttemptsPage'

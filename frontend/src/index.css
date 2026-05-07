@@ -5,12 +5,12 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
 * {
 	margin: 0;
 	padding: 0;
 	margin-block-start: 0;
   margin-block-end: 0;
+  font-family: 'Golos Text', sans-serif;
 }
 
 body {
@@ -20,4 +20,10 @@ body {
   background-color: var(--color-background, #ffffff);
   color: var(--color-foreground, #000000);
 	
+}
+
+[data-sileo-viewport] [data-sileo-description],
+[data-sileo-viewport][data-theme='light'] [data-sileo-description],
+[data-sileo-viewport][data-theme='dark'] [data-sileo-description] {
+  color: #344054;
 }

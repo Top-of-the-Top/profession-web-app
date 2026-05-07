@@ -24,12 +24,13 @@ export function OtpInput({
   groupAriaLabel = 'Код из 6 цифр',
 }: OtpInputProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const isEmptyOtp = value.every((c) => c === '');
 
   useLayoutEffect(() => {
-    if (!value.every((c) => c === '')) return;
+    if (!isEmptyOtp) return;
     const id = requestAnimationFrame(() => inputRefs.current[0]?.focus());
     return () => cancelAnimationFrame(id);
-  }, [value.join('')]);
+  }, [isEmptyOtp, value]);
 
   const focusAt = (index: number) => {
     requestAnimationFrame(() =>

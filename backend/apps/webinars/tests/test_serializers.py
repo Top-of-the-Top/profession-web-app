@@ -53,10 +53,14 @@ class WebinarTokenSerializerTest(BaseWebinarTestCase):
 
     def test_all_required_fields_present(self):
         data = {
+            'webinar_id': '00000000-0000-0000-0000-000000000001',
             'rtc_token': 'tok',
+            'rtm_token': 'rtmtok',
             'agora_app_id': 'app',
             'channel_name': 'ch',
+            'chat_channel_name': 'chat-room',
             'uid': 42,
+            'user_name': 'Иванов Иван',
             'whiteboard_app_id': 'wb',
             'whiteboard_room_uuid': 'room',
             'whiteboard_room_token': 'wbtok',
@@ -72,10 +76,14 @@ class WebinarTokenSerializerTest(BaseWebinarTestCase):
 
     def test_uid_must_be_integer(self):
         serializer = WebinarTokenSerializer(data={
+            'webinar_id': '00000000-0000-0000-0000-000000000001',
             'rtc_token': 'tok',
+            'rtm_token': 'rtmtok',
             'agora_app_id': 'app',
             'channel_name': 'ch',
+            'chat_channel_name': 'chat-room',
             'uid': 'not-an-int',
+            'user_name': 'Иванов Иван',
             'whiteboard_app_id': 'wb',
             'whiteboard_room_uuid': 'room',
             'whiteboard_room_token': 'wbtok',
@@ -147,17 +155,23 @@ class RecordingListItemSerializerTest(BaseWebinarTestCase):
 
         self.assertEqual(data['kinescope_embed_url'], '')
 
-    @patch('apps.webinars.api.utils.kinescope_utils.generate_drm_token')
-    def test_embed_url_generated_for_ready_recording(self, mock_token):
-        mock_token.return_value = 'drm-token-123'
+    def test_embed_url_generated_for_ready_recording(self):
+        expected_url = 'https://kinescope.io/embed/vid123?drmauthtoken=drm-token-123'
         rec = Recording.objects.create(
             webinar=self.webinar,
             kinescope_upload_status='ready',
             kinescope_video_id='vid123',
         )
         request = self._request_with_user()
-        data = RecordingListItemSerializer(rec, context={'request': request}).data
+
+        mock_access = MagicMock()
+        mock_access.resolve_bound_url.return_value = expected_url
+
+        with patch('apps.webinars.api.serializers.build_access_api', return_value=mock_access):
+            data = RecordingListItemSerializer(rec, context={'request': request}).data
 
         self.assertIn('kinescope.io/embed/vid123', data['kinescope_embed_url'])
         self.assertIn('drmauthtoken=drm-token-123', data['kinescope_embed_url'])
-        mock_token.assert_called_once()
+        mock_access.resolve_bound_url.assert_any_call(
+            rec, role='webinar_recording', viewer=request.user, ttl_seconds=3600
+        )

@@ -48,7 +48,6 @@ logs-backend: ## Логи только backend
 logs-celery: ## Логи только Celery worker
 	$(COMPOSE) logs -f $(CELERY_SVC)
 
-
 .PHONY: migrate
 migrate: ## Применить миграции
 	$(MANAGE) migrate --noinput
@@ -68,6 +67,10 @@ collectstatic: ## Собрать статику
 .PHONY: shell
 shell: ## Django shell
 	$(MANAGE) shell
+
+.PHONY: test 
+test: ## Запустить тесты
+	$(MANAGE) test 
 
 .PHONY: bash
 bash: ## Bash внутри контейнера backend

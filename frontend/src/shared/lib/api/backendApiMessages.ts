@@ -22,6 +22,7 @@ export type ApiFailureScene =
   | 'cartLoad'
   | 'cartAdd'
   | 'cartRemove'
+  | 'cartPay'
   | 'courseDetail'
   | 'webinarStart'
   | 'webinarJoin'
@@ -31,7 +32,65 @@ export type ApiFailureScene =
   | 'recordingPdfDelete'
   | 'recordingDelete'
   | 'webinarStop'
-  | 'webinarRecorderJoin';
+  | 'webinarRecorderJoin'
+  | 'mediaUpload';
+
+export const ASSET_ERROR_MESSAGES: Record<string, UserFacingMessage> = {
+  ASSET_INTENT_NOT_ALLOWED: {
+    title: 'неподходящий сценарий загрузки',
+    description: 'Попробуйте другой раздел или тип файла.',
+  },
+  ASSET_POLICY_VIOLATION: {
+    title: 'файл нарушает правила',
+    description: 'Проверьте размер и тип файла.',
+  },
+  ASSET_COMMIT_MISMATCH: {
+    title: 'файл не загружен',
+    description: 'Повторите загрузку — данные в хранилище не совпали.',
+  },
+  ASSET_PERMISSION_DENIED: {
+    title: 'нет доступа',
+    description: 'Вы не можете загрузить или привязать этот файл.',
+  },
+  ASSET_NOT_FOUND: {
+    title: 'файл не найден',
+    description: 'Загрузите файл заново.',
+  },
+  ASSET_STATUS_INVALID: {
+    title: 'статус файла не годится',
+    description: 'Файл ещё не готов. Дождитесь окончания загрузки.',
+  },
+  ASSET_BIND_CONFLICT: {
+    title: 'конфликт привязки',
+    description: 'Один и тот же файл уже привязан или достигнут лимит.',
+  },
+  ASSET_ALREADY_COMMITTED: {
+    title: 'файл уже принят',
+    description: 'Файл уже подтверждён сервером.',
+  },
+  ASSET_STORAGE_UNAVAILABLE: {
+    title: 'хранилище недоступно',
+    description: 'Попробуйте загрузить файл позже.',
+  },
+};
+
+export function messageForAssetCode(code: string): UserFacingMessage | null {
+  return ASSET_ERROR_MESSAGES[code] ?? null;
+}
+
+export function messageFromAssetError(body: unknown): UserFacingMessage | null {
+  if (!isRecord(body)) return null;
+  if (body.status !== 'error') return null;
+  const code = typeof body.code === 'string' ? body.code : null;
+  if (!code) return null;
+  const direct = messageForAssetCode(code);
+  if (direct) return direct;
+  const message = typeof body.message === 'string' ? body.message : null;
+  if (message) {
+    return { title: 'ошибка загрузки', description: message };
+  }
+  return null;
+}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -173,7 +232,6 @@ function collectLogin400(body: unknown): UserFacingMessage | null {
 const RESET_DETAIL_NO_CONTACT = 'Необходимо указать email или phone_number';
 const RESET_DETAIL_USER_NOT_FOUND = 'Пользователь не найден';
 
-// --- RecoverPasswordView (поле в теле — password_hash; текст ошибки от бэка всё равно «password») ---
 
 const RECOVER_DETAIL_MISSING = 'token и password обязательны';
 const RECOVER_DETAIL_BAD_TOKEN = 'Невалидный или истёкший токен';
@@ -283,6 +341,10 @@ const SCENE_FALLBACK: Record<ApiFailureScene, UserFacingMessage> = {
     title: 'не удалось удалить',
     description: 'Повторите попытку.',
   },
+  cartPay: {
+    title: 'не удалось оплатить',
+    description: 'Повторите попытку.',
+  },
   courseDetail: {
     title: 'не удалось загрузить курс',
     description: 'Обновите страницу или откройте курс из каталога.',
@@ -322,6 +384,10 @@ const SCENE_FALLBACK: Record<ApiFailureScene, UserFacingMessage> = {
   webinarRecorderJoin: {
     title: 'нет доступа к записи',
     description: 'Проверьте ссылку записи.',
+  },
+  mediaUpload: {
+    title: 'не удалось загрузить файл',
+    description: 'Повторите попытку позже.',
   },
 };
 
@@ -462,6 +528,12 @@ const SCENE_STATUS_FALLBACK: Partial<
       description: 'Курс не найден в корзине или в каталоге.',
     },
   },
+  cartPay: {
+    401: {
+      title: 'сессия устарела',
+      description: 'Войдите снова и повторите действие.',
+    },
+  },
   courseDetail: {
     401: {
       title: 'нужен вход',
@@ -590,6 +662,28 @@ const SCENE_STATUS_FALLBACK: Partial<
       description: 'Проверьте ссылку.',
     },
   },
+  mediaUpload: {
+    400: {
+      title: 'не удалось загрузить файл',
+      description: 'Проверьте размер и тип файла.',
+    },
+    403: {
+      title: 'нет доступа',
+      description: 'Загрузка для этого сценария запрещена.',
+    },
+    404: {
+      title: 'файл не найден',
+      description: 'Попробуйте загрузить файл ещё раз.',
+    },
+    409: {
+      title: 'конфликт состояния',
+      description: 'Файл уже принят или находится в неподходящем статусе.',
+    },
+    503: {
+      title: 'хранилище недоступно',
+      description: 'Попробуйте загрузить файл позже.',
+    },
+  },
 };
 
 function statusFallback(scene: ApiFailureScene, status: number): UserFacingMessage | null {
@@ -695,8 +789,18 @@ export function resolveApiFailureMessage(
       break;
     }
     case 'profileUpdate': {
-      if (status === 400) mapped = collectProfilePatch400(body);
-      else if (status === 401) mapped = messageFromAuthDetail(body);
+      if (status === 400) {
+        mapped = collectProfilePatch400(body) ?? messageFromAssetError(body);
+      } else if (status === 401) {
+        mapped = messageFromAuthDetail(body);
+      } else if (status === 403 || status === 404 || status === 409 || status === 503) {
+        mapped = messageFromAssetError(body);
+      }
+      break;
+    }
+    case 'mediaUpload': {
+      if (status === 401) mapped = messageFromAuthDetail(body);
+      else mapped = messageFromAssetError(body);
       break;
     }
     case 'cartLoad': {
@@ -734,6 +838,10 @@ export function resolveApiFailureMessage(
           };
         }
       }
+      break;
+    }
+    case 'cartPay': {
+      if (status === 401) mapped = messageFromAuthDetail(body);
       break;
     }
     case 'courseDetail': {

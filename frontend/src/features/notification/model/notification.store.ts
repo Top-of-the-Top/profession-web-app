@@ -3,29 +3,63 @@ import { type NotificationState, type Notification } from '../types';
 
 export const useNotificationStore = create<NotificationState>((set) => ({
   notifications: [],
+  unreadCount: 0,
+  hasMore: false,
   status: 'idle',
   error: null,
 
   setStatus: (status) => set({ status }),
   setError: (message) => set({ error: message }),
 
-  setInitial: (notificationsArray: Notification[]) => {
-    set({ notifications: notificationsArray });
+  // Полная замена списка из REST-ответа. Это единственный источник истины при первой загрузке.
+  setInitial: (notificationsArray: Notification[], hasMore: boolean) => {
+    const sorted = [...notificationsArray].sort(
+      (a, b) => b.created_at.getTime() - a.created_at.getTime(),
+    );
+    const unreadCount = sorted.reduce((acc, n) => (n.is_read ? acc : acc + 1), 0);
+    set({ notifications: sorted, unreadCount, hasMore });
   },
 
+  // Дозагрузка следующей страницы. Существующие записи (включая SSE) НЕ перезаписываются.
+  appendPage: (notificationsArray: Notification[], hasMore: boolean) => {
+    set((state) => {
+      const existingIds = new Set(state.notifications.map((n) => n.id));
+      const newOnes = notificationsArray.filter((n) => !existingIds.has(n.id));
+      const merged = [...state.notifications, ...newOnes];
+      merged.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+      const unreadCount = merged.reduce((acc, n) => (n.is_read ? acc : acc + 1), 0);
+      return { notifications: merged, unreadCount, hasMore };
+    });
+  },
+
+  // SSE-приход нового уведомления. Дубль по id игнорирует инкремент счётчика.
   addNotification: (newNotification: Notification) => {
-    set((state) => ({
-      notifications: [...state.notifications, newNotification],
-    }));
+    set((state) => {
+      const filtered = state.notifications.filter((n) => n.id !== newNotification.id);
+      const next = [newNotification, ...filtered];
+      const unreadCount = next.reduce((acc, n) => (n.is_read ? acc : acc + 1), 0);
+      return { notifications: next, unreadCount };
+    });
   },
 
   removeNotification: (notificationId: number) => {
-    set((state) => ({
-      notifications: state.notifications.filter((n) => n.id !== notificationId),
-    }));
+    set((state) => {
+      const notifications = state.notifications.filter((n) => n.id !== notificationId);
+      const unreadCount = notifications.reduce((acc, n) => (n.is_read ? acc : acc + 1), 0);
+      return { notifications, unreadCount };
+    });
   },
 
+  markRead: () =>
+    set((state) => ({
+      unreadCount: 0,
+      notifications: state.notifications.map((notification) => ({
+        ...notification,
+        is_read: true,
+      })),
+    })),
+
   clear: () => {
-    set({ notifications: [], error: null, status: 'idle' });
+    set({ notifications: [], unreadCount: 0, hasMore: false, error: null, status: 'idle' });
   },
 }));

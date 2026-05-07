@@ -15,21 +15,7 @@ const BASE_RECONNECT_DELAY_MS = 500;
 const MAX_RECONNECT_DELAY_MS = 8000;
 
 function normalizeApiUrl(): URL {
-  const envApiUrlRaw = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
-  const fallback = new URL(window.location.origin);
-
-  if (!envApiUrlRaw) {
-    return fallback;
-  }
-
-  const hasProtocol = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(envApiUrlRaw);
-  const candidate = hasProtocol ? envApiUrlRaw : `http://${envApiUrlRaw}`;
-
-  try {
-    return new URL(candidate);
-  } catch {
-    return fallback;
-  }
+  return new URL(window.location.origin);
 }
 
 function buildWebSocketUrl(courseSlug: string, token: string): string {
@@ -37,7 +23,7 @@ function buildWebSocketUrl(courseSlug: string, token: string): string {
   const protocol = baseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = new URL(baseUrl.origin);
   wsUrl.protocol = protocol;
-  wsUrl.pathname = `/api/app/courses/${encodeURIComponent(courseSlug)}/ai/chat/`;
+  wsUrl.pathname = `/api/courses/${encodeURIComponent(courseSlug)}/ai/chat/`;
   wsUrl.searchParams.set('token', token);
   return wsUrl.toString();
 }
@@ -56,7 +42,7 @@ function mapHistoryMessage(dto: {
   };
 }
 
-function deriveChatTitle(chats: AiChatSummary[], chatId: string): string {
+function deriveChatTitle(chats: AiChatSummary[]): string {
   const maxIndex = chats.length + 1;
   return `Новый чат ${maxIndex}`;
 }
@@ -213,7 +199,7 @@ class AiChatWebSocketService {
           break;
         }
         case AI_CHAT_SERVER_MESSAGE_TYPES.CHAT_CREATED: {
-          const title = deriveChatTitle(store.chats, message.chat_id);
+          const title = deriveChatTitle(store.chats);
           store.addChat({
             chat_id: message.chat_id,
             title,

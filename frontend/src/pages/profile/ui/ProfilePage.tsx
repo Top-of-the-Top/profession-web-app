@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   CardContent,
@@ -11,9 +13,8 @@ import {
   AvatarFallback,
   AvatarImage,
   PageFrame,
-  Skeleton,
 } from '@shared/ui';
-import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars } from 'lucide-react';
+import { Mail, Phone, Calendar, Pencil, Plus, Venus, Mars, LogOut } from 'lucide-react';
 import styles from './ProfilePage.module.css';
 import { cn } from '@shared/lib/utils';
 import ChangeName from './ChangeName';
@@ -23,14 +24,23 @@ import {
   type ProfileData,
   type UpdateProfilePayload,
 } from '@shared/api/profileApi';
-import { useUserStore } from '@entities/user/model/userStore';
+import { useProfile, profileKeys } from '@shared/api/queries/profile';
+import { useUpdateProfile } from '@shared/api/mutations/profile';
 import { parseApiError } from '@shared/lib/api/parseApiError';
+import { tokenService } from '@shared/lib/auth/tokenService';
+import { authEvents } from '@shared/events/authEvents';
 import {
   messageForApiFailure,
   notifyError,
   notifySuccess,
 } from '@shared/lib/sileo/notify';
 import { validateEmailOrPhone } from '@shared/utils/validation';
+import {
+  uploadMediaAsset,
+  MediaUploadError,
+} from '@shared/lib/uploads/uploadMediaAsset';
+import { IntentValidationError } from '@shared/lib/uploads/intentLimits';
+import { ProfilePageSkeleton } from './ProfilePageSkeleton';
 
 function notifyProfileSaveError(err: unknown) {
   if (err instanceof Error && err.message === 'AUTH_EXPIRED') {
@@ -80,67 +90,18 @@ const ProfileField = ({
   </div>
 );
 
-const ProfileSkeleton = () => (
-  <PageFrame>
-    <div className={styles.body}>
-    <Skeleton className={styles.skeletonProfileTitle} />
-    <Card className={styles.profilePageCard}>
-      <CardContent className={styles.profilePageContent}>
-        <div className={styles.profileSection}>
-          <div className={styles.profileField}>
-            <div className={styles.profileFieldContent}>
-              <Skeleton shape="circle" className={styles.skeletonAvatar} />
-              <div className={styles.profileFieldInfo}>
-                <Skeleton className={styles.skeletonLabel} />
-                <Skeleton className={styles.skeletonValueWide} />
-              </div>
-            </div>
-            <Skeleton shape="circle" className={styles.skeletonActionIcon} />
-          </div>
-        </div>
-
-        <div className={styles.profileSection}>
-          <Skeleton className={styles.skeletonSectionTitle} />
-          {Array.from({ length: 2 }).map((_, idx) => (
-            <div key={idx} className={styles.profileField}>
-              <div className={styles.profileFieldContent}>
-                <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
-                <div className={styles.profileFieldInfo}>
-                  <Skeleton className={styles.skeletonLabel} />
-                  <Skeleton className={styles.skeletonValue} />
-                </div>
-              </div>
-              <Skeleton shape="circle" className={styles.skeletonActionIcon} />
-            </div>
-          ))}
-        </div>
-
-        <div className={styles.profileSection}>
-          <Skeleton className={styles.skeletonSectionTitle} />
-          {Array.from({ length: 2 }).map((_, idx) => (
-            <div key={idx} className={styles.profileField}>
-              <div className={styles.profileFieldContent}>
-                <Skeleton shape="circle" className={styles.skeletonFieldIcon} />
-                <div className={styles.profileFieldInfo}>
-                  <Skeleton className={styles.skeletonLabel} />
-                  <Skeleton className={styles.skeletonValue} />
-                </div>
-              </div>
-              <Skeleton shape="circle" className={styles.skeletonActionIcon} />
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-    </div>
-  </PageFrame>
-);
-
 export default function ProfilePage() {
-  const user = useUserStore((state) => state.user);
-  const isLoading = useUserStore((state) => state.isLoading);
-  const setUser = useUserStore((state) => state.setUser);
-  const [profile, setProfile] = useState<ProfileData | null>(user);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { data: user, isLoading } = useProfile();
+
+  const handleLogout = () => {
+    tokenService.clearTokens();
+    authEvents.dispatchEvent(new Event('logout'));
+    navigate('/login', { replace: true });
+  };
+  const updateProfile = useUpdateProfile();
+  const [profile, setProfile] = useState<ProfileData | null>(user ?? null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const [isChangeNameMenuOpen, setChangeMenuOpen] = useState(false);
@@ -149,7 +110,7 @@ export default function ProfilePage() {
   const [gender, setGender] = useState<string | null>(null);
 
   useEffect(() => {
-    setProfile(user);
+    setProfile(user ?? null);
     setGender(user?.gender || null);
     setAvatarUrl(user?.avatar || null);
   }, [user]);
@@ -159,14 +120,14 @@ export default function ProfilePage() {
     const previous = gender;
     setGender(value);
     try {
-      await profileApi.updateProfile({ gender: value });
-      setProfile((prev) => {
-        const next = prev ? { ...prev, gender: value } : prev;
-        if (next) {
-          setUser(next);
-        }
-        return next;
+      await updateProfile.mutateAsync({ gender: value });
+      const fresh = await queryClient.fetchQuery({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getProfile(),
       });
+      setProfile(fresh);
+      setGender(fresh.gender);
+      setAvatarUrl(fresh.avatar);
     } catch (err) {
       notifyProfileSaveError(err);
       setGender(previous);
@@ -186,15 +147,17 @@ export default function ProfilePage() {
     setPhoneMenuOpen((prev) => !prev);
   };
 
-  if (isLoading && !profile) return <ProfileSkeleton />;
+  if (isLoading && !profile) return <ProfilePageSkeleton />;
   if (!profile) return <div>Профиль недоступен</div>;
 
   const handleNameSave = async (data: {
     firstName: string;
     lastName: string;
     avatar?: File | null;
+    removeAvatar?: boolean;
   }) => {
     const prevAvatar = profile.avatar;
+    let blobUrl: string | null = null;
 
     try {
       const updateData: UpdateProfilePayload = {
@@ -202,10 +165,29 @@ export default function ProfilePage() {
         last_name: data.lastName,
       };
 
-      let blobUrl: string | null = null;
       if (data.avatar instanceof File) {
-        updateData.avatar = data.avatar;
         blobUrl = URL.createObjectURL(data.avatar);
+        try {
+          const { assetId } = await uploadMediaAsset('user_avatar', data.avatar);
+          updateData.avatar_asset_id = assetId;
+        } catch (err) {
+          if (
+            err instanceof IntentValidationError ||
+            err instanceof MediaUploadError
+          ) {
+            notifyError({
+              title: 'не удалось загрузить аватар',
+              description: err.message,
+            });
+          } else {
+            notifyProfileSaveError(err);
+          }
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+          throw err;
+        }
+      }
+      if (data.removeAvatar) {
+        updateData.avatar_asset_id = null;
       }
 
       const optimistic: ProfileData = {
@@ -217,30 +199,40 @@ export default function ProfilePage() {
 
       setProfile(optimistic);
       setAvatarUrl(blobUrl ?? prevAvatar);
-      setUser(optimistic);
 
-      await profileApi.updateProfile(updateData);
+      await updateProfile.mutateAsync(updateData);
 
-      const fresh = await profileApi.getProfile();
+      const fresh = await queryClient.fetchQuery({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getProfile(),
+      });
 
-      if (blobUrl && fresh.avatar === prevAvatar) {
+      if (blobUrl && fresh.avatar === prevAvatar && !data.removeAvatar) {
         const merged = { ...fresh, avatar: blobUrl };
         setProfile(merged);
         setAvatarUrl(blobUrl);
-        setUser(merged);
       } else {
         setProfile(fresh);
         setAvatarUrl(fresh.avatar);
-        setUser(fresh);
         if (blobUrl) URL.revokeObjectURL(blobUrl);
       }
     } catch (err) {
-      notifyProfileSaveError(err);
+      if (
+        !(err instanceof IntentValidationError) &&
+        !(err instanceof MediaUploadError)
+      ) {
+        notifyProfileSaveError(err);
+      }
       setAvatarUrl(prevAvatar);
-      const reverted = await profileApi.getProfile().catch(() => null);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      const reverted = await queryClient
+        .fetchQuery({
+          queryKey: profileKeys.me(),
+          queryFn: () => profileApi.getProfile(),
+        })
+        .catch(() => null);
       if (reverted) {
         setProfile(reverted);
-        setUser(reverted);
       }
       throw err;
     }
@@ -252,7 +244,7 @@ export default function ProfilePage() {
   ) => {
     try {
       if (type === 'email') {
-        await profileApi.updateProfile({ email: rawContact.trim() });
+        await updateProfile.mutateAsync({ email: rawContact.trim() });
       } else {
         const v = validateEmailOrPhone(rawContact);
         if (!v.isValid) {
@@ -262,8 +254,15 @@ export default function ProfilePage() {
           });
           throw new Error('invalid_phone');
         }
-        await profileApi.updateProfile({ phone_number: v.normalized });
+        await updateProfile.mutateAsync({ phone_number: v.normalized });
       }
+      const fresh = await queryClient.fetchQuery({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getProfile(),
+      });
+      setProfile(fresh);
+      setGender(fresh.gender);
+      setAvatarUrl(fresh.avatar);
       notifySuccess({
         title: 'код отправлен',
         description:
@@ -287,9 +286,11 @@ export default function ProfilePage() {
       } else {
         await profileApi.verifyPhoneChange(code);
       }
-      const fresh = await profileApi.getProfile();
+      const fresh = await queryClient.fetchQuery({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getProfile(),
+      });
       setProfile(fresh);
-      setUser(fresh);
       notifySuccess({
         title: 'готово',
         description:
@@ -339,6 +340,7 @@ export default function ProfilePage() {
         type="email"
         isVisible={isEmailMenuOpen}
         onClose={toggleEmailMenu}
+        initialContact={profile.email}
         onRequestChange={(c) => handleContactRequest(c, 'email')}
         onVerify={(code) => handleContactVerify(code, 'email')}
       />
@@ -346,6 +348,7 @@ export default function ProfilePage() {
         type="phone"
         isVisible={isPhoneMenuOpen}
         onClose={togglePhoneMenu}
+        initialContact={profile.phone_number}
         onRequestChange={(c) => handleContactRequest(c, 'phone')}
         onVerify={(code) => handleContactVerify(code, 'phone')}
       />
@@ -482,6 +485,15 @@ export default function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        <Button
+          variant="ghost"
+          className={styles.logoutButton}
+          onClick={handleLogout}
+        >
+          <LogOut size={16} />
+          Выйти из аккаунта
+        </Button>
         </div>
       </PageFrame>
     </>

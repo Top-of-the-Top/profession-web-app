@@ -20,5 +20,14 @@ export interface ApiUserResponse {
   gender: string | null;
   birthday: string | null;
   avatar: string | null;
+  assets: {
+    user_avatar: Array<{
+      asset_id: string;
+      filename: string;
+      mime_type: string;
+      size_bytes: number;
+      url: string;
+    }>;
+  };
 }
 

@@ -269,6 +269,40 @@ class UploadRecordingTaskTest(BaseWebinarTestCase):
         rec.refresh_from_db()
         self.assertEqual(rec.kinescope_upload_status, 'failed')
 
+    @patch('apps.webinars.api.utils.kinescope_utils.upload_video_by_url')
+    def test_creates_media_asset_and_usage_after_upload(self, mock_upload):
+        from django.contrib.contenttypes.models import ContentType
+        from apps.core.models import AssetStatus, AssetUsage, MediaAsset
+
+        mock_upload.return_value = {'id': 'kinescope-vid-1'}
+        self.course.kinescope_folder_id = 'f'
+        self.course.save()
+
+        rec = Recording.objects.create(
+            webinar=self.webinar,
+            recording_url='recordings/file.mp4',
+            started_at=timezone.now(),
+        )
+
+        with patch('apps.webinars.tasks.check_kinescope_processing.apply_async'):
+            upload_recording_to_kinescope(str(rec.recording_id))
+
+        asset = MediaAsset.objects.get(
+            storage_backend='kinescope',
+            storage_key='kinescope-vid-1',
+        )
+        self.assertEqual(asset.status, AssetStatus.PENDING)
+        self.assertEqual(asset.visibility, 'course_paid')
+
+        ct = ContentType.objects.get_for_model(Recording)
+        usage = AssetUsage.objects.get(
+            asset=asset,
+            content_type=ct,
+            object_id=str(rec.recording_id),
+            role='webinar_recording',
+        )
+        self.assertIsNotNone(usage)
+
 
 class CheckKinescopeProcessingTest(BaseWebinarTestCase):
 
@@ -290,7 +324,7 @@ class CheckKinescopeProcessingTest(BaseWebinarTestCase):
 
     @patch('apps.webinars.api.utils.kinescope_utils.get_video_status')
     def test_marks_ready_on_ready_status(self, mock_status):
-        mock_status.return_value = {'status': 'ready'}
+        mock_status.return_value = {'status': 'done'}
         rec = Recording.objects.create(
             webinar=self.webinar,
             kinescope_video_id='vid',
@@ -339,3 +373,37 @@ class CheckKinescopeProcessingTest(BaseWebinarTestCase):
         from celery.exceptions import Retry
         with self.assertRaises((Retry, Exception)):
             check_kinescope_processing(str(rec.recording_id))
+
+    @patch('apps.webinars.api.utils.kinescope_utils.get_video_status')
+    def test_commits_asset_to_ready_on_done(self, mock_status):
+        from apps.core.models import AssetStatus, MediaAsset
+
+        mock_status.return_value = {'status': 'done'}
+        rec = Recording.objects.create(
+            webinar=self.webinar,
+            kinescope_video_id='vid-ready',
+            kinescope_upload_status='processing',
+        )
+        asset = MediaAsset.objects.create(
+            storage_backend='kinescope',
+            storage_key='vid-ready',
+            status=AssetStatus.PENDING,
+            visibility='public',
+        )
+
+        with patch(
+            'apps.core.meta_management.storages.kinescope.KinescopeBackend.head'
+        ) as mock_head:
+            from apps.core.meta_management.dto import ObjectMeta
+            from django.utils import timezone as tz
+            mock_head.return_value = ObjectMeta(
+                key='vid-ready',
+                size_bytes=12345,
+                etag='',
+                last_modified=tz.now(),
+                mime_type='video/mp4',
+            )
+            check_kinescope_processing(str(rec.recording_id))
+
+        asset.refresh_from_db()
+        self.assertEqual(asset.status, AssetStatus.READY)

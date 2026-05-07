@@ -1,0 +1,225 @@
+.editor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 160px;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 12px;
+  background: var(--background, #fff);
+  overflow: visible;
+  position: relative;
+  z-index: 0;
+}
+
+.editorBody {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: visible;
+}
+
+.toolbarFloat {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 35px;
+  z-index: 10050;
+  pointer-events: auto;
+  filter: drop-shadow(0 10px 28px rgba(15, 23, 42, 0.18));
+}
+
+.toolbarDockBottom {
+  position: static;
+  margin: 0;
+  padding: 8px 10px 10px;
+  filter: none;
+}
+
+.editorCompact {
+  min-height: 100%;
+  border-radius: 6px;
+}
+
+.editorDisabled {
+  background: #f8fafc;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 10px;
+  background: #fff;
+  position: relative;
+  z-index: 1;
+}
+
+.toolbarButton {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #344054;
+  cursor: pointer;
+}
+
+.toolbarButton:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.toolbarButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.toolbarButtonActive {
+  background: #211c84;
+  color: #fff;
+}
+
+.toolbarDivider {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: #d0d5dd;
+}
+
+.inputWrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.contentEditable {
+  min-height: 118px;
+  height: 100%;
+  padding: 12px;
+  outline: none;
+  color: #101828;
+  font-size: 15px;
+  line-height: 1.55;
+  text-align: left;
+  direction: ltr;
+  overflow: auto;
+}
+
+.editorCompact .contentEditable {
+  min-height: 0;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.placeholder {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: #98a2b3;
+  pointer-events: none;
+  user-select: none;
+}
+
+.editorCompact .placeholder {
+  top: 10px;
+  left: 10px;
+  font-size: 13px;
+}
+
+.paragraph {
+  margin: 0 0 8px;
+}
+
+.paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.quote {
+  margin: 8px 0;
+  padding: 8px 12px 8px 14px;
+  border-left: 3px solid #211c84;
+  background: rgba(33, 28, 132, 0.06);
+  color: #344054;
+  font-style: italic;
+}
+
+.heading1,
+.heading2,
+.heading3 {
+  margin: 10px 0 8px;
+  color: #101828;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.heading1 {
+  font-size: 2em;
+}
+
+.heading2 {
+  font-size: 1.5em;
+}
+
+.heading3 {
+  font-size: 1.17em;
+}
+
+.unorderedList,
+.orderedList {
+  margin: 8px 0;
+  padding-left: 1.6rem;
+}
+
+.unorderedList {
+  list-style-type: disc;
+}
+
+.orderedList {
+  list-style-type: decimal;
+}
+
+.unorderedList .unorderedList {
+  list-style-type: circle;
+}
+
+.unorderedList .unorderedList .unorderedList {
+  list-style-type: square;
+}
+
+.orderedList .orderedList {
+  list-style-type: lower-alpha;
+}
+
+.orderedList .orderedList .orderedList {
+  list-style-type: lower-roman;
+}
+
+.listItem {
+  margin: 4px 0;
+  padding-left: 0.25rem;
+}
+
+.nestedListItem {
+  list-style-type: none;
+}
+
+.boldText {
+  font-weight: 700;
+}
+
+.italicText {
+  font-style: italic;
+}
+
+.underlineText {
+  text-decoration: underline;
+}

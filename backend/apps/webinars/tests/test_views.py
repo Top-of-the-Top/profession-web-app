@@ -116,13 +116,22 @@ class WebinarStartViewTest(WebinarEndpointsBase):
         response = self.client.post(self.url_start())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_cannot_start_already_live_webinar(self, *_):
-        Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
+    def test_start_on_live_webinar_returns_existing_without_recreating_room(self, mock_ban, mock_create, *args):
+        existing = Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.LIVE_STATUS,
+            whiteboard_room_uuid='live-room',
+        )
         self.authenticate(self.teacher)
 
         response = self.client.post(self.url_start())
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['webinar_id'], str(existing.webinar_id))
+        existing.refresh_from_db()
+        self.assertEqual(existing.whiteboard_room_uuid, 'live-room')
+        mock_create.assert_not_called()
+        mock_ban.assert_not_called()
 
     def test_whiteboard_creation_failure_returns_502(self, mock_ban, mock_create, *args):
         mock_create.side_effect = Exception('netless down')
@@ -236,6 +245,7 @@ class WebinarStopViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
+@patch('apps.webinars.api.views.generate_rtm_token', return_value='rtm-tok')
 @patch('apps.webinars.api.views.generate_whiteboard_room_token', return_value='wb-tok')
 @patch('apps.webinars.api.views.generate_rtc_token', return_value='rtc-tok')
 class WebinarJoinViewTest(WebinarEndpointsBase):
@@ -276,8 +286,34 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['role'], 'student')
         self.assertEqual(response.data['rtc_token'], 'rtc-tok')
+        self.assertEqual(response.data['rtm_token'], 'rtm-tok')
+        self.assertEqual(response.data['chat_channel_name'], 'chat-room-1')
         self.assertEqual(response.data['whiteboard_room_token'], 'wb-tok')
         self.assertEqual(response.data['whiteboard_room_uuid'], 'room-1')
+
+    def test_chat_channel_name_uses_whiteboard_room_uuid(self, *_):
+        Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.LIVE_STATUS,
+            whiteboard_room_uuid='abc-xyz-123',
+        )
+        self.authenticate(self.teacher)
+        response = self.client.get(self.url_join())
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['chat_channel_name'], 'chat-abc-xyz-123')
+
+    def test_rtm_token_called_with_uid(self, mock_rtc, mock_wb, mock_rtm):
+        Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.LIVE_STATUS,
+            whiteboard_room_uuid='room-x',
+        )
+        self.authenticate(self.teacher)
+        response = self.client.get(self.url_join())
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_rtm.assert_called_once_with(response.data['uid'])
 
     def test_author_gets_teacher_role(self, *_):
         Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
@@ -293,7 +329,7 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['role'], 'teacher')
 
-    def test_whiteboard_role_mapping(self, mock_rtc, mock_wb):
+    def test_whiteboard_role_mapping(self, mock_rtc, mock_wb, mock_rtm):
         Webinar.objects.create(
             lesson=self.lesson,
             status=Webinar.LIVE_STATUS,
@@ -313,6 +349,7 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(kwargs.get('role'), 'writer')
 
 
+@patch('apps.webinars.api.views.generate_rtm_token', return_value='rtm-tok')
 @patch('apps.webinars.api.views.generate_whiteboard_room_token', return_value='wb-tok')
 @patch('apps.webinars.api.views.generate_rtc_token', return_value='rtc-tok')
 class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
@@ -344,6 +381,8 @@ class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(response.data['role'], 'recorder')
         self.assertEqual(response.data['uid'], 999999)
         self.assertEqual(response.data['rtc_token'], 'rtc-tok')
+        self.assertEqual(response.data['rtm_token'], 'rtm-tok')
+        self.assertEqual(response.data['chat_channel_name'], 'chat-room-r')
         self.assertEqual(response.data['whiteboard_room_token'], 'wb-tok')
 
 
@@ -497,6 +536,88 @@ class StopRecordingHelperTest(WebinarEndpointsBase):
         mock_upload.assert_not_called()
 
 
+class ExtractRecordingUrlTest(BaseWebinarTestCase):
+
+    def _extract(self, payload):
+        from ..api.views import _extract_recording_url
+        return _extract_recording_url(payload)
+
+    def test_camel_case_filename_in_extension_service(self):
+        url = self._extract({
+            'serverResponse': {
+                'extensionServiceState': [
+                    {'payload': {'fileList': [{'fileName': 'rec/a.mp4'}]}}
+                ]
+            }
+        })
+        self.assertEqual(url, 'rec/a.mp4')
+
+    def test_lowercase_filename_in_extension_service(self):
+        url = self._extract({
+            'serverResponse': {
+                'extensionServiceState': [
+                    {'payload': {'fileList': [{'filename': 'rec/a.mp4'}]}}
+                ]
+            }
+        })
+        self.assertEqual(url, 'rec/a.mp4')
+
+    def test_prefers_mp4_over_m3u8(self):
+        url = self._extract({
+            'serverResponse': {
+                'extensionServiceState': [
+                    {'payload': {'fileList': [
+                        {'filename': 'rec/a.m3u8'},
+                        {'filename': 'rec/a_0.mp4'},
+                    ]}}
+                ]
+            }
+        })
+        self.assertEqual(url, 'rec/a_0.mp4')
+
+    def test_real_agora_response_with_multiple_services(self):
+        url = self._extract({
+            'serverResponse': {
+                'extensionServiceState': [
+                    {
+                        'payload': {'fileList': [
+                            {'filename': 'b0c07c_webinar.m3u8', 'sliceStartTime': 1},
+                            {'filename': 'b0c07c_webinar_0.mp4', 'sliceStartTime': 1},
+                        ]},
+                        'serviceName': 'web_recorder_service',
+                    },
+                    {
+                        'payload': {'uploadingStatus': 'backuped'},
+                        'serviceName': 'upload_service',
+                    },
+                ]
+            }
+        })
+        self.assertEqual(url, 'b0c07c_webinar_0.mp4')
+
+    def test_top_level_file_list(self):
+        url = self._extract({
+            'serverResponse': {
+                'fileList': [{'filename': 'rec/x.mp4'}]
+            }
+        })
+        self.assertEqual(url, 'rec/x.mp4')
+
+    def test_returns_first_when_no_mp4(self):
+        url = self._extract({
+            'serverResponse': {
+                'extensionServiceState': [
+                    {'payload': {'fileList': [{'filename': 'rec/a.m3u8'}]}}
+                ]
+            }
+        })
+        self.assertEqual(url, 'rec/a.m3u8')
+
+    def test_empty_response_returns_empty(self):
+        self.assertEqual(self._extract({}), '')
+        self.assertEqual(self._extract({'serverResponse': {}}), '')
+
+
 class RecordingPdfViewTest(WebinarEndpointsBase):
 
     def setUp(self):
@@ -517,25 +638,34 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @patch('apps.webinars.api.views.os.getenv', return_value='test-bucket')
-    @patch('apps.webinars.api.views.default_storage.save', return_value='whiteboards/recording_x.pdf')
     @patch('apps.webinars.api.views.img2pdf.convert', return_value=b'%PDF-1.4 fake')
-    def test_post_with_screenshots_saves_pdf(self, mock_convert, mock_save, mock_env):
+    def test_post_with_screenshots_saves_pdf(self, mock_convert):
         from django.core.files.uploadedfile import SimpleUploadedFile
+        from unittest.mock import MagicMock
+        from apps.core.meta_management.errors import AssetError
+
+        mock_asset = MagicMock()
+        mock_asset.asset_id = 'fake-asset-id'
+
+        mock_upload_api = MagicMock()
+        mock_upload_api.upload_server_side.return_value = mock_asset
+
+        mock_binding_api = MagicMock()
 
         screenshot = SimpleUploadedFile('a.png', b'\x89PNG\r\n\x1a\n', content_type='image/png')
 
         self.authenticate(self.teacher)
-        response = self.client.post(
-            self.url_pdf(self.recording.recording_id),
-            {'screenshots': [screenshot]},
-            format='multipart',
-        )
+        with patch('apps.webinars.api.views.build_upload_api', return_value=mock_upload_api), \
+             patch('apps.webinars.api.views.build_binding_api', return_value=mock_binding_api):
+            response = self.client.post(
+                self.url_pdf(self.recording.recording_id),
+                {'screenshots': [screenshot]},
+                format='multipart',
+            )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.recording.refresh_from_db()
-        self.assertIn('whiteboards/recording_x.pdf', self.recording.whiteboard_pdf_url)
-        mock_save.assert_called_once()
+        mock_upload_api.upload_server_side.assert_called_once()
+        mock_binding_api.sync_single.assert_called_once()
 
     def test_post_returns_404_for_nonexistent_recording(self):
         import uuid
@@ -572,10 +702,10 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
         self.recording.refresh_from_db()
         self.assertEqual(self.recording.whiteboard_pdf_url, '')
 
-    def test_delete_pdf_returns_404_when_no_pdf(self):
+    def test_delete_pdf_is_idempotent_when_no_pdf(self):
         self.authenticate(self.teacher)
         response = self.client.delete(self.url_pdf(self.recording.recording_id))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_delete_forbidden_for_student(self):
         self.authenticate(self.student)

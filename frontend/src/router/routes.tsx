@@ -4,7 +4,8 @@ import {
   RegistrationPage,
   RecoverPage,
   ResetPage,
-  ProfilePage,
+  OAuthVkCallbackPage,
+  OAuthYandexCallbackPage,
   AppHomePage,
   CourseStorePage,
   CoursePreviewPage,
@@ -14,11 +15,15 @@ import {
   LessonPreviewPage,
   LessonViewPage,
   HomeworkSubmissionPage,
-  NotAuthorizedPage,
+  HomeworkReviewPage,
+  HomeworkReviewAttemptsPage,
   WebinarPage,
   WebinarRecordPage,
+  MyHomeworksPage,
+  SchedulePage,
   AppLayout,
 } from './lazyPages';
+import ProfileRoutePage from '@pages/profile/ui/ProfileRoutePage';
 
 import type { AppRoute } from './types';
 
@@ -44,6 +49,14 @@ export const routes: AppRoute[] = [
     element: <RecoverPage />,
   },
   {
+    path: '/oauth/vk/callback',
+    element: <OAuthVkCallbackPage />,
+  },
+  {
+    path: '/oauth/yandex/callback',
+    element: <OAuthYandexCallbackPage />,
+  },
+  {
     path: '/webinar-record/:slug/:lessonSlug',
     element: <WebinarRecordPage />,
   },
@@ -58,7 +71,9 @@ export const routes: AppRoute[] = [
     protected: true,
     children: [
       { index: true, element: <AppHomePage /> },
-      { path: 'profile', element: <ProfilePage /> },
+      { path: 'profile', element: <ProfileRoutePage /> },
+      { path: 'homeworks', element: <MyHomeworksPage /> },
+      { path: 'schedule', element: <SchedulePage /> },
       { path: 'store', element: <CourseStorePage /> },
       {
         path: 'store/:slug',
@@ -75,6 +90,16 @@ export const routes: AppRoute[] = [
         element: <HomeworkSubmissionPage />,
       },
       {
+        path: 'courses/:slug/:lessonSlug/homework/:homeworkSlug/review',
+        element: <HomeworkReviewAttemptsPage />,
+        roles: ['teacher', 'moderator'],
+      },
+      {
+        path: 'courses/:slug/:lessonSlug/homework/:homeworkSlug/review/:attemptId',
+        element: <HomeworkReviewPage />,
+        roles: ['teacher', 'moderator'],
+      },
+      {
         path: 'courses/:slug/:lessonSlug',
         element: <LessonViewPage />,
       },
@@ -89,10 +114,6 @@ export const routes: AppRoute[] = [
       {
         path: 'cart',
         element: <CartPage />,
-      },
-      {
-        path: 'not-authorized',
-        element: <NotAuthorizedPage />,
       },
     ],
   },

@@ -68,7 +68,66 @@
   display: flex;
   align-items: center;
   width: 100%;
-  margin-bottom: 8px;
+}
+
+.passwordInputWrap {
+  position: relative;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.passwordToggle:hover:not(:disabled) {
+  color: #374151;
+}
+
+.passwordToggle:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.passwordInputWrap {
+  position: relative;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.passwordToggle:hover:not(:disabled) {
+  color: #374151;
+}
+
+.passwordToggle:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .submitButton {
@@ -78,14 +137,18 @@
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 14px !important;
   font-weight: 500;
   margin-bottom: 0px;
   transition: background-color 0.2s;
 }
 
+.formTitleOverride {
+  font-size: 23px !important;
+  font-weight: 800 !important;
+}
+
 .submitButton:hover {
-	transform: scale(1.01);
 	background-color: #191970 !important;
 }
 
@@ -118,54 +181,6 @@
   flex-direction: column;
   gap: 12px;
   margin-bottom: 24px;
-}
-
-.socialButton {
-  width: 100%;
-  padding: 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  /* background-color: white; */
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-	color: white !important;
-  transition:  0.1s;
-}
-.socialButton.loginYa {
-  background-color: black;
-}
-
-.socialButton.loginVk {
-  background-color: #0077FF;
-}
-.socialButton.loginYa:hover {
-  background-color: black !important;
-  transform: scale(1.02) !important;
-}
-
-.socialButton.loginVk:hover {
-  background-color: #0077FF !important;
-  transform: scale(1.02) !important;
-}
-
-.socialIcon {
-  width: 24px;
-  height: 24px;
-  /* background-color: #000000; */
-  color: white;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 14px;
-}
-.socialIcon img {
-	width: 100%;
-
 }
 
 .linksContainer {

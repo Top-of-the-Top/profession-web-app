@@ -1,7 +1,8 @@
 import logging
 import os
-from celery import shared_task
 import time as time_module
+
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
@@ -80,19 +81,23 @@ def upload_recording_to_kinescope(self, recording_id):
     except Recording.DoesNotExist:
         logger.error('Recording %s не найден', recording_id)
         return {'status': 'error', 'detail': f'Recording {recording_id} not found'}
-    
+
     if not recording.recording_url:
         logger.warning('Recording %s: нет recording_url', recording_id)
         return {'status': 'skipped', 'detail': 'No recording URL'}
-    
+
     if recording.kinescope_video_id:
         logger.info('Recording %s: уже загружен в Kinescope', recording_id)
         return {'status': 'skipped', 'detail': 'Already uploaded'}
-    
+
     recording_url = recording.recording_url
     if not recording_url.startswith('http'):
         bucket = os.getenv('AWS_S3_BUCKET_NAME', 'profession-web-app')
+        if not recording_url.startswith('recordings/'):
+            recording_url = f'recordings/webinars/{recording_url}'
         recording_url = f'{S3_BASE_URL}/{bucket}/{recording_url}'
+
+    logger.info('Recording %s: URL для Kinescope: %s', recording_id, recording_url)
 
     course = recording.webinar.lesson.section.course
     if not course.kinescope_folder_id:
@@ -120,13 +125,24 @@ def upload_recording_to_kinescope(self, recording_id):
         recording.kinescope_upload_status = 'processing'
         recording.save(update_fields=['kinescope_video_id', 'kinescope_upload_status', 'updated_at'])
 
+        from apps.core.meta_management.factory import build_asset_service
+        from apps.core.models import AssetVisibility
+        service = build_asset_service()
+        asset = service.register_pending_storage_asset(
+            backend_name='kinescope',
+            storage_key=video_id,
+            owner=recording.started_by,
+            visibility=AssetVisibility.COURSE_PAID,
+        )
+        service.bind_asset(asset, recording, role='webinar_recording')
+
         check_kinescope_processing.apply_async(
             args=[str(recording.recording_id)],
             countdown=30,
         )
 
         return {'status': 'uploaded', 'video_id': video_id}
-    
+
     except Exception as exc:
         recording.kinescope_upload_status = 'failed'
         recording.save(update_fields=['kinescope_upload_status', 'updated_at'])
@@ -140,42 +156,74 @@ def upload_recording_to_kinescope(self, recording_id):
     bind=True,
     max_retries=20,
     default_retry_delay=30,
-    acks_late=True,
 )
 def check_kinescope_processing(self, recording_id):
     from .models import Recording
     from .api.utils.kinescope_utils import get_video_status
+    from apps.notifications.tasks import publish_event_async
 
     try:
         recording = Recording.objects.get(recording_id=recording_id)
     except Recording.DoesNotExist:
         return {'status': 'error', 'detail': 'Recording not found'}
-    
+
+    if recording.kinescope_upload_status in (Recording.READY_STATUS, Recording.FAILED_STATUS):
+        return {'status': 'skipped', 'detail': f'Already {recording.kinescope_upload_status}'}
+
     if not recording.kinescope_video_id:
         return {'status': 'error', 'detail': 'No video id'}
-    
+
     try:
         video_data = get_video_status(recording.kinescope_video_id)
-        video_status = video_data.get('status', '')
-
-        if video_status == Recording.READY_STATUS:
-            recording.kinescope_upload_status = Recording.READY_STATUS
-            recording.save(update_fields=['kinescope_upload_status', 'updated_at'])
-            return {'status': Recording.READY_STATUS}
-        
-        if video_status in ('error', 'failed'):
-            recording.kinescope_upload_status = Recording.FAILED_STATUS
-            recording.save(update_fields=['kinescope_upload_status', 'updated_at'])
-            logger.error('Ошибка обработки Kinescope для recording %s: %s', recording_id, video_status)
-            return {'status': Recording.FAILED_STATUS}
-
-        raise self.retry()
-    
     except Exception as exc:
         if self.request.retries < self.max_retries:
             raise self.retry(exc=exc)
-        
+
         recording.kinescope_upload_status = Recording.FAILED_STATUS
-        recording.save(update_fields=['kinescope_upload_status', 'updated_at'])
+        recording.status = Recording.FAILED_STATUS
+        recording.save(update_fields=['kinescope_upload_status', 'status', 'updated_at'])
         logger.error('Таймаут проверки статуса Kinescope для recording %s: %s', recording_id, exc)
         return {'status': 'timeout'}
+
+    video_status = video_data.get('status', '')
+
+    if video_status == 'done':
+        recording.kinescope_upload_status = Recording.READY_STATUS
+        recording.status = Recording.READY_STATUS
+        recording.save(update_fields=['kinescope_upload_status', 'status', 'updated_at'])
+
+        from apps.core.meta_management.factory import build_asset_service
+        service = build_asset_service()
+        asset = service.get_asset_by_storage_key(recording.kinescope_video_id, backend='kinescope')
+        if asset is not None:
+            try:
+                service.commit_asset(asset.asset_id)
+            except Exception:
+                logger.exception(
+                    'Не удалось закоммитить asset %s для recording %s',
+                    asset.asset_id, recording_id,
+                )
+        else:
+            logger.warning(
+                'Asset для kinescope_video_id=%s не найден (recording %s)',
+                recording.kinescope_video_id, recording_id,
+            )
+
+        publish_event_async.delay(
+            routing_key=f"webinar.{recording.webinar_id}",
+            payload={
+                "type": "recording_ready",
+                "webinar_id": str(recording.webinar_id),
+                "recording_id": str(recording.recording_id),
+            },
+        )
+        return {'status': Recording.READY_STATUS}
+
+    if video_status in ('error', 'failed'):
+        recording.kinescope_upload_status = Recording.FAILED_STATUS
+        recording.status = Recording.FAILED_STATUS
+        recording.save(update_fields=['kinescope_upload_status', 'status', 'updated_at'])
+        logger.error('Ошибка обработки Kinescope для recording %s: %s', recording_id, video_status)
+        return {'status': Recording.FAILED_STATUS}
+
+    raise self.retry()

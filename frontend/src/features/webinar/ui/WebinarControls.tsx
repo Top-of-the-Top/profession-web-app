@@ -1,17 +1,20 @@
-import { Mic, MicOff, Video, VideoOff, Circle, LogOut, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Circle, LogOut, PhoneOff, MessageSquare } from 'lucide-react';
 import { cn } from '@shared/lib/utils';
 import styles from './WebinarControls.module.css';
 
 interface WebinarControlsProps {
   micOn: boolean;
   cameraOn: boolean;
-  isTeacher: boolean;
-  isRecording: boolean;
+  canManageWebinar: boolean;
+  teacherRecordingLive: boolean;
+  studentRecordingVisible: boolean;
   recordingPending: boolean;
   stopRecordingPending: boolean;
   stopWebinarPending: boolean;
+  isChatOpen: boolean;
   onToggleMic: () => void;
   onToggleCamera: () => void;
+  onToggleChat: () => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
   onLeave: () => void;
@@ -21,13 +24,16 @@ interface WebinarControlsProps {
 export function WebinarControls({
   micOn,
   cameraOn,
-  isTeacher,
-  isRecording,
+  canManageWebinar,
+  teacherRecordingLive,
+  studentRecordingVisible,
   recordingPending,
   stopRecordingPending,
   stopWebinarPending,
+  isChatOpen,
   onToggleMic,
   onToggleCamera,
+  onToggleChat,
   onStartRecording,
   onStopRecording,
   onLeave,
@@ -53,7 +59,16 @@ export function WebinarControls({
         {cameraOn ? 'Камера' : 'Камера выкл'}
       </button>
 
-      {isTeacher && !isRecording && (
+      <button
+        type="button"
+        className={cn(styles.btn, isChatOpen && styles.btnActive)}
+        onClick={onToggleChat}
+      >
+        <MessageSquare size={18} />
+        Чат
+      </button>
+
+      {canManageWebinar && !teacherRecordingLive && (
         <button
           type="button"
           className={styles.btn}
@@ -65,7 +80,7 @@ export function WebinarControls({
         </button>
       )}
 
-      {isTeacher && isRecording && (
+      {canManageWebinar && teacherRecordingLive && (
         <>
           <span className={styles.recordingBadge}>
             <span className={styles.recordingDot} />
@@ -82,9 +97,24 @@ export function WebinarControls({
         </>
       )}
 
+      {!canManageWebinar && studentRecordingVisible ? (
+        <span className={styles.recordingBadge}>
+          <span className={styles.recordingDot} />
+          Запись идёт
+        </span>
+      ) : null}
+
       <div className={styles.spacer} />
 
-      {isTeacher ? (
+      <button
+        type="button"
+        className={cn(styles.btn, styles.btnDanger)}
+        onClick={onLeave}
+      >
+        <LogOut size={18} />
+        Покинуть
+      </button>
+      {canManageWebinar && (
         <button
           type="button"
           className={cn(styles.btn, styles.btnDanger)}
@@ -93,15 +123,6 @@ export function WebinarControls({
         >
           <PhoneOff size={18} />
           {stopWebinarPending ? 'Завершение...' : 'Завершить вебинар'}
-        </button>
-      ) : (
-        <button
-          type="button"
-          className={cn(styles.btn, styles.btnDanger)}
-          onClick={onLeave}
-        >
-          <LogOut size={18} />
-          Покинуть
         </button>
       )}
     </div>

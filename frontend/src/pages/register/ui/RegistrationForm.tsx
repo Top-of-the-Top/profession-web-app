@@ -1,5 +1,5 @@
-import { Button } from '@shared/ui';
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -9,9 +9,11 @@ import {
   FieldGroup,
   FieldLabel,
   Input,
+  OAuthButtons,
+  AutoSubmitVerificationCode,
 } from '@shared/ui';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@shared/lib/utils';
 import styles from './RegistrationPage.module.css';
 import { completeRegisterWithCode, requestRegisterCode } from '../api';
@@ -21,8 +23,8 @@ import { ZodError } from 'zod';
 import { parseApiError } from '@shared/lib/api/parseApiError';
 import { messageForApiFailure, notifyError, notifySuccess } from '@shared/lib/sileo/notify';
 import { validateEmailOrPhone } from '@shared/utils/validation';
-import { OtpInput, EMPTY_OTP, type OtpValue } from '@components/OtpInput';
-import { preloadLoginRoute } from '@router/lazyPages';
+import { EMPTY_OTP, type OtpValue } from '@components/OtpInput';
+import { preloadLoginRoute, warmAppAfterAuth } from '@router/lazyPages';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -91,6 +93,8 @@ export default function RegistrationForm({
   const [pendingKind, setPendingKind] = useState<'email' | 'phone' | null>(null);
   const [pendingContact, setPendingContact] = useState<string | null>(null);
   const [otp, setOtp] = useState<OtpValue>(() => [...EMPTY_OTP]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
 
   const login = useUserStore((s) => s.login);
   const navigate = useNavigate();
@@ -139,6 +143,7 @@ export default function RegistrationForm({
         await login(loginPayload);
         verifySucceededRef.current = true;
         setOtp([...EMPTY_OTP]);
+        await warmAppAfterAuth();
         navigate('/app', { replace: true });
       } catch (err) {
         if (verifySucceededRef.current) return;
@@ -159,14 +164,6 @@ export default function RegistrationForm({
     [pendingKind, pendingContact, login, navigate],
   );
 
-  useEffect(() => {
-    if (step !== 'code' || loading || verifySucceededRef.current) return;
-    const code = otp.join('');
-    const complete = otp.every((cell: string) => cell !== '') && code.length === 6;
-    if (!complete) return;
-    void submitVerificationCode(code);
-  }, [otp, step, loading, submitVerificationCode]);
-
   const handleCredentialsSubmit = async ({
     emailOrPhone,
     password,
@@ -183,6 +180,7 @@ export default function RegistrationForm({
           description: 'Сейчас выполняется вход…',
         });
         await login(res.loginPayload);
+        await warmAppAfterAuth();
         navigate('/app', { replace: true });
         return;
       }
@@ -225,14 +223,14 @@ export default function RegistrationForm({
         <img className={styles.logo} src="profession-logo-blue.svg" alt="" />
         <Card className={styles.card}>
           <CardHeader className={styles.cardHeader}>
-            <CardTitle style={{ fontSize: '23px', fontWeight: 800 }}>
+            <CardTitle className={styles.formTitleOverride}>
               {step === 'credentials' ? 'Создать аккаунт' : 'Подтверждение'}
             </CardTitle>
             <CardDescription>
               {step === 'credentials'
                 ? 'Начните работу с Профессией уже сегодня'
                 : codeSentDetail ??
-                  'Введите код из письма или SMS'}
+                  'Код подтверждения отправлен'}
             </CardDescription>
           </CardHeader>
           <CardContent className={styles.cardContent}>
@@ -261,15 +259,26 @@ export default function RegistrationForm({
                     <div className={styles.passwordHeader}>
                       <FieldLabel htmlFor="password">Пароль</FieldLabel>
                     </div>
-                    <Input
-                      id="password"
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder="Пароль"
-                      className={styles.input}
-                      disabled={loading}
-                      {...register('password')}
-                    />
+                    <div className={styles.passwordInputWrap}>
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        placeholder="Пароль"
+                        className={styles.input}
+                        disabled={loading}
+                        {...register('password')}
+                      />
+                      <button
+                        type="button"
+                        className={styles.passwordToggle}
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                        disabled={loading}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                     <CardDescription>
                       Не меньше 8 символов
                     </CardDescription>
@@ -284,15 +293,26 @@ export default function RegistrationForm({
                         Повторите пароль
                       </FieldLabel>
                     </div>
-                    <Input
-                      id="repeatPassword"
-                      type="password"
-                      placeholder="Пароль"
-                      autoComplete="new-password"
-                      className={styles.input}
-                      disabled={loading}
-                      {...register('repeatPassword')}
-                    />
+                    <div className={styles.passwordInputWrap}>
+                      <Input
+                        id="repeatPassword"
+                        type={showRepeatPassword ? 'text' : 'password'}
+                        placeholder="Пароль"
+                        autoComplete="new-password"
+                        className={styles.input}
+                        disabled={loading}
+                        {...register('repeatPassword')}
+                      />
+                      <button
+                        type="button"
+                        className={styles.passwordToggle}
+                        onClick={() => setShowRepeatPassword((prev) => !prev)}
+                        aria-label={showRepeatPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                        disabled={loading}
+                      >
+                        {showRepeatPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                     {errors.repeatPassword?.message ? (
                       <CardDescription>{errors.repeatPassword.message}</CardDescription>
                     ) : null}
@@ -300,7 +320,6 @@ export default function RegistrationForm({
 
                   <Field>
                     <Button
-                      style={{ fontSize: '14px' }}
                       type="submit"
                       className={styles.submitButton}
                       disabled={loading}
@@ -312,28 +331,9 @@ export default function RegistrationForm({
                       <span>или</span>
                     </div>
 
-                    <div className={styles.socialButtons}>
-                      <Button
-                        variant="outline"
-                        type="button"
-                        className={cn(styles.socialButton, styles.loginVk)}
-                      >
-                        <span className={styles.socialIcon}>
-                          <img src="login/vk.svg" alt="" />
-                        </span>
-                        Войти с VK ID
-                      </Button>
-                      <Button
-                        variant="outline"
-                        type="button"
-                        className={cn(styles.socialButton, styles.loginYa)}
-                      >
-                        <span className={styles.socialIcon}>
-                          <img src="login/ya.svg" alt="" />
-                        </span>
-                        Войти с Яндекс ID
-                      </Button>
-                    </div>
+                    <OAuthButtons
+                      containerClassName={styles.socialButtons}
+                    />
 
                     <div className={styles.linksContainer}>
                       <div className={styles.linkRow}>
@@ -354,11 +354,15 @@ export default function RegistrationForm({
             ) : (
               <FieldGroup className={styles.fieldGroup}>
                 <Field className={styles.field}>
-                  <FieldLabel>Код из письма или SMS</FieldLabel>
-                  <OtpInput value={otp} onChange={setOtp} disabled={loading} />
-                  <p className={styles.otpHint}>
-                    После ввода всех 6 цифр подтверждение отправится автоматически
-                  </p>
+                  <AutoSubmitVerificationCode
+                    value={otp}
+                    onChange={setOtp}
+                    onComplete={submitVerificationCode}
+                    disabled={loading}
+                    label={null}
+                    hint="После ввода всех 6 цифр подтверждение отправится автоматически"
+                    hintClassName={styles.otpHint}
+                  />
                 </Field>
                 <Field>
                   <Button

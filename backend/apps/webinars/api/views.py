@@ -1,8 +1,9 @@
 from apps.courses.models import Lesson
+from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from ..models import Webinar, Recording
 from .utils.agora_utils import (
-    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room,
-    generate_whiteboard_room_token, recording_acquire,
+    generate_rtc_token, generate_rtm_token, user_uid_from_uuid,
+    create_whiteboard_room, generate_whiteboard_room_token, recording_acquire,
     recording_start_web, recording_stop_web,
     verify_recorder_token, make_recorder_token, ban_whiteboard_room,
     ROLE_PUBLISHER, ROLE_SUBSCRIBER,
@@ -24,11 +25,58 @@ from .serializers import (
 )
 import os
 import img2pdf
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 import logging
 
+from apps.core.meta_management.factory import build_upload_api, build_binding_api
+from apps.core.processors.error_processor import process_error_response
+from apps.core.meta_management.errors import AssetError
+from apps.courses.api.utils.cache_utils import invalidate_lesson_detail_cache
+
 logger = logging.getLogger(__name__)
+
+def _pick_filename(file_entry):
+    if isinstance(file_entry, dict):
+        return file_entry.get('fileName', '') or file_entry.get('filename', '')
+    if isinstance(file_entry, str):
+        return file_entry
+    return ''
+
+
+def _extract_recording_url(agora_response):
+    sr = agora_response.get('serverResponse', {})
+
+    candidates = []
+
+    ext_state = sr.get('extensionServiceState', [])
+    if isinstance(ext_state, list):
+        for service in ext_state:
+            files = service.get('payload', {}).get('fileList', []) if isinstance(service, dict) else []
+            if isinstance(files, list):
+                for f in files:
+                    name = _pick_filename(f)
+                    if name:
+                        candidates.append(name)
+
+    file_list = sr.get('fileList', [])
+    if isinstance(file_list, list):
+        for f in file_list:
+            name = _pick_filename(f)
+            if name:
+                candidates.append(name)
+
+    single = sr.get('fileName', '') or sr.get('filename', '')
+    if single:
+        candidates.append(single)
+
+    if not candidates:
+        return ''
+
+    for name in candidates:
+        if name.lower().endswith('.mp4'):
+            return name
+
+    return candidates[0]
+
 
 def _stop_recording(recording):
     webinar = recording.webinar
@@ -40,11 +88,22 @@ def _stop_recording(recording):
                 resource_id=recording.resource_id,
                 sid=recording.sid,
             )
-            ext_state = result.get('serverResponse', {}).get('extensionServiceState', [])
-            if ext_state:
-                file_list = ext_state[0].get('payload', {}).get('fileList', [])
-                if file_list:
-                    recording.recording_url = file_list[0].get('fileName', '')
+            logger.info(
+                "Agora stop_web ответ для записи %s: %s",
+                recording.recording_id, result,
+            )
+            recording_url = _extract_recording_url(result)
+            if recording_url:
+                recording.recording_url = recording_url
+                logger.info(
+                    "Извлечен recording_url для записи %s: %s",
+                    recording.recording_id, recording_url,
+                )
+            else:
+                logger.error(
+                    "Не удалось извлечь recording_url из ответа Agora для записи %s. Ответ: %s",
+                    recording.recording_id, result,
+                )
         except Exception:
             logger.exception("Ошибка остановки записи %s", recording.recording_id)
 
@@ -58,6 +117,22 @@ def _stop_recording(recording):
         recording.kinescope_upload_status = 'pending'
         recording.save(update_fields=['kinescope_upload_status', 'updated_at'])
         upload_recording_to_kinescope.delay(str(recording.recording_id))
+    else:
+        logger.warning(
+            "Запись %s остается в processing без recording_url, kinescope upload не запущен",
+            recording.recording_id,
+        )
+
+    from apps.notifications.tasks import publish_event_async
+    publish_event_async.delay(
+        routing_key=f"webinar.{webinar.webinar_id}",
+        payload={
+            "type": "recording_stopped",
+            "webinar_id": str(webinar.webinar_id),
+            "recording_id": str(recording.recording_id),
+            "ended_at": recording.ended_at.isoformat() if recording.ended_at else None,
+        },
+    )
 
 
 @extend_schema_view(
@@ -90,20 +165,13 @@ def _stop_recording(recording):
 class WebinarStartView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может запускать вебинар'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         webinar, _ = Webinar.objects.get_or_create(
             lesson=lesson,
@@ -111,10 +179,10 @@ class WebinarStartView(APIView):
         )
 
         if webinar.status == Webinar.LIVE_STATUS:
-            return Response(
-                {'detail': 'Вебинар уже запущен'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({
+                'detail': 'Вебинар уже запущен, поэтому запуск проигнорирован',
+                'webinar_id': str(webinar.webinar_id),
+            })
 
         old_room_uuid = webinar.whiteboard_room_uuid
         try:
@@ -168,20 +236,13 @@ class WebinarStartView(APIView):
 class WebinarStopView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может останавливать вебинар'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         webinar = get_object_or_404(Webinar, lesson=lesson)
 
@@ -198,6 +259,15 @@ class WebinarStopView(APIView):
         webinar.status = Webinar.ENDED_STATUS
         webinar.ended_at = timezone.now()
         webinar.save(update_fields=['status', 'ended_at', 'updated_at'])
+
+        from apps.notifications.tasks import publish_event_async
+        publish_event_async.delay(
+            routing_key=f"webinar.{webinar.webinar_id}",
+            payload={
+                "type": "webinar_ended",
+                "webinar_id": str(webinar.webinar_id),
+            },
+        )
 
         return Response({'detail': 'Вебинар завершен'})
 
@@ -230,6 +300,7 @@ class WebinarStopView(APIView):
 class WebinarJoinView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_enrollment
     def get(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
@@ -238,17 +309,10 @@ class WebinarJoinView(APIView):
         )
         course = lesson.section.course
 
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        is_teacher = is_author or is_moderator
-        is_student = request.user.is_enrolled(course)
+        is_teacher = request.user.is_moderator() or (
+            request.user.is_teacher() and request.user.is_course_author(course)
+        )
 
-        if not is_teacher and not is_student:
-            return Response(
-                {'detail': 'Нет доступа к вебинару'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
         try:
             webinar = Webinar.objects.get(lesson=lesson, status='live')
         except Webinar.DoesNotExist:
@@ -273,11 +337,22 @@ class WebinarJoinView(APIView):
             role=whiteboard_role,
         )
 
+        rtm_token = generate_rtm_token(uid)
+        chat_channel_name = f'chat-{webinar.whiteboard_room_uuid}'
+
+        full_name = f"{request.user.last_name} {request.user.first_name}".strip()
+        if not full_name:
+            full_name = 'Пользователь'
+
         return Response({
+            'webinar_id': str(webinar.webinar_id),
             'rtc_token': rtc_token,
+            'rtm_token': rtm_token,
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,
+            'chat_channel_name': chat_channel_name,
             'uid': uid,
+            'user_name': full_name,
             'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),
             'whiteboard_room_uuid': webinar.whiteboard_room_uuid,
             'whiteboard_room_token': whiteboard_room_token,
@@ -339,13 +414,19 @@ class WebinarRecorderJoinView(APIView):
 
         recorder_uid = 999999
         rtc_token = generate_rtc_token(webinar.agora_channel_name, recorder_uid, ROLE_SUBSCRIBER)
+        rtm_token = generate_rtm_token(recorder_uid)
         wb_token = generate_whiteboard_room_token(webinar.whiteboard_room_uuid, 'reader')
+        chat_channel_name = f'chat-{webinar.whiteboard_room_uuid}'
 
         return Response({
+            'webinar_id': str(webinar.webinar_id),
             'rtc_token': rtc_token,
+            'rtm_token': rtm_token,
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,
+            'chat_channel_name': chat_channel_name,
             'uid': recorder_uid,
+            'user_name': 'Recorder',
             'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),
             'whiteboard_room_uuid': webinar.whiteboard_room_uuid,
             'whiteboard_room_token': wb_token,
@@ -383,17 +464,13 @@ class WebinarRecorderJoinView(APIView):
 class WebinarRecordingStartView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(status=status.HTTP_403_FORBIDDEN)
 
         webinar = get_object_or_404(Webinar, lesson=lesson, status=Webinar.LIVE_STATUS)
         
@@ -427,6 +504,17 @@ class WebinarRecordingStartView(APIView):
         recording.sid = sid
         recording.save(update_fields=['resource_id', 'sid', 'updated_at'])
         
+        from apps.notifications.tasks import publish_event_async
+        publish_event_async.delay(
+            routing_key=f"webinar.{webinar.webinar_id}",
+            payload={
+                "type": "recording_started",
+                "webinar_id": str(webinar.webinar_id),
+                "recording_id": str(recording.recording_id),
+                "started_at": recording.started_at.isoformat() if recording.started_at else None,
+            },
+        )
+
         return Response({'detail': 'Запись началась', 'recording_id': str(recording.recording_id)})
 
 
@@ -459,21 +547,14 @@ class WebinarRecordingStartView(APIView):
 class WebinarRecordingStopView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может останавливать запись'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
+
         webinar = get_object_or_404(Webinar, lesson=lesson, status=Webinar.LIVE_STATUS)
         recording = webinar.recordings.filter(status=Recording.RECORDING_STATUS).first()
         if not recording:
@@ -547,17 +628,13 @@ class RecordingPdfView(APIView):
     permission_classes = (IsAuthenticated,)
     parser_classes = (MultiPartParser,)
 
+    @require_course_author
     def post(self, request, course_slug, lesson_slug, recording_id):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(status=status.HTTP_403_FORBIDDEN)
 
         recording = get_object_or_404(
             Recording,
@@ -575,44 +652,165 @@ class RecordingPdfView(APIView):
 
         images = [f.read() for f in screenshots]
         pdf_bytes = img2pdf.convert(images)
+        filename = f'recording_{recording.recording_id}.pdf'
 
-        pdf_path = f'whiteboards/recording_{recording.recording_id}.pdf'
-        saved_path = default_storage.save(pdf_path, ContentFile(pdf_bytes))
+        upload_api = build_upload_api()
+        binding_api = build_binding_api()
+        try:
+            asset = upload_api.upload_server_side(
+                owner=request.user,
+                intent='webinar_whiteboard',
+                filename=filename,
+                mime_type='application/pdf',
+                body=pdf_bytes,
+            )
+            binding_api.sync_single(
+                content_object=recording,
+                role='whiteboard_pdf',
+                asset_id=asset.asset_id,
+                owner=None,
+            )
+        except AssetError as exc:
+            return process_error_response(exc)
 
-        bucket = os.getenv('AWS_S3_BUCKET_NAME')
-        recording.whiteboard_pdf_url = (f'https://storage.yandexcloud.net/{bucket}/{saved_path}')
-        recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+        if recording.whiteboard_pdf_url:
+            recording.whiteboard_pdf_url = ''
+            recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+
+        invalidate_lesson_detail_cache(course_slug, lesson_slug)
 
         return Response({'detail': 'pdf доски сохранен'})
 
+    @require_course_author
     def delete(self, request, course_slug, lesson_slug, recording_id):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может удалять pdf доски'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
+
         recording = get_object_or_404(
             Recording,
             recording_id=recording_id,
             webinar__lesson=lesson,
             is_deleted=False,
         )
-        if not recording.whiteboard_pdf_url:
-            return Response({'detail': 'PDF не привязан'}, status=status.HTTP_404_NOT_FOUND)
 
-        recording.whiteboard_pdf_url = ''
-        recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
-        
+        binding_api = build_binding_api()
+        try:
+            binding_api.sync_single(
+                content_object=recording,
+                role='whiteboard_pdf',
+                asset_id=None,
+                owner=None,
+            )
+        except AssetError as exc:
+            return process_error_response(exc)
+
+        if recording.whiteboard_pdf_url:
+            recording.whiteboard_pdf_url = ''
+            recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+
+        invalidate_lesson_detail_cache(course_slug, lesson_slug)
+
         return Response({'detail': 'pdf доски удален'}, status=status.HTTP_204_NO_CONTENT)
+    
+
+@extend_schema_view(
+    post=extend_schema(
+        summary="Сохранить финальный PDF доски при завершении вебинара",
+        description=(
+            "Создает служебную Recording (status=ready, без видео) "
+            "с PDF доски, отражающим ее состояние на момент завершения вебинара. "
+            "Вызывается фронтом ПЕРЕД POST /webinar/stop/."
+        ),
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(name='course_slug', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+            OpenApiParameter(name='lesson_slug', type=OpenApiTypes.STR, location=OpenApiParameter.PATH),
+        ],
+        responses={
+            200: DetailResponseSerializer,
+            400: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
+class WebinarFinalPdfView(APIView):
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (MultiPartParser,)
+
+    @require_course_author
+    def post(self, request, course_slug, lesson_slug):
+        lesson = get_object_or_404(
+            Lesson.objects.select_related('section__course'),
+            slug=lesson_slug,
+            section__course__slug=course_slug,
+        )
+
+        webinar = get_object_or_404(Webinar, lesson=lesson)
+
+        screenshots = request.FILES.getlist('screenshots')
+        if not screenshots:
+            return Response(
+                {'detail': 'Нет скриншотов'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            images = [f.read() for f in screenshots]
+            pdf_bytes = img2pdf.convert(images)
+        except Exception:
+            logger.exception(
+                'Ошибка конвертации финальных скриншотов в PDF для вебинара %s',
+                webinar.webinar_id,
+            )
+            return Response(
+                {'detail': 'Не удалось обработать скриншоты'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        now = timezone.now()
+        recording = Recording.objects.create(
+            webinar=webinar,
+            started_by=request.user,
+            status=Recording.READY_STATUS,
+            started_at=now,
+            ended_at=now,
+        )
+
+        filename = f'whiteboard_{recording.recording_id}.pdf'
+        upload_api = build_upload_api()
+        binding_api = build_binding_api()
+        try:
+            asset = upload_api.upload_server_side(
+                owner=request.user,
+                intent='webinar_whiteboard',
+                filename=filename,
+                mime_type='application/pdf',
+                body=pdf_bytes,
+            )
+            binding_api.sync_single(
+                content_object=recording,
+                role='whiteboard_pdf',
+                asset_id=asset.asset_id,
+                owner=None,
+            )
+        except AssetError as exc:
+            recording.delete()
+            return process_error_response(exc)
+
+        logger.info(
+            'Финальный PDF доски сохранен для вебинара %s, recording %s',
+            webinar.webinar_id, recording.recording_id,
+        )
+
+        return Response({
+            'detail': 'Финальный PDF доски сохранен',
+            'recording_id': str(recording.recording_id),
+        })
     
 
 @extend_schema_view(
@@ -648,21 +846,14 @@ class RecordingPdfView(APIView):
 class RecordingDeleteView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @require_course_author
     def delete(self, request, course_slug, lesson_slug, recording_id):
         lesson = get_object_or_404(
             Lesson.objects.select_related('section__course'),
             slug=lesson_slug,
             section__course__slug=course_slug,
         )
-        course = lesson.section.course
-        is_author = course.authors.filter(pk=request.user.pk).exists()
-        is_moderator = request.user.is_moderator()
-        if not is_author and not is_moderator:
-            return Response(
-                {'detail': 'Только автор курса/админ может удалять запись'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
+
         recording = get_object_or_404(
             Recording,
             recording_id=recording_id,

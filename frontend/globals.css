@@ -1,4 +1,20 @@
 :root {
+	--profession-blue: #191970;
+	--profession-blue-hover: #1A2A8A;
+	--profession-bg-blue: var(--profession-blue);
+	--profession-white-bg: #F8F8F6;
+	--profession-white-block: #EEEEF0;
+	--profession-white-block-hover: #DBDBE0;
+	--profession-blue-bg: #E6ECF4;
+	/* --profession-blue-bg: #F8F8F6; */
+	--profession-grey-secondary: #D4D4D4;
+	--profession-grey-primary: #7B7974;
+	--profession-black-primary: #373734;
+	
+
+
+
+
   --radius: 0.625rem;
   --background: oklch(100% 0 0deg);
   --foreground: oklch(14.5% 0 0deg);
@@ -386,6 +402,8 @@
   --aspect-video: 16 / 9;
   --default-transition-duration: 0.15s;
   --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  --dialog-motion-duration: 0.38s;
+  --dialog-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --animation-delay-0: 0s;
   --animation-delay-75: 75ms;
   --animation-delay-100: 0.1s;
@@ -827,6 +845,8 @@
   --aspect-video: 16 / 9;
   --default-transition-duration: 0.15s;
   --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  --dialog-motion-duration: 0.38s;
+  --dialog-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --animation-delay-0: 0s;
   --animation-delay-75: 75ms;
   --animation-delay-100: 0.1s;

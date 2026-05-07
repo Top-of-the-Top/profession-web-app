@@ -1,0 +1,17 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: rgb(0 0 0 / 55%);
+}
+
+.panel {
+  position: relative;
+  max-height: min(90dvh, 100%);
+  overflow: auto;
+  outline: none;
+}

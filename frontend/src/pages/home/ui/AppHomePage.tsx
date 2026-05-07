@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, PageFrame, Skeleton } from '@shared/ui';
-import type { PurchasedCourseItem } from '@shared/api/courseApi';
+import type { CourseDTO } from '@shared/api/courseApi';
 import { useCoursesForHome } from '@shared/api/queries/courses';
 import styles from './AppHomePage.module.css';
 
@@ -11,27 +11,23 @@ function CourseCard({
   item,
   onOpen,
 }: {
-  item: PurchasedCourseItem;
+  item: CourseDTO;
   onOpen: (slug: string) => void;
 }) {
-  const { course } = item;
   return (
     <button
       type="button"
       className={styles.card}
-      onClick={() => onOpen(course.slug)}
+      onClick={() => onOpen(item.slug)}
     >
       <div className={styles.cardBody}>
-        <h3 className={styles.cardTitle}>{course.title}</h3>
-        <p className={styles.cardDescription}>{course.sub_title}</p>
-        {!item.is_active ? (
-          <span className={styles.expiredBadge}>Доступ истёк</span>
-        ) : null}
+        <h3 className={styles.cardTitle}>{item.title}</h3>
+        <p className={styles.cardDescription}>{item.sub_title}</p>
       </div>
-			
+
       <div className={styles.imageWrap}>
         <img
-          src={course.image_url || PLACEHOLDER_IMG}
+          src={item.image_url || PLACEHOLDER_IMG}
           alt=""
           className={styles.image}
           loading="lazy"
@@ -73,6 +69,14 @@ function HomeSkeleton() {
 export default function AppHomePage() {
   const navigate = useNavigate();
   const { data: items = [], isLoading, error, refetch } = useCoursesForHome();
+  const normalizedItems: CourseDTO[] = items
+    .map((item) => {
+      if (item && typeof item === 'object' && 'course' in item) {
+        return (item as { course?: CourseDTO }).course ?? null;
+      }
+      return item as CourseDTO;
+    })
+    .filter((item): item is CourseDTO => Boolean(item && item.slug && item.title));
 
   const openCourse = (slug: string) => {
     navigate(`/app/courses/${slug}`);
@@ -108,7 +112,7 @@ export default function AppHomePage() {
         <h1 className={styles.title}>Курсы</h1>
       </div>
 
-      {items.length === 0 ? (
+      {normalizedItems.length === 0 ? (
         <div className={styles.emptyState}>
           <p className={styles.emptyTitle}>Пока нет курсов</p>
           <p className={styles.emptyHint}>
@@ -118,8 +122,8 @@ export default function AppHomePage() {
         </div>
       ) : (
         <div className={styles.grid}>
-          {items.map((item) => (
-            <CourseCard key={item.id} item={item} onOpen={openCourse} />
+          {normalizedItems.map((item) => (
+            <CourseCard key={item.course_id} item={item} onOpen={openCourse} />
           ))}
         </div>
       )}

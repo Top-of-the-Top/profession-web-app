@@ -213,7 +213,7 @@ class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
         self.assertEqual(len(response.data), 1)
-        self.assertTrue(response.data[0]['is_active'])
+        self.assertIn('course_id', response.data[0])
 
 
 class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
@@ -221,6 +221,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
     def setUp(self):
         super().setUp()
         caches['cold'].clear()
+        caches['default'].clear()
         self.client = APIClient()
         self.teacher = create_test_user(email='teacher_web@test.com', role='teacher')
         self.course = create_test_course(title='Webinar Course')
@@ -236,44 +237,50 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
 
     def test_student_sees_webinar_for_enrolled_course(self):
         started = timezone.now() - timedelta(hours=2)
-        ended = timezone.now() - timedelta(hours=1)
         Webinar.objects.create(
             lesson=self.lesson,
             status=Webinar.ENDED_STATUS,
             started_at=started,
-            ended_at=ended,
+            ended_at=timezone.now() - timedelta(hours=1),
         )
         self.authenticate_user(self.student)
         response = self.client.get('/api/my-schedule/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        row = response.data[0]
+        items = response.data['items']
+        self.assertEqual(len(items), 1)
+        row = items[0]
         self.assertEqual(row['course_title'], self.course.title)
-        self.assertEqual(row['course_slug'], self.course.slug)
-        self.assertEqual(row['lesson_title'], self.lesson.title)
-        self.assertEqual(row['lesson_slug'], self.lesson.slug)
-        self.assertIsNotNone(row['started_at'])
-        self.assertIsNotNone(row['ended_at'])
+        self.assertEqual(row['title'], self.lesson.title)
+        self.assertIsNotNone(row['datetime'])
 
     def test_student_does_not_see_other_course_webinar(self):
         other = create_test_course(title='Other webinar course')
         sec = create_test_section(other)
         les = create_test_lesson(sec)
-        Webinar.objects.create(lesson=les, status=Webinar.PENDING_STATUS)
+        Webinar.objects.create(
+            lesson=les,
+            status=Webinar.ENDED_STATUS,
+            started_at=timezone.now() - timedelta(hours=1),
+        )
         self.authenticate_user(self.student)
         response = self.client.get('/api/my-schedule/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(len(response.data['items']), 0)
 
     def test_teacher_sees_webinar_as_author_without_purchase(self):
-        Webinar.objects.create(lesson=self.lesson, status=Webinar.PENDING_STATUS)
+        Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.ENDED_STATUS,
+            started_at=timezone.now() - timedelta(hours=1),
+        )
         solo_teacher = create_test_user(email='solo_teacher@test.com', role='teacher')
         self.course.authors.add(solo_teacher)
         self.authenticate_user(solo_teacher)
         response = self.client.get('/api/my-schedule/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['lesson_slug'], self.lesson.slug)
+        items = response.data['items']
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]['title'], self.lesson.title)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
@@ -642,10 +649,8 @@ class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
         lesson = Lesson.objects.get(title='Lesson local placeholder')
-        self.assertNotIn('local://', lesson.document)
         parsed = json.loads(lesson.document)
-        url = parsed['blocks'][0]['url']
-        self.assertTrue(url.startswith('http') or url.startswith('/media'), msg=url)
+        self.assertEqual(parsed['id'], 'a')
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

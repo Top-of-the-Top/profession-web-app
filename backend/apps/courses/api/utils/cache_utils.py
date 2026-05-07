@@ -20,7 +20,9 @@ def landing_courses_cache_key():
     return "default:landing:courses:list"
 
 
-def course_list_cache_key():
+def course_list_cache_key(user_id=None):
+    if user_id is not None:
+        return f"default:app:courses:list:{int(user_id)}"
     return "default:app:courses:list"
 
 
@@ -44,8 +46,10 @@ def lesson_list_cache_key(course_slug):
     return f"default:lessons:list:{course_slug}"
 
 
-def my_schedule_cache_key(user_id):
-    return f"default:schedule:list:{int(user_id)}"
+def my_schedule_cache_key(user_id, start_date=None, end_date=None):
+    start = start_date.isoformat() if start_date else 'none'
+    end = end_date.isoformat() if end_date else 'none'
+    return f"default:schedule:list:{int(user_id)}:{start}:{end}"
 
 
 DETAIL_CACHE_SCOPES = ('pub', 'all')
@@ -77,9 +81,12 @@ def invalidate_on_course_model_change(slug):
     delete_cache_keys(
         DEFAULT_CACHE_ALIAS,
         landing_courses_cache_key(),
-        course_list_cache_key(),
         course_detail_cache_key(slug),
+        course_list_cache_key(),
     )
+    cache = caches[DEFAULT_CACHE_ALIAS]
+    if hasattr(cache, 'delete_pattern'):
+        cache.delete_pattern('default:app:courses:list:*')
 
 
 def invalidate_on_section_model_change(course_slug, section_slug):
@@ -114,3 +121,94 @@ def cached_detail_response(cache_key, build_data):
     data = build_data()
     cache.set(cache_key, data)
     return Response(data)
+
+
+def invalidate_user_role_cache(user_id):
+    uid = int(user_id)
+    cache = default_cache()
+    cache.delete(course_list_cache_key(uid))
+    cache.delete(purchased_courses_cache_key(uid))
+    cache.delete(my_schedule_cache_key(uid))
+
+
+def attempt_draft_cache_key(user_id, homework_slug):
+    return f"default:attempt:draft:{int(user_id)}:{homework_slug}"
+
+
+def attempt_detail_cache_key(attempt_id):
+    return f"default:attempt:detail:{attempt_id}"
+
+
+def attempt_list_cache_key(lesson_slug, user_id=None):
+    if user_id is not None:
+        return f"default:attempt:list:{lesson_slug}:{int(user_id)}"
+    return f"default:attempt:list:{lesson_slug}"
+
+
+def attempt_list_by_course_cache_key(course_slug, user_id=None):
+    if user_id is not None:
+        return f"default:attempt:list:course:{course_slug}:{int(user_id)}"
+    return f"default:attempt:list:course:{course_slug}"
+
+
+def _delete(cache, *keys):
+    for key in keys:
+        cache.delete(key)
+
+
+def _delete_pattern_or_key(cache, pattern, fallback_key):
+    if hasattr(cache, 'delete_pattern'):
+        cache.delete_pattern(pattern)
+    else:
+        cache.delete(fallback_key)
+
+
+def invalidate_attempt_cache(user_id, homework_slug, attempt_id, lesson_slug, course_slug):
+    cache = default_cache()
+    uid = int(user_id)
+
+    _delete(
+        cache,
+        attempt_draft_cache_key(uid, homework_slug),
+        attempt_detail_cache_key(attempt_id),
+    )
+
+    _delete_pattern_or_key(
+        cache,
+        f'default:attempt:list:{lesson_slug}:*',
+        attempt_list_cache_key(lesson_slug, uid),
+    )
+    cache.delete(attempt_list_cache_key(lesson_slug))
+
+    _delete_pattern_or_key(
+        cache,
+        f'default:attempt:list:course:{course_slug}:*',
+        attempt_list_by_course_cache_key(course_slug, uid),
+    )
+    cache.delete(attempt_list_by_course_cache_key(course_slug))
+
+    _delete_pattern_or_key(
+        cache,
+        'default:attempt:list:all:*',
+        f'default:attempt:list:all:{uid}',
+    )
+    cache.delete('default:attempt:list:all')
+
+
+def invalidate_student_homework_list_cache(lesson_slug, course_slug):
+    cache = default_cache()
+    _delete_pattern_or_key(
+        cache,
+        f'default:attempt:list:{lesson_slug}:*',
+        attempt_list_cache_key(lesson_slug),
+    )
+    _delete_pattern_or_key(
+        cache,
+        f'default:attempt:list:course:{course_slug}:*',
+        attempt_list_by_course_cache_key(course_slug),
+    )
+    _delete_pattern_or_key(
+        cache,
+        'default:attempt:list:all:*',
+        'default:attempt:list:all',
+    )

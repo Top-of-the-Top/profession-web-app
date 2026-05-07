@@ -25,6 +25,7 @@ interface ChangeNameProps {
     firstName: string;
     lastName: string;
     avatar?: File | null;
+    removeAvatar?: boolean;
   }) => Promise<void>;
   currentFirstName?: string;
   currentLastName?: string;
@@ -73,10 +74,13 @@ export default function ChangeName({
     }
   }, [open, currentFirstName, currentLastName, currentAvatar, reset]);
 
-  const handleDialogOpenChange = (next: boolean) => {
-    if (!next) cleanup();
-    onOpenChange(next);
-  };
+  const handleDialogOpenChange = useCallback(
+    (next: boolean) => {
+      if (!next) cleanup();
+      onOpenChange(next);
+    },
+    [cleanup, onOpenChange],
+  );
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -110,6 +114,7 @@ export default function ChangeName({
         firstName,
         lastName,
         avatar: avatarFile,
+        removeAvatar: !avatarFile && !avatarPreview && !!currentAvatar,
       });
       handleDialogOpenChange(false);
     } catch {
@@ -172,7 +177,7 @@ export default function ChangeName({
             type="file"
             accept="image/*"
             onChange={handleFileSelect}
-            style={{ display: 'none' }}
+            className={styles.hiddenFileInput}
           />
 
           <Button

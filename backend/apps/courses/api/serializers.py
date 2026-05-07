@@ -1,4 +1,4 @@
-from .utils.rbac_utils import filter_homework_queryset_for_visibility
+from .permissions import filter_homework_queryset_for_visibility
 import json
 
 from ..models import (
@@ -11,28 +11,43 @@ from ..models import (
     Task,
     PublishableMixin,
 )
-from ..lesson_content import resolve_lesson_document_string, parse_content_value
+from ..lesson_content import extract_asset_ids, parse_content_value, substitute_asset_uris
 from django.db.models import Prefetch
 from apps.users.models import User
+from apps.core.meta_management.factory import build_access_api
+from apps.core.meta_management.mixins import AssetsSerializerMixin
+from apps.core.meta_management.errors import AssetError
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 
 
-class CourseSerializer(serializers.ModelSerializer):
-    image_url = serializers.ReadOnlyField()
+class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
+    asset_roles = ['course_cover']
+
+    cover_asset_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     authors = serializers.PrimaryKeyRelatedField(
         many=True, read_only=False, required=False, queryset=User.objects.all()
     )
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
-        fields = '__all__'
+        exclude = ('image',)
         read_only_fields = ('course_id', 'created_at', 'updated_at', 'last_modified_by')
 
+    def get_image_url(self, obj):
+        assets = self.get_assets(obj)
+        covers = assets.get('course_cover', [])
+        if covers:
+            return covers[0].get('url')
+        return obj.image_url
 
-class CourseDTOSerializer(serializers.ModelSerializer):
-    image_url = serializers.ReadOnlyField()
+
+class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
+    asset_roles = ['course_cover']
+
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -40,10 +55,16 @@ class CourseDTOSerializer(serializers.ModelSerializer):
             'course_id',
             'title',
             'sub_title',
-            'image_url',
-            'price',
             'slug',
+            'image_url',
         ]
+
+    def get_image_url(self, obj):
+        assets = self.get_assets(obj)
+        covers = assets.get('course_cover', [])
+        if covers:
+            return covers[0].get('url')
+        return obj.image_url
 
 
 class CourseListResponseSerializer(serializers.Serializer):
@@ -161,8 +182,12 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(LessonContentReadSerializer)
     def get_content(self, obj):
-        from apps.webinars.api.serializers import RecordingListItemSerializer
-        
+        from apps.webinars.api.serializers import (
+            RECORDING_WHITEBOARD_CONTEXT_KEY,
+            RecordingListItemSerializer,
+            build_recording_whiteboard_map,
+        )
+
         include_drafts = self.context.get('include_drafts', False)
         hws = filter_homework_queryset_for_visibility(
             obj.homework_set.all(), include_drafts
@@ -173,15 +198,33 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
         webinar_status = webinar.status if webinar else None
 
         if webinar:
-            recordings_qs = webinar.recordings.filter(is_deleted=False).order_by('-started_at')
+            recordings_list = list(
+                webinar.recordings.filter(is_deleted=False).order_by('-started_at')
+            )
+            rec_context = dict(self.context)
+            rec_context[RECORDING_WHITEBOARD_CONTEXT_KEY] = build_recording_whiteboard_map(
+                recordings_list,
+            )
             recordings_data = RecordingListItemSerializer(
-                recordings_qs, many=True, context=self.context,
+                recordings_list, many=True, context=rec_context,
             ).data
         else:
             recordings_data = []
 
+        document = obj.document or ''
+        asset_ids = extract_asset_ids(document)
+        if asset_ids:
+            request = self.context.get('request')
+            viewer = getattr(request, 'user', None) if request is not None else None
+            access = build_access_api()
+            try:
+                uri_to_url = access.resolve_many_for_viewer(asset_ids, viewer=viewer)
+            except Exception:
+                uri_to_url = {}
+            document = substitute_asset_uris(document, uri_to_url)
+
         return {
-            'document': obj.document or '',
+            'document': document,
             'started_at': started_at,
             'webinar_status': webinar_status,
             'recordings': recordings_data,
@@ -246,20 +289,8 @@ class LessonDocumentStrField(serializers.Field):
         raise serializers.ValidationError('document: ожидается JSON-объект или строка JSON.')
 
 
-class LessonAssetPayloadSerializer(serializers.Serializer):
-    asset_id = serializers.IntegerField(min_value=1)
-    asset_type = serializers.CharField(max_length=64)
-    asset_file = serializers.CharField(
-        max_length=128,
-        required=False,
-        allow_blank=True,
-        help_text='Имя поля FormData с файлом, по умолчанию asset_<asset_id>',
-    )
-
-
 class LessonContentPayloadSerializer(serializers.Serializer):
     document = LessonDocumentStrField()
-    assets = LessonAssetPayloadSerializer(many=True, required=False, default=list)
 
 
 class LessonCreateSerializer(serializers.Serializer):
@@ -319,15 +350,16 @@ class LessonCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError('Секция не принадлежит этому курсу.')
         return section
 
-    def _resolve_document(self, lesson, content_payload):
-        doc_str = content_payload['document']
-        assets = list(content_payload.get('assets') or [])
-        return resolve_lesson_document_string(
-            self.context['course'].course_id,
-            lesson.lesson_id,
-            doc_str,
-            assets,
-            self.context['request'].FILES,
+    def _sync_lesson_assets(self, lesson, document_str):
+        from apps.core.meta_management.factory import build_binding_api
+
+        asset_ids = extract_asset_ids(document_str)
+        binding = build_binding_api()
+        binding.sync_many(
+            content_object=lesson,
+            role='lesson_block',
+            asset_ids=asset_ids,
+            owner=None,
         )
 
     def _extract_content_payload(self, validated_data):
@@ -355,13 +387,14 @@ class LessonCreateSerializer(serializers.Serializer):
         content_payload = self._extract_content_payload(validated_data)
         lesson = Lesson.objects.create(**validated_data)
         if content_payload is not None:
-            try:
-                resolved = self._resolve_document(lesson, content_payload)
-            except ValueError as e:
-                lesson.delete()
-                raise serializers.ValidationError({'content': str(e)}) from e
-            lesson.document = resolved
+            document_str = content_payload['document']
+            lesson.document = document_str
             lesson.save(update_fields=['document'])
+            try:
+                self._sync_lesson_assets(lesson, document_str)
+            except AssetError as e:
+                lesson.delete()
+                raise serializers.ValidationError({'content': e.message}) from e
         return lesson
 
     def update(self, instance, validated_data):
@@ -373,22 +406,24 @@ class LessonCreateSerializer(serializers.Serializer):
         update_fields = list(validated_data.keys())
 
         if content_payload is not None:
-            try:
-                resolved = self._resolve_document(instance, content_payload)
-            except ValueError as e:
-                raise serializers.ValidationError({'content': str(e)}) from e
-            instance.document = resolved
+            instance.document = content_payload['document']
             update_fields.append('document')
 
         if update_fields:
             instance.save(update_fields=update_fields)
+
+        if content_payload is not None:
+            try:
+                self._sync_lesson_assets(instance, content_payload['document'])
+            except AssetError as e:
+                raise serializers.ValidationError({'content': e.message}) from e
 
         return instance
 
     def to_representation(self, instance):
         data = LessonSerializer(instance).data
         doc = data.pop('document', '')
-        data['content'] = {'document': doc, 'assets': []}
+        data['content'] = {'document': doc}
         return data
 
 
@@ -423,7 +458,12 @@ class HomeworkItemsListSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
 
 
-class HomeworkDetailSerializer(serializers.ModelSerializer):
+class HomeworkDetailSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
+    asset_roles = ['homework_material']
+
+    material_asset_ids = serializers.ListField(
+        child=serializers.UUIDField(), write_only=True, required=False,
+    )
     items = serializers.SerializerMethodField()
     lesson_id = serializers.UUIDField(source='lesson.lesson_id', read_only=True)
 
@@ -439,6 +479,7 @@ class HomeworkDetailSerializer(serializers.ModelSerializer):
             'type',
             'created_at',
             'updated_at',
+            'material_asset_ids',
             'items',
         ]
         read_only_fields = (
@@ -481,7 +522,13 @@ class HomeworkDetailSerializer(serializers.ModelSerializer):
         return items
 
 
-class HomeworkSerializer(serializers.ModelSerializer):
+class HomeworkSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
+    asset_roles = ['homework_material']
+
+    material_asset_ids = serializers.ListField(
+        child=serializers.UUIDField(), write_only=True, required=False,
+    )
+
     class Meta:
         model = Homework
         fields = '__all__'
@@ -535,3 +582,46 @@ class UserWebinarListItemSerializer(serializers.Serializer):
     lesson_slug = serializers.CharField()
     started_at = serializers.DateTimeField(allow_null=True)
     ended_at = serializers.DateTimeField(allow_null=True)
+
+
+class ScheduleItemSerializer(serializers.Serializer):
+    TYPE_WEBINAR = 'webinar'
+    TYPE_HOMEWORK = 'homework'
+
+    type = serializers.ChoiceField(choices=[TYPE_WEBINAR, TYPE_HOMEWORK])
+    datetime = serializers.DateTimeField()
+    course_title = serializers.CharField()
+    title = serializers.CharField()
+
+
+class ScheduleResponseSerializer(serializers.Serializer):
+    items = ScheduleItemSerializer(many=True)
+
+
+class MyContentLessonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = ['lesson_id', 'slug', 'title']
+
+
+class MyContentCourseSerializer(serializers.ModelSerializer):
+    lessons = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Course
+        fields = ['course_id', 'slug', 'title', 'lessons']
+
+    @extend_schema_field(MyContentLessonSerializer(many=True))
+    def get_lessons(self, obj):
+        include_drafts = self.context.get('include_drafts', False)
+        if include_drafts:
+            lesson_qs = Lesson.objects.filter(section__course=obj).order_by(
+                'section__section_number', 'lesson_number'
+            )
+        else:
+            lesson_qs = Lesson.objects.filter(
+                section__course=obj,
+                type=Lesson.PUBLISHED_STATUS,
+                section__type=Section.PUBLISHED_STATUS,
+            ).order_by('section__section_number', 'lesson_number')
+        return MyContentLessonSerializer(lesson_qs, many=True).data

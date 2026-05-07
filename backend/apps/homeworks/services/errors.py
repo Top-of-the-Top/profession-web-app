@@ -36,17 +36,6 @@ class AttemptValidationError(HomeworkServiceError):
     status = status.HTTP_400_BAD_REQUEST
 
 
-class UploadFileTooLarge(HomeworkServiceError):
-    code = 'FILE_TOO_LARGE'
-    message = 'Файл больше 10 МБ.'
-    status = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
-
-
-class StorageUnavailable(HomeworkServiceError):
-    code = 'STORAGE_ERROR'
-    message = 'Не удалось связаться с облачным хранилищем.'
-    status = status.HTTP_503_SERVICE_UNAVAILABLE
-
 
 class AttemptNotSubmitted(HomeworkServiceError):
     code = 'ATTEMPT_NOT_SUBMITTED'
@@ -83,7 +72,3 @@ class RequestValidationError(HomeworkServiceError):
         return str(detail)
 
 
-class InternalError(HomeworkServiceError):
-    code = 'INTERNAL_ERROR'
-    message = 'Внутренняя ошибка сервера.'
-    status = status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -21,7 +21,7 @@ from ..services.attempt_service import AttemptService
 from ..services.review_service import ReviewService, TaskReviewItem
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from apps.core.processors.error_processor import process_error_response as _process_error
-from ..services.errors import HomeworkServiceError, RequestValidationError, InternalError
+from ..services.errors import HomeworkServiceError, RequestValidationError
 
 from .serializers import (
     AttemptSerializer,
@@ -95,6 +95,49 @@ class HomeworkAttemptView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+def _build_my_attempts(user, homework_filter):
+    # homework_filter содержит фильтры вида {'lesson': ..} или {'lesson__section__course': ..}
+    # Переводим фильтры с prefix 'homework__' на прямые поля Homework
+    hw_filter = {
+        k.replace('homework__', '', 1) if k.startswith('homework__') else k: v
+        for k, v in homework_filter.items()
+    }
+
+    homeworks = (
+        Homework.objects
+        .filter(**hw_filter, type=Homework.PUBLISHED_STATUS)
+        .select_related('lesson__section__course')
+        .prefetch_related(
+            'attempt_set'
+        )
+        .order_by('lesson__section__section_number', 'lesson__lesson_number', 'homework_number')
+    )
+
+    attempt_by_hw = {
+        a.homework_id: a
+        for a in Attempt.objects.filter(
+            homework__in=homeworks, user=user
+        )
+    }
+
+    items = []
+    for hw in homeworks:
+        attempt = attempt_by_hw.get(hw.homework_id)
+        items.append({
+            'attempt_id': str(attempt.attempt_id) if attempt else None,
+            'status': attempt.status if attempt else 'to_do',
+            'homework_id': str(hw.homework_id),
+            'homework_slug': hw.slug,
+            'homework_title': hw.title,
+            'deadline': hw.deadline,
+            'course_title': hw.lesson.section.course.title,
+            'lesson_title': hw.lesson.title,
+            'grade': attempt.grade if attempt else None,
+            'max_points': hw.max_points,
+        })
+    return items
+
+
 class StudentAttemptsView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -149,6 +192,9 @@ class StudentAttemptsView(APIView):
             list_cache_key = attempt_list_by_course_cache_key(course_slug)
             list_cache_key_user = attempt_list_by_course_cache_key(course_slug, user.id)
         else:
+            if user.is_student():
+                purchased_ids = user.get_purchased_courses_ids()
+                attempt_filter = {'homework__lesson__section__course_id__in': purchased_ids}
             list_cache_key = f'default:attempt:list:all'
             list_cache_key_user = f'default:attempt:list:all:{int(user.id)}'
 
@@ -192,13 +238,8 @@ class StudentAttemptsView(APIView):
         cached = cache.get(list_cache_key_user)
         if cached is not None:
             return Response(cached, status=status.HTTP_200_OK)
-        attempts = (
-            Attempt.objects
-            .filter(**attempt_filter, user=user)
-            .select_related('homework__lesson__section__course')
-            .order_by('-created_at')
-        )
-        data = {'my_attempts': {'items': MyAttemptSerializer(attempts, many=True).data}}
+
+        data = {'my_attempts': {'items': _build_my_attempts(user, attempt_filter)}}
         cache.set(list_cache_key_user, data)
         return Response(data, status=status.HTTP_200_OK)
 

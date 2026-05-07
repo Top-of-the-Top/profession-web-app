@@ -194,29 +194,17 @@ class AttemptSerializer(serializers.ModelSerializer):
         return items
 
 
-class MyAttemptSerializer(serializers.ModelSerializer):
-    homework_id = serializers.UUIDField(source='homework.homework_id', read_only=True)
-    homework_slug = serializers.SlugField(source='homework.slug', read_only=True)
-    homework_title = serializers.CharField(source='homework.title', read_only=True)
-    deadline = serializers.DateTimeField(source='homework.deadline', read_only=True)
-    max_points = serializers.IntegerField(source='homework.max_points', read_only=True)
-    course_title = serializers.CharField(source='homework.lesson.section.course.title', read_only=True)
-    lesson_title = serializers.CharField(source='homework.lesson.title', read_only=True)
-
-    class Meta:
-        model = Attempt
-        fields = (
-            'attempt_id',
-            'status',
-            'homework_id',
-            'homework_slug',
-            'homework_title',
-            'deadline',
-            'course_title',
-            'lesson_title',
-            'grade',
-            'max_points',
-        )
+class MyAttemptSerializer(serializers.Serializer):
+    attempt_id = serializers.UUIDField(allow_null=True)
+    status = serializers.CharField()
+    homework_id = serializers.UUIDField()
+    homework_slug = serializers.SlugField()
+    homework_title = serializers.CharField()
+    deadline = serializers.DateTimeField(allow_null=True)
+    course_title = serializers.CharField()
+    lesson_title = serializers.CharField()
+    grade = serializers.IntegerField(allow_null=True)
+    max_points = serializers.IntegerField()
 
 
 class StudentAttemptSerializer(serializers.ModelSerializer):

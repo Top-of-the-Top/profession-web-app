@@ -98,6 +98,15 @@ def track_homework_changes(sender, instance, **kwargs):
         pass
 
 
+@receiver((post_save, post_delete), sender=Homework)
+def invalidate_student_cache_on_homework_change(sender, instance, **kwargs):
+    lesson = instance.lesson
+    section = lesson.section
+    if section is None:
+        return
+    invalidate_student_homework_list_cache(lesson.slug, section.course.slug)
+
+
 @receiver(post_save, sender=Homework)
 def homework_notification(sender, instance, created, **kwargs):
 

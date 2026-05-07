@@ -1,5 +1,4 @@
 import uuid
-from django.core.exceptions import ValidationError
 from django.db import models
 from apps.users.models import User
 from apps.courses.models import Homework, Task, Question
@@ -94,12 +93,6 @@ class QuestionAnswer(EstimatedMixin, TimestampedMixin):
         ordering = ['-created_at']
         unique_together = ('attempt', 'question')
 
-    def clean(self):
-        if self.user_answer and self.user_answer not in self.question.answer_options:
-            raise ValidationError({
-                'user_answer': f'Answer must be one of: {", ".join(self.question.answer_options)}'
-            })
-
     def __str__(self):
         return str(self.answer_id)
 
@@ -149,12 +142,6 @@ class TaskReview(TimestampedMixin):
         default=None,
     )
     points = models.PositiveIntegerField(verbose_name="Выставленные баллы", default=0)
-
-    def clean(self):
-        if self.points > self.answer.task.max_points:
-            raise ValidationError({
-                'points': f'Максимум за задание: {self.answer.task.max_points}'
-            })
 
     class Meta:
         verbose_name = 'Ревью задания с развернутым ответом'

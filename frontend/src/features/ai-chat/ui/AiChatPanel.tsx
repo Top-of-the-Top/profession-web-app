@@ -27,6 +27,10 @@ function formatMarkdownForDisplay(value: string): string {
   return value.replace(/([^\n])(\s*)(#{1,6}\s+)/g, '$1\n\n$3');
 }
 
+function formatMarkdownForDisplay(value: string): string {
+  return value.replace(/([^\n])(\s*)(#{1,6}\s+)/g, '$1\n\n$3');
+}
+
 export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
   const {
     status,

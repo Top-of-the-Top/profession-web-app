@@ -87,7 +87,7 @@ INTENT_POLICIES = {
         'mime_allowlist': (
             'application/pdf',
         ),
-        'default_visibility': 'course_paid',
+        'default_visibility': 'public',
         'default_role': 'whiteboard_pdf',
     },
     'lesson_video': {

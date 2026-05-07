@@ -42,17 +42,36 @@ def _user_notifications_qs(user):
     )
 
 
+PAGE_SIZE = 20
+
+
 @extend_schema(
     tags=['Notifications'],
     summary='Список уведомлений пользователя',
-    responses={200: NotificationSerializer(many=True)},
+    parameters=[
+        OpenApiParameter(name='before_id', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=False,
+                         description='ID уведомления — вернуть уведомления старше него'),
+    ],
+    responses={200: {'description': '{"results": [...], "has_more": bool}', 'content': {'application/json': {}}}},
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_notifications_for_user(request):
-    notifications = _user_notifications_qs(request.user)
+    qs = _user_notifications_qs(request.user)
+
+    before_id = request.GET.get('before_id')
+    if before_id:
+        try:
+            qs = qs.filter(id__lt=int(before_id))
+        except (ValueError, TypeError):
+            pass
+
+    notifications = list(qs[:PAGE_SIZE + 1])
+    has_more = len(notifications) > PAGE_SIZE
+    notifications = notifications[:PAGE_SIZE]
+
     serializer = NotificationSerializer(notifications, many=True)
-    return Response(serializer.data)
+    return Response({'results': serializer.data, 'has_more': has_more})
 
 
 @extend_schema(

@@ -42,7 +42,8 @@ class AssetUploadInitiateView(BaseAssetView):
         try:
             result = self.upload_api.initiate_upload(user=request.user, **serializer.validated_data)
             return Response(
-                InitiateUploadResponseSerializer(result).data, status=status.HTTP_201_CREATED
+                InitiateUploadResponseSerializer(result).data,
+                status=status.HTTP_201_CREATED,
             )
         except AssetError as exc:
             return process_error_response(exc)

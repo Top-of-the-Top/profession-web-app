@@ -61,7 +61,10 @@ class CartView(APIView):
         tags=["Carts"],
         responses={
             200: CartSerializer,
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
         },
     )
     def get(self, request):
@@ -100,7 +103,10 @@ class AddToCartView(APIView):
                 "description": "Тело: { error: 'Курс уже в корзине' }.",
                 "schema": SCHEMA_400_ERROR,
             },
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
             404: {
                 "description": "Тело: { detail: 'Курс с таким slug не найден в списке курсов.' }.",
                 "schema": SCHEMA_404,
@@ -148,7 +154,10 @@ class CartItemView(APIView):
         tags=["Carts"],
         responses={
             204: {"description": "Курс удалён из корзины, тело ответа пустое."},
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
             404: {
                 "description": "Тело: { detail }. «Курс с таким slug не найден в списке курсов.» или «Курс с таким slug не найден в корзине.»",
                 "schema": SCHEMA_404,

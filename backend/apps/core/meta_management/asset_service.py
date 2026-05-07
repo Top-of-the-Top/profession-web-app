@@ -27,7 +27,6 @@ def _normalize_build_storage_key(result):
 
 
 class AssetService:
-
     def __init__(self, backends):
         self._backends = backends
 

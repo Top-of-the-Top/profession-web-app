@@ -4,11 +4,12 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0007_merge_20260418_1218'),
-        ('courses', '0007_remove_users_homeworks_attempts_courses_use_user_id_a6b97b_idx_and_more'),
+        ("courses", "0007_merge_20260418_1218"),
+        (
+            "courses",
+            "0007_remove_users_homeworks_attempts_courses_use_user_id_a6b97b_idx_and_more",
+        ),
     ]
 
-    operations = [
-    ]
+    operations = []

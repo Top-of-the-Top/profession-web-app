@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
     acks_late=True,
 )
 def process_payment_task(self, payment_id: int):
-
     from .models import Payment
     from .services import MockYooKassaService
 

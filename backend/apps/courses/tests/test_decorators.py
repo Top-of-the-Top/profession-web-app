@@ -47,7 +47,6 @@ def create_authenticated_request(factory, method="get", path="/test/", user=None
 
 
 class DecoratorIntegrationTestMixin:
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -79,7 +78,6 @@ class DecoratorIntegrationTestMixin:
 
 
 class RequireModeratorUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -118,7 +116,6 @@ class RequireModeratorUnitTest(SimpleTestCase):
 
 
 class RequireCourseAuthorUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -152,7 +149,8 @@ class RequireCourseAuthorUnitTest(SimpleTestCase):
         request = create_authenticated_request(self.factory, user=mock_user)
 
         with patch(
-            "apps.courses.api.permissions.Course.objects.get", side_effect=Course.DoesNotExist
+            "apps.courses.api.permissions.Course.objects.get",
+            side_effect=Course.DoesNotExist,
         ):
             response = test_view(request, course_id=999)
 
@@ -167,7 +165,6 @@ class RequireCourseAuthorUnitTest(SimpleTestCase):
 
 
 class RequireCourseEnrollmentUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -193,7 +190,8 @@ class RequireCourseEnrollmentUnitTest(SimpleTestCase):
         request = create_authenticated_request(self.factory, user=mock_user)
 
         with patch(
-            "apps.courses.api.permissions.Course.objects.get", side_effect=Course.DoesNotExist
+            "apps.courses.api.permissions.Course.objects.get",
+            side_effect=Course.DoesNotExist,
         ):
             response = test_view(request, course_slug="nonexistent")
 
@@ -209,7 +207,6 @@ class RequireCourseEnrollmentUnitTest(SimpleTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class RequireModeratorIntegrationTest(DecoratorIntegrationTestMixin, BaseTestCase):
-
     def _setup_users(self):
         self.student = create_test_user(email="student@test.com", role="student")
         self.teacher = create_test_user(email="teacher@test.com", role="teacher")
@@ -227,7 +224,6 @@ class RequireModeratorIntegrationTest(DecoratorIntegrationTestMixin, BaseTestCas
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class RequireCourseAuthorIntegrationTest(DecoratorIntegrationTestMixin, BaseTestCase):
-
     def _setup_users(self):
         self.student = create_test_user(email="student@test.com", role="student")
         self.teacher = create_test_user(email="teacher@test.com", role="teacher")
@@ -268,7 +264,6 @@ class RequireCourseAuthorIntegrationTest(DecoratorIntegrationTestMixin, BaseTest
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class RequireCourseEnrollmentIntegrationTest(DecoratorIntegrationTestMixin, BaseTestCase):
-
     def _setup_users(self):
         self.student = create_test_user(email="student@test.com", role="student")
         self.other_student = create_test_user(email="other@test.com", role="student")
@@ -325,13 +320,14 @@ class RequireCourseEnrollmentIntegrationTest(DecoratorIntegrationTestMixin, Base
         )
 
         self.assert_decorator_blocks_access(
-            require_course_enrollment, self.other_student, course_slug=expired_course.slug
+            require_course_enrollment,
+            self.other_student,
+            course_slug=expired_course.slug,
         )
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class DecoratorEdgeCasesTest(DecoratorIntegrationTestMixin, BaseTestCase):
-
     def test_require_moderator_with_none_user(self):
         test_view = create_test_view_with_decorator(require_moderator)
         request = create_authenticated_request(self.factory, user=None)

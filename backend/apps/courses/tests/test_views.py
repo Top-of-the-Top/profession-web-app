@@ -28,10 +28,9 @@ from .test_models import (
 
 
 class ViewTestMixin:
-
     def authenticate_user(self, user):
         tokens = get_tokens_for_user(user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {tokens["access_token"]}')
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access_token']}")
 
     def create_enrolled_student(self, course):
         student = create_test_user(email=f"student_{course.course_id}@test.com", role="student")
@@ -46,7 +45,6 @@ class ViewTestMixin:
 
 
 class CourseDTOListUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -70,7 +68,6 @@ class CourseDTOListUnitTest(SimpleTestCase):
 
 
 class CourseViewSetUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -96,7 +93,6 @@ class CourseViewSetUnitTest(SimpleTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -182,7 +178,6 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -216,7 +211,6 @@ class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
 
 
 class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
-
     def setUp(self):
         super().setUp()
         caches["cold"].clear()
@@ -284,7 +278,6 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -503,7 +496,9 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(Task.objects.filter(homework=self.homework).count(), 2)
         self.assertTrue(
             Task.objects.filter(
-                homework=self.homework, task_id=old_task.task_id, text="Updated Old Task"
+                homework=self.homework,
+                task_id=old_task.task_id,
+                text="Updated Old Task",
             ).exists()
         )
         self.assertTrue(Task.objects.filter(homework=self.homework, text="New Task").exists())
@@ -538,7 +533,10 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
     def test_homework_items_sorted_by_number_then_created_at(self):
         task1 = Task.objects.create(homework=self.homework, text="Task 1", max_points=10)
         question1 = Question.objects.create(
-            homework=self.homework, text="Question 1?", correct_ans="A", answer_options=["A", "B"]
+            homework=self.homework,
+            text="Question 1?",
+            correct_ans="A",
+            answer_options=["A", "B"],
         )
         task2 = Task.objects.create(homework=self.homework, text="Task 2", max_points=15)
 
@@ -577,7 +575,9 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         data = {"title": "Updated Lesson Title"}
         response = self.client.put(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/", data, format="json"
+            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/",
+            data,
+            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Updated Lesson Title")
@@ -649,7 +649,6 @@ class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class RBACIntegrationTest(BaseTestCase, ViewTestMixin):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -669,7 +668,12 @@ class RBACIntegrationTest(BaseTestCase, ViewTestMixin):
 
     def test_student_cannot_create_course(self):
         self.authenticate_user(self.student)
-        data = {"title": "New", "sub_title": "Sub", "description": "Desc", "price": 1000}
+        data = {
+            "title": "New",
+            "sub_title": "Sub",
+            "description": "Desc",
+            "price": 1000,
+        }
         response = self.client.post("/api/courses/", data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -698,7 +702,6 @@ class RBACIntegrationTest(BaseTestCase, ViewTestMixin):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LandingCoursesIntegrationTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")

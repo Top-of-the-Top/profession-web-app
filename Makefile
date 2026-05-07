@@ -60,7 +60,7 @@ makemigrations: ## Создать миграции
 	$(MANAGE) makemigrations
 
 .PHONY: startapp
-startapp: ## Создать новое Django app 
+startapp: ## Создать новое Django app
 	@if [ -z "$(APP)" ]; then echo "Usage: make startapp APP=<app_name> [PATH=apps]"; exit 1; fi
 	$(MANAGE) startapp $(APP) $(PATH)/$(APP)
 
@@ -76,9 +76,9 @@ collectstatic: ## Собрать статику
 shell: ## Django shell
 	$(MANAGE) shell
 
-.PHONY: test 
+.PHONY: test
 test: ## Запустить тесты
-	$(MANAGE) test 
+	$(MANAGE) test
 
 .PHONY: test-app
 test-app: ## Запустить тесты по app (APP=homeworks)

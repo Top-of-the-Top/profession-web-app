@@ -7,7 +7,6 @@ from apps.users.models import User
 
 
 class TimestampedMixin(models.Model):
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -16,7 +15,6 @@ class TimestampedMixin(models.Model):
 
 
 class Session(TimestampedMixin):
-
     session_id = models.UUIDField(primary_key=True, verbose_name="id", default=uuid4)
 
     user = models.ForeignKey(
@@ -45,11 +43,13 @@ class Session(TimestampedMixin):
 
 
 class Chat(TimestampedMixin):
-
     chat_id = models.UUIDField(primary_key=True, verbose_name="id", default=uuid4)
 
     session = models.ForeignKey(
-        Session, on_delete=models.CASCADE, verbose_name="Сессия чата", related_name="chats"
+        Session,
+        on_delete=models.CASCADE,
+        verbose_name="Сессия чата",
+        related_name="chats",
     )
 
     title = models.CharField(max_length=100, null=True, blank=True, verbose_name="Заголовок чата")

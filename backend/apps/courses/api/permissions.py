@@ -18,7 +18,6 @@ def get_courses_for_user(user):
 
 
 class CourseContentVisibility:
-
     def __init__(self, user, course):
         self.user = user
         self.course = course

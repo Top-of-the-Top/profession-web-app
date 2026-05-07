@@ -84,7 +84,6 @@ class BaseTestCase(TestCase):
 
 
 class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -231,7 +230,6 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
 
 
 class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
 
@@ -361,7 +359,10 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
 
         deadline = timezone.now() + timedelta(days=7)
         homework = Homework.objects.create(
-            lesson=self.lesson, title="New Homework", deadline=deadline, last_modified_by=user
+            lesson=self.lesson,
+            title="New Homework",
+            deadline=deadline,
+            last_modified_by=user,
         )
 
         self.mock_send_personal.assert_called_once()

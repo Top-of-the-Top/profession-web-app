@@ -74,7 +74,10 @@ def get_notifications_for_user(request):
         try:
             qs = qs.filter(id__lt=int(before_id))
         except (ValueError, TypeError):
-            logger.debug("Invalid before_id query parameter: %r; skipping cursor filter", before_id)
+            logger.debug(
+                "Invalid before_id query parameter: %r; skipping cursor filter",
+                before_id,
+            )
 
     page = list(qs[: PAGE_SIZE + 1])
     has_more = len(page) > PAGE_SIZE
@@ -170,7 +173,8 @@ async def sse_notifications(request):
                     await asyncio.sleep(RABBITMQ_RETRY_DELAY)
                 else:
                     logger.error(
-                        "SSE: RabbitMQ недоступен после %d попыток", RABBITMQ_CONNECT_RETRIES
+                        "SSE: RabbitMQ недоступен после %d попыток",
+                        RABBITMQ_CONNECT_RETRIES,
                     )
                     yield b'event: error\ndata: {"detail": "broker_unavailable"}\n\n'
                     return

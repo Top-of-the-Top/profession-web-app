@@ -23,7 +23,10 @@ class Webinar(TimestampedMixin):
         verbose_name="id",
     )
     lesson = models.OneToOneField(
-        "courses.Lesson", on_delete=models.CASCADE, related_name="webinar", verbose_name="Урок"
+        "courses.Lesson",
+        on_delete=models.CASCADE,
+        related_name="webinar",
+        verbose_name="Урок",
     )
     started_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

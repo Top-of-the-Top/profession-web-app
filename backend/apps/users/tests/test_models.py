@@ -9,7 +9,6 @@ from ..models import Profile, User
 
 
 class UserModelTest(TestCase):
-
     def setUp(self):
         self.email = "test@example.com"
         self.encrypted_email = encrypt_data(self.email)
@@ -51,7 +50,9 @@ class UserModelTest(TestCase):
 
     def test_user_is_student_method(self):
         user = User.objects.create_user(
-            email_cipher=self.encrypted_email, password=self.password, role=User.ROLE_STUDENT
+            email_cipher=self.encrypted_email,
+            password=self.password,
+            role=User.ROLE_STUDENT,
         )
 
         self.assertTrue(user.is_student())
@@ -60,7 +61,9 @@ class UserModelTest(TestCase):
 
     def test_user_is_teacher_method(self):
         user = User.objects.create_user(
-            email_cipher=self.encrypted_email, password=self.password, role=User.ROLE_TEACHER
+            email_cipher=self.encrypted_email,
+            password=self.password,
+            role=User.ROLE_TEACHER,
         )
 
         self.assertFalse(user.is_student())
@@ -69,7 +72,9 @@ class UserModelTest(TestCase):
 
     def test_user_is_moderator_method(self):
         user = User.objects.create_user(
-            email_cipher=self.encrypted_email, password=self.password, role=User.ROLE_MODERATOR
+            email_cipher=self.encrypted_email,
+            password=self.password,
+            role=User.ROLE_MODERATOR,
         )
 
         self.assertFalse(user.is_student())
@@ -95,7 +100,9 @@ class UserModelTest(TestCase):
         encrypted_phone = encrypt_data(phone)
 
         user = User.objects.create_user(
-            email_cipher=self.encrypted_email, phone_cipher=encrypted_phone, password=self.password
+            email_cipher=self.encrypted_email,
+            phone_cipher=encrypted_phone,
+            password=self.password,
         )
 
         self.assertEqual(user.phone_cipher, encrypted_phone)
@@ -170,7 +177,6 @@ class UserModelTest(TestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class ProfileModelTest(TestCase):
-
     def setUp(self):
         self.user = User.objects.create_user(
             email_cipher=encrypt_data("test@example.com"), password="testpass123"
@@ -183,7 +189,6 @@ class ProfileModelTest(TestCase):
         self.storage_patcher.stop()
 
     def test_profile_creation(self):
-
         profile = Profile.objects.create(user=self.user)
 
         self.assertIsNotNone(profile)

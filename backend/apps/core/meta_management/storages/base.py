@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class StorageBackend(ABC):
-
     name = ""
 
     @abstractmethod

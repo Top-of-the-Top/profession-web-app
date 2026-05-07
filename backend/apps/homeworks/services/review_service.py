@@ -18,11 +18,13 @@ class TaskReviewItem:
 
 
 class ReviewService:
-
     def review_attempt(self, *, attempt: Attempt, reviewer, items: list[TaskReviewItem]) -> Attempt:
         if attempt.status != Attempt.SUBMITTED_STATUS:
             raise AttemptNotSubmitted(
-                details={"attempt_id": str(attempt.attempt_id), "status": attempt.status}
+                details={
+                    "attempt_id": str(attempt.attempt_id),
+                    "status": attempt.status,
+                }
             )
 
         task_answers = {

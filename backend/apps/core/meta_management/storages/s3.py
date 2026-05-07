@@ -19,7 +19,6 @@ DEFAULT_PRESIGN_TTL_SECONDS = 300
 
 
 class S3PresignedUrlService:
-
     def __init__(self, client, bucket, public_url_template):
         self._client = client
         self._bucket = bucket
@@ -69,7 +68,6 @@ class S3PresignedUrlService:
 
 
 class S3Backend(StorageBackend):
-
     name = "s3"
 
     def __init__(

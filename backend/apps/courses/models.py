@@ -10,7 +10,6 @@ DEFAULT_COURSE_IMAGE = "courses/default_course.png"
 
 
 class TimestampedMixin(models.Model):
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -28,7 +27,10 @@ class PublishableMixin(models.Model):
     ]
 
     type = models.CharField(
-        max_length=20, default=DRAFT_STATUS, choices=STATUS_CHOICES, verbose_name="Статус"
+        max_length=20,
+        default=DRAFT_STATUS,
+        choices=STATUS_CHOICES,
+        verbose_name="Статус",
     )
 
     class Meta:
@@ -53,7 +55,6 @@ class AbstractComponentModel(PublishableMixin, TimestampedMixin):
 
 
 class AutoIncrementMixin(models.Model):
-
     def _generate_next_number(self, parent_field, number_field):
         if not getattr(self, number_field):
             parent_value = getattr(self, parent_field)
@@ -151,7 +152,8 @@ class Course(AbstractComponentModel):
 
     def prepare_full_content_file(self):
         sections = self.section_set.prefetch_related(
-            "lesson_set__homework_set__question_set", "lesson_set__homework_set__task_set"
+            "lesson_set__homework_set__question_set",
+            "lesson_set__homework_set__task_set",
         ).order_by("section_number", "created_at")
 
         chunks = [
@@ -336,7 +338,6 @@ class Task(AbstractComponentModel, AutoIncrementMixin):
 
 
 class PurchasedCourse(models.Model):
-
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

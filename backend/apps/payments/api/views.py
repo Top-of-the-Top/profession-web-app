@@ -17,7 +17,10 @@ from .serializers import PaymentSerializer, PaymentShortSerializer
 SCHEMA_401 = {
     "type": "object",
     "properties": {
-        "detail": {"type": "string", "description": "Токен отсутствует или недействителен."}
+        "detail": {
+            "type": "string",
+            "description": "Токен отсутствует или недействителен.",
+        }
     },
 }
 SCHEMA_404 = {
@@ -57,7 +60,10 @@ class CartPayView(APIView):
                 "description": "Тело: { error } или { error, course_ids }. Корзина пуста или курсы уже куплены.",
                 "schema": SCHEMA_400,
             },
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
         },
     )
     def post(self, request):
@@ -79,7 +85,10 @@ class CartPayView(APIView):
 
         if already_purchased:
             return Response(
-                {"error": "Некоторые курсы уже куплены.", "course_ids": list(already_purchased)},
+                {
+                    "error": "Некоторые курсы уже куплены.",
+                    "course_ids": list(already_purchased),
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -161,7 +170,10 @@ class PaymentListView(APIView):
         tags=["Payments"],
         responses={
             200: PaymentShortSerializer(many=True),
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
         },
     )
     def get(self, request):
@@ -184,7 +196,10 @@ class PaymentDetailView(APIView):
         tags=["Payments"],
         responses={
             200: PaymentSerializer,
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
             404: {
                 "description": "Тело: { detail: 'Платёж не найден.' }. Чужие платежи тоже 404.",
                 "schema": SCHEMA_404,

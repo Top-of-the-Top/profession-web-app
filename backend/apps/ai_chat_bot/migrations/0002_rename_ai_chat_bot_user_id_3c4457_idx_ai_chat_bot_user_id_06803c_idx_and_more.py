@@ -4,19 +4,18 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('ai_chat_bot', '0001_initial'),
+        ("ai_chat_bot", "0001_initial"),
     ]
 
     operations = [
         migrations.RenameIndex(
-            model_name='chatsession',
-            new_name='ai_chat_bot_user_id_06803c_idx',
-            old_name='ai_chat_bot_user_id_3c4457_idx',
+            model_name="chatsession",
+            new_name="ai_chat_bot_user_id_06803c_idx",
+            old_name="ai_chat_bot_user_id_3c4457_idx",
         ),
         migrations.RemoveField(
-            model_name='chatsession',
-            name='yandex_thread_id',
+            model_name="chatsession",
+            name="yandex_thread_id",
         ),
     ]

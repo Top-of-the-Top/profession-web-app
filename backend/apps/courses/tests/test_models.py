@@ -117,7 +117,6 @@ class BaseTestCase(TestCase):
 
 
 class GenerateUniqueSlugTest(BaseTestCase):
-
     def test_slug_generation_from_title(self):
         slug = generate_unique_slug("Python для начинающих")
 
@@ -160,7 +159,6 @@ import uuid
 
 
 class CourseImagePathTest(BaseTestCase):
-
     def test_image_path_generation_with_jpg(self):
         course = create_test_course()
 
@@ -190,7 +188,6 @@ class CourseImagePathTest(BaseTestCase):
 
 
 class CourseSlugTest(BaseTestCase):
-
     def test_slug_auto_generated_on_create(self):
         course = create_test_course(title="Python для начинающих")
         self.assertIsNotNone(course.slug)
@@ -226,7 +223,6 @@ class CourseSlugTest(BaseTestCase):
 
 
 class CourseImageUrlTest(BaseTestCase):
-
     def test_image_url_returns_s3_url_for_default_image(self):
         course = create_test_course()
         url = course.image_url
@@ -254,7 +250,6 @@ class CourseImageUrlTest(BaseTestCase):
 
 
 class CourseSaveTest(BaseTestCase):
-
     def test_slug_auto_generation_on_creation(self):
         course = create_test_course(title="New Course")
         self.assertIsNotNone(course.slug)
@@ -291,7 +286,6 @@ class CourseSaveTest(BaseTestCase):
 
 
 class SectionSaveTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
@@ -338,7 +332,6 @@ class SectionSaveTest(BaseTestCase):
 
 
 class LessonSaveTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
@@ -361,7 +354,6 @@ class LessonSaveTest(BaseTestCase):
 
 
 class HomeworkSaveTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
@@ -385,7 +377,6 @@ class HomeworkSaveTest(BaseTestCase):
 
 
 class PurchasedCourseIsActiveTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.user = create_test_user(email="student@test.com", role="student")
@@ -397,7 +388,10 @@ class PurchasedCourseIsActiveTest(BaseTestCase):
         future_date = timezone.now() + timedelta(days=30)
 
         purchased = PurchasedCourse.objects.create(
-            user=self.user, course=self.course, payment=self.payment, access_expires_at=future_date
+            user=self.user,
+            course=self.course,
+            payment=self.payment,
+            access_expires_at=future_date,
         )
 
         self.assertTrue(purchased.is_active)
@@ -406,7 +400,10 @@ class PurchasedCourseIsActiveTest(BaseTestCase):
         past_date = timezone.now() - timedelta(days=1)
 
         purchased = PurchasedCourse.objects.create(
-            user=self.user, course=self.course, payment=self.payment, access_expires_at=past_date
+            user=self.user,
+            course=self.course,
+            payment=self.payment,
+            access_expires_at=past_date,
         )
 
         self.assertFalse(purchased.is_active)
@@ -415,14 +412,16 @@ class PurchasedCourseIsActiveTest(BaseTestCase):
         now = timezone.now()
 
         purchased = PurchasedCourse.objects.create(
-            user=self.user, course=self.course, payment=self.payment, access_expires_at=now
+            user=self.user,
+            course=self.course,
+            payment=self.payment,
+            access_expires_at=now,
         )
 
         self.assertFalse(purchased.is_active)
 
 
 class CoursePriceValidationTest(BaseTestCase):
-
     def test_negative_price_fails_validation(self):
         with self.assertRaises(IntegrityError):
             create_test_course(price=-1000)
@@ -433,7 +432,6 @@ class CoursePriceValidationTest(BaseTestCase):
 
 
 class CourseLastModifiedByTest(BaseTestCase):
-
     def test_last_modified_by_null_on_create(self):
         course = create_test_course()
         self.assertIsNone(course.last_modified_by)

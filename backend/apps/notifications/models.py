@@ -24,7 +24,11 @@ class Notification(models.Model):
     )
 
     course = models.ForeignKey(
-        Course, on_delete=models.CASCADE, null=True, blank=True, related_name="course_notifications"
+        Course,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="course_notifications",
     )
 
     notification_type = models.CharField(

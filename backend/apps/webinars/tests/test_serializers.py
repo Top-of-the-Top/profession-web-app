@@ -14,7 +14,6 @@ from .test_models import (
 
 
 class WebinarSerializerTest(BaseWebinarTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
@@ -49,7 +48,6 @@ class WebinarSerializerTest(BaseWebinarTestCase):
 
 
 class WebinarTokenSerializerTest(BaseWebinarTestCase):
-
     def test_all_required_fields_present(self):
         data = {
             "webinar_id": "00000000-0000-0000-0000-000000000001",
@@ -96,7 +94,6 @@ class WebinarTokenSerializerTest(BaseWebinarTestCase):
 
 
 class RecordingListItemSerializerTest(BaseWebinarTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()

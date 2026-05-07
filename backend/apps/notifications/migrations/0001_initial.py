@@ -5,26 +5,53 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('courses', '0001_initial'),
+        ("courses", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Notification',
+            name="Notification",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('notification_type', models.CharField(choices=[('personal', 'Личное'), ('course', 'Курс'), ('system', 'Системное')], default='personal', max_length=20)),
-                ('title', models.CharField(max_length=255)),
-                ('message', models.TextField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('course', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='course_notifications', to='courses.course')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "notification_type",
+                    models.CharField(
+                        choices=[
+                            ("personal", "Личное"),
+                            ("course", "Курс"),
+                            ("system", "Системное"),
+                        ],
+                        default="personal",
+                        max_length=20,
+                    ),
+                ),
+                ("title", models.CharField(max_length=255)),
+                ("message", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "course",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="course_notifications",
+                        to="courses.course",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
     ]

@@ -7,7 +7,6 @@ from ..users.models import User
 
 
 class Payment(models.Model):
-
     STATUS_CHOICES = (
         ("pending", "Ожидает оплаты"),
         ("approved", "Обрабатывается"),

@@ -6,7 +6,6 @@ from .base import StorageBackend
 
 
 class ExternalBackend(StorageBackend):
-
     name = "external"
 
     def build_storage_key(self, hint):

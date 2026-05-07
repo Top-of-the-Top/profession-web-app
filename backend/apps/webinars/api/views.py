@@ -590,7 +590,10 @@ class WebinarRecordingStopView(APIView):
         _stop_recording(recording)
 
         return Response(
-            {"detail": "Запись остановлена", "recording_id": str(recording.recording_id)}
+            {
+                "detail": "Запись остановлена",
+                "recording_id": str(recording.recording_id),
+            }
         )
 
 
@@ -756,10 +759,14 @@ class RecordingPdfView(APIView):
         tags=["Webinar"],
         parameters=[
             OpenApiParameter(
-                name="course_slug", type=OpenApiTypes.STR, location=OpenApiParameter.PATH
+                name="course_slug",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
             ),
             OpenApiParameter(
-                name="lesson_slug", type=OpenApiTypes.STR, location=OpenApiParameter.PATH
+                name="lesson_slug",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
             ),
         ],
         responses={
@@ -920,8 +927,6 @@ class KinescopeDRMAuthView(APIView):
     authentication_classes = []
 
     def post(self, request):
-        import base64 as b64
-
         import jwt
         from django.conf import settings as django_settings
 

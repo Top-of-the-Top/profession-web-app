@@ -51,7 +51,10 @@ class AttemptService:
 
         if attempt.status != Attempt.DRAFT_STATUS:
             raise AttemptAlreadySubmitted(
-                details={"attempt_id": str(attempt.attempt_id), "status": attempt.status},
+                details={
+                    "attempt_id": str(attempt.attempt_id),
+                    "status": attempt.status,
+                },
             )
 
         normalized = [self._normalize_item(item) for item in items]
@@ -94,7 +97,6 @@ class AttemptService:
         )
 
     def _preflight_assets(self, items, owner):
-
         asset_service = build_asset_service()
 
         for item in items:

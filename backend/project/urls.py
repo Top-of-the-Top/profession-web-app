@@ -15,7 +15,11 @@ urlpatterns = [
     path("api/", include("apps.homeworks.api.urls")),
     path("api/", include("apps.core.api.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("api/swagger", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    path(
+        "api/swagger",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
+    ),
 ]
 
 if settings.DEBUG and not settings.USE_S3:

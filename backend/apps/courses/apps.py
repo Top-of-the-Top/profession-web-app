@@ -7,4 +7,4 @@ class CoursesConfig(AppConfig):
     verbose_name = "Курсы"
 
     def ready(self):
-        from . import signals
+        pass

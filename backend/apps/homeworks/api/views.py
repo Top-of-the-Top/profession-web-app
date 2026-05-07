@@ -107,7 +107,11 @@ def _build_my_attempts(user, homework_filter):
         Homework.objects.filter(**hw_filter, type=Homework.PUBLISHED_STATUS)
         .select_related("lesson__section__course")
         .prefetch_related("attempt_set")
-        .order_by("lesson__section__section_number", "lesson__lesson_number", "homework_number")
+        .order_by(
+            "lesson__section__section_number",
+            "lesson__lesson_number",
+            "homework_number",
+        )
     )
 
     attempt_by_hw = {
@@ -198,7 +202,7 @@ class StudentAttemptsView(APIView):
             if user.is_student():
                 purchased_ids = user.get_purchased_courses_ids()
                 attempt_filter = {"homework__lesson__section__course_id__in": purchased_ids}
-            list_cache_key = f"default:attempt:list:all"
+            list_cache_key = "default:attempt:list:all"
             list_cache_key_user = f"default:attempt:list:all:{int(user.id)}"
 
         if user.is_moderator():

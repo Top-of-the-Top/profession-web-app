@@ -70,7 +70,10 @@ LOGIN_LOCKOUT_SECONDS = 300
 SCHEMA_401 = {
     "type": "object",
     "properties": {
-        "detail": {"type": "string", "description": "Токен отсутствует или недействителен."}
+        "detail": {
+            "type": "string",
+            "description": "Токен отсутствует или недействителен.",
+        }
     },
 }
 SCHEMA_403 = {
@@ -148,7 +151,10 @@ class RegisterView(APIView):
             send_verification_sms(phone_numder, code)
 
             return Response(
-                {"status": "code_sent", "detail": "Код подтверждения отправлен на телефон."},
+                {
+                    "status": "code_sent",
+                    "detail": "Код подтверждения отправлен на телефон.",
+                },
                 status=status.HTTP_200_OK,
             )
         if email:
@@ -173,7 +179,10 @@ class RegisterView(APIView):
             send_verification_email(email_value, code)
 
             return Response(
-                {"status": "code_sent", "detail": "Код подтверждения отправлен на почту."},
+                {
+                    "status": "code_sent",
+                    "detail": "Код подтверждения отправлен на почту.",
+                },
                 status=status.HTTP_200_OK,
             )
 
@@ -308,7 +317,8 @@ class RefreshTokenView(APIView):
         refresh_token = request.data.get("refresh_token")
         if not refresh_token:
             return Response(
-                {"detail": "refresh_token обязателен"}, status=status.HTTP_401_UNAUTHORIZED
+                {"detail": "refresh_token обязателен"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         try:
             refresh = RefreshToken(refresh_token)
@@ -387,11 +397,15 @@ class ResetPasswordView(APIView):
         result = send_reset_password_sms(phone, code)
         if not result[0]:
             return Response(
-                {"detail": "Ошибка отправки SMS"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"detail": "Ошибка отправки SMS"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         return Response(
-            {"status": "success", "detail": "Код для сброса пароля отправлен на телефон."},
+            {
+                "status": "success",
+                "detail": "Код для сброса пароля отправлен на телефон.",
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -418,14 +432,16 @@ class RecoverPasswordView(APIView):
         password = request.data.get("password")
         if not token or not password:
             return Response(
-                {"detail": "token и password_hash обязательны"}, status=status.HTTP_403_FORBIDDEN
+                {"detail": "token и password_hash обязательны"},
+                status=status.HTTP_403_FORBIDDEN,
             )
         user = User.objects.filter(
             reset_token=token, reset_token_expires__gt=timezone.now()
         ).first()
         if not user:
             return Response(
-                {"detail": "Невалидный или истёкший токен"}, status=status.HTTP_403_FORBIDDEN
+                {"detail": "Невалидный или истёкший токен"},
+                status=status.HTTP_403_FORBIDDEN,
             )
         user.set_password(password)
         user.reset_token = ""
@@ -500,7 +516,10 @@ class ProfileView(APIView):
         tags=["Users"],
         responses={
             200: UserProfileSerializer,
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
         },
     )
     def get(self, request):
@@ -534,7 +553,10 @@ class ProfileView(APIView):
         responses={
             200: SimpleStatusResponseSerializer,
             400: SCHEMA_VALIDATION_ERROR,
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
             403: AssetErrorResponseSerializer,
             404: AssetErrorResponseSerializer,
             409: AssetErrorResponseSerializer,
@@ -647,7 +669,10 @@ class VerifyEmailChangeView(APIView):
                 ),
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
         },
     )
     def post(self, request):
@@ -663,7 +688,8 @@ class VerifyEmailChangeView(APIView):
             )
         except VerificationError as e:
             return Response(
-                {"error": e.code, "detail": e.message}, status=status.HTTP_400_BAD_REQUEST
+                {"error": e.code, "detail": e.message},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         new_cipher = encrypt_data(new_email)
@@ -704,7 +730,10 @@ class VerifyPhoneChangeView(APIView):
                 ),
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
         },
     )
     def post(self, request):
@@ -720,7 +749,8 @@ class VerifyPhoneChangeView(APIView):
             )
         except VerificationError as e:
             return Response(
-                {"error": e.code, "detail": e.message}, status=status.HTTP_400_BAD_REQUEST
+                {"error": e.code, "detail": e.message},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         new_cipher = encrypt_data(new_phone)
@@ -851,12 +881,16 @@ class YandexOauth2APIView(APIView):
 
         if not code or not state:
             return Response(
-                {"error": "invalid_request", "detail": "Code and state are required."}, status=400
+                {"error": "invalid_request", "detail": "Code and state are required."},
+                status=400,
             )
 
         if not self._validate_state(state):
             return Response(
-                {"error": "invalid_state", "detail": "OAuth state is invalid or expired."},
+                {
+                    "error": "invalid_state",
+                    "detail": "OAuth state is invalid or expired.",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -992,7 +1026,10 @@ class VKOAauth2APIView(APIView):
 
         try:
             resp = httpx.post(
-                "https://id.vk.ru/oauth2/user_info", data=data, headers=headers, timeout=5.0
+                "https://id.vk.ru/oauth2/user_info",
+                data=data,
+                headers=headers,
+                timeout=5.0,
             )
 
             if resp.status_code == 200:
@@ -1031,7 +1068,8 @@ class VKOAauth2APIView(APIView):
 
         if not email and not phone:
             return Response(
-                {"error": "missing_required_profile_data", "details": user_info}, status=400
+                {"error": "missing_required_profile_data", "details": user_info},
+                status=400,
             )
 
         email_enc = encrypt_data(str(email)) if email else None

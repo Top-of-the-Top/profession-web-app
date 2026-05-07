@@ -11,7 +11,6 @@ from ..models import User
 
 
 class EncryptionUnitTest(SimpleTestCase):
-
     def test_correct_encoding(self):
         email = "test@example.com"
         encoded_email = encrypt_data(email)
@@ -56,7 +55,6 @@ class EncryptionUnitTest(SimpleTestCase):
 
 
 class ResetTokenUnitTest(SimpleTestCase):
-
     def test_generate_reset_token(self):
         token = generate_reset_token()
         self.assertIsNotNone(token)
@@ -70,7 +68,6 @@ class ResetTokenUnitTest(SimpleTestCase):
 
 
 class JWTTokenUnitTest(SimpleTestCase):
-
     def test_get_tokens_for_user_structure(self):
         mock_user = MagicMock()
         mock_user.id = 1
@@ -163,14 +160,12 @@ class JWTTokenUnitTest(SimpleTestCase):
 
 
 class ResetTokenIntegrationTest(TestCase):
-
     def setUp(self):
         self.user = User.objects.create_user(
             email_cipher=encrypt_data("test@example.com"), password="testpass123"
         )
 
     def test_set_reset_token(self):
-
         token = set_reset_token(self.user)
 
         self.user.refresh_from_db()
@@ -179,7 +174,6 @@ class ResetTokenIntegrationTest(TestCase):
         self.assertGreater(self.user.reset_token_expires, timezone.now())
 
     def test_set_reset_token_custom_validity(self):
-
         valid_hours = 48
         token = set_reset_token(self.user, valid_hours=valid_hours)
 
@@ -190,7 +184,6 @@ class ResetTokenIntegrationTest(TestCase):
         self.assertLess(time_diff, 60)
 
     def test_reset_token_expiry_default(self):
-
         set_reset_token(self.user)
 
         self.user.refresh_from_db()
@@ -201,7 +194,6 @@ class ResetTokenIntegrationTest(TestCase):
 
 
 class JWTTokenIntegrationTest(TestCase):
-
     def setUp(self):
         self.student_user = User.objects.create_user(
             email_cipher=encrypt_data("student@example.com"),
@@ -216,7 +208,6 @@ class JWTTokenIntegrationTest(TestCase):
         )
 
     def test_newly_registered_user_has_student_role(self):
-
         new_user = User.objects.create_user(
             email_cipher=encrypt_data("newuser@example.com"), password="testpass123"
         )
@@ -227,7 +218,6 @@ class JWTTokenIntegrationTest(TestCase):
         self.assertEqual(tokens["role"], User.ROLE_STUDENT)
 
     def test_user_without_explicit_role_defaults_to_student(self):
-
         user = User.objects.create_user(
             email_cipher=encrypt_data("default@example.com"), password="testpass123"
         )

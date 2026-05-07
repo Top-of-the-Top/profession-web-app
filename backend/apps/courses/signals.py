@@ -14,10 +14,7 @@ logger = logging.getLogger(__name__)
 from apps.notifications.tasks import (
     send_course_notification,
     send_mass_course_email,
-    send_mass_system_email,
     send_personal_notification,
-    send_single_email,
-    send_system_notification,
 )
 from apps.webinars.models import Recording, Webinar
 
@@ -75,7 +72,9 @@ def delete_course_image(sender, instance, **kwargs):
 def notify_author(instance, action_name: str):
     if instance.last_modified_by:
         send_personal_notification.delay(
-            instance.last_modified_by.id, "Система", f"Объект '{instance}' успешно {action_name}."
+            instance.last_modified_by.id,
+            "Система",
+            f"Объект '{instance}' успешно {action_name}.",
         )
 
 
@@ -128,7 +127,6 @@ def invalidate_student_cache_on_homework_change(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Homework)
 def homework_notification(sender, instance, created, **kwargs):
-
     course = instance.lesson.section.course
     deadline_str = instance.deadline.strftime("%d.%m %H:%M")
 
@@ -148,7 +146,6 @@ def homework_notification(sender, instance, created, **kwargs):
         old_deadline = getattr(instance, "_old_deadline", None)
 
         if deadline_changed and old_deadline:
-
             title = f"Дедлайн домашнего задания перенесён: {instance.title}"
             message = (
                 f'В курсе "{course.title}" обновлен дедлайн домашнего задания "{instance.title}"\n'
@@ -182,15 +179,19 @@ def handle_deadline_reminders(sender, instance, created, **kwargs):
                 message = (
                     f"{base_message}.\n"
                     f'Задание: "{instance.title}"\n'
-                    f'Дедлайн: {instance.deadline.strftime("%d.%m %H:%M")}'
+                    f"Дедлайн: {instance.deadline.strftime('%d.%m %H:%M')}"
                 )
 
                 send_course_notification.apply_async(
-                    args=[course.course_id, title, message], eta=eta, task_id=notif_task_id
+                    args=[course.course_id, title, message],
+                    eta=eta,
+                    task_id=notif_task_id,
                 )
 
                 send_mass_course_email.apply_async(
-                    args=[course.course_id, title, message], eta=eta, task_id=email_task_id
+                    args=[course.course_id, title, message],
+                    eta=eta,
+                    task_id=email_task_id,
                 )
 
 
@@ -209,7 +210,9 @@ def handle_pre_deadline_update(sender, instance, **kwargs):
                 celery_app.control.revoke(email_task_id, terminate=True)
             except Exception as exc:
                 logger.warning(
-                    "Не удалось отменить celery-задачу для homework=%s: %s", instance.pk, exc
+                    "Не удалось отменить celery-задачу для homework=%s: %s",
+                    instance.pk,
+                    exc,
                 )
 
 
@@ -224,7 +227,9 @@ def handle_pre_deadline_delete(sender, instance, **kwargs):
             celery_app.control.revoke(email_task_id, terminate=True)
         except Exception as exc:
             logger.warning(
-                "Не удалось отменить celery-задачу для homework=%s: %s", instance.pk, exc
+                "Не удалось отменить celery-задачу для homework=%s: %s",
+                instance.pk,
+                exc,
             )
 
 

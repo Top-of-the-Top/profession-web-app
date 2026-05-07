@@ -145,7 +145,6 @@ class TaskAttemptItemSerializer(serializers.Serializer):
 
 
 class AttemptSerializer(serializers.ModelSerializer):
-
     homework_id = serializers.UUIDField(source="homework.homework_id", read_only=True)
     deadline = serializers.DateTimeField(source="homework.deadline", read_only=True)
     score = serializers.IntegerField(source="grade", read_only=True, allow_null=True)
@@ -294,7 +293,6 @@ class SubmitTaskItemSerializer(serializers.Serializer):
     )
 )
 class SubmitItemField(serializers.Field):
-
     _ITEM_SERIALIZERS = {
         "question": SubmitQuestionItemSerializer,
         "task": SubmitTaskItemSerializer,

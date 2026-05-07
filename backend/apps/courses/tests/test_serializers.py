@@ -2,7 +2,7 @@ import tempfile
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 
 from apps.payments.models import Payment
@@ -28,7 +28,6 @@ from .test_models import (
 
 
 class CourseSerializerUnitTest(SimpleTestCase):
-
     def test_serializer_has_all_fields(self):
         serializer = CourseSerializer()
         fields = serializer.fields.keys()
@@ -57,7 +56,6 @@ class CourseSerializerUnitTest(SimpleTestCase):
 
 
 class CourseDTOSerializerUnitTest(SimpleTestCase):
-
     def test_dto_serializer_has_limited_fields(self):
         serializer = CourseDTOSerializer()
         fields = list(serializer.fields.keys())
@@ -71,7 +69,6 @@ class CourseDTOSerializerUnitTest(SimpleTestCase):
 
 
 class PurchasedCourseSerializerUnitTest(SimpleTestCase):
-
     def test_serializer_has_nested_course(self):
         serializer = PurchasedCourseSerializer()
         self.assertIn("course", serializer.fields)
@@ -85,12 +82,18 @@ class PurchasedCourseSerializerUnitTest(SimpleTestCase):
         serializer = PurchasedCourseSerializer()
         fields = list(serializer.fields.keys())
 
-        expected_fields = ["id", "user", "course", "payment", "access_expires_at", "is_active"]
+        expected_fields = [
+            "id",
+            "user",
+            "course",
+            "payment",
+            "access_expires_at",
+            "is_active",
+        ]
         self.assertEqual(sorted(fields), sorted(expected_fields))
 
 
 class LessonSerializerUnitTest(SimpleTestCase):
-
     def test_serializer_includes_all_fields(self):
         serializer = LessonSerializer()
         self.assertIsNotNone(serializer.fields)
@@ -116,7 +119,6 @@ class HomeworkDetailSerializerUnitTest(SimpleTestCase):
 
 
 class HomeworkItemsListSerializerUnitTest(SimpleTestCase):
-
     def test_serializer_has_type_field(self):
         serializer = HomeworkItemsListSerializer()
         self.assertIn("type", serializer.fields)
@@ -136,7 +138,6 @@ class HomeworkItemsListSerializerUnitTest(SimpleTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CourseSerializerIntegrationTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -211,7 +212,6 @@ class CourseSerializerIntegrationTest(BaseTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CourseDTOSerializerIntegrationTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -249,7 +249,6 @@ class CourseDTOSerializerIntegrationTest(BaseTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -266,7 +265,10 @@ class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
     def test_serialize_purchased_course(self):
         future_date = timezone.now() + timedelta(days=30)
         purchased = PurchasedCourse.objects.create(
-            user=self.user, course=self.course, payment=self.payment, access_expires_at=future_date
+            user=self.user,
+            course=self.course,
+            payment=self.payment,
+            access_expires_at=future_date,
         )
 
         serializer = PurchasedCourseSerializer(purchased)
@@ -281,7 +283,10 @@ class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
     def test_serialize_expired_purchased_course(self):
         past_date = timezone.now() - timedelta(days=1)
         purchased = PurchasedCourse.objects.create(
-            user=self.user, course=self.course, payment=self.payment, access_expires_at=past_date
+            user=self.user,
+            course=self.course,
+            payment=self.payment,
+            access_expires_at=past_date,
         )
 
         serializer = PurchasedCourseSerializer(purchased)
@@ -292,7 +297,10 @@ class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
     def test_nested_course_dto_in_purchased(self):
         future_date = timezone.now() + timedelta(days=30)
         purchased = PurchasedCourse.objects.create(
-            user=self.user, course=self.course, payment=self.payment, access_expires_at=future_date
+            user=self.user,
+            course=self.course,
+            payment=self.payment,
+            access_expires_at=future_date,
         )
 
         serializer = PurchasedCourseSerializer(purchased)
@@ -306,7 +314,6 @@ class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LessonSerializerIntegrationTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -353,7 +360,6 @@ class LessonSerializerIntegrationTest(BaseTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class HomeworkDetailSerializerIntegrationTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -381,7 +387,10 @@ class HomeworkDetailSerializerIntegrationTest(BaseTestCase):
         homework = create_test_homework(self.lesson, title="Homework with items")
         Task.objects.create(homework=homework, text="Task 1", max_points=10)
         Question.objects.create(
-            homework=homework, text="Question 1?", correct_ans="A", answer_options=["A", "B", "C"]
+            homework=homework,
+            text="Question 1?",
+            correct_ans="A",
+            answer_options=["A", "B", "C"],
         )
 
         serializer = HomeworkDetailSerializer(homework)
@@ -396,7 +405,10 @@ class HomeworkDetailSerializerIntegrationTest(BaseTestCase):
         homework = create_test_homework(self.lesson, title="Homework sorted")
         task1 = Task.objects.create(homework=homework, text="Task 1", max_points=10)
         question1 = Question.objects.create(
-            homework=homework, text="Question 1?", correct_ans="A", answer_options=["A", "B"]
+            homework=homework,
+            text="Question 1?",
+            correct_ans="A",
+            answer_options=["A", "B"],
         )
         task2 = Task.objects.create(homework=homework, text="Task 2", max_points=15)
 
@@ -410,7 +422,6 @@ class HomeworkDetailSerializerIntegrationTest(BaseTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class HomeworkSerializerWriteIntegrationTest(BaseTestCase):
-
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")

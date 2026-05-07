@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 class YandexKnowledgeAIService(YandexAIBase):
-
     async def update_course_context(self, course, file_paths):
         logger.info(f"Starting huge context update for course {course.title}")
 
@@ -22,7 +21,8 @@ class YandexKnowledgeAIService(YandexAIBase):
             new_file_ids = await asyncio.gather(*[self._upload_file(p) for p in file_paths])
 
             new_vs = await self.client.beta.vector_stores.create(
-                name=f"База знаний для курса {course.title}", file_ids=[f.id for f in new_file_ids]
+                name=f"База знаний для курса {course.title}",
+                file_ids=[f.id for f in new_file_ids],
             )
             new_vs_id = new_vs.id
 
@@ -72,7 +72,7 @@ class YandexKnowledgeAIService(YandexAIBase):
             vs_files = await self.client.beta.vector_stores.files.list(vector_store_id=vs_id)
             file_ids = [f.id for f in vs_files.data]
 
-            logger.info(f"Deleting Vector Store")
+            logger.info("Deleting Vector Store")
             await self.client.beta.vector_stores.delete(vs_id)
 
             async def delete_file(f_id):

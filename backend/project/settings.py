@@ -248,8 +248,8 @@ if USE_S3:
             },
         },
     }
-    MEDIA_URL = f'https://storage.yandexcloud.net/{os.getenv("AWS_S3_BUCKET_NAME", "")}/media/'
-    STATIC_URL = f'https://storage.yandexcloud.net/{os.getenv("AWS_S3_BUCKET_NAME", "")}/static/'
+    MEDIA_URL = f"https://storage.yandexcloud.net/{os.getenv('AWS_S3_BUCKET_NAME', '')}/media/"
+    STATIC_URL = f"https://storage.yandexcloud.net/{os.getenv('AWS_S3_BUCKET_NAME', '')}/static/"
 else:
     MEDIA_URL = "/media/"
     STATIC_URL = "/static/"

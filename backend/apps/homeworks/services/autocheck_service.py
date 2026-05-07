@@ -2,7 +2,6 @@ from ..models import QuestionAnswer
 
 
 class AutocheckService:
-
     def run(self, attempt):
         question_answers = attempt.question_answers.select_related("question")
 

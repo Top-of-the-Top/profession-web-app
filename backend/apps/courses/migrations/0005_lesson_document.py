@@ -4,19 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0004_course_kinescope_folder_id_and_more'),
+        ("courses", "0004_course_kinescope_folder_id_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='lesson',
-            name='document',
+            model_name="lesson",
+            name="document",
             field=models.TextField(
                 blank=True,
-                default='',
-                verbose_name='JSON урока после подстановки URL (local:// → хранилище)',
+                default="",
+                verbose_name="JSON урока после подстановки URL (local:// → хранилище)",
             ),
         ),
     ]

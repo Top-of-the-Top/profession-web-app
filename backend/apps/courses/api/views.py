@@ -296,13 +296,15 @@ class MyScheduleView(APIView):
             start_date = parse_datetime(raw_start)
             if start_date is None:
                 return Response(
-                    {"detail": "Неверный формат start_date"}, status=status.HTTP_400_BAD_REQUEST
+                    {"detail": "Неверный формат start_date"},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
         if raw_end:
             end_date = parse_datetime(raw_end)
             if end_date is None:
                 return Response(
-                    {"detail": "Неверный формат end_date"}, status=status.HTTP_400_BAD_REQUEST
+                    {"detail": "Неверный формат end_date"},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
         cache = caches["default"]
@@ -402,7 +404,8 @@ class CourseHomePageView(APIView):
 
         if not vis.has_course_home_access():
             return Response(
-                {"detail": "Вы не записаны на этот курс"}, status=status.HTTP_403_FORBIDDEN
+                {"detail": "Вы не записаны на этот курс"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         serializer = CourseHomeSerializer(

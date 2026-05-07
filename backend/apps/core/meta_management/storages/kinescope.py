@@ -27,7 +27,6 @@ def _encode_header_value(value):
 
 
 class KinescopeBackend(StorageBackend):
-
     name = "kinescope"
 
     def __init__(self, api_key, project_id=""):
@@ -40,7 +39,14 @@ class KinescopeBackend(StorageBackend):
             }
         )
 
-    def _post(self, path, base=None, extra_headers=None, json=None, strip_json_content_type=False):
+    def _post(
+        self,
+        path,
+        base=None,
+        extra_headers=None,
+        json=None,
+        strip_json_content_type=False,
+    ):
         url = f"{base or API_BASE}{path}"
         try:
             if extra_headers or strip_json_content_type:

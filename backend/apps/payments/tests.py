@@ -12,7 +12,6 @@ from apps.payments.tasks import _handle_failure, _handle_success, process_paymen
 
 
 class PaymentModelUnitTests(SimpleTestCase):
-
     def setUp(self):
         self.mock_user = MagicMock()
         self.mock_user.id = 1
@@ -62,7 +61,6 @@ class PaymentModelUnitTests(SimpleTestCase):
 
 
 class PaymentItemModelUnitTests(SimpleTestCase):
-
     def setUp(self):
         self.mock_payment = MagicMock(spec=Payment)
         self.mock_payment.payment_id = 1
@@ -103,7 +101,6 @@ class PaymentItemModelUnitTests(SimpleTestCase):
 
 
 class PaymentTaskUnitTests(SimpleTestCase):
-
     def setUp(self):
         self.mock_payment = MagicMock(spec=Payment)
         self.mock_payment.payment_id = 1
@@ -133,7 +130,10 @@ class PaymentTaskUnitTests(SimpleTestCase):
 
         with (
             patch("apps.payments.models.Payment") as mock_payment_class,
-            patch("apps.payments.services.MockYooKassaService.fetch_payment_status", mock_fetch),
+            patch(
+                "apps.payments.services.MockYooKassaService.fetch_payment_status",
+                mock_fetch,
+            ),
             patch("apps.payments.tasks._handle_success", mock_handle_success),
         ):
             mock_payment_class.objects.select_related.return_value.get.return_value = (
@@ -191,7 +191,10 @@ class PaymentTaskUnitTests(SimpleTestCase):
         mock_item2.course.id = 2
 
         mock_items_queryset = MagicMock()
-        mock_items_queryset.select_related.return_value.all.return_value = [mock_item1, mock_item2]
+        mock_items_queryset.select_related.return_value.all.return_value = [
+            mock_item1,
+            mock_item2,
+        ]
         mock_payment.items = mock_items_queryset
 
         # Создаем моки для PurchasedCourse и CartItem
@@ -251,7 +254,6 @@ class PaymentTaskUnitTests(SimpleTestCase):
 
 
 class CartPayViewUnitTests(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
         self.mock_user = MagicMock()
@@ -290,7 +292,10 @@ class CartPayViewUnitTests(SimpleTestCase):
         with (
             patch("apps.payments.api.views.Cart.objects.get_or_create") as mock_cart_get,
             patch("apps.payments.api.views.CartItem.objects.filter") as mock_items_filter,
-            patch("apps.payments.api.views.PurchasedCourse.objects.filter", mock_purchased_filter),
+            patch(
+                "apps.payments.api.views.PurchasedCourse.objects.filter",
+                mock_purchased_filter,
+            ),
             patch("apps.payments.api.views.transaction.atomic"),
         ):
             mock_cart_get.return_value = (mock_cart, True)
@@ -362,7 +367,10 @@ class CartPayViewUnitTests(SimpleTestCase):
             mock_purchased_filter.return_value.values_list.return_value = []
             mock_payment_create.return_value = mock_payment
             mock_yookassa.return_value = mock_yookassa_response
-            mock_serializer.return_value.data = {"payment_id": 1, "total_sum": "5000.00"}
+            mock_serializer.return_value.data = {
+                "payment_id": 1,
+                "total_sum": "5000.00",
+            }
 
             response = CartPayView.as_view()(request)
 
@@ -374,7 +382,6 @@ class CartPayViewUnitTests(SimpleTestCase):
 
 
 class PaymentListViewUnitTests(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
         self.mock_user = MagicMock()
@@ -427,7 +434,6 @@ class PaymentListViewUnitTests(SimpleTestCase):
 
 
 class PaymentDetailViewUnitTests(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
         self.mock_user = MagicMock()
@@ -480,7 +486,6 @@ class PaymentDetailViewUnitTests(SimpleTestCase):
 
 
 class PaymentSerializerUnitTests(SimpleTestCase):
-
     def test_payment_serializer_with_mock(self):
         mock_payment = MagicMock()
         mock_payment.payment_id = 1

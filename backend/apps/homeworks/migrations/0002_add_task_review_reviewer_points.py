@@ -8,36 +8,73 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('homeworks', '0001_initial'),
+        ("homeworks", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='taskanswer',
-            name='points',
+            model_name="taskanswer",
+            name="points",
         ),
         migrations.RemoveField(
-            model_name='taskanswer',
-            name='teacher_comment',
+            model_name="taskanswer",
+            name="teacher_comment",
         ),
         migrations.CreateModel(
-            name='TaskReview',
+            name="TaskReview",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('task_review_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('comment', models.TextField(blank=True, default=None, max_length=1500, null=True, verbose_name='Комментарий преподавателя')),
-                ('points', models.PositiveIntegerField(default=0, verbose_name='Выставленные баллы')),
-                ('answer', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='review', to='homeworks.taskanswer')),
-                ('reviewer', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='task_reviews', to=settings.AUTH_USER_MODEL, verbose_name='Проверяющий')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "task_review_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "comment",
+                    models.TextField(
+                        blank=True,
+                        default=None,
+                        max_length=1500,
+                        null=True,
+                        verbose_name="Комментарий преподавателя",
+                    ),
+                ),
+                (
+                    "points",
+                    models.PositiveIntegerField(
+                        default=0, verbose_name="Выставленные баллы"
+                    ),
+                ),
+                (
+                    "answer",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="review",
+                        to="homeworks.taskanswer",
+                    ),
+                ),
+                (
+                    "reviewer",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="task_reviews",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="Проверяющий",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Ревью задания с развернутым ответом',
-                'verbose_name_plural': 'Ревью заданий с развернутым ответом',
-                'ordering': ['-created_at'],
+                "verbose_name": "Ревью задания с развернутым ответом",
+                "verbose_name_plural": "Ревью заданий с развернутым ответом",
+                "ordering": ["-created_at"],
             },
         ),
     ]

@@ -29,7 +29,6 @@ from ..models import Profile, User
 
 
 class RegisterViewUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
         os.environ["FRONTEND_HOST"] = "http://localhost:3000"
@@ -130,7 +129,10 @@ class RegisterViewUnitTest(SimpleTestCase):
 
         with (
             patch("apps.users.api.views.EmailRegisterSerializer", return_value=serializer),
-            patch("apps.users.api.views.check_contact_rate_limit", return_value=(False, 45)),
+            patch(
+                "apps.users.api.views.check_contact_rate_limit",
+                return_value=(False, 45),
+            ),
         ):
             response = view(request)
 
@@ -139,7 +141,6 @@ class RegisterViewUnitTest(SimpleTestCase):
 
 
 class VerifyRegisterViewUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -200,7 +201,6 @@ class VerifyRegisterViewUnitTest(SimpleTestCase):
 
 
 class LoginViewUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -262,7 +262,6 @@ class LoginViewUnitTest(SimpleTestCase):
 
 
 class RefreshTokenViewUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -288,7 +287,6 @@ class RefreshTokenViewUnitTest(SimpleTestCase):
 
 
 class ResetPasswordViewUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
         os.environ["FRONTEND_HOST"] = "http://localhost:3000"
@@ -338,7 +336,6 @@ class ResetPasswordViewUnitTest(SimpleTestCase):
 
 
 class RecoverPasswordViewUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -387,7 +384,6 @@ class RecoverPasswordViewUnitTest(SimpleTestCase):
 
 
 class ProfileViewUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -412,7 +408,10 @@ class ProfileViewUnitTest(SimpleTestCase):
                 "apps.users.api.views.Profile.objects.get_or_create",
                 return_value=(mock_profile, True),
             ),
-            patch("apps.users.api.views.UserProfileSerializer", return_value=wrapper_serializer),
+            patch(
+                "apps.users.api.views.UserProfileSerializer",
+                return_value=wrapper_serializer,
+            ),
         ):
             response = ProfileView.as_view()(request)
 
@@ -465,7 +464,6 @@ class ProfileViewUnitTest(SimpleTestCase):
 
 
 class RegisterViewIntegrationTest(TestCase):
-
     def setUp(self):
         self.client = APIClient()
         self.register_url = reverse("users:register")
@@ -544,7 +542,6 @@ class RegisterViewIntegrationTest(TestCase):
 
 
 class LoginViewIntegrationTest(TestCase):
-
     def setUp(self):
         self.client = APIClient()
         self.url = reverse("users:login")
@@ -555,7 +552,6 @@ class LoginViewIntegrationTest(TestCase):
         )
 
     def test_login_with_email(self):
-
         data = {"email": self.email, "password": self.password}
         response = self.client.post(self.url, data, format="json")
 
@@ -565,10 +561,11 @@ class LoginViewIntegrationTest(TestCase):
         self.assertIn("role", response.data)
 
     def test_login_returns_correct_role(self):
-
         teacher_email = "teacher@example.com"
         teacher = User.objects.create_user(
-            email_cipher=encrypt_data(teacher_email), password=self.password, role=User.ROLE_TEACHER
+            email_cipher=encrypt_data(teacher_email),
+            password=self.password,
+            role=User.ROLE_TEACHER,
         )
 
         data = {"email": teacher_email, "password": self.password}
@@ -583,7 +580,6 @@ class LoginViewIntegrationTest(TestCase):
 
 
 class RefreshTokenViewIntegrationTest(TestCase):
-
     def setUp(self):
         self.client = APIClient()
         self.url = reverse("users:token-refresh")
@@ -592,7 +588,6 @@ class RefreshTokenViewIntegrationTest(TestCase):
         )
 
     def test_refresh_token_success(self):
-
         tokens = get_tokens_for_user(self.user)
 
         data = {"refresh_token": tokens["refresh_token"]}
@@ -604,7 +599,6 @@ class RefreshTokenViewIntegrationTest(TestCase):
 
 
 class RecoverPasswordViewIntegrationTest(TestCase):
-
     def setUp(self):
         self.client = APIClient()
         self.url = reverse("users:recover_set")
@@ -614,7 +608,6 @@ class RecoverPasswordViewIntegrationTest(TestCase):
         self.token = set_reset_token(self.user)
 
     def test_recover_password_success(self):
-
         new_password = "newpass123"
         data = {"token": self.token, "password": new_password}
         response = self.client.patch(self.url, data, format="json")
@@ -629,7 +622,6 @@ class RecoverPasswordViewIntegrationTest(TestCase):
         self.assertIsNone(self.user.reset_token_expires)
 
     def test_recover_password_with_expired_token(self):
-
         self.user.reset_token_expires = timezone.now() - timedelta(hours=1)
         self.user.save()
 
@@ -640,7 +632,6 @@ class RecoverPasswordViewIntegrationTest(TestCase):
 
 
 class RecoverPasswordPhoneViewUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -723,7 +714,6 @@ class RecoverPasswordPhoneViewUnitTest(SimpleTestCase):
 
 
 class VerifyEmailChangeViewUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -812,7 +802,6 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
 
 class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -888,7 +877,6 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
 
 class LoginViewLockoutUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -940,7 +928,6 @@ class LoginViewLockoutUnitTest(SimpleTestCase):
 
 
 class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -957,10 +944,12 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
             patch("apps.users.api.views.User.objects.filter") as filter_mock,
             patch("apps.users.api.views.check_contact_rate_limit", return_value=(True, 0)),
             patch(
-                "apps.users.api.views.generate_verification_code_for_user", return_value="654321"
+                "apps.users.api.views.generate_verification_code_for_user",
+                return_value="654321",
             ),
             patch(
-                "apps.users.api.views.send_reset_password_sms", return_value=(True, "ok")
+                "apps.users.api.views.send_reset_password_sms",
+                return_value=(True, "ok"),
             ) as sms_mock,
         ):
             filter_mock.return_value.first.return_value = mock_user
@@ -981,7 +970,10 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
 
         with (
             patch("apps.users.api.views.User.objects.filter") as filter_mock,
-            patch("apps.users.api.views.check_contact_rate_limit", return_value=(False, 42)),
+            patch(
+                "apps.users.api.views.check_contact_rate_limit",
+                return_value=(False, 42),
+            ),
         ):
             filter_mock.return_value.first.return_value = mock_user
             response = ResetPasswordView.as_view()(request)
@@ -1002,9 +994,13 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
             patch("apps.users.api.views.User.objects.filter") as filter_mock,
             patch("apps.users.api.views.check_contact_rate_limit", return_value=(True, 0)),
             patch(
-                "apps.users.api.views.generate_verification_code_for_user", return_value="111111"
+                "apps.users.api.views.generate_verification_code_for_user",
+                return_value="111111",
             ),
-            patch("apps.users.api.views.send_reset_password_sms", return_value=(False, "fail")),
+            patch(
+                "apps.users.api.views.send_reset_password_sms",
+                return_value=(False, "fail"),
+            ),
         ):
             filter_mock.return_value.first.return_value = mock_user
             response = ResetPasswordView.as_view()(request)
@@ -1024,7 +1020,10 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
         with (
             patch("apps.users.api.views.User.objects.filter") as filter_mock,
             patch("apps.users.api.views.set_reset_token", return_value="tok"),
-            patch("apps.users.api.views.send_reset_password_email", return_value=(False, "error")),
+            patch(
+                "apps.users.api.views.send_reset_password_email",
+                return_value=(False, "error"),
+            ),
         ):
             filter_mock.return_value.first.return_value = mock_user
             response = ResetPasswordView.as_view()(request)
@@ -1033,7 +1032,6 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
 
 
 class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -1058,7 +1056,8 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
                 return_value=(mock_profile, True),
             ),
             patch(
-                "apps.users.api.views.generate_verification_code_for_user", return_value="111111"
+                "apps.users.api.views.generate_verification_code_for_user",
+                return_value="111111",
             ) as gen_mock,
             patch("apps.users.api.views.send_verification_email") as send_mock,
         ):
@@ -1094,7 +1093,8 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
             ),
             patch("apps.users.api.views.check_contact_rate_limit", return_value=(True, 0)),
             patch(
-                "apps.users.api.views.generate_verification_code_for_user", return_value="222222"
+                "apps.users.api.views.generate_verification_code_for_user",
+                return_value="222222",
             ) as gen_mock,
             patch("apps.users.api.views.send_verification_sms") as send_mock,
         ):
@@ -1128,7 +1128,10 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
                 "apps.users.api.views.Profile.objects.get_or_create",
                 return_value=(mock_profile, True),
             ),
-            patch("apps.users.api.views.check_contact_rate_limit", return_value=(False, 30)),
+            patch(
+                "apps.users.api.views.check_contact_rate_limit",
+                return_value=(False, 30),
+            ),
         ):
             response = ProfileView.as_view()(request)
 
@@ -1137,7 +1140,6 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
 
 
 class VerifyRegisterViewEmailUnitTest(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -1187,7 +1189,6 @@ class VerifyRegisterViewEmailUnitTest(SimpleTestCase):
 
 
 class ProfileViewIntegrationTest(TestCase):
-
     def setUp(self):
         self.client = APIClient()
         self.url = reverse("users:profile")
@@ -1199,10 +1200,9 @@ class ProfileViewIntegrationTest(TestCase):
         )
 
         tokens = get_tokens_for_user(self.user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {tokens["access_token"]}')
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access_token']}")
 
     def test_get_profile_authenticated(self):
-
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1211,7 +1211,6 @@ class ProfileViewIntegrationTest(TestCase):
         self.assertIn("last_name", response.data)
 
     def test_update_profile_first_name(self):
-
         data = {"first_name": "Updated"}
         response = self.client.patch(self.url, data, format="json")
 
@@ -1221,7 +1220,6 @@ class ProfileViewIntegrationTest(TestCase):
         self.assertEqual(self.user.first_name, "Updated")
 
     def test_update_profile_gender(self):
-
         data = {"gender": "М"}
         response = self.client.patch(self.url, data, format="json")
 
@@ -1231,7 +1229,6 @@ class ProfileViewIntegrationTest(TestCase):
         self.assertEqual(profile.gender, "М")
 
     def test_profile_auto_created(self):
-
         Profile.objects.filter(user=self.user).delete()
 
         response = self.client.get(self.url)

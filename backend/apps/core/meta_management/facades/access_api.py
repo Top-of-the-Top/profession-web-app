@@ -4,7 +4,6 @@ from ...models import AssetStatus, AssetUsage, MediaAsset
 
 
 class AccessApi:
-
     def __init__(self, asset_service):
         self._service = asset_service
 

@@ -21,10 +21,9 @@ from .test_models import (
 
 
 class ViewTestMixin:
-
     def authenticate(self, user):
         tokens = get_tokens_for_user(user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {tokens["access_token"]}')
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access_token']}")
 
     def enroll(self, user, course):
         from datetime import timedelta
@@ -88,7 +87,6 @@ class WebinarEndpointsBase(BaseWebinarTestCase, ViewTestMixin):
 @patch("apps.webinars.api.views.create_whiteboard_room", return_value="room-new")
 @patch("apps.webinars.api.views.ban_whiteboard_room")
 class WebinarStartViewTest(WebinarEndpointsBase):
-
     def test_requires_authentication(self, *_):
         response = self.client.post(self.url_start())
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -196,7 +194,6 @@ class WebinarStartViewTest(WebinarEndpointsBase):
 
 @patch("apps.webinars.api.views.ban_whiteboard_room")
 class WebinarStopViewTest(WebinarEndpointsBase):
-
     def test_requires_authentication(self, *_):
         response = self.client.post(self.url_stop())
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -256,7 +253,6 @@ class WebinarStopViewTest(WebinarEndpointsBase):
 @patch("apps.webinars.api.views.generate_whiteboard_room_token", return_value="wb-tok")
 @patch("apps.webinars.api.views.generate_rtc_token", return_value="rtc-tok")
 class WebinarJoinViewTest(WebinarEndpointsBase):
-
     def test_requires_authentication(self, *_):
         response = self.client.get(self.url_join())
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -360,7 +356,6 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
 @patch("apps.webinars.api.views.generate_whiteboard_room_token", return_value="wb-tok")
 @patch("apps.webinars.api.views.generate_rtc_token", return_value="rtc-tok")
 class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
-
     def test_missing_token_returns_400(self, *_):
         response = self.client.get(self.url_recorder_join())
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -396,7 +391,6 @@ class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
 @patch("apps.webinars.api.views.recording_start_web", return_value="sid-1")
 @patch("apps.webinars.api.views.recording_acquire", return_value="res-1")
 class WebinarRecordingStartViewTest(WebinarEndpointsBase):
-
     def test_requires_authentication(self, *_):
         response = self.client.post(self.url_rec_start())
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -442,7 +436,6 @@ class WebinarRecordingStartViewTest(WebinarEndpointsBase):
 
 
 class WebinarRecordingStopViewTest(WebinarEndpointsBase):
-
     def test_student_cannot_stop_recording(self):
         Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
         self.authenticate(self.student)
@@ -474,7 +467,6 @@ class WebinarRecordingStopViewTest(WebinarEndpointsBase):
 
 
 class StopRecordingHelperTest(WebinarEndpointsBase):
-
     def setUp(self):
         super().setUp()
         self.webinar = Webinar.objects.create(
@@ -547,7 +539,6 @@ class StopRecordingHelperTest(WebinarEndpointsBase):
 
 
 class ExtractRecordingUrlTest(BaseWebinarTestCase):
-
     def _extract(self, payload):
         from ..api.views import _extract_recording_url
 
@@ -604,8 +595,14 @@ class ExtractRecordingUrlTest(BaseWebinarTestCase):
                         {
                             "payload": {
                                 "fileList": [
-                                    {"filename": "b0c07c_webinar.m3u8", "sliceStartTime": 1},
-                                    {"filename": "b0c07c_webinar_0.mp4", "sliceStartTime": 1},
+                                    {
+                                        "filename": "b0c07c_webinar.m3u8",
+                                        "sliceStartTime": 1,
+                                    },
+                                    {
+                                        "filename": "b0c07c_webinar_0.mp4",
+                                        "sliceStartTime": 1,
+                                    },
                                 ]
                             },
                             "serviceName": "web_recorder_service",
@@ -642,7 +639,6 @@ class ExtractRecordingUrlTest(BaseWebinarTestCase):
 
 
 class RecordingPdfViewTest(WebinarEndpointsBase):
-
     def setUp(self):
         super().setUp()
         self.webinar = Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
@@ -667,8 +663,6 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
 
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        from apps.core.meta_management.errors import AssetError
-
         mock_asset = MagicMock()
         mock_asset.asset_id = "fake-asset-id"
 
@@ -682,7 +676,10 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
         self.authenticate(self.teacher)
         with (
             patch("apps.webinars.api.views.build_upload_api", return_value=mock_upload_api),
-            patch("apps.webinars.api.views.build_binding_api", return_value=mock_binding_api),
+            patch(
+                "apps.webinars.api.views.build_binding_api",
+                return_value=mock_binding_api,
+            ),
         ):
             response = self.client.post(
                 self.url_pdf(self.recording.recording_id),
@@ -745,7 +742,6 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
 
 
 class RecordingDeleteViewTest(WebinarEndpointsBase):
-
     def setUp(self):
         super().setUp()
         self.webinar = Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
@@ -790,7 +786,6 @@ class RecordingDeleteViewTest(WebinarEndpointsBase):
 
 
 class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
-
     URL = "/api/kinescope/drm-auth/"
 
     def setUp(self):
@@ -976,7 +971,6 @@ class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
 
 
 class WebinarStartIdempotencyTest(WebinarEndpointsBase):
-
     @patch("apps.webinars.api.views.create_whiteboard_room", return_value="room")
     def test_get_or_create_does_not_duplicate_webinar(self, _mock_create):
         Webinar.objects.create(

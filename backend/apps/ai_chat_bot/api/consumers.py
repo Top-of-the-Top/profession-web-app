@@ -46,7 +46,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         if self.user.is_anonymous:
             logger.warning(
-                "WS connect rejected (4003): anonymous user, course_slug=%s", self.course_slug
+                "WS connect rejected (4003): anonymous user, course_slug=%s",
+                self.course_slug,
             )
             await self.close(code=4003)
             return
@@ -73,7 +74,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self._send_ws_message(ConnectedMessage(chats=chats))
         except Exception as e:
             logger.exception(
-                "WS connect rejected (4500): course_slug=%s error=%s", self.course_slug, e
+                "WS connect rejected (4500): course_slug=%s error=%s",
+                self.course_slug,
+                e,
             )
             await self.close(code=4500)
 
@@ -109,7 +112,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 history = await self.chat_service.get_chat_history(chat_id)
                 self.session_chat_history[chat_id] = deque(maxlen=20)
                 for message in history:
-                    self.session_chat_history[chat_id].append(message.content)
+                    self.session_chat_history[chat_id].append(f"{message.role}: {message.content}")
                 await self._send_ws_message(
                     HistoryReceivedMessage(chat_id=chat_id, history=history)
                 )
@@ -117,12 +120,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 user_message = str(content.get("text", "")).strip()
                 if chat_id not in self.session_chat_history:
                     self.session_chat_history[chat_id] = deque(maxlen=20)
-                self.session_chat_history[chat_id].append(user_message)
+                    history = await self.chat_service.get_chat_history(chat_id)
+                    for message in history:
+                        self.session_chat_history[chat_id].append(
+                            f"{message.role}: {message.content}"
+                        )
+                self.session_chat_history[chat_id].append(f"user: {user_message}")
                 chat = await self.chat_service.get_chat_for_current_session(chat_id)
                 await self._send_ws_message(StartingAnswerMessage(chat_id=chat_id))
                 await self.chat_service.save_message(chat, "user", user_message)
 
-                ai_chat_context = " ".join(self.session_chat_history[chat_id])
+                ai_chat_context = "\n".join(self.session_chat_history[chat_id])
 
                 full_ai_response = ""
                 try:
@@ -132,7 +140,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         await self._send_ws_message(
                             StreamingResponseMessage(chat_id=chat_id, chunk=chunk)
                         )
-                    self.session_chat_history[chat_id].append(full_ai_response)
+                    self.session_chat_history[chat_id].append(f"assistant: {full_ai_response}")
                     await self.chat_service.save_message(chat, "assistant", full_ai_response)
                 except Exception as e:
                     await self._send_ws_message(ErrorMessage(message=str(e)))

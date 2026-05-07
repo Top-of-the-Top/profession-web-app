@@ -26,7 +26,10 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_active", True)
 
         return self.create_user(
-            email_cipher=email_cipher.strip(), phone_cipher=None, password=password, **extra_fields
+            email_cipher=email_cipher.strip(),
+            phone_cipher=None,
+            password=password,
+            **extra_fields,
         )
 
 

@@ -23,7 +23,6 @@ from ..api.utils.agora_utils import (
 
 
 class UserUidFromUuidTest(SimpleTestCase):
-
     def test_returns_integer(self):
         uid = user_uid_from_uuid("some-uuid")
         self.assertIsInstance(uid, int)
@@ -51,7 +50,6 @@ class UserUidFromUuidTest(SimpleTestCase):
 
 @override_settings(SECRET_KEY="test-secret-key")
 class RecorderTokenTest(SimpleTestCase):
-
     def test_make_and_verify_round_trip(self):
         token = make_recorder_token("webinar-123")
         self.assertEqual(verify_recorder_token(token), "webinar-123")
@@ -104,7 +102,6 @@ class RecorderTokenTest(SimpleTestCase):
 
 
 class GetChannelUserCountTest(SimpleTestCase):
-
     def _mock_response(self, payload):
         resp = MagicMock()
         resp.json.return_value = payload
@@ -160,7 +157,6 @@ class GetChannelUserCountTest(SimpleTestCase):
 
 
 class WhiteboardApiTest(SimpleTestCase):
-
     def _token_response(self, text='"sdk-token"'):
         resp = MagicMock()
         resp.text = text
@@ -208,7 +204,6 @@ class WhiteboardApiTest(SimpleTestCase):
 
 
 class RecordingApiTest(SimpleTestCase):
-
     def _resp(self, payload):
         resp = MagicMock()
         resp.json.return_value = payload
@@ -254,15 +249,16 @@ class RecordingApiTest(SimpleTestCase):
     },
 )
 class GenerateRtmTokenTest(SimpleTestCase):
-
     @patch(
-        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken", return_value="rtm-token"
+        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken",
+        return_value="rtm-token",
     )
     def test_returns_token_from_builder(self, mock_build):
         self.assertEqual(generate_rtm_token(12345), "rtm-token")
 
     @patch(
-        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken", return_value="rtm-token"
+        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken",
+        return_value="rtm-token",
     )
     def test_passes_app_id_and_certificate(self, mock_build):
         generate_rtm_token(12345)
@@ -271,7 +267,8 @@ class GenerateRtmTokenTest(SimpleTestCase):
         self.assertEqual(args[1], "app-cert-test")
 
     @patch(
-        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken", return_value="rtm-token"
+        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken",
+        return_value="rtm-token",
     )
     def test_passes_user_account_as_string(self, mock_build):
         generate_rtm_token(12345)
@@ -279,7 +276,8 @@ class GenerateRtmTokenTest(SimpleTestCase):
         self.assertEqual(args[2], "12345")
 
     @patch(
-        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken", return_value="rtm-token"
+        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken",
+        return_value="rtm-token",
     )
     def test_passes_role_rtm_user(self, mock_build):
         generate_rtm_token(12345)
@@ -287,7 +285,8 @@ class GenerateRtmTokenTest(SimpleTestCase):
         self.assertEqual(args[3], 1)
 
     @patch(
-        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken", return_value="rtm-token"
+        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken",
+        return_value="rtm-token",
     )
     def test_expiration_in_future(self, mock_build):
         generate_rtm_token(12345)

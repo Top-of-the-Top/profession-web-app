@@ -6,7 +6,6 @@ from ..errors import AssetPermissionDenied
 
 
 class BindingApi:
-
     def __init__(self, asset_service):
         self._service = asset_service
 

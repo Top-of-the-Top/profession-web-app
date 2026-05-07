@@ -76,7 +76,6 @@ class BaseWebinarTestCase(TestCase):
 
 
 class WebinarModelTest(BaseWebinarTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
@@ -162,7 +161,6 @@ class WebinarModelTest(BaseWebinarTestCase):
 
 
 class RecordingModelTest(BaseWebinarTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
@@ -239,5 +237,12 @@ class RecordingModelTest(BaseWebinarTestCase):
 
     def test_recording_kinescope_upload_status_choices(self):
         statuses = [s[0] for s in Recording.KINESCOPE_UPLOAD_STATUS_CHOICES]
-        for expected in ("none", "pending", "uploading", "processing", "ready", "failed"):
+        for expected in (
+            "none",
+            "pending",
+            "uploading",
+            "processing",
+            "ready",
+            "failed",
+        ):
             self.assertIn(expected, statuses)

@@ -14,7 +14,6 @@ from ..api.utils.kinescope_utils import (
 
 @override_settings(SECRET_KEY="test-secret", KINESCOPE_API_TOKEN="tok", KINESCOPE_PROJECT_ID="proj")
 class GenerateDrmTokenTest(SimpleTestCase):
-
     def test_token_is_jwt_with_expected_payload(self):
         import jwt
 
@@ -53,7 +52,6 @@ class GenerateDrmTokenTest(SimpleTestCase):
 
 @override_settings(SECRET_KEY="test-secret", KINESCOPE_API_TOKEN="tok", KINESCOPE_PROJECT_ID="proj")
 class KinescopeApiTest(SimpleTestCase):
-
     @patch("apps.core.meta_management.storages.kinescope.KinescopeBackend._post")
     def test_create_folder_returns_id(self, mock_post):
         mock_post.return_value = {"data": {"id": "folder-1"}}

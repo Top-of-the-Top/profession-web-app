@@ -51,7 +51,9 @@ def _process_idle_webinar(webinar, cache):
         return
 
     logger.info(
-        "Автоостановка вебинара %s, тк канал пуст %d секунд", webinar.webinar_id, int(elapsed)
+        "Автоостановка вебинара %s, тк канал пуст %d секунд",
+        webinar.webinar_id,
+        int(elapsed),
     )
 
     active = webinar.recordings.filter(status=Recording.RECORDING_STATUS).first()
@@ -63,7 +65,8 @@ def _process_idle_webinar(webinar, cache):
             ban_whiteboard_room(webinar.whiteboard_room_uuid)
         except Exception:
             logger.warning(
-                "Не удалось забанить доску %s при idle-стопе", webinar.whiteboard_room_uuid
+                "Не удалось забанить доску %s при idle-стопе",
+                webinar.whiteboard_room_uuid,
             )
 
     webinar.status = "ended"
@@ -135,7 +138,11 @@ def upload_recording_to_kinescope(self, recording_id):
         recording.kinescope_video_id = video_id
         recording.kinescope_upload_status = "processing"
         recording.save(
-            update_fields=["kinescope_video_id", "kinescope_upload_status", "updated_at"]
+            update_fields=[
+                "kinescope_video_id",
+                "kinescope_upload_status",
+                "updated_at",
+            ]
         )
 
         from apps.core.meta_management.factory import build_asset_service
@@ -184,8 +191,14 @@ def check_kinescope_processing(self, recording_id):
     except Recording.DoesNotExist:
         return {"status": "error", "detail": "Recording not found"}
 
-    if recording.kinescope_upload_status in (Recording.READY_STATUS, Recording.FAILED_STATUS):
-        return {"status": "skipped", "detail": f"Already {recording.kinescope_upload_status}"}
+    if recording.kinescope_upload_status in (
+        Recording.READY_STATUS,
+        Recording.FAILED_STATUS,
+    ):
+        return {
+            "status": "skipped",
+            "detail": f"Already {recording.kinescope_upload_status}",
+        }
 
     if not recording.kinescope_video_id:
         return {"status": "error", "detail": "No video id"}
@@ -243,7 +256,11 @@ def check_kinescope_processing(self, recording_id):
         recording.kinescope_upload_status = Recording.FAILED_STATUS
         recording.status = Recording.FAILED_STATUS
         recording.save(update_fields=["kinescope_upload_status", "status", "updated_at"])
-        logger.error("Ошибка обработки Kinescope для recording %s: %s", recording_id, video_status)
+        logger.error(
+            "Ошибка обработки Kinescope для recording %s: %s",
+            recording_id,
+            video_status,
+        )
         return {"status": Recording.FAILED_STATUS}
 
     raise self.retry()

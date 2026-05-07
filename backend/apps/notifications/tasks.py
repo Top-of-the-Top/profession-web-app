@@ -21,7 +21,6 @@ def publish_event_async(routing_key, payload):
 
 @shared_task
 def send_course_notification(course_id, title, message):
-
     notif = Notification.objects.create(
         course_id=course_id,
         title=title,
@@ -42,7 +41,6 @@ def send_course_notification(course_id, title, message):
 
 @shared_task
 def send_personal_notification(user_id, title, message):
-
     notif = Notification.objects.create(
         user_id=user_id,
         title=title,
@@ -63,7 +61,6 @@ def send_personal_notification(user_id, title, message):
 
 @shared_task
 def send_system_notification(title, message):
-
     notif = Notification.objects.create(
         title=title,
         notification_type=Notification.SYSTEM,
@@ -109,6 +106,5 @@ def send_mass_course_email(course_id, subject, message):
 
 @shared_task
 def send_mass_system_email(subject, message):
-
     for user in User.objects.all():
         send_single_email(user.id, subject, message)

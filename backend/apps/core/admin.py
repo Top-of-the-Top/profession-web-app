@@ -43,7 +43,12 @@ class MediaAssetAdmin(admin.ModelAdmin):
         (
             "Идентификация",
             {
-                "fields": ("asset_id", "storage_backend", "storage_key", "storage_meta"),
+                "fields": (
+                    "asset_id",
+                    "storage_backend",
+                    "storage_key",
+                    "storage_meta",
+                ),
             },
         ),
         (
@@ -76,7 +81,14 @@ class MediaAssetAdmin(admin.ModelAdmin):
 
 @admin.register(AssetUsage)
 class AssetUsageAdmin(admin.ModelAdmin):
-    list_display = ("usage_id", "asset", "role", "content_type", "object_id", "created_at")
+    list_display = (
+        "usage_id",
+        "asset",
+        "role",
+        "content_type",
+        "object_id",
+        "created_at",
+    )
     list_filter = ("role", "content_type", "created_at")
     search_fields = ("asset__asset_id", "object_id")
     readonly_fields = ("usage_id", "created_at")

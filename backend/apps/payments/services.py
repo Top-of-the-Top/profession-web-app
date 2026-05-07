@@ -20,7 +20,6 @@ class YooKassaPaymentResponse:
 
 
 class MockYooKassaService:
-
     MOCK_BASE_URL = "https://mock-yookassa.ru/payments"
     SUCCESS_PROBABILITY = 0.8
 
@@ -33,7 +32,6 @@ class MockYooKassaService:
         return_url: str = "",
         idempotency_key: Optional[str] = None,
     ) -> YooKassaPaymentResponse:
-
         payment_uuid = idempotency_key or str(uuid.uuid4())
         confirmation_url = f"{cls.MOCK_BASE_URL}/{payment_uuid}"
 

@@ -10,7 +10,6 @@ from apps.carts.models import Cart, CartItem
 
 
 class CartModelUnitTests(SimpleTestCase):
-
     def setUp(self):
         self.mock_user = MagicMock()
         self.mock_user.id = 1
@@ -47,7 +46,6 @@ class CartModelUnitTests(SimpleTestCase):
 
 
 class CartItemModelUnitTests(SimpleTestCase):
-
     def setUp(self):
         self.mock_cart = MagicMock(spec=Cart)
         self.mock_cart.cart_id = 1
@@ -90,7 +88,6 @@ class CartItemModelUnitTests(SimpleTestCase):
 
 
 class CartIntegrationUnitTests(SimpleTestCase):
-
     def setUp(self):
         self.mock_user = MagicMock()
         self.mock_user.id = 1
@@ -181,7 +178,6 @@ class CartIntegrationUnitTests(SimpleTestCase):
 
 
 class CartAuthUnitTests(SimpleTestCase):
-
     databases = "__all__"
 
     def setUp(self):
@@ -277,7 +273,10 @@ class CartAuthUnitTests(SimpleTestCase):
             mock_course_filter.return_value.first.return_value = self.mock_course
             mock_item_filter.return_value.exists.return_value = False
             mock_item_create.return_value = mock_cart_item
-            mock_serializer.return_value.data = {"cart_id": 1, "course": {"title": "Тестовый курс"}}
+            mock_serializer.return_value.data = {
+                "cart_id": 1,
+                "course": {"title": "Тестовый курс"},
+            }
 
             response = AddToCartView.as_view()(request, slug="test-course")
 
@@ -386,7 +385,6 @@ class CartPermissionsUnitTests(SimpleTestCase):
 
 
 class CartViewUnitTests(SimpleTestCase):
-
     def setUp(self):
         self.factory = APIRequestFactory()
         self.auth_user = SimpleNamespace(id=1, pk=1, is_authenticated=True)
@@ -420,7 +418,10 @@ class CartViewUnitTests(SimpleTestCase):
 
         expected_data = {
             "cart_id": 1,
-            "items": [{"course_id": 1, "title": "Курс 1"}, {"course_id": 2, "title": "Курс 2"}],
+            "items": [
+                {"course_id": 1, "title": "Курс 1"},
+                {"course_id": 2, "title": "Курс 2"},
+            ],
         }
 
         mock_hot_cache = MagicMock()

@@ -8,7 +8,6 @@ from ..models import User
 
 
 class RegisterSerializerUnitTest(SimpleTestCase):
-
     def test_valid_registration_with_email(self):
         data = {"email": "test@example.com", "password": "testpass123"}
 
@@ -66,7 +65,6 @@ class RegisterSerializerUnitTest(SimpleTestCase):
 
 
 class LoginSerializerUnitTest(SimpleTestCase):
-
     def test_login_without_contact(self):
         """Test login fails without email or phone"""
         data = {"password": "testpass123"}
@@ -106,7 +104,6 @@ class LoginSerializerUnitTest(SimpleTestCase):
 
 
 class UpdateProfileSerializerUnitTest(SimpleTestCase):
-
     def test_update_first_name(self):
         """Test updating first name"""
         data = {"first_name": "Updated"}
@@ -161,7 +158,6 @@ class UpdateProfileSerializerUnitTest(SimpleTestCase):
 
 
 class RegisterSerializerIntegrationTest(TestCase):
-
     def test_registration_duplicate_email(self):
         email = "duplicate@example.com"
         User.objects.create_user(email_cipher=encrypt_data(email), password="testpass123")
@@ -171,7 +167,6 @@ class RegisterSerializerIntegrationTest(TestCase):
         self.assertFalse(serializer.is_valid())
 
     def test_registration_duplicate_phone(self):
-
         phone = "+79991234567"
         User.objects.create_user(phone_cipher=encrypt_data(phone), password="testpass123")
 
@@ -181,7 +176,6 @@ class RegisterSerializerIntegrationTest(TestCase):
 
 
 class LoginSerializerIntegrationTest(TestCase):
-
     def setUp(self):
         """Create test user"""
         self.email = "test@example.com"
@@ -191,14 +185,12 @@ class LoginSerializerIntegrationTest(TestCase):
         )
 
     def test_valid_login_with_email(self):
-
         data = {"email": self.email, "password": self.password}
         serializer = LoginSerializer(data=data)
         self.assertTrue(serializer.is_valid())
         self.assertEqual(serializer.validated_data["user"], self.user)
 
     def test_login_with_phone(self):
-
         phone = "+79991234567"
         user = User.objects.create_user(phone_cipher=encrypt_data(phone), password=self.password)
 
@@ -209,14 +201,12 @@ class LoginSerializerIntegrationTest(TestCase):
 
 
 class UpdateProfileSerializerIntegrationTest(TestCase):
-
     def setUp(self):
         self.user = User.objects.create_user(
             email_cipher=encrypt_data("test@example.com"), password="testpass123"
         )
 
     def test_update_duplicate_email(self):
-
         other_email = "other@example.com"
         User.objects.create_user(email_cipher=encrypt_data(other_email), password="testpass123")
 
@@ -226,7 +216,6 @@ class UpdateProfileSerializerIntegrationTest(TestCase):
         self.assertIn("email", serializer.errors)
 
     def test_update_duplicate_phone(self):
-
         other_phone = "+79991234567"
         User.objects.create_user(phone_cipher=encrypt_data(other_phone), password="testpass123")
 

@@ -14,7 +14,6 @@ from .test_models import (
 
 
 class CheckIdleWebinarsTest(BaseWebinarTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
@@ -145,7 +144,6 @@ class CheckIdleWebinarsTest(BaseWebinarTestCase):
 
 
 class UploadRecordingTaskTest(BaseWebinarTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
@@ -311,7 +309,6 @@ class UploadRecordingTaskTest(BaseWebinarTestCase):
 
 
 class CheckKinescopeProcessingTest(BaseWebinarTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()

@@ -28,7 +28,12 @@ class RecordingInline(admin.TabularInline):
 @admin.register(Webinar)
 class WebinarAdmin(admin.ModelAdmin):
     list_display = ("lesson", "status", "started_by", "started_at", "ended_at")
-    readonly_fields = ("agora_channel_name", "whiteboard_room_uuid", "started_at", "ended_at")
+    readonly_fields = (
+        "agora_channel_name",
+        "whiteboard_room_uuid",
+        "started_at",
+        "ended_at",
+    )
     inlines = [RecordingInline]
 
 

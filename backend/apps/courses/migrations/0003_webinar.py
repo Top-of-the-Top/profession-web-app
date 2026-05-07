@@ -8,34 +8,92 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0002_add_authors'),
+        ("courses", "0002_add_authors"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Webinar',
+            name="Webinar",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('webinar_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('status', models.CharField(choices=[('pending', 'Ожидание'), ('live', 'В эфире'), ('ended', 'Завершен')], default='pending', max_length=20, verbose_name='Статус')),
-                ('agora_channel_name', models.CharField(blank=True, max_length=64, unique=True, verbose_name='Agora Channel Name')),
-                ('whiteboard_room_uuid', models.CharField(blank=True, max_length=64, verbose_name='Whiteboard Room UUID')),
-                ('recording_resource_id', models.CharField(blank=True, max_length=256)),
-                ('recording_sid', models.CharField(blank=True, max_length=256)),
-                ('recording_url', models.URLField(blank=True, verbose_name='Ссылка на запись')),
-                ('started_at', models.DateTimeField(blank=True, null=True, verbose_name='Начало')),
-                ('ended_at', models.DateTimeField(blank=True, null=True, verbose_name='Конец')),
-                ('lesson', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='webinar', to='courses.lesson', verbose_name='Урок')),
-                ('started_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='started_webinars', to=settings.AUTH_USER_MODEL, verbose_name='Кто запустил')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "webinar_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Ожидание"),
+                            ("live", "В эфире"),
+                            ("ended", "Завершен"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                        verbose_name="Статус",
+                    ),
+                ),
+                (
+                    "agora_channel_name",
+                    models.CharField(
+                        blank=True,
+                        max_length=64,
+                        unique=True,
+                        verbose_name="Agora Channel Name",
+                    ),
+                ),
+                (
+                    "whiteboard_room_uuid",
+                    models.CharField(
+                        blank=True, max_length=64, verbose_name="Whiteboard Room UUID"
+                    ),
+                ),
+                ("recording_resource_id", models.CharField(blank=True, max_length=256)),
+                ("recording_sid", models.CharField(blank=True, max_length=256)),
+                (
+                    "recording_url",
+                    models.URLField(blank=True, verbose_name="Ссылка на запись"),
+                ),
+                (
+                    "started_at",
+                    models.DateTimeField(blank=True, null=True, verbose_name="Начало"),
+                ),
+                (
+                    "ended_at",
+                    models.DateTimeField(blank=True, null=True, verbose_name="Конец"),
+                ),
+                (
+                    "lesson",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="webinar",
+                        to="courses.lesson",
+                        verbose_name="Урок",
+                    ),
+                ),
+                (
+                    "started_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="started_webinars",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="Кто запустил",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Вебинар',
-                'verbose_name_plural': 'Вебинары',
-                'ordering': ['-created_at'],
+                "verbose_name": "Вебинар",
+                "verbose_name_plural": "Вебинары",
+                "ordering": ["-created_at"],
             },
         ),
     ]

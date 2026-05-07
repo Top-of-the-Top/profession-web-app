@@ -8,100 +8,164 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('ai_chat_bot', '0002_rename_ai_chat_bot_user_id_3c4457_idx_ai_chat_bot_user_id_06803c_idx_and_more'),
-        ('courses', '0012_merge_20260425_1246'),
+        (
+            "ai_chat_bot",
+            "0002_rename_ai_chat_bot_user_id_3c4457_idx_ai_chat_bot_user_id_06803c_idx_and_more",
+        ),
+        ("courses", "0012_merge_20260425_1246"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Chat',
+            name="Chat",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('chat_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('title', models.CharField(blank=True, max_length=100, null=True, verbose_name='Заголовок чата')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "chat_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(
+                        blank=True,
+                        max_length=100,
+                        null=True,
+                        verbose_name="Заголовок чата",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Чаты',
-                'verbose_name_plural': 'Сообщения чата',
-                'ordering': ['updated_at'],
+                "verbose_name": "Чаты",
+                "verbose_name_plural": "Сообщения чата",
+                "ordering": ["updated_at"],
             },
         ),
         migrations.CreateModel(
-            name='Message',
+            name="Message",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('message_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('role', models.CharField(choices=[('user', 'Пользователь'), ('assistant', 'Ассистент')], max_length=10, verbose_name='Роль')),
-                ('content', models.TextField(max_length=1000, verbose_name='Сообщение')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "message_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[("user", "Пользователь"), ("assistant", "Ассистент")],
+                        max_length=10,
+                        verbose_name="Роль",
+                    ),
+                ),
+                (
+                    "content",
+                    models.TextField(max_length=1000, verbose_name="Сообщение"),
+                ),
             ],
             options={
-                'verbose_name': 'Сообщение чата',
-                'verbose_name_plural': 'Сообщения чата',
-                'ordering': ['created_at'],
+                "verbose_name": "Сообщение чата",
+                "verbose_name_plural": "Сообщения чата",
+                "ordering": ["created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Session',
+            name="Session",
             fields=[
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('session_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "session_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Сессия чата',
-                'verbose_name_plural': 'Сессии чата',
-                'ordering': ['-created_at'],
+                "verbose_name": "Сессия чата",
+                "verbose_name_plural": "Сессии чата",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.RemoveField(
-            model_name='chatmessage',
-            name='chat_session',
+            model_name="chatmessage",
+            name="chat_session",
         ),
         migrations.RemoveIndex(
-            model_name='chatsession',
-            name='ai_chat_bot_user_id_06803c_idx',
+            model_name="chatsession",
+            name="ai_chat_bot_user_id_06803c_idx",
         ),
         migrations.AddField(
-            model_name='message',
-            name='chat',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='messages', to='ai_chat_bot.chat', verbose_name='Чат'),
+            model_name="message",
+            name="chat",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="messages",
+                to="ai_chat_bot.chat",
+                verbose_name="Чат",
+            ),
         ),
         migrations.AddField(
-            model_name='session',
-            name='course',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.course', verbose_name='Курс'),
+            model_name="session",
+            name="course",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                to="courses.course",
+                verbose_name="Курс",
+            ),
         ),
         migrations.AddField(
-            model_name='session',
-            name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL, verbose_name='Пользователь'),
+            model_name="session",
+            name="user",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="Пользователь",
+            ),
         ),
         migrations.AddField(
-            model_name='chat',
-            name='session',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='chats', to='ai_chat_bot.session', verbose_name='Сессия чата'),
+            model_name="chat",
+            name="session",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="chats",
+                to="ai_chat_bot.session",
+                verbose_name="Сессия чата",
+            ),
         ),
         migrations.DeleteModel(
-            name='ChatMessage',
+            name="ChatMessage",
         ),
         migrations.RemoveField(
-            model_name='chatsession',
-            name='course',
+            model_name="chatsession",
+            name="course",
         ),
         migrations.RemoveField(
-            model_name='chatsession',
-            name='user',
+            model_name="chatsession",
+            name="user",
         ),
         migrations.AddIndex(
-            model_name='session',
-            index=models.Index(fields=['user', 'course'], name='ai_chat_bot_user_id_da76d9_idx'),
+            model_name="session",
+            index=models.Index(
+                fields=["user", "course"], name="ai_chat_bot_user_id_da76d9_idx"
+            ),
         ),
         migrations.DeleteModel(
-            name='ChatSession',
+            name="ChatSession",
         ),
     ]

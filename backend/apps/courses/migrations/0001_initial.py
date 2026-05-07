@@ -8,181 +8,442 @@ import apps.courses.models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Course',
+            name="Course",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('type', models.CharField(choices=[('draft', 'черновик'), ('published', 'опубликован')], default='draft', max_length=20, verbose_name='Статус')),
-                ('course_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('title', models.CharField(max_length=50, verbose_name='Название курса')),
-                ('sub_title', models.CharField(max_length=75, verbose_name='Краткое описание курса')),
-                ('description', models.TextField(verbose_name='Описание курса')),
-                ('slug', models.SlugField(blank=True, max_length=120, verbose_name='URL')),
-                ('price', models.PositiveIntegerField(verbose_name='Цена')),
-                ('image', models.ImageField(blank=True, default='courses/default_course.png', null=True, upload_to=apps.courses.models.course_image_path, verbose_name='Изображение курса')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[("draft", "черновик"), ("published", "опубликован")],
+                        default="draft",
+                        max_length=20,
+                        verbose_name="Статус",
+                    ),
+                ),
+                (
+                    "course_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(max_length=50, verbose_name="Название курса"),
+                ),
+                (
+                    "sub_title",
+                    models.CharField(
+                        max_length=75, verbose_name="Краткое описание курса"
+                    ),
+                ),
+                ("description", models.TextField(verbose_name="Описание курса")),
+                (
+                    "slug",
+                    models.SlugField(blank=True, max_length=120, verbose_name="URL"),
+                ),
+                ("price", models.PositiveIntegerField(verbose_name="Цена")),
+                (
+                    "image",
+                    models.ImageField(
+                        blank=True,
+                        default="courses/default_course.png",
+                        null=True,
+                        upload_to=apps.courses.models.course_image_path,
+                        verbose_name="Изображение курса",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Курс',
-                'verbose_name_plural': 'Курсы',
-                'ordering': ['-created_at'],
+                "verbose_name": "Курс",
+                "verbose_name_plural": "Курсы",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Homework',
+            name="Homework",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('type', models.CharField(choices=[('draft', 'черновик'), ('published', 'опубликован')], default='draft', max_length=20, verbose_name='Статус')),
-                ('homework_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('homework_number', models.PositiveIntegerField(blank=True, verbose_name='Номер домашнего задания')),
-                ('title', models.CharField(max_length=120, verbose_name='Название домашнего задания')),
-                ('slug', models.SlugField(blank=True, max_length=120, verbose_name='URL')),
-                ('deadline', models.DateTimeField(verbose_name='Дедлайн')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[("draft", "черновик"), ("published", "опубликован")],
+                        default="draft",
+                        max_length=20,
+                        verbose_name="Статус",
+                    ),
+                ),
+                (
+                    "homework_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "homework_number",
+                    models.PositiveIntegerField(
+                        blank=True, verbose_name="Номер домашнего задания"
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(
+                        max_length=120, verbose_name="Название домашнего задания"
+                    ),
+                ),
+                (
+                    "slug",
+                    models.SlugField(blank=True, max_length=120, verbose_name="URL"),
+                ),
+                ("deadline", models.DateTimeField(verbose_name="Дедлайн")),
             ],
             options={
-                'verbose_name': 'Домашнее задание',
-                'verbose_name_plural': 'Домашние задания',
-                'ordering': ['created_at'],
+                "verbose_name": "Домашнее задание",
+                "verbose_name_plural": "Домашние задания",
+                "ordering": ["created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Lesson',
+            name="Lesson",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('type', models.CharField(choices=[('draft', 'черновик'), ('published', 'опубликован')], default='draft', max_length=20, verbose_name='Статус')),
-                ('lesson_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('lesson_number', models.PositiveIntegerField(blank=True, verbose_name='Номер урока')),
-                ('title', models.CharField(max_length=120, verbose_name='Название урока')),
-                ('slug', models.SlugField(blank=True, max_length=120, verbose_name='URL')),
-                ('date_time', models.DateTimeField(blank=True, null=True, verbose_name='Время проведения урока')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[("draft", "черновик"), ("published", "опубликован")],
+                        default="draft",
+                        max_length=20,
+                        verbose_name="Статус",
+                    ),
+                ),
+                (
+                    "lesson_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "lesson_number",
+                    models.PositiveIntegerField(blank=True, verbose_name="Номер урока"),
+                ),
+                (
+                    "title",
+                    models.CharField(max_length=120, verbose_name="Название урока"),
+                ),
+                (
+                    "slug",
+                    models.SlugField(blank=True, max_length=120, verbose_name="URL"),
+                ),
+                (
+                    "date_time",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="Время проведения урока"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Урок',
-                'verbose_name_plural': 'Уроки',
-                'ordering': ['-created_at'],
+                "verbose_name": "Урок",
+                "verbose_name_plural": "Уроки",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='PurchasedCourse',
+            name="PurchasedCourse",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('access_expires_at', models.DateTimeField()),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("access_expires_at", models.DateTimeField()),
             ],
             options={
-                'verbose_name': 'Купленный курс',
-                'verbose_name_plural': 'Купленные курсы',
-                'db_table': 'courses_by_user',
+                "verbose_name": "Купленный курс",
+                "verbose_name_plural": "Купленные курсы",
+                "db_table": "courses_by_user",
             },
         ),
         migrations.CreateModel(
-            name='Question',
+            name="Question",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('type', models.CharField(choices=[('draft', 'черновик'), ('published', 'опубликован')], default='draft', max_length=20, verbose_name='Статус')),
-                ('question_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('question_number', models.PositiveIntegerField(blank=True, verbose_name='Номер вопроса')),
-                ('text', models.CharField(max_length=200, verbose_name='Текст вопроса')),
-                ('correct_ans', models.CharField(verbose_name='Правильный ответ на вопрос')),
-                ('answer_options', models.JSONField(verbose_name='Варианты ответов')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[("draft", "черновик"), ("published", "опубликован")],
+                        default="draft",
+                        max_length=20,
+                        verbose_name="Статус",
+                    ),
+                ),
+                (
+                    "question_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "question_number",
+                    models.PositiveIntegerField(
+                        blank=True, verbose_name="Номер вопроса"
+                    ),
+                ),
+                (
+                    "text",
+                    models.CharField(max_length=200, verbose_name="Текст вопроса"),
+                ),
+                (
+                    "correct_ans",
+                    models.CharField(verbose_name="Правильный ответ на вопрос"),
+                ),
+                ("answer_options", models.JSONField(verbose_name="Варианты ответов")),
             ],
             options={
-                'verbose_name': 'Вопрос',
-                'verbose_name_plural': 'Вопросы',
-                'ordering': ['created_at'],
+                "verbose_name": "Вопрос",
+                "verbose_name_plural": "Вопросы",
+                "ordering": ["created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Section',
+            name="Section",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('type', models.CharField(choices=[('draft', 'черновик'), ('published', 'опубликован')], default='draft', max_length=20, verbose_name='Статус')),
-                ('section_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('section_number', models.PositiveIntegerField(blank=True, verbose_name='Номер секции')),
-                ('title', models.CharField(max_length=120, verbose_name='Название секции')),
-                ('slug', models.SlugField(blank=True, max_length=120, verbose_name='URL')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[("draft", "черновик"), ("published", "опубликован")],
+                        default="draft",
+                        max_length=20,
+                        verbose_name="Статус",
+                    ),
+                ),
+                (
+                    "section_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "section_number",
+                    models.PositiveIntegerField(
+                        blank=True, verbose_name="Номер секции"
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(max_length=120, verbose_name="Название секции"),
+                ),
+                (
+                    "slug",
+                    models.SlugField(blank=True, max_length=120, verbose_name="URL"),
+                ),
             ],
             options={
-                'verbose_name': 'Секция',
-                'verbose_name_plural': 'Секции',
-                'ordering': ['-created_at'],
+                "verbose_name": "Секция",
+                "verbose_name_plural": "Секции",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Task',
+            name="Task",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('type', models.CharField(choices=[('draft', 'черновик'), ('published', 'опубликован')], default='draft', max_length=20, verbose_name='Статус')),
-                ('task_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('task_number', models.PositiveIntegerField(blank=True, verbose_name='Номер задания')),
-                ('text', models.CharField(max_length=200, verbose_name='Текст задания')),
-                ('max_points', models.PositiveIntegerField(default=0, verbose_name='Максимальное количество баллов за задание')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[("draft", "черновик"), ("published", "опубликован")],
+                        default="draft",
+                        max_length=20,
+                        verbose_name="Статус",
+                    ),
+                ),
+                (
+                    "task_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "task_number",
+                    models.PositiveIntegerField(
+                        blank=True, verbose_name="Номер задания"
+                    ),
+                ),
+                (
+                    "text",
+                    models.CharField(max_length=200, verbose_name="Текст задания"),
+                ),
+                (
+                    "max_points",
+                    models.PositiveIntegerField(
+                        default=0,
+                        verbose_name="Максимальное количество баллов за задание",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Задача',
-                'verbose_name_plural': 'Задачи',
-                'ordering': ['created_at'],
+                "verbose_name": "Задача",
+                "verbose_name_plural": "Задачи",
+                "ordering": ["created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Users_Homeworks_Attempts',
+            name="Users_Homeworks_Attempts",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('status', models.CharField(choices=[('draft', 'Черновик'), ('submitted', 'Отправлено'), ('reviewed', 'Оценено')], default='draft', max_length=20, verbose_name='Статус')),
-                ('send_at', models.DateTimeField(blank=True, null=True, verbose_name='Отправлено в')),
-                ('attempt_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('attempt_number', models.PositiveIntegerField(blank=True, verbose_name='Номер домашнего задания')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Черновик"),
+                            ("submitted", "Отправлено"),
+                            ("reviewed", "Оценено"),
+                        ],
+                        default="draft",
+                        max_length=20,
+                        verbose_name="Статус",
+                    ),
+                ),
+                (
+                    "send_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="Отправлено в"
+                    ),
+                ),
+                (
+                    "attempt_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "attempt_number",
+                    models.PositiveIntegerField(
+                        blank=True, verbose_name="Номер домашнего задания"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Попытка',
-                'verbose_name_plural': 'Попытки',
-                'ordering': ['created_at'],
+                "verbose_name": "Попытка",
+                "verbose_name_plural": "Попытки",
+                "ordering": ["created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Users_questions_answers',
+            name="Users_questions_answers",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('question_answer_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('question_answer_number', models.PositiveIntegerField(blank=True, verbose_name='Номер попытки ответа на вопрос')),
-                ('user_answer', models.CharField(max_length=120, verbose_name='Ответ пользователя')),
-                ('is_correct', models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "question_answer_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "question_answer_number",
+                    models.PositiveIntegerField(
+                        blank=True, verbose_name="Номер попытки ответа на вопрос"
+                    ),
+                ),
+                (
+                    "user_answer",
+                    models.CharField(max_length=120, verbose_name="Ответ пользователя"),
+                ),
+                ("is_correct", models.BooleanField(default=False)),
             ],
             options={
-                'verbose_name': 'Ответ на вопрос',
-                'verbose_name_plural': 'Ответы на вопросы',
-                'ordering': ['-created_at'],
+                "verbose_name": "Ответ на вопрос",
+                "verbose_name_plural": "Ответы на вопросы",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Users_tasks_answers',
+            name="Users_tasks_answers",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('status', models.CharField(choices=[('draft', 'Черновик'), ('submitted', 'Отправлено'), ('reviewed', 'Оценено')], default='draft', max_length=20, verbose_name='Статус')),
-                ('send_at', models.DateTimeField(blank=True, null=True, verbose_name='Отправлено в')),
-                ('task_answer_id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False, verbose_name='id')),
-                ('task_answer_number', models.PositiveIntegerField(blank=True, verbose_name='Номер попытки ответа на задачу')),
-                ('points', models.PositiveIntegerField(default=0)),
-                ('user_answer', models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Черновик"),
+                            ("submitted", "Отправлено"),
+                            ("reviewed", "Оценено"),
+                        ],
+                        default="draft",
+                        max_length=20,
+                        verbose_name="Статус",
+                    ),
+                ),
+                (
+                    "send_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="Отправлено в"
+                    ),
+                ),
+                (
+                    "task_answer_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="id",
+                    ),
+                ),
+                (
+                    "task_answer_number",
+                    models.PositiveIntegerField(
+                        blank=True, verbose_name="Номер попытки ответа на задачу"
+                    ),
+                ),
+                ("points", models.PositiveIntegerField(default=0)),
+                ("user_answer", models.TextField()),
             ],
             options={
-                'verbose_name': 'Ответ на задание',
-                'verbose_name_plural': 'Ответы на задания',
-                'ordering': ['created_at'],
+                "verbose_name": "Ответ на задание",
+                "verbose_name_plural": "Ответы на задания",
+                "ordering": ["created_at"],
             },
         ),
     ]

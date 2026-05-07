@@ -6,38 +6,43 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('carts', '0001_initial'),
-        ('courses', '0001_initial'),
+        ("carts", "0001_initial"),
+        ("courses", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='cart',
-            name='user',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
+            model_name="cart",
+            name="user",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
+            ),
         ),
         migrations.AddField(
-            model_name='cartitem',
-            name='cart',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='carts.cart'),
+            model_name="cartitem",
+            name="cart",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="carts.cart"
+            ),
         ),
         migrations.AddField(
-            model_name='cartitem',
-            name='course',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.course'),
+            model_name="cartitem",
+            name="course",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="courses.course"
+            ),
         ),
         migrations.AddField(
-            model_name='cart',
-            name='courses',
-            field=models.ManyToManyField(through='carts.CartItem', to='courses.course'),
+            model_name="cart",
+            name="courses",
+            field=models.ManyToManyField(through="carts.CartItem", to="courses.course"),
         ),
         migrations.AlterUniqueTogether(
-            name='cartitem',
-            unique_together={('cart_id', 'course_id')},
+            name="cartitem",
+            unique_together={("cart_id", "course_id")},
         ),
     ]

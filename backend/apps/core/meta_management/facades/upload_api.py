@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 class UploadApi:
-
     def __init__(self, asset_service):
         self._service = asset_service
 

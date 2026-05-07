@@ -57,12 +57,10 @@ class RateLimitedResponseSerializer(serializers.Serializer):
 
 
 class DetailOnlyResponseSerializer(serializers.Serializer):
-
     detail = serializers.CharField()
 
 
 class ResetPasswordSuccessSerializer(serializers.Serializer):
-
     status = serializers.CharField(read_only=True)
     detail = serializers.CharField(read_only=True, required=False, allow_blank=True)
 
@@ -80,7 +78,6 @@ class ProfileAssetSerializer(serializers.Serializer):
 
 
 class UserProfileAssetsSerializer(serializers.Serializer):
-
     user_avatar = ProfileAssetSerializer(many=True, read_only=True)
 
 

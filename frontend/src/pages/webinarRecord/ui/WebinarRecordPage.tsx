@@ -7,8 +7,10 @@ import { cn } from '@shared/lib/utils';
 import { notifyError, notifySuccess } from '@shared/lib/sileo/notify';
 import {
   VideoGrid,
+  WebinarChat,
   WhiteboardPanel,
   buildRtcUidLabelMap,
+  useWebinarChat,
 } from '../../../features/webinar';
 import styles from './WebinarRecordPage.module.css';
 
@@ -291,6 +293,17 @@ export default function WebinarRecordPage() {
   const onSubscribeOnlyAnyRemoteVideo = useCallback((v: boolean) => {
     setRecorderAnyRemoteVideo(v);
   }, []);
+  const isChatOpen = true;
+  const {
+    messages: chatMessages,
+    sendMessage,
+  } = useWebinarChat({
+    appId: session?.agora_app_id ?? '',
+    rtmToken: session?.rtm_token ?? '',
+    chatChannelName: session?.chat_channel_name ?? '',
+    uid: session?.uid ?? 0,
+    userName: session?.user_name ?? 'Recorder',
+  });
 
   if (!token && !showAuxPanel) {
     const sandboxTo = {
@@ -395,7 +408,7 @@ export default function WebinarRecordPage() {
       <div
         className={cn(
           styles.body,
-          !recorderAnyRemoteVideo && styles.bodyRecorderNoRemoteVideo,
+          !recorderAnyRemoteVideo && !isChatOpen && styles.bodyRecorderNoRemoteVideo,
         )}
       >
         <div className={styles.whiteboardArea}>
@@ -419,7 +432,15 @@ export default function WebinarRecordPage() {
             rtcUidToLabel={rtcUidToLabel}
             subscribeOnly
             onSubscribeOnlyAnyRemoteVideo={onSubscribeOnlyAnyRemoteVideo}
-          />
+          >
+            {isChatOpen && (
+              <WebinarChat
+                messages={chatMessages}
+                uid={session.uid}
+                sendMessage={sendMessage}
+              />
+            )}
+          </VideoGrid>
         </div>
       </div>
     </div>

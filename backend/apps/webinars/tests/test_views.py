@@ -245,6 +245,7 @@ class WebinarStopViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
+@patch('apps.webinars.api.views.generate_rtm_token', return_value='rtm-tok')
 @patch('apps.webinars.api.views.generate_whiteboard_room_token', return_value='wb-tok')
 @patch('apps.webinars.api.views.generate_rtc_token', return_value='rtc-tok')
 class WebinarJoinViewTest(WebinarEndpointsBase):
@@ -285,8 +286,34 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['role'], 'student')
         self.assertEqual(response.data['rtc_token'], 'rtc-tok')
+        self.assertEqual(response.data['rtm_token'], 'rtm-tok')
+        self.assertEqual(response.data['chat_channel_name'], 'chat-room-1')
         self.assertEqual(response.data['whiteboard_room_token'], 'wb-tok')
         self.assertEqual(response.data['whiteboard_room_uuid'], 'room-1')
+
+    def test_chat_channel_name_uses_whiteboard_room_uuid(self, *_):
+        Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.LIVE_STATUS,
+            whiteboard_room_uuid='abc-xyz-123',
+        )
+        self.authenticate(self.teacher)
+        response = self.client.get(self.url_join())
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['chat_channel_name'], 'chat-abc-xyz-123')
+
+    def test_rtm_token_called_with_uid(self, mock_rtc, mock_wb, mock_rtm):
+        Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.LIVE_STATUS,
+            whiteboard_room_uuid='room-x',
+        )
+        self.authenticate(self.teacher)
+        response = self.client.get(self.url_join())
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_rtm.assert_called_once_with(response.data['uid'])
 
     def test_author_gets_teacher_role(self, *_):
         Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
@@ -302,7 +329,7 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['role'], 'teacher')
 
-    def test_whiteboard_role_mapping(self, mock_rtc, mock_wb):
+    def test_whiteboard_role_mapping(self, mock_rtc, mock_wb, mock_rtm):
         Webinar.objects.create(
             lesson=self.lesson,
             status=Webinar.LIVE_STATUS,
@@ -322,6 +349,7 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(kwargs.get('role'), 'writer')
 
 
+@patch('apps.webinars.api.views.generate_rtm_token', return_value='rtm-tok')
 @patch('apps.webinars.api.views.generate_whiteboard_room_token', return_value='wb-tok')
 @patch('apps.webinars.api.views.generate_rtc_token', return_value='rtc-tok')
 class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
@@ -353,6 +381,8 @@ class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
         self.assertEqual(response.data['role'], 'recorder')
         self.assertEqual(response.data['uid'], 999999)
         self.assertEqual(response.data['rtc_token'], 'rtc-tok')
+        self.assertEqual(response.data['rtm_token'], 'rtm-tok')
+        self.assertEqual(response.data['chat_channel_name'], 'chat-room-r')
         self.assertEqual(response.data['whiteboard_room_token'], 'wb-tok')
 
 
@@ -672,10 +702,10 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
         self.recording.refresh_from_db()
         self.assertEqual(self.recording.whiteboard_pdf_url, '')
 
-    def test_delete_pdf_returns_404_when_no_pdf(self):
+    def test_delete_pdf_is_idempotent_when_no_pdf(self):
         self.authenticate(self.teacher)
         response = self.client.delete(self.url_pdf(self.recording.recording_id))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_delete_forbidden_for_student(self):
         self.authenticate(self.student)

@@ -216,7 +216,7 @@ export function useWebinarChat({
       rtm.unsubscribe(chatChannelName).catch(() => {}).finally(() => rtm.logout().catch(() => {}));
       setIsConnected(false);
     };
-  }, [appId, rtmToken, chatChannelName, uid, disabled]);
+  }, [appId, rtmToken, chatChannelName, uid, userName, disabled]);
 
   const sendMessage = useCallback(
     (text: string) => {

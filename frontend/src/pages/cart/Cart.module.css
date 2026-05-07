@@ -500,6 +500,258 @@
   opacity: 0.85;
 }
 
+.payDialogOverlay {
+  background-color: rgba(0, 0, 0, 0.72);
+}
+
+.payDialog {
+  max-width: 400px;
+  width: calc(100% - 1.5rem);
+  padding: 0;
+  gap: 0;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.payDialogRoot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.payDialogLoadingLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(255, 221, 45, 0.22);
+  backdrop-filter: blur(6px);
+}
+
+.payDialogLoadingText {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.payVisuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.payDialogHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  padding: 12px 10px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.payDialogClose {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: #111827;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.payDialogClose svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.25px;
+}
+
+.payDialogClose:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.payDialogClose:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.payDialogBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: #111827;
+}
+
+.payDialogBrandBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.payDialogBrandPay {
+  font-weight: 800;
+}
+
+.payDialogHeaderSpacer {
+  width: 40px;
+  height: 1px;
+}
+
+.payDialogCashbackHint {
+  margin: 0;
+  padding: 10px 16px 6px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.payDialogCardStrip {
+  margin: 4px 16px 14px;
+  padding: 16px 18px 14px;
+  border-radius: 16px;
+  background: linear-gradient(155deg, #3c4049 0%, #25272e 100%);
+  color: #f9fafb;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.payDialogCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.payDialogCardName {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.88;
+}
+
+.payDialogCardAmount {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.payDialogCardDots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.payDialogCardDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.payDialogCardDotActive {
+  background: #ffdd2d;
+  box-shadow: 0 0 0 2px rgba(255, 221, 45, 0.35);
+}
+
+.payDialogMerchant {
+  margin: 0 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #ede9fe;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.payDialogMerchantIcon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: #7c3aed;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.payDialogMerchantText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.payDialogMerchantName {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.payDialogMerchantMeta {
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.payConfirmButton {
+  width: calc(100% - 32px) !important;
+  margin: 0 16px 20px !important;
+  min-height: 52px !important;
+  border-radius: 14px !important;
+  border: none !important;
+  background: #ffdd2d !important;
+  color: #111827 !important;
+  font-size: 17px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.payConfirmButton:hover:not(:disabled) {
+  background: #ffd21a !important;
+}
+
+.payConfirmButton:disabled {
+  opacity: 0.85;
+}
+
 .skeletonPayButton {
   width: 100%;
   height: 40px;

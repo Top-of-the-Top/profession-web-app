@@ -55,8 +55,10 @@ class WebinarTokenSerializerTest(BaseWebinarTestCase):
         data = {
             'webinar_id': '00000000-0000-0000-0000-000000000001',
             'rtc_token': 'tok',
+            'rtm_token': 'rtmtok',
             'agora_app_id': 'app',
             'channel_name': 'ch',
+            'chat_channel_name': 'chat-room',
             'uid': 42,
             'user_name': 'Иванов Иван',
             'whiteboard_app_id': 'wb',
@@ -76,8 +78,10 @@ class WebinarTokenSerializerTest(BaseWebinarTestCase):
         serializer = WebinarTokenSerializer(data={
             'webinar_id': '00000000-0000-0000-0000-000000000001',
             'rtc_token': 'tok',
+            'rtm_token': 'rtmtok',
             'agora_app_id': 'app',
             'channel_name': 'ch',
+            'chat_channel_name': 'chat-room',
             'uid': 'not-an-int',
             'user_name': 'Иванов Иван',
             'whiteboard_app_id': 'wb',

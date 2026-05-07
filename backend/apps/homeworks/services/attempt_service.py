@@ -72,6 +72,10 @@ class AttemptService:
         attempt.refresh_from_db()
         return attempt
 
+    # ------------------------------------------------------------------ #
+    # Internal                                                             #
+    # ------------------------------------------------------------------ #
+
     def _prefill_answers(self, attempt):
         homework = attempt.homework
         QuestionAnswer.objects.bulk_create([

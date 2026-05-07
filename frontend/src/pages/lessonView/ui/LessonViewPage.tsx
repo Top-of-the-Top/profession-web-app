@@ -615,6 +615,7 @@ const LessonRecordingCard: React.FC<{
 
   const pdfLink = recording.whiteboard_pdf_url?.trim();
   const hasPdf = !!pdfLink && /^https?:\/\//i.test(pdfLink);
+  const isWhiteboardOnly = recording.kind === 'whiteboard_only';
   const dateLabel = recording.started_at
     ? new Intl.DateTimeFormat('ru-RU', {
         day: 'numeric',
@@ -636,29 +637,32 @@ const LessonRecordingCard: React.FC<{
       }}
     >
       <div className={styles.recordingCardHead}>
-        <h3 className={styles.recordingCardTitle}>{dateLabel}</h3>
+        <h3 className={styles.recordingCardTitle}>
+          {isWhiteboardOnly ? 'Доска вебинара' : dateLabel}
+        </h3>
       </div>
 
-      {recording.kinescope_upload_status === 'ready' &&
-      recording.kinescope_embed_url ? (
-        <div className={styles.recordingIframeWrap}>
-          <iframe
-            src={recording.kinescope_embed_url}
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-            allowFullScreen
-            className={styles.recordingIframe}
-            title="Запись урока"
-          />
-        </div>
-      ) : recording.kinescope_upload_status === 'failed' ? (
-        <div className={styles.recordingFailed}>
-          Не удалось обработать запись
-        </div>
-      ) : (
-        <div className={styles.recordingStatus}>
-          <span>Запись скоро появится</span>
-        </div>
-      )}
+      {!isWhiteboardOnly &&
+        (recording.kinescope_upload_status === 'ready' &&
+        recording.kinescope_embed_url ? (
+          <div className={styles.recordingIframeWrap}>
+            <iframe
+              src={recording.kinescope_embed_url}
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              allowFullScreen
+              className={styles.recordingIframe}
+              title="Запись урока"
+            />
+          </div>
+        ) : recording.kinescope_upload_status === 'failed' ? (
+          <div className={styles.recordingFailed}>
+            Не удалось обработать запись
+          </div>
+        ) : (
+          <div className={styles.recordingStatus}>
+            <span>Запись скоро появится</span>
+          </div>
+        ))}
 
       {hasPdf && (
         <div className={styles.whiteboardPdfRow}>
@@ -675,7 +679,7 @@ const LessonRecordingCard: React.FC<{
         </div>
       )}
 
-      {isTeacher && recording.recording_id && (
+      {isTeacher && recording.recording_id && !isWhiteboardOnly && (
         <div className={styles.recordingActions}>
           <button
             type="button"

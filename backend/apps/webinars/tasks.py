@@ -125,6 +125,17 @@ def upload_recording_to_kinescope(self, recording_id):
         recording.kinescope_upload_status = 'processing'
         recording.save(update_fields=['kinescope_video_id', 'kinescope_upload_status', 'updated_at'])
 
+        from apps.core.meta_management.factory import build_asset_service
+        from apps.core.models import AssetVisibility
+        service = build_asset_service()
+        asset = service.register_pending_storage_asset(
+            backend_name='kinescope',
+            storage_key=video_id,
+            owner=recording.started_by,
+            visibility=AssetVisibility.COURSE_PAID,
+        )
+        service.bind_asset(asset, recording, role='webinar_recording')
+
         check_kinescope_processing.apply_async(
             args=[str(recording.recording_id)],
             countdown=30,
@@ -180,6 +191,24 @@ def check_kinescope_processing(self, recording_id):
         recording.kinescope_upload_status = Recording.READY_STATUS
         recording.status = Recording.READY_STATUS
         recording.save(update_fields=['kinescope_upload_status', 'status', 'updated_at'])
+
+        from apps.core.meta_management.factory import build_asset_service
+        service = build_asset_service()
+        asset = service.get_asset_by_storage_key(recording.kinescope_video_id, backend='kinescope')
+        if asset is not None:
+            try:
+                service.commit_asset(asset.asset_id)
+            except Exception:
+                logger.exception(
+                    'Не удалось закоммитить asset %s для recording %s',
+                    asset.asset_id, recording_id,
+                )
+        else:
+            logger.warning(
+                'Asset для kinescope_video_id=%s не найден (recording %s)',
+                recording.kinescope_video_id, recording_id,
+            )
+
         publish_event_async.delay(
             routing_key=f"webinar.{recording.webinar_id}",
             payload={

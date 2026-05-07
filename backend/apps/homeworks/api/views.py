@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.courses.models import Homework, Lesson
-from apps.courses.api.schema import SCHEMA_DETAIL
+from apps.courses.api.schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
 from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from apps.courses.api.utils.cache_utils import (
     attempt_draft_cache_key,
@@ -396,7 +396,7 @@ class HomeworkAttemptSubmitView(APIView):
         request=AttemptSubmitSerializer,
         responses={
             201: AttemptSerializer,
-            400: ErrorResponseSerializer,
+            400: SCHEMA_VALIDATION,
             401: ErrorResponseSerializer,
             403: ErrorResponseSerializer,
             404: SCHEMA_DETAIL,

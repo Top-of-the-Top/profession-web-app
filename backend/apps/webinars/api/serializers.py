@@ -31,8 +31,10 @@ class WebinarSerializer(serializers.ModelSerializer):
 class WebinarTokenSerializer(serializers.Serializer):
     webinar_id = serializers.UUIDField()
     rtc_token = serializers.CharField()
+    rtm_token = serializers.CharField()
     agora_app_id = serializers.CharField()
     channel_name = serializers.CharField()
+    chat_channel_name = serializers.CharField()
     uid = serializers.IntegerField()
     user_name = serializers.CharField()
     whiteboard_app_id = serializers.CharField()
@@ -59,6 +61,7 @@ class DetailResponseSerializer(serializers.Serializer):
 class RecordingListItemSerializer(serializers.ModelSerializer):
     kinescope_embed_url = serializers.SerializerMethodField()
     whiteboard_pdf_url = serializers.SerializerMethodField()
+    kind = serializers.SerializerMethodField()
 
     class Meta:
         model = Recording
@@ -70,7 +73,13 @@ class RecordingListItemSerializer(serializers.ModelSerializer):
             'kinescope_upload_status',
             'kinescope_embed_url',
             'whiteboard_pdf_url',
+            'kind',
         )
+
+    def get_kind(self, obj):
+        if not obj.recording_url and not obj.kinescope_video_id:
+            return 'whiteboard_only'
+        return 'recording'
 
     def get_kinescope_embed_url(self, obj):
         request = self.context.get('request')

@@ -6,9 +6,33 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  height: 100%;
-  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  justify-content: space-between;
+  overflow: hidden;
   padding: 8px;
+	padding-bottom: 0;
+}
+
+.participantsArea {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chatArea {
+  flex: 0 0 33%;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.chatArea > * {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .videoTilesStack {
@@ -100,7 +124,7 @@
   flex-direction: column;
   gap: 8px;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 8px;
   min-width: 0;
 }

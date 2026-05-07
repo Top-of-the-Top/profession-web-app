@@ -2,8 +2,8 @@ from apps.courses.models import Lesson
 from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from ..models import Webinar, Recording
 from .utils.agora_utils import (
-    generate_rtc_token, user_uid_from_uuid, create_whiteboard_room,
-    generate_whiteboard_room_token, recording_acquire,
+    generate_rtc_token, generate_rtm_token, user_uid_from_uuid,
+    create_whiteboard_room, generate_whiteboard_room_token, recording_acquire,
     recording_start_web, recording_stop_web,
     verify_recorder_token, make_recorder_token, ban_whiteboard_room,
     ROLE_PUBLISHER, ROLE_SUBSCRIBER,
@@ -30,6 +30,7 @@ import logging
 from apps.core.meta_management.factory import build_upload_api, build_binding_api, build_access_api
 from apps.core.processors.error_processor import process_error_response
 from apps.core.meta_management.errors import AssetError
+from apps.courses.api.utils.cache_utils import invalidate_lesson_detail_cache
 
 logger = logging.getLogger(__name__)
 
@@ -336,6 +337,9 @@ class WebinarJoinView(APIView):
             role=whiteboard_role,
         )
 
+        rtm_token = generate_rtm_token(uid)
+        chat_channel_name = f'chat-{webinar.whiteboard_room_uuid}'
+
         full_name = f"{request.user.last_name} {request.user.first_name}".strip()
         if not full_name:
             full_name = 'Пользователь'
@@ -343,8 +347,10 @@ class WebinarJoinView(APIView):
         return Response({
             'webinar_id': str(webinar.webinar_id),
             'rtc_token': rtc_token,
+            'rtm_token': rtm_token,
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,
+            'chat_channel_name': chat_channel_name,
             'uid': uid,
             'user_name': full_name,
             'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),
@@ -408,13 +414,17 @@ class WebinarRecorderJoinView(APIView):
 
         recorder_uid = 999999
         rtc_token = generate_rtc_token(webinar.agora_channel_name, recorder_uid, ROLE_SUBSCRIBER)
+        rtm_token = generate_rtm_token(recorder_uid)
         wb_token = generate_whiteboard_room_token(webinar.whiteboard_room_uuid, 'reader')
+        chat_channel_name = f'chat-{webinar.whiteboard_room_uuid}'
 
         return Response({
             'webinar_id': str(webinar.webinar_id),
             'rtc_token': rtc_token,
+            'rtm_token': rtm_token,
             'agora_app_id': os.getenv('AGORA_APP_ID'),
             'channel_name': webinar.agora_channel_name,
+            'chat_channel_name': chat_channel_name,
             'uid': recorder_uid,
             'user_name': 'Recorder',
             'whiteboard_app_id': os.getenv('AGORA_WHITEBOARD_APP_ID'),
@@ -667,6 +677,8 @@ class RecordingPdfView(APIView):
             recording.whiteboard_pdf_url = ''
             recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
 
+        invalidate_lesson_detail_cache(course_slug, lesson_slug)
+
         return Response({'detail': 'pdf доски сохранен'})
 
     @require_course_author
@@ -700,6 +712,8 @@ class RecordingPdfView(APIView):
 
         recording.whiteboard_pdf_url = ''
         recording.save(update_fields=['whiteboard_pdf_url', 'updated_at'])
+
+        invalidate_lesson_detail_cache(course_slug, lesson_slug)
 
         return Response({'detail': 'pdf доски удален'}, status=status.HTTP_204_NO_CONTENT)
     

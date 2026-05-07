@@ -226,49 +226,69 @@ function PublisherInner({
 
   return (
     <div className={styles.grid}>
-      <div
-        className={
-          videoGridDense ? styles.videoTilesGrid : styles.videoTilesStack
-        }
-      >
-        {cameraOn ? (
-          <div
-            className={cn(
-              styles.tile,
-              videoGridDense && styles.tileCompact,
-            )}
-          >
-            <LocalUser
-              audioTrack={localMicrophoneTrack}
-              videoTrack={localCameraTrack}
-              cameraOn={cameraOn}
-              micOn={micOn}
-              playAudio={false}
-              style={{ width: '100%', height: '100%' }}
-            />
-            <TileNameplate name={selfLabel} micMuted={!micOn} />
-          </div>
+      <div className={styles.participantsArea}>
+        <div
+          className={
+            videoGridDense ? styles.videoTilesGrid : styles.videoTilesStack
+          }
+        >
+          {cameraOn ? (
+            <div
+              className={cn(
+                styles.tile,
+                videoGridDense && styles.tileCompact,
+              )}
+            >
+              <LocalUser
+                audioTrack={localMicrophoneTrack}
+                videoTrack={localCameraTrack}
+                cameraOn={cameraOn}
+                micOn={micOn}
+                playAudio={false}
+                style={{ width: '100%', height: '100%' }}
+              />
+              <TileNameplate name={selfLabel} micMuted={!micOn} />
+            </div>
+          ) : null}
+
+          {remotesWithVideo.map((user) => (
+            <div
+              key={user.uid}
+              className={cn(
+                styles.tile,
+                videoGridDense && styles.tileCompact,
+              )}
+            >
+              <RemoteUser
+                user={user}
+                playVideo
+                cover={() => <RemoteNoVideoCover />}
+                style={{ width: '100%', height: '100%' }}
+              />
+              <TileNameplate
+                name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
+                micMuted={user.hasAudio === false}
+              />
+            </div>
+          ))}
+        </div>
+
+        {!cameraOn ? (
+          <LocalParticipantStrip
+            name={selfLabel}
+            micOn={micOn}
+            cameraOn={cameraOn}
+            localMicrophoneTrack={localMicrophoneTrack}
+            localCameraTrack={localCameraTrack}
+          />
         ) : null}
 
-        {remotesWithVideo.map((user) => (
-          <div
+        {remotesWithoutVideo.map((user) => (
+          <ObserverRemoteAudioStrip
             key={user.uid}
-            className={cn(
-              styles.tile,
-              videoGridDense && styles.tileCompact,
-            )}
-          >
-            <RemoteUser
-              user={user}
-              playVideo
-              cover={() => <RemoteNoVideoCover />}
-              style={{ width: '100%', height: '100%' }}
-            />
-            <TileNameplate
-              name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
-              micMuted={user.hasAudio === false}
-            />
-          </div>
+            user={user}
+            name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
+          />
         ))}
       </div>
 
@@ -302,6 +322,7 @@ function SubscribeOnlyInner({
   rtcUidToLabel,
   onRecorderChannelPresence,
   onSubscribeOnlyAnyRemoteVideo,
+  children,
 }: VideoGridBaseProps & {
   onSubscribeOnlyAnyRemoteVideo?: (anyHasVideo: boolean) => void;
 }) {
@@ -342,64 +363,68 @@ function SubscribeOnlyInner({
 
   if (!anyRemoteHasVideo) {
     return (
-      <div className={styles.gridObserverAudioOnly}>
-        {visibleRemoteUsers.map((user) => (
-          <div key={user.uid} className={styles.observerHiddenAudioMount}>
-            <RemoteUser
+      <div className={styles.gridObserver}>
+        <div className={styles.participantsArea}>
+          {visibleRemoteUsers.map((user) => (
+            <ObserverRemoteAudioStrip
+              key={user.uid}
               user={user}
-              playVideo={false}
-              style={{ width: '100%', height: '100%' }}
+              name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
             />
-          </div>
-        ))}
+          ))}
+        </div>
+        {children ? <div className={styles.chatArea}>{children}</div> : null}
       </div>
     );
   }
 
   return (
     <div className={styles.gridObserver}>
-      <div
-        className={
-          observerVideoGridDense
-            ? styles.videoTilesGrid
-            : styles.videoTilesStack
-        }
-      >
-        {remotesWithVideoOnly.map((user) => {
-          const name = rtcTileLabel(
-            user.uid,
-            rtcUidToLabel,
-            String(user.uid),
-          );
-          return (
-            <div
-              key={user.uid}
-              className={cn(
-                styles.tile,
-                observerVideoGridDense && styles.tileCompact,
-              )}
-            >
-              <RemoteUser
-                user={user}
-                playVideo
-                cover={() => <RemoteNoVideoCover />}
-                style={{ width: '100%', height: '100%' }}
-              />
-              <TileNameplate
-                name={name}
-                micMuted={user.hasAudio === false}
-              />
-            </div>
-          );
-        })}
+      <div className={styles.participantsArea}>
+        <div
+          className={
+            observerVideoGridDense
+              ? styles.videoTilesGrid
+              : styles.videoTilesStack
+          }
+        >
+          {remotesWithVideoOnly.map((user) => {
+            const name = rtcTileLabel(
+              user.uid,
+              rtcUidToLabel,
+              String(user.uid),
+            );
+            return (
+              <div
+                key={user.uid}
+                className={cn(
+                  styles.tile,
+                  observerVideoGridDense && styles.tileCompact,
+                )}
+              >
+                <RemoteUser
+                  user={user}
+                  playVideo
+                  cover={() => <RemoteNoVideoCover />}
+                  style={{ width: '100%', height: '100%' }}
+                />
+                <TileNameplate
+                  name={name}
+                  micMuted={user.hasAudio === false}
+                />
+              </div>
+            );
+          })}
+        </div>
+        {remotesWithoutVideoOnly.map((user) => (
+          <ObserverRemoteAudioStrip
+            key={user.uid}
+            user={user}
+            name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
+          />
+        ))}
       </div>
-      {remotesWithoutVideoOnly.map((user) => (
-        <ObserverRemoteAudioStrip
-          key={user.uid}
-          user={user}
-          name={rtcTileLabel(user.uid, rtcUidToLabel, String(user.uid))}
-        />
-      ))}
+      {children ? <div className={styles.chatArea}>{children}</div> : null}
     </div>
   );
 }
@@ -422,6 +447,7 @@ export function VideoGrid(props: VideoGridProps) {
           rtcUidToLabel={props.rtcUidToLabel}
           onRecorderChannelPresence={props.onRecorderChannelPresence}
           onSubscribeOnlyAnyRemoteVideo={props.onSubscribeOnlyAnyRemoteVideo}
+          children={props.children}
         />
       ) : (
         <PublisherInner

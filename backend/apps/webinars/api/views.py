@@ -529,6 +529,7 @@ class WebinarJoinView(APIView):
                 "whiteboard_room_token": whiteboard_room_token,
                 "whiteboard_region": os.getenv("AGORA_WHITEBOARD_REGION", "eu"),
                 "role": user_role,
+                "started_at": webinar.started_at,
             }
         )
 

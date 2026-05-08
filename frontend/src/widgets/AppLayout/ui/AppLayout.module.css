@@ -159,6 +159,10 @@
   opacity: 1;
 }
 
+.navBottom {
+  margin-top: auto;
+}
+
 .nav {
   display: flex;
   flex-direction: column;
@@ -211,7 +215,8 @@
   transform: translateY(-50%) translateX(4px);
   padding: 8px 12px;
   border-radius: 7px;
-  background: rgb(93, 93, 93);
+  /* background: rgb(152, 166, 184); */
+	background: rgb(160, 177, 198);
   color: #f8fafc;
   font-size: 13px;
   line-height: 1;

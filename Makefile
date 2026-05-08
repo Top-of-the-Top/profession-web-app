@@ -3,7 +3,7 @@ BACKEND    = $(COMPOSE) exec backend
 MANAGE     = $(BACKEND) python3 manage.py
 CELERY_SVC = celery_worker
 APP        ?=
-PATH       ?= apps
+DIR        ?= apps
 ARGS       ?=
 
 .PHONY: help
@@ -61,8 +61,8 @@ makemigrations: ## Создать миграции
 
 .PHONY: startapp
 startapp: ## Создать новое Django app
-	@if [ -z "$(APP)" ]; then echo "Usage: make startapp APP=<app_name> [PATH=apps]"; exit 1; fi
-	$(MANAGE) startapp $(APP) $(PATH)/$(APP)
+	@if [ -z "$(APP)" ]; then echo "Usage: make startapp APP=<app_name> [DIR=apps]"; exit 1; fi
+	$(MANAGE) startapp $(APP) $(DIR)/$(APP)
 
 .PHONY: createsuperuser
 createsuperuser: ## Создать суперпользователя

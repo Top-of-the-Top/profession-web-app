@@ -1,7 +1,7 @@
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 
-from ...models import Course, Homework, Lesson, Section
+from ...models import Homework, Lesson, Section
 
 
 def lesson_queryset_for_course(course_slug, include_drafts=False):
@@ -16,7 +16,6 @@ def lesson_queryset_for_course(course_slug, include_drafts=False):
         qs = qs.filter(
             type=Lesson.PUBLISHED_STATUS,
             section__type=Section.PUBLISHED_STATUS,
-            section__course__type=Course.PUBLISHED_STATUS,
         )
     return qs.prefetch_related(
         Prefetch("homework_set", queryset=hw_qs),
@@ -38,7 +37,6 @@ def homework_queryset_for_lesson(course_slug, lesson_slug, include_drafts=False)
             type=Homework.PUBLISHED_STATUS,
             lesson__type=Lesson.PUBLISHED_STATUS,
             lesson__section__type=Section.PUBLISHED_STATUS,
-            lesson__section__course__type=Course.PUBLISHED_STATUS,
         )
     return qs.order_by("homework_number")
 

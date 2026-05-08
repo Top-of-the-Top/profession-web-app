@@ -24,18 +24,31 @@ from ..models import (
 from .permissions import filter_homework_queryset_for_visibility
 
 
+class CourseAuthorSerializer(serializers.ModelSerializer):
+    email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ("id", "first_name", "last_name", "email")
+
+    def get_email(self, obj):
+        from apps.users.api.utils.crypto_utils import decrypt_data
+
+        if obj.email_cipher:
+            return decrypt_data(obj.email_cipher)
+        return None
+
+
 class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
     asset_roles = ["course_cover"]
 
     cover_asset_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
-    authors = serializers.PrimaryKeyRelatedField(
-        many=True, read_only=False, required=False, queryset=User.objects.all()
-    )
+    authors = CourseAuthorSerializer(many=True, read_only=True)
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
-        exclude = ("image",)
+        exclude = ("image", "is_deleted", "kinescope_folder_id", "yandex_vs_id")
         read_only_fields = ("course_id", "created_at", "updated_at", "last_modified_by")
 
     def get_image_url(self, obj):
@@ -208,9 +221,6 @@ class CourseHomeSerializer(serializers.Serializer):
             return SectionWithLessonsAndTypeSerializer(
                 sections, many=True, context=child_context
             ).data
-
-        if obj.type != Course.PUBLISHED_STATUS:
-            return []
 
         lesson_qs = Lesson.objects.filter(type=Lesson.PUBLISHED_STATUS).order_by("lesson_number")
         sections = (

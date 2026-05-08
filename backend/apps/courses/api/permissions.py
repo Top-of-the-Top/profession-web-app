@@ -38,7 +38,6 @@ def course_content_visibility(user, course):
 def published_lesson_hierarchy_q(lesson_field_prefix="lesson__"):
     return Q(
         **{
-            f"{lesson_field_prefix}section__course__type": Course.PUBLISHED_STATUS,
             f"{lesson_field_prefix}section__type": Section.PUBLISHED_STATUS,
             f"{lesson_field_prefix}type": Lesson.PUBLISHED_STATUS,
         }

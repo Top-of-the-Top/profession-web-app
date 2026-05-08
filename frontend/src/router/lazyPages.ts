@@ -32,6 +32,8 @@ const importMap = {
   statistics: () => import('@pages/statistics/ui/StatisticsPage'),
   statisticsStudentCard: () =>
     import('@pages/statisticsStudentCard/ui/StatisticsStudentCardPage'),
+  adminPanel: () => import('@pages/adminPanel/ui/AdminPanelPage'),
+  teacherRegister: () => import('@pages/teacherRegister/ui/TeacherRegisterPage'),
 };
 
 export const LandingPage = lazy(importMap.landing);
@@ -62,6 +64,8 @@ export const MyHomeworksPage = lazy(importMap.myHomeworks);
 export const SchedulePage = lazy(importMap.schedule);
 export const StatisticsPage = lazy(importMap.statistics);
 export const StatisticsStudentCardPage = lazy(importMap.statisticsStudentCard);
+export const AdminPanelPage = lazy(importMap.adminPanel);
+export const TeacherRegisterPage = lazy(importMap.teacherRegister);
 
 export function runWhenIdle(fn: () => void, timeoutMs = 2500): void {
   if (typeof requestIdleCallback === 'function') {
@@ -110,6 +114,10 @@ export function prefetchAppSidebarHref(href: string): void {
   }
   if (href === '/app/statistics') {
     void importMap.statistics();
+    return;
+  }
+  if (href === '/app/admin') {
+    void importMap.adminPanel();
     return;
   }
 }

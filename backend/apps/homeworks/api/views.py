@@ -96,8 +96,6 @@ class HomeworkAttemptView(APIView):
 
 
 def _build_my_attempts(user, homework_filter):
-    # homework_filter содержит фильтры вида {'lesson': ..} или {'lesson__section__course': ..}
-    # Переводим фильтры с prefix 'homework__' на прямые поля Homework
     hw_filter = {
         k.replace("homework__", "", 1) if k.startswith("homework__") else k: v
         for k, v in homework_filter.items()
@@ -145,13 +143,8 @@ class StudentAttemptsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Мои домашки / попытки студентов",
-        description=(
-            "Оба параметра опциональны. "
-            "Без параметров — все попытки по всем курсам. "
-            "С `course_slug` — по курсу. С `course_slug` + `lesson_slug` — по уроку. "
-            "Студент получает `my_attempts`, преподаватель/модератор — `student_attempts`."
-        ),
+        summary="Мои домашние задания.",
+        description=("Все попытки пользователей по "),
         tags=["Home"],
         parameters=[
             OpenApiParameter(
@@ -266,7 +259,7 @@ class AttemptDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Получить попытку студента для проверки",
+        summary="Получить попытку студента по выполнению домашнего задания",
         description=(
             "Возвращает попытку с ответами на все вопросы и задания. "
             "Вопросы (type=question) содержат статус автопроверки. "

@@ -1,0 +1,566 @@
+.page {
+  min-height: 100%;
+}
+
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pageTitle {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1d2939;
+  margin: 0;
+}
+
+/* ── Tab bar ── */
+.tabBar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #e4e7ec;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #667085;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  border-radius: 8px 8px 0 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.tabBtn:hover {
+  color: #1d2939;
+  background: #f9fafb;
+}
+
+.tabBtnActive {
+  color: #211c84;
+  border-bottom-color: #211c84;
+  background: transparent;
+}
+
+/* ── Tab content ── */
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Action row ── */
+.actionRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.inviteFormRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ── Buttons ── */
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  background: #211c84;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #1a1568;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  background: transparent;
+  color: #344054;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btnSecondary:hover {
+  background: #f9fafb;
+}
+
+/* ── Icon buttons ── */
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e4e7ec;
+  border-radius: 7px;
+  background: #fff;
+  color: #667085;
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s, border-color 0.13s;
+}
+
+.iconBtn:hover {
+  background: #f9fafb;
+  color: #1d2939;
+}
+
+.iconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.iconBtnGreen {
+  color: #3BC531;
+  border-color: #E0F3DF;
+}
+
+.iconBtnGreen:hover {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.iconBtnOrange {
+  color: #b54708;
+  border-color: #fec84b;
+}
+
+.iconBtnOrange:hover {
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.iconBtnBlue {
+  color: #211c84;
+  border-color: #c7d7fd;
+}
+
+.iconBtnBlue:hover {
+  background: #eef1fa;
+  color: #211c84;
+}
+
+.iconBtnRed {
+  color: #b42318;
+  border-color: #fecdca;
+}
+
+.iconBtnRed:hover {
+  background: #fff4f2;
+  color: #b42318;
+}
+
+.publishToggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 24px;
+  border-radius: 9999px;
+  border: none;
+  background: #e1e1e1c2;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.publishToggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.publishToggleOn {
+  background: #9fdd9c	;
+}
+
+.publishToggleThumb {
+  position: absolute;
+  left: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  color: #667085;
+  transition: left 0.2s, color 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.publishToggleOn .publishToggleThumb {
+  left: calc(100% - 21px);
+  color: #027a48;
+}
+
+/* ── Form card ── */
+.formCard {
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1d2939;
+  margin: 0;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.formLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #344054;
+}
+
+
+.formLabelFull {
+  grid-column: 1 / -1;
+}
+
+.formInput {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: #1d2939;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.formInput:focus {
+  border-color: #211c84;
+}
+
+.formTextarea {
+  padding: 8px 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: #1d2939;
+  background: #fff;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+
+.formTextarea:focus {
+  border-color: #211c84;
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Table ── */
+.tableWrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #e4e7ec;
+  background: #fff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #667085;
+  background: #f9fafb;
+  border-bottom: 1px solid #e4e7ec;
+  white-space: nowrap;
+}
+
+.tr {}
+
+.td {
+  padding: 12px 16px;
+  color: #1d2939;
+  border-bottom: 1px solid #f2f4f7;
+  vertical-align: middle;
+}
+
+.tdMono {
+  padding: 12px 16px;
+  color: #667085;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #f2f4f7;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.thStatus {
+  width: 140px;
+  min-width: 140px;
+}
+
+.tdNum {
+  padding: 12px 16px;
+  color: #1d2939;
+  font-weight: 500;
+  border-bottom: 1px solid #f2f4f7;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.tdActions {
+  padding: 10px 16px;
+  border-bottom: 1px solid #f2f4f7;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.tdActionsInner {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.emptyCell {
+  padding: 32px 16px;
+  text-align: center;
+  color: #98a2b3;
+  font-size: 0.9375rem;
+}
+
+/* ── Course cell ── */
+.courseTitle {
+  font-weight: 600;
+  color: #1d2939;
+}
+
+.courseSubtitle {
+  font-size: 0.8125rem;
+  color: #667085;
+  margin-top: 2px;
+}
+
+/* ── Authors ── */
+.authorsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.authorChip {
+  padding: 2px 8px;
+  background: #eef1fa;
+  color: #211c84;
+  border-radius: 100px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.noAuthors {
+  color: #98a2b3;
+  font-size: 0.875rem;
+}
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 100px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badgeGreen {
+  background: #E0F3DF;
+  color: #3BC531;
+}
+
+.badgeGray {
+  background: #f2f4f7;
+  color: #667085;
+}
+
+.badgeBlue {
+  background: #eef1fa;
+  color: #211c84;
+}
+
+/* ── Expanded row ── */
+.expandedCell {
+  padding: 0;
+  background: #f9fafb;
+  border-bottom: 1px solid #e4e7ec;
+}
+
+.expandedForm {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Manage authors panel ── */
+.managePanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.managePanelTitle {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1d2939;
+}
+
+.closeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.13s;
+}
+
+.closeBtn:hover {
+  background: #e4e7ec;
+  color: #1d2939;
+}
+
+.teacherManageList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.teacherManageRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+}
+
+.teacherManageInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.teacherName {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #1d2939;
+}
+
+.teacherEmail {
+  font-size: 0.8125rem;
+  color: #667085;
+}
+
+/* ── Filter input (reused in invites) ── */
+.filterInput {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: #1d2939;
+  background: #fff;
+  min-width: 260px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.filterInput:focus {
+  border-color: #211c84;
+}
+
+/* ── Utils ── */
+.centered {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.errorMsg {
+  padding: 20px;
+  color: #d92d20;
+  background: #fff4f2;
+  border: 1px solid #fecdca;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+}
+
+.emptyMsg {
+  color: #98a2b3;
+  font-size: 0.9375rem;
+  padding: 12px 0;
+}

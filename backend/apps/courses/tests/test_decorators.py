@@ -115,8 +115,9 @@ class RequireModeratorUnitTest(SimpleTestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
-class RequireCourseAuthorUnitTest(SimpleTestCase):
+class RequireCourseAuthorUnitTest(BaseTestCase):
     def setUp(self):
+        super().setUp()
         self.factory = APIRequestFactory()
 
     def test_decorator_allows_moderator(self):
@@ -128,11 +129,13 @@ class RequireCourseAuthorUnitTest(SimpleTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_decorator_blocks_non_teacher(self):
+        course = create_test_course()
         test_view = create_test_view_with_decorator(require_course_author)
         mock_user = create_mock_user(is_moderator=False, is_teacher=False)
+        mock_user.is_course_author = MagicMock(return_value=False)
         request = create_authenticated_request(self.factory, user=mock_user)
 
-        response = test_view(request, course_id=1)
+        response = test_view(request, course_id=course.course_id)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_decorator_requires_course_id(self):

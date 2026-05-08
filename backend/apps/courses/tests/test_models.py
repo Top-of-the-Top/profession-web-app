@@ -82,11 +82,9 @@ def publish_course_tree(course):
 
 class BaseTestCase(TestCase):
     CELERY_TASKS_TO_MOCK = [
-        "apps.courses.signals.send_course_notification.delay",
-        "apps.courses.signals.send_course_notification.apply_async",
-        "apps.courses.signals.send_personal_notification.delay",
-        "apps.courses.signals.send_mass_course_email.delay",
-        "apps.courses.signals.send_mass_course_email.apply_async",
+        "apps.notifications.dispatcher.dispatcher.dispatch",
+        "apps.notifications.tasks.send_course_notification.apply_async",
+        "apps.notifications.tasks.send_mass_course_email.apply_async",
     ]
 
     def setUp(self):

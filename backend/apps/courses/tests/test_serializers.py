@@ -60,7 +60,7 @@ class CourseDTOSerializerUnitTest(SimpleTestCase):
         serializer = CourseDTOSerializer()
         fields = list(serializer.fields.keys())
 
-        expected_fields = ["course_id", "title", "sub_title", "image_url", "slug"]
+        expected_fields = ["course_id", "title", "sub_title", "image_url", "slug", "price"]
         self.assertEqual(sorted(fields), sorted(expected_fields))
 
     def test_dto_image_url_is_read_only(self):
@@ -231,8 +231,8 @@ class CourseDTOSerializerIntegrationTest(BaseTestCase):
         self.assertEqual(data["sub_title"], "Learn Django")
         self.assertIn("image_url", data)
         self.assertIn("slug", data)
-        self.assertNotIn("price", data)
-
+        self.assertIn("price", data)
+        self.assertEqual(data["price"], 8000)
         self.assertNotIn("description", data)
 
     def test_serialize_multiple_courses(self):
@@ -308,7 +308,7 @@ class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
 
         self.assertIn("title", data["course"])
         self.assertIn("slug", data["course"])
-        self.assertNotIn("price", data["course"])
+        self.assertIn("price", data["course"])
         self.assertNotIn("description", data["course"])
 
 

@@ -9,6 +9,7 @@ from apps.homeworks.services.errors import (
     ReviewItemNotFound,
     ReviewPointsExceeded,
 )
+from apps.homeworks.services.review_notify import schedule_attempt_reviewed_notification
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,7 @@ class ReviewService:
             attempt.reviewed_at = timezone.now()
             attempt.save(update_fields=["grade", "status", "reviewed_by", "reviewed_at"])
 
+        schedule_attempt_reviewed_notification(attempt.attempt_id)
         attempt.refresh_from_db()
         return attempt
 

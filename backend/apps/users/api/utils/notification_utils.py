@@ -54,6 +54,25 @@ def send_reset_password_email(email, recover_url):
         return False, f"Ошибка отправки: {str(e)}"
 
 
+def send_teacher_invite_email(email, invite_url):
+    try:
+        send_mail(
+            subject="Приглашение преподавателя",
+            message=(
+                f"Вас пригласили в качестве преподавателя на платформу Профессия.\n\n"
+                f"Зарегистрируйтесь по ссылке (действует 3 дней):\n{invite_url}"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        return True, "Письмо отправлено"
+
+    except Exception as e:
+        logger.exception("Не удалось отправить инвайт на %s", email)
+        return False, f"Ошибка отправки: {str(e)}"
+
+
 def send_reset_password_sms(phone_number, reset_code):
     try:
         send_sms(

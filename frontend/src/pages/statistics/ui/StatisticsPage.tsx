@@ -48,18 +48,19 @@ function useSortState<K extends string>(initial: K) {
 }
 
 function SortTh<K extends string>({
-  label, sortKey, current, dir, onSort,
+  label, sortKey, current, dir, onSort, extraClass,
 }: {
   label: string;
   sortKey: K;
   current: K;
   dir: SortDir;
   onSort: (k: K) => void;
+  extraClass?: string;
 }) {
   const active = sortKey === current;
   return (
     <th
-      className={cn(styles.th, styles.thSortable, active && styles.thActive)}
+      className={cn(styles.th, styles.thSortable, active && styles.thActive, extraClass)}
       onClick={() => onSort(sortKey)}
     >
       {label}
@@ -73,13 +74,11 @@ function NumCellWithPopup({
   total,
   users,
   popupAlign = 'left',
-  showFraction = false,
 }: {
   count: number;
   total: number;
   users: UserBrief[];
   popupAlign?: 'left' | 'right';
-  showFraction?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -89,9 +88,9 @@ function NumCellWithPopup({
       onMouseLeave={() => setOpen(false)}
     >
       <span className={styles.numCellCount}>
-        {showFraction ? `${count} / ${total}` : count}
+        {count} <span className={styles.fractionSlash}>/</span> {total}
       </span>
-      {!showFraction && total > 0 && (
+      {total > 0 && (
         <span className={styles.subPct}>
           {` (${Math.round((count / total) * 100)}%)`}
         </span>
@@ -165,11 +164,11 @@ function WebinarsTab({ isModerator }: { isModerator: boolean }) {
               <tr>
                 <SortTh label="Курс" sortKey="course_title" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
                 <SortTh label="Урок" sortKey="lesson_title" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
-                <SortTh label="Начало" sortKey="started_at" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
-                <SortTh label="Конец" sortKey="ended_at" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
-                <th className={styles.th}>Заходили</th>
-                <th className={styles.th}>Досмотрели 70%</th>
-                <th className={styles.th}>Сдали ДЗ</th>
+                <SortTh label="Начало" sortKey="started_at" current={sort.key} dir={sort.dir} onSort={sort.toggle} extraClass={styles.thCenter} />
+                <SortTh label="Конец" sortKey="ended_at" current={sort.key} dir={sort.dir} onSort={sort.toggle} extraClass={styles.thCenter} />
+                <th className={cn(styles.th, styles.thCenter)}>Заходили</th>
+                <th className={cn(styles.th, styles.thCenter)}>Досмотрели 70%</th>
+                <th className={cn(styles.th, styles.thRight)}>Сдали ДЗ</th>
               </tr>
             </thead>
             <tbody>
@@ -182,15 +181,15 @@ function WebinarsTab({ isModerator }: { isModerator: boolean }) {
                   <tr key={w.webinar_id} className={styles.tr}>
                     <td className={styles.td}>{w.course_title}</td>
                     <td className={styles.td}>{w.lesson_title}</td>
-                    <td className={styles.tdMono}>{formatDateShort(w.started_at)}</td>
-                    <td className={styles.tdMono}>{formatDateShort(w.ended_at)}</td>
-                    <td className={styles.tdNum}>
-                      <NumCellWithPopup count={w.attended_any} total={w.attended_total} users={w.attended_any_users} showFraction />
+                    <td className={cn(styles.tdMono, styles.tdCenter)}><span className={styles.dateCell}>{formatDateShort(w.started_at)}</span></td>
+                    <td className={cn(styles.tdMono, styles.tdCenter)}><span className={styles.dateCell}>{formatDateShort(w.ended_at)}</span></td>
+                    <td className={cn(styles.tdNum, styles.tdCenter)}>
+                      <NumCellWithPopup count={w.attended_any} total={w.attended_total} users={w.attended_any_users} />
                     </td>
-                    <td className={styles.tdNum}>
-                      <NumCellWithPopup count={w.attended_threshold} total={w.attended_total} users={w.attended_threshold_users} showFraction />
+                    <td className={cn(styles.tdNum, styles.tdCenter)}>
+                      <NumCellWithPopup count={w.attended_threshold} total={w.attended_total} users={w.attended_threshold_users} />
                     </td>
-                    <td className={styles.tdNum}>
+                    <td className={cn(styles.tdNum, styles.tdRight)}>
                       <NumCellWithPopup count={w.homework_submitted_count} total={w.attended_total} users={w.homework_submitted_users} popupAlign="right" />
                     </td>
                   </tr>

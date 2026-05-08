@@ -104,12 +104,7 @@ class RegisterView(APIView):
     @extend_schema(
         summary="Регистрация пользователя",
         description=(
-            "Двухэтапная регистрация. "
-            "Передайте email или phone_number с password. "
-            "На указанный контакт отправляется 6 значный код. "
-            "Для завершения отправьте код на /api/auth/register/verify/.\n\n"
-            "**403**: без контактов — объект с **detail**. "
-            "При ошибках вложенной валидации тело может быть **{ поле: [сообщения] }**, как у DRF."
+            "Двухэтапная регистрация пользователя с подтверждением почты и номера телефона."
         ),
         tags=["Users"],
         request=RegisterSerializer,
@@ -192,13 +187,7 @@ class VerifyRegisterView(APIView):
 
     @extend_schema(
         summary="Подтверждение регистрации",
-        description=(
-            "Второй шаг регистрации. "
-            "Передайте phone_number или email и 6 значный код. "
-            "При успехе создаётся аккаунт и возвращаются JWT токены.\n\n"
-            "Ответ **400**: либо стандартные ошибки полей DRF ({field: [msg]}), "
-            'либо при неверном коде объект **{ "error", "detail" }**.'
-        ),
+        description=("Проверка кода подтверждения, отправленного на почту или телефон."),
         tags=["Users"],
         request=VerifyRegisterSerializer,
         responses={
@@ -415,11 +404,7 @@ class RecoverPasswordView(APIView):
 
     @extend_schema(
         summary="Установка нового пароля",
-        description=(
-            "Завершение сброса пароля. "
-            "При успехе возвращаются JWT токены. "
-            "**password_hash**: тело содержит новый пароль (plain); имя поля историческое."
-        ),
+        description=("Завершение сброса пароля. " "При успехе возвращаются JWT токены. "),
         tags=["Users"],
         request=RecoverPasswordRequestSerializer,
         responses={
@@ -538,16 +523,7 @@ class ProfileView(APIView):
 
     @extend_schema(
         summary="Обновление профиля",
-        description=(
-            "Частичное обновление профиля. "
-            "**gender**: на вход можно передать М, Ж, Мужской или Женский; в БД хранится короткая форма (М/Ж). "
-            "**avatar_asset_id** — единое поле для управления фото профиля в этой же ручке PATCH /api/profile/: "
-            "передайте UUID ассета после успешной загрузки и `ready` на /api/uploads/…, "
-            "или передайте `null`, чтобы удалить текущий аватар.\n\n"
-            "**400**: ошибки валидации DRF (**{поле:[…]}**) или ошибка при привязке аватара в форме "
-            "**{status, code, message, details}**. "
-            "**403 / 404 / 409 / 503** возможны только при ошибке bind ассета (с тем же телом ошибки)."
-        ),
+        description=("Частичное обновление профиля пользователя."),
         tags=["Users"],
         request=UpdateProfileSerializer,
         responses={

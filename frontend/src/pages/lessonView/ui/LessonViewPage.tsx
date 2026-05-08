@@ -837,27 +837,41 @@ export default function LessonViewPage() {
   const [liveWebinarStatus, setLiveWebinarStatus] = useState<WebinarStatus | null>(
     lessonDetail?.webinar_status ?? null,
   );
+  const [liveScheduledAt, setLiveScheduledAt] = useState<string | null>(
+    lessonDetail?.scheduled_at ?? null,
+  );
 
   useEffect(() => {
     setLiveWebinarStatus(lessonDetail?.webinar_status ?? null);
   }, [lessonDetail?.webinar_status]);
-
-  const refetchLesson = lessonQuery.refetch;
+  useEffect(() => {
+    setLiveScheduledAt(lessonDetail?.scheduled_at ?? null);
+  }, [lessonDetail?.scheduled_at]);
   useEffect(() => {
     if (!webinarId) return;
     return connectWebinarSSE({
       webinarId,
       onEvent: (event) => {
-        if (event.type === 'webinar_started') {
+        if (event.type === 'webinar_started' || event.type === 'webinar_start') {
           setLiveWebinarStatus('live');
-          void refetchLesson();
-        } else if (event.type === 'webinar_ended') {
+          return;
+        }
+        if (event.type === 'webinar_ended' || event.type === 'webinar_end') {
           setLiveWebinarStatus('ended');
-          void refetchLesson();
+          return;
+        }
+        if (
+          event.type === 'webinar_scheduled' ||
+          event.type === 'webinar_schedule_changed'
+        ) {
+          setLiveScheduledAt(event.scheduled_at ?? null);
+          setLiveWebinarStatus((prev) =>
+            prev === 'live' ? prev : event.scheduled_at ? 'pending' : null,
+          );
         }
       },
     });
-  }, [webinarId, refetchLesson]);
+  }, [webinarId]);
 
   const courseTitle =
     lessonDetail?.course_title
@@ -1083,8 +1097,8 @@ export default function LessonViewPage() {
         <aside className={styles.sidebar}>
           {(liveWebinarStatus === null ||
             liveWebinarStatus === 'pending') &&
-            lessonDetail.scheduled_at && (
-              <TimerWidget targetIso={lessonDetail.scheduled_at} />
+            liveScheduledAt && (
+              <TimerWidget targetIso={liveScheduledAt} />
             )}
           <WebinarWidget
             courseSlug={courseSlug ?? ''}
@@ -1102,7 +1116,7 @@ export default function LessonViewPage() {
             <WebinarScheduleWidget
               courseSlug={courseSlug ?? ''}
               lessonSlug={lessonSlug ?? ''}
-              scheduledAt={lessonDetail.scheduled_at}
+              scheduledAt={liveScheduledAt}
             />
           )}
           <HomeworkWidget

@@ -18,10 +18,36 @@ export type WebinarSseEvent =
       webinar_id: string;
       course_slug: string;
       lesson_slug: string;
+      started_at?: string;
+    }
+  | {
+      type: 'webinar_start';
+      webinar_id: string;
+      course_slug?: string;
+      lesson_slug?: string;
+      started_at?: string;
     }
   | {
       type: 'webinar_ended';
       webinar_id: string;
+    }
+  | {
+      type: 'webinar_end';
+      webinar_id: string;
+    }
+  | {
+      type: 'webinar_scheduled';
+      webinar_id: string;
+      course_slug?: string;
+      lesson_slug?: string;
+      scheduled_at: string | null;
+    }
+  | {
+      type: 'webinar_schedule_changed';
+      webinar_id: string;
+      course_slug?: string;
+      lesson_slug?: string;
+      scheduled_at: string | null;
     };
 
 interface ConnectWebinarSseParams {
@@ -55,28 +81,40 @@ function buildSseUrl(webinarId: string): string | null {
 
 function parseWebinarEvent(raw: string): WebinarSseEvent | null {
   try {
-    const payload = JSON.parse(raw) as WebinarSseEvent;
+    const payload = JSON.parse(raw) as Record<string, unknown>;
     if (
       payload &&
       typeof payload === 'object' &&
       typeof payload.type === 'string' &&
       typeof payload.webinar_id === 'string'
     ) {
-      if (payload.type === 'recording_started' && 'recording_id' in payload) {
-        return payload;
+      if (payload.type === 'recording_started' && typeof payload.recording_id === 'string') {
+        return payload as WebinarSseEvent;
       }
-      if (payload.type === 'recording_stopped' && 'recording_id' in payload) {
-        return payload;
+      if (payload.type === 'recording_stopped' && typeof payload.recording_id === 'string') {
+        return payload as WebinarSseEvent;
       }
       if (
         payload.type === 'webinar_started' &&
-        'course_slug' in payload &&
-        'lesson_slug' in payload
+        typeof payload.course_slug === 'string' &&
+        typeof payload.lesson_slug === 'string'
       ) {
-        return payload;
+        return payload as WebinarSseEvent;
+      }
+      if (payload.type === 'webinar_start') {
+        return payload as WebinarSseEvent;
       }
       if (payload.type === 'webinar_ended') {
-        return payload;
+        return payload as WebinarSseEvent;
+      }
+      if (payload.type === 'webinar_end') {
+        return payload as WebinarSseEvent;
+      }
+      if (payload.type === 'webinar_scheduled' && 'scheduled_at' in payload) {
+        return payload as WebinarSseEvent;
+      }
+      if (payload.type === 'webinar_schedule_changed' && 'scheduled_at' in payload) {
+        return payload as WebinarSseEvent;
       }
     }
     return null;

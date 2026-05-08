@@ -145,7 +145,7 @@ class CourseListView(APIView):
     def post(self, request):
         serializer = CourseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(last_modified_by=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -206,7 +206,7 @@ class CourseDetailView(APIView):
         course = get_object_or_404(Course, slug=slug, is_deleted=False)
         serializer = CourseSerializer(course, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(last_modified_by=request.user)
         return Response(serializer.data)
 
     @extend_schema(

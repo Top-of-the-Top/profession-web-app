@@ -727,6 +727,7 @@ export function useSubmitHomeworkAttempt(
 export function useReviewHomeworkAttempt(
   courseSlug: string,
   attemptId: string,
+  lessonSlug?: string,
 ) {
   const qc = useQueryClient();
   return useMutation({
@@ -740,7 +741,11 @@ export function useReviewHomeworkAttempt(
       void qc.invalidateQueries({
         queryKey: courseKeys.homeworkAttemptsByCourse(courseSlug),
       });
-      void qc.invalidateQueries({ queryKey: courseKeys.all });
+      if (lessonSlug) {
+        void qc.invalidateQueries({
+          queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+        });
+      }
     },
     onError: (err) => {
       notifyError({

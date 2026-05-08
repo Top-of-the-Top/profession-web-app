@@ -30,7 +30,7 @@ export function useRecordingHeartbeat({
       apiClient
         .request<void>(`/api/statistics/recordings/${recordingId}/view/heartbeat/`, {
           method: 'POST',
-          body: JSON.stringify({ current_time: Math.floor(currentTime) }),
+          body: JSON.stringify({ current_position: Math.floor(currentTime) }),
         })
         .catch(() => {});
     };
@@ -66,6 +66,7 @@ export function useRecordingHeartbeat({
 
         player.on(player.Events.Play, () => {
           isPlayingRef.current = true;
+          sendHeartbeat(currentTimeRef.current);
           startInterval();
         });
 

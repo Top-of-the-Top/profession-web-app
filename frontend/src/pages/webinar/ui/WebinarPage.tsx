@@ -72,6 +72,7 @@ export default function WebinarPage() {
   const handleToggleChat = useCallback(() => setIsChatOpen((v) => !v), []);
 
   const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null);
+  const [webinarStartedAt, setWebinarStartedAt] = useState<string | null>(null);
   const [recorderBotInChannel, setRecorderBotInChannel] = useState(false);
   const [awaitingRecorderBot, setAwaitingRecorderBot] = useState(false);
   const [awaitingRecordingSessionEnd, setAwaitingRecordingSessionEnd] =
@@ -100,6 +101,10 @@ export default function WebinarPage() {
   const studentRecordingVisible = recordingBroadcastLive;
   const recordingSessionActive =
     !!activeRecordingId || recorderBotInChannel || awaitingRecorderBot;
+
+  useEffect(() => {
+    setWebinarStartedAt(session?.started_at ?? null);
+  }, [session?.started_at]);
 
   useEffect(() => {
     recorderBotInChannelRef.current = recorderBotInChannel;
@@ -293,7 +298,14 @@ export default function WebinarPage() {
           }
           return;
         }
-        if (event.type === 'webinar_ended') {
+        if (event.type === 'webinar_started' || event.type === 'webinar_start') {
+          if ('started_at' in event && typeof event.started_at === 'string') {
+            setWebinarStartedAt(event.started_at);
+          }
+          return;
+        }
+        if (event.type === 'webinar_ended' || event.type === 'webinar_end') {
+          setWebinarStartedAt(null);
           navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
         }
       },
@@ -449,6 +461,7 @@ export default function WebinarPage() {
         stopWebinarPending={
           isFinishing || stopWebinar.isPending || uploadFinalPdf.isPending
         }
+        webinarStartedAt={webinarStartedAt}
         onToggleMic={toggleMic}
         onToggleCamera={toggleCamera}
         onToggleChat={handleToggleChat}

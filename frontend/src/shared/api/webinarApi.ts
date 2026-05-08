@@ -16,6 +16,7 @@ export interface WebinarJoinResponse {
   rtm_token: string;
   chat_channel_name: string;
   webinar_id?: string;
+  started_at?: string | null;
 }
 
 export interface WebinarStartResponse {

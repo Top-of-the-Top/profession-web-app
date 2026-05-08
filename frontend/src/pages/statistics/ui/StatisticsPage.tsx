@@ -12,6 +12,7 @@ import {
   type StatStudent,
   type StatSchoolCourse,
   type StatSchoolTeacher,
+  type UserBrief,
 } from '@shared/api/queries/statistics';
 import { cn } from '@shared/lib/utils';
 import styles from './StatisticsPage.module.css';
@@ -64,6 +65,47 @@ function SortTh<K extends string>({
       {label}
       <span className={styles.sortArrow}>{active ? (dir === 'desc' ? ' ↓' : ' ↑') : ' ↕'}</span>
     </th>
+  );
+}
+
+function NumCellWithPopup({
+  count,
+  total,
+  users,
+  popupAlign = 'left',
+  showFraction = false,
+}: {
+  count: number;
+  total: number;
+  users: UserBrief[];
+  popupAlign?: 'left' | 'right';
+  showFraction?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className={styles.numCell}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <span className={styles.numCellCount}>
+        {showFraction ? `${count} / ${total}` : count}
+      </span>
+      {!showFraction && total > 0 && (
+        <span className={styles.subPct}>
+          {` (${Math.round((count / total) * 100)}%)`}
+        </span>
+      )}
+      {open && users.length > 0 && (
+        <div className={cn(styles.numPopup, popupAlign === 'right' && styles.numPopupRight)}>
+          {users.map((u) => (
+            <div key={u.user_id} className={styles.numPopupItem}>
+              {u.full_name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -125,7 +167,6 @@ function WebinarsTab({ isModerator }: { isModerator: boolean }) {
                 <SortTh label="Урок" sortKey="lesson_title" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
                 <SortTh label="Начало" sortKey="started_at" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
                 <SortTh label="Конец" sortKey="ended_at" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
-                <th className={styles.th}>Всего</th>
                 <th className={styles.th}>Заходили</th>
                 <th className={styles.th}>Досмотрели 70%</th>
                 <th className={styles.th}>Сдали ДЗ</th>
@@ -134,7 +175,7 @@ function WebinarsTab({ isModerator }: { isModerator: boolean }) {
             <tbody>
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className={styles.emptyCell}>Нет вебинаров за период</td>
+                  <td colSpan={7} className={styles.emptyCell}>Нет вебинаров за период</td>
                 </tr>
               ) : (
                 sorted.map((w) => (
@@ -143,24 +184,15 @@ function WebinarsTab({ isModerator }: { isModerator: boolean }) {
                     <td className={styles.td}>{w.lesson_title}</td>
                     <td className={styles.tdMono}>{formatDateShort(w.started_at)}</td>
                     <td className={styles.tdMono}>{formatDateShort(w.ended_at)}</td>
-                    <td className={styles.tdNum}>{w.attended_total}</td>
                     <td className={styles.tdNum}>
-                      {w.attended_any}
-                      <span className={styles.subPct}>
-                        {w.attended_total > 0
-                          ? ` (${Math.round((w.attended_any / w.attended_total) * 100)}%)`
-                          : ''}
-                      </span>
+                      <NumCellWithPopup count={w.attended_any} total={w.attended_total} users={w.attended_any_users} showFraction />
                     </td>
                     <td className={styles.tdNum}>
-                      {w.attended_threshold}
-                      <span className={styles.subPct}>
-                        {w.attended_total > 0
-                          ? ` (${Math.round((w.attended_threshold / w.attended_total) * 100)}%)`
-                          : ''}
-                      </span>
+                      <NumCellWithPopup count={w.attended_threshold} total={w.attended_total} users={w.attended_threshold_users} showFraction />
                     </td>
-                    <td className={styles.tdNum}>{w.homework_submitted_count}</td>
+                    <td className={styles.tdNum}>
+                      <NumCellWithPopup count={w.homework_submitted_count} total={w.attended_total} users={w.homework_submitted_users} popupAlign="right" />
+                    </td>
                   </tr>
                 ))
               )}
@@ -407,12 +439,12 @@ function SchoolTeachersTab() {
 type Tab = 'webinars' | 'students' | 'school-courses' | 'school-teachers';
 
 const TABS_TEACHER: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: 'webinars', label: 'Вебинары', icon: BarChart2 },
+  { id: 'webinars', label: 'Уроки', icon: BarChart2 },
   { id: 'students', label: 'Студенты', icon: Users },
 ];
 
 const TABS_MODERATOR: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: 'webinars', label: 'Вебинары', icon: BarChart2 },
+  { id: 'webinars', label: 'Уроки', icon: BarChart2 },
   { id: 'students', label: 'Студенты', icon: Users },
   { id: 'school-courses', label: 'Курсы школы', icon: BookOpen },
   { id: 'school-teachers', label: 'Преподаватели', icon: GraduationCap },

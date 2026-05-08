@@ -12,6 +12,11 @@ export const statsKeys = {
   schoolTeachers: () => ['statistics', 'school', 'teachers'] as const,
 };
 
+export interface UserBrief {
+  user_id: number;
+  full_name: string;
+}
+
 export interface StatWebinar {
   webinar_id: string;
   course_title: string;
@@ -23,6 +28,9 @@ export interface StatWebinar {
   attended_any: number;
   attended_threshold: number;
   homework_submitted_count: number;
+  attended_any_users: UserBrief[];
+  attended_threshold_users: UserBrief[];
+  homework_submitted_users: UserBrief[];
 }
 
 export interface StatStudentCourse {

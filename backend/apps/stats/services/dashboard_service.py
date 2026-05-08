@@ -15,7 +15,7 @@ from apps.stats.services.progress_service import (
 logger = logging.getLogger(__name__)
 
 
-def list_webinars_table(*, requester, course_slug=None, date_from=None, date_to=None):
+def list_webinars_table(*, requester, course_title=None, date_from=None, date_to=None):
     from apps.stats.models import LessonProgress, WebinarAttendance
     from apps.stats.services.progress_service import WEBINAR_THRESHOLD
     from apps.users.models import User
@@ -105,7 +105,7 @@ def _users_brief(user_ids, users_by_id):
     return rows
 
 
-def list_students(*, requester, course_slug=None, query=None):
+def list_students(*, requester, course_title=None, query=None):
     from apps.courses.models import PurchasedCourse
     from apps.users.api.utils.crypto_utils import decrypt_data
     from apps.users.models import User

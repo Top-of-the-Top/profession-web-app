@@ -284,7 +284,7 @@ export default function WebinarPage() {
     const disconnect = connectWebinarSSE({
       webinarId,
       onEvent: (event) => {
-        if (event.type === 'recording_started') {
+        if (event.type === 'recording_started' && 'recording_id' in event) {
           setActiveRecordingId((prev) =>
             prev === event.recording_id ? prev : event.recording_id,
           );

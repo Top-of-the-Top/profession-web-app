@@ -178,11 +178,11 @@ export function normalizeCourseHomeResponse(raw: RawCourseHomeResponse): CourseH
 
   const content = contentArr.map((section) => ({
     ...section,
-    section_completed: normalizeBoolNull((section as Record<string, unknown>).section_completed),
+    section_completed: normalizeBoolNull((section as unknown as Record<string, unknown>).section_completed),
     lessons: Array.isArray(section.lessons)
       ? section.lessons.map((lesson) => ({
           ...lesson,
-          is_completed: normalizeBoolNull((lesson as Record<string, unknown>).is_completed),
+          is_completed: normalizeBoolNull((lesson as unknown as Record<string, unknown>).is_completed),
         }))
       : [],
   }));

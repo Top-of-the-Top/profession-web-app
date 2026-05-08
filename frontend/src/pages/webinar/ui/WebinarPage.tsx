@@ -247,12 +247,10 @@ export default function WebinarPage() {
     setIsExitWithoutRecordingDialogOpen(false);
   }, [isFinishing]);
 
-  const webinarIdFromMeta =
-    lessonQuery.data?.meta &&
-    typeof lessonQuery.data.meta === 'object' &&
-    typeof lessonQuery.data.meta.webinar_id === 'string'
-      ? lessonQuery.data.meta.webinar_id
-      : null;
+  const webinarIdFromMeta = (() => {
+    const m = lessonQuery.data?.meta as Record<string, unknown> | undefined;
+    return typeof m?.webinar_id === 'string' ? m.webinar_id : null;
+  })();
   const webinarId = session?.webinar_id ?? webinarIdFromMeta;
   const isStudent = session?.role === 'student';
   useWebinarHeartbeat(webinarId, !!session && isStudent);

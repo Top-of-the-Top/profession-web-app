@@ -40,6 +40,7 @@ function sectionRecordToAppSection(record: SectionRecord): AppCourseSection {
     slug: record.slug,
     lessons: [],
     type: record.type,
+    section_completed: null,
   };
 }
 
@@ -50,6 +51,7 @@ function lessonToAppLesson(lesson: Lesson): AppCourseLesson {
     title: lesson.title,
     slug: lesson.slug,
     type: lesson.type,
+    is_completed: null,
   };
 }
 
@@ -82,6 +84,7 @@ export function useCreateSection(courseSlug: string) {
             slug: undefined,
             lessons: [],
             type: 'draft',
+            section_completed: null,
           };
           return { ...old, content: [...old.content, optimistic] };
         },
@@ -277,6 +280,7 @@ export function useCreateLesson(courseSlug: string) {
                 title: payload.title,
                 slug: pendingSlug,
                 type: 'draft',
+                is_completed: null,
               };
               return {
                 ...section,

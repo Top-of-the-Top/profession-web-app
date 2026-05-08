@@ -55,6 +55,11 @@ class Webinar(TimestampedMixin):
         verbose_name="Whiteboard Room UUID",
     )
 
+    scheduled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Запланированное начало",
+    )
     started_at = models.DateTimeField(
         null=True,
         blank=True,

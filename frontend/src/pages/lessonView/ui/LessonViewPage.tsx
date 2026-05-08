@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useQueries } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Home, Clock3, Video, CircleCheck, FileDown, Trash2 } from 'lucide-react';
 import {
@@ -36,14 +35,14 @@ import {
 } from '../../../features/course-builder/lib/constants';
 import { parseLessonLayoutFromContentString } from '../../../features/course-builder/model/types';
 import type {
-  HomeworkAttemptStatus,
+  LessonMeta,
+  LessonMetaStaff,
+  LessonMetaStudent,
   LessonRecording,
   LessonHomework,
   WebinarStatus,
 } from '@shared/api/courseApi';
-import { courseApi } from '@shared/api/courseApi';
 import {
-  courseKeys,
   useCourseHomeBySlug,
   useLessonBySlug,
 } from '@shared/api/queries/courses';
@@ -59,6 +58,7 @@ import { cn } from '@shared/lib/utils';
 import { AiChatPanel } from '../../../features/ai-chat';
 import { preloadWebinarRoute } from '@router/lazyPages';
 import styles from './LessonViewPage.module.css';
+import { useRecordingHeartbeat } from './hooks/useRecordingHeartbeat';
 
 const TextBlockView: React.FC<{ html: string; fontSizeIndex?: number }> = ({
   html,
@@ -166,27 +166,6 @@ const HomeworkWidget: React.FC<{
   const visible = isTeacher
     ? homeworks
     : homeworks.filter((hw) => hw.type === 'published');
-  const attemptQueries = useQueries({
-    queries: isTeacher
-      ? []
-      : visible.map((homework) => ({
-          queryKey: courseKeys.homeworkAttempt(homework.homework_slug),
-          queryFn: () => courseApi.getHomeworkAttempt(courseSlug, homework.homework_slug),
-          staleTime: 30_000,
-        })),
-  });
-  const attemptStatuses = useMemo(() => {
-    const map = new Map<string, HomeworkAttemptStatus>();
-    if (isTeacher) return map;
-    for (let i = 0; i < visible.length; i += 1) {
-      const slug = visible[i]?.homework_slug;
-      const status = attemptQueries[i]?.data?.status;
-      if (slug && status) {
-        map.set(slug, status);
-      }
-    }
-    return map;
-  }, [attemptQueries, isTeacher, visible]);
 
   if (visible.length === 0) {
     return (
@@ -209,14 +188,12 @@ const HomeworkWidget: React.FC<{
         </span>
       </div>
       {visible.map((hw, index) => {
-        const status = attemptStatuses.get(hw.homework_slug);
-        const actionLabel = isTeacher
-          ? 'Открыть проверку'
-          : status === 'reviewed'
-            ? 'Посмотреть результат'
-            : status === 'submitted'
-              ? 'Посмотреть отправку'
-              : 'Сдать ДЗ';
+        const status = hw.attempt_status;
+        const actionLabel = status === 'reviewed'
+          ? 'Посмотреть результат'
+          : status === 'submitted'
+            ? 'Посмотреть отправку'
+            : 'Сдать ДЗ';
         return (
           <div
             key={hw.homework_id}
@@ -278,21 +255,14 @@ const HomeworkWidget: React.FC<{
                 Дедлайн: {formatDeadline(hw.deadline)}
               </p>
             )}
-            <Link
-              to={
-                isTeacher
-                  ? `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}/review`
-                  : `/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`
-              }
-              state={
-                isTeacher
-                  ? homeworkReviewNavigateState(`/app/courses/${courseSlug}/${lessonSlug}`)
-                  : undefined
-              }
-              className={styles.homeworkButton}
-            >
-              {actionLabel}
-            </Link>
+            {!isTeacher && (
+              <Link
+                to={`/app/courses/${courseSlug}/${lessonSlug}/homework/${encodeURIComponent(hw.homework_slug)}`}
+                className={styles.homeworkButton}
+              >
+                {actionLabel}
+              </Link>
+            )}
           </div>
         );
       })}
@@ -307,55 +277,90 @@ const HomeworkWidget: React.FC<{
   );
 };
 
-const ProgressWidget: React.FC = () => {
-  const passedLessons = { done: 12, total: 24 };
-  const submittedHomeworks = { done: 8, total: 11 };
-
-  const passedPct = Math.round(
-    (passedLessons.done / passedLessons.total) * 100
-  );
-  const submittedPct = Math.round(
-    (submittedHomeworks.done / submittedHomeworks.total) * 100
-  );
-
-  return (
-    <div className={styles.sidebarCard}>
-      <div className={styles.sidebarCardHeader}>
-        <span className={styles.progressRoundIcon}></span>
-        <span className={styles.sidebarCardTitle}>Ваш прогресс</span>
-      </div>
-
-      <div className={styles.progressSection}>
-        <div className={styles.progressHeaderRow}>
-          <span className={styles.progressHeaderLabel}>Пройдено уроков</span>
-          <span className={styles.progressHeaderValue}>
-            {passedLessons.done}/{passedLessons.total}
-          </span>
+const ProgressWidget: React.FC<{ meta: LessonMeta }> = ({ meta }) => {
+  if (meta.role === 'student') {
+    const m = meta as LessonMetaStudent;
+    const watchedPct = Math.round(m.watched_ratio * 100);
+    const hwPct = m.homeworks_total > 0
+      ? Math.round((m.homeworks_submitted / m.homeworks_total) * 100)
+      : 0;
+    return (
+      <div className={styles.sidebarCard}>
+        <div className={styles.sidebarCardHeader}>
+          <span className={styles.progressRoundIcon}></span>
+          <span className={styles.sidebarCardTitle}>Ваш прогресс</span>
         </div>
-        <div className={styles.progressBarTrack}>
-          <div
-            className={styles.progressBarFill}
-            style={{ width: `${passedPct}%` }}
-          />
+        {m.is_completed && (
+          <div className={styles.lessonCompletedBadge}>
+            <CircleCheck size={14} />
+            Урок пройден
+          </div>
+        )}
+        <div className={styles.progressSection}>
+          <div className={styles.progressHeaderRow}>
+            <span className={styles.progressHeaderLabel}>Вебинар</span>
+            <span className={styles.progressHeaderValue}>{watchedPct}%</span>
+          </div>
+          <div className={styles.progressBarTrack}>
+            <div className={styles.progressBarFill} style={{ width: `${watchedPct}%` }} />
+          </div>
         </div>
-      </div>
-
-      <div className={styles.progressSection}>
-        <div className={styles.progressHeaderRow}>
-          <span className={styles.progressHeaderLabel}>Сдано заданий</span>
-          <span className={styles.progressHeaderValue}>
-            {submittedHomeworks.done}/{submittedHomeworks.total}
-          </span>
-        </div>
-        <div className={styles.progressBarTrack}>
-          <div
-            className={styles.progressBarFill}
-            style={{ width: `${submittedPct}%` }}
-          />
+        <div className={styles.progressSection}>
+          <div className={styles.progressHeaderRow}>
+            <span className={styles.progressHeaderLabel}>ДЗ</span>
+            <span className={styles.progressHeaderValue}>
+              {m.homeworks_submitted}/{m.homeworks_total}
+            </span>
+          </div>
+          <div className={styles.progressBarTrack}>
+            <div className={styles.progressBarFill} style={{ width: `${hwPct}%` }} />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (meta.role === 'teacher_or_moderator') {
+    const m = meta as LessonMetaStaff;
+    const attendedPct = m.attended_total > 0
+      ? Math.round((m.attended_count / m.attended_total) * 100)
+      : 0;
+    const hwPct = m.homework_submitted_total > 0
+      ? Math.round((m.homework_submitted_count / m.homework_submitted_total) * 100)
+      : 0;
+    return (
+      <div className={styles.sidebarCard}>
+        <div className={styles.sidebarCardHeader}>
+          <span className={styles.progressRoundIcon}></span>
+          <span className={styles.sidebarCardTitle}>Статистика урока</span>
+        </div>
+        <div className={styles.progressSection}>
+          <div className={styles.progressHeaderRow}>
+            <span className={styles.progressHeaderLabel}>На вебинаре было</span>
+            <span className={styles.progressHeaderValue}>
+              {m.attended_count}/{m.attended_total}
+            </span>
+          </div>
+          <div className={styles.progressBarTrack}>
+            <div className={styles.progressBarFill} style={{ width: `${attendedPct}%` }} />
+          </div>
+        </div>
+        <div className={styles.progressSection}>
+          <div className={styles.progressHeaderRow}>
+            <span className={styles.progressHeaderLabel}>ДЗ сдали</span>
+            <span className={styles.progressHeaderValue}>
+              {m.homework_submitted_count}/{m.homework_submitted_total}
+            </span>
+          </div>
+          <div className={styles.progressBarTrack}>
+            <div className={styles.progressBarFill} style={{ width: `${hwPct}%` }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 };
 
 type TimerState = {
@@ -577,6 +582,7 @@ type RecordingDeleteConfirm =
 
 const LessonRecordingCard: React.FC<{
   recording: LessonRecording;
+  lessonSlug: string | undefined;
   isTeacher: boolean;
   onRequestDeletePdf: (payload: { recordingId: string; dateLabel: string }) => void;
   onRequestDeleteRecording: (payload: {
@@ -589,6 +595,7 @@ const LessonRecordingCard: React.FC<{
   onLeavingRemoveComplete?: () => void;
 }> = ({
   recording,
+  lessonSlug,
   isTeacher,
   onRequestDeletePdf,
   onRequestDeleteRecording,
@@ -598,6 +605,18 @@ const LessonRecordingCard: React.FC<{
   onLeavingRemoveComplete,
 }) => {
   const leaveExitDoneRef = useRef(false);
+  const kinescopeContainerRef = useRef<HTMLDivElement>(null);
+
+  const embedUrl =
+    !recording.kind || recording.kind !== 'whiteboard_only'
+      ? (recording.kinescope_embed_url ?? null)
+      : null;
+
+  useRecordingHeartbeat({
+    lessonSlug,
+    embedUrl,
+    containerRef: kinescopeContainerRef,
+  });
 
   useEffect(() => {
     if (!isLeaving || !onLeavingRemoveComplete) {
@@ -646,12 +665,9 @@ const LessonRecordingCard: React.FC<{
         (recording.kinescope_upload_status === 'ready' &&
         recording.kinescope_embed_url ? (
           <div className={styles.recordingIframeWrap}>
-            <iframe
-              src={recording.kinescope_embed_url}
-              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-              allowFullScreen
+            <div
+              ref={kinescopeContainerRef}
               className={styles.recordingIframe}
-              title="Запись урока"
             />
           </div>
         ) : recording.kinescope_upload_status === 'failed' ? (
@@ -679,22 +695,24 @@ const LessonRecordingCard: React.FC<{
         </div>
       )}
 
-      {isTeacher && recording.recording_id && !isWhiteboardOnly && (
+      {isTeacher && recording.recording_id && (
         <div className={styles.recordingActions}>
-          <button
-            type="button"
-            className={styles.recordingActionButton}
-            onClick={() =>
-              onRequestDeleteRecording({
-                recordingId: recording.recording_id,
-                dateLabel,
-              })
-            }
-            disabled={deleteRecordingPending || isLeaving}
-          >
-            <Trash2 size={16} />
-            {deleteRecordingPending || isLeaving ? 'Удаление...' : 'Удалить запись'}
-          </button>
+          {!isWhiteboardOnly && (
+            <button
+              type="button"
+              className={styles.recordingActionButton}
+              onClick={() =>
+                onRequestDeleteRecording({
+                  recordingId: recording.recording_id,
+                  dateLabel,
+                })
+              }
+              disabled={deleteRecordingPending || isLeaving}
+            >
+              <Trash2 size={16} />
+              {deleteRecordingPending || isLeaving ? 'Удаление...' : 'Удалить запись'}
+            </button>
+          )}
           {hasPdf && (
             <button
               type="button"
@@ -707,7 +725,7 @@ const LessonRecordingCard: React.FC<{
               }
               disabled={deletePdfPending}
             >
-              <FileDown size={16} />
+              <Trash2 size={16} />
               {deletePdfPending ? 'Удаление...' : 'Удалить PDF'}
             </button>
           )}
@@ -918,6 +936,7 @@ export default function LessonViewPage() {
                     <LessonRecordingCard
                       key={`${recording.recording_id}-${recording.started_at ?? 'recording'}`}
                       recording={recording}
+                      lessonSlug={lessonSlug}
                       isTeacher={isTeacher}
                       onRequestDeletePdf={({ recordingId, dateLabel }) => {
                         setRecordingDeleteConfirm({
@@ -979,7 +998,7 @@ export default function LessonViewPage() {
             homeworks={lessonDetail.homeworks}
             isTeacher={isTeacher}
           />
-          <ProgressWidget />
+          <ProgressWidget meta={lessonDetail.meta} />
           <AiChatPanel courseSlug={courseSlug ?? ''} />
         </aside>
       </div>

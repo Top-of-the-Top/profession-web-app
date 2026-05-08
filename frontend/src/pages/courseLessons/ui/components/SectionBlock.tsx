@@ -8,11 +8,7 @@ import {
   Input,
   Spinner,
 } from '@shared/ui';
-import type {
-  AppCourseSection,
-  CourseHomeMeta,
-  HomeworkAttemptStatus,
-} from '@shared/api/courseApi';
+import type { AppCourseSection } from '@shared/api/courseApi';
 import {
   useCreateLesson,
   useDeleteSection,
@@ -28,21 +24,10 @@ function idKey(id: number | string): string {
   return String(id);
 }
 
-function isLessonCompleted(lessonId: string, completed: string[]): boolean {
-  const key = idKey(lessonId);
-  return completed.some((c) => String(c) === key);
-}
-
-function isSectionCompleted(sectionId: string, completed: string[]): boolean {
-  return completed.some((c) => String(c) === sectionId);
-}
-
 interface SectionBlockProps {
   section: AppCourseSection;
   courseSlug: string;
   isStaff: boolean;
-  meta: CourseHomeMeta;
-  homeworkStatusByLessonSlug: Map<string, HomeworkAttemptStatus | null>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -51,8 +36,6 @@ export function SectionBlock({
   section,
   courseSlug,
   isStaff,
-  meta,
-  homeworkStatusByLessonSlug,
   open,
   onOpenChange,
 }: SectionBlockProps) {
@@ -63,10 +46,7 @@ export function SectionBlock({
   const patchSection = usePatchSection(courseSlug);
   const deleteSectionMutation = useDeleteSection(courseSlug);
   const createLesson = useCreateLesson(courseSlug);
-  const sectionDone = isSectionCompleted(
-    section.section_id,
-    meta.completed_sections_id
-  );
+  const sectionDone = section.section_completed === true;
 
   const sectionSlug = section.slug?.trim() ?? '';
   const canManageSection = Boolean(sectionSlug);
@@ -263,11 +243,7 @@ export function SectionBlock({
                   sectionNumber={section.section_number}
                   courseSlug={courseSlug}
                   isStaff={isStaff}
-                  lessonDone={isLessonCompleted(
-                    lesson.lesson_id,
-                    meta.completed_lessons_id
-                  )}
-                  homeworkStatus={homeworkStatusByLessonSlug.get(lesson.slug) ?? null}
+                  lessonDone={lesson.is_completed === true}
                 />
               ))}
 

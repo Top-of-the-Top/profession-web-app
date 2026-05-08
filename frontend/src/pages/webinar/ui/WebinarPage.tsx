@@ -20,6 +20,7 @@ import {
   connectWebinarSSE,
   useMediaControls,
   useWebinarChat,
+  useWebinarHeartbeat,
   buildRtcUidLabelMap,
   type WhiteboardPanelHandle,
 } from '../../../features/webinar';
@@ -55,7 +56,7 @@ export default function WebinarPage() {
 
   const { micOn, cameraOn, toggleMic, toggleCamera } = useMediaControls();
 
-  const { messages: chatMessages, sendMessage } = useWebinarChat({
+  const { messages: chatMessages, sendMessage, broadcastPresence } = useWebinarChat({
     appId: session?.agora_app_id ?? '',
     rtmToken: session?.rtm_token ?? '',
     chatChannelName: session?.chat_channel_name ?? '',
@@ -253,6 +254,8 @@ export default function WebinarPage() {
       ? lessonQuery.data.meta.webinar_id
       : null;
   const webinarId = session?.webinar_id ?? webinarIdFromMeta;
+  const isStudent = session?.role === 'student';
+  useWebinarHeartbeat(webinarId, !!session && isStudent);
 
   useEffect(() => {
     if (!session) return;
@@ -414,6 +417,7 @@ export default function WebinarPage() {
             uid={session.uid}
             rtcUidToLabel={rtcUidToLabel}
             onRecorderChannelPresence={handleRecorderChannelPresence}
+            onRemoteUserJoined={broadcastPresence}
             micOn={micOn}
             cameraOn={cameraOn}
           >

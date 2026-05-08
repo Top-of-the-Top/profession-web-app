@@ -1,7 +1,7 @@
 import { Eye, EyeClosed, GripVertical, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { AppCourseLesson, HomeworkAttemptStatus } from '@shared/api/courseApi';
+import type { AppCourseLesson } from '@shared/api/courseApi';
 import { useDeleteLesson, useToggleLessonType } from '@shared/api/mutations/courses';
 import { Button, Modal } from '@shared/ui';
 import { cn } from '@shared/lib/utils';
@@ -14,7 +14,6 @@ interface LessonRowProps {
   courseSlug: string;
   isStaff: boolean;
   lessonDone: boolean;
-  homeworkStatus: HomeworkAttemptStatus | null;
 }
 
 export function LessonRow({
@@ -23,7 +22,6 @@ export function LessonRow({
   courseSlug,
   isStaff,
   lessonDone,
-  homeworkStatus,
 }: LessonRowProps) {
   const navigate = useNavigate();
   const toggleType = useToggleLessonType(courseSlug);
@@ -165,24 +163,6 @@ export function LessonRow({
     <Link to={lessonViewTo} className={cn(styles.lessonRow, styles.lessonRowStudent)}>
       <span className={styles.lessonTitle}>{lessonLabel}</span>
       <div className={styles.lessonStudentState}>
-        {homeworkStatus && (
-          <span
-            className={cn(
-              styles.lessonHomeworkBadge,
-              homeworkStatus === 'reviewed'
-                ? styles.lessonHomeworkBadgeReviewed
-                : homeworkStatus === 'submitted'
-                  ? styles.lessonHomeworkBadgeSubmitted
-                  : styles.lessonHomeworkBadgeDraft
-            )}
-          >
-            {homeworkStatus === 'reviewed'
-              ? 'ДЗ проверено'
-              : homeworkStatus === 'submitted'
-                ? 'ДЗ отправлено'
-                : 'ДЗ не сдано'}
-          </span>
-        )}
         <StudentStatusIcon done={lessonDone} />
       </div>
     </Link>

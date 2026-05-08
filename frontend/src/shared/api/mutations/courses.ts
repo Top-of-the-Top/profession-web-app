@@ -468,9 +468,13 @@ export function useScheduleWebinar(courseSlug: string, lessonSlug: string) {
           body: JSON.stringify({ scheduled_at: scheduledAt }),
         },
       ),
-    onSuccess: () => {
+    onSuccess: (data) => {
       notifySuccess({ title: 'Время вебинара сохранено' });
-      void qc.invalidateQueries({ queryKey: courseKeys.lesson(courseSlug, lessonSlug) });
+      qc.setQueryData<CourseLessonDetail>(
+        courseKeys.lesson(courseSlug, lessonSlug),
+        (old) => old ? { ...old, scheduled_at: data.scheduled_at } : old,
+      );
+      void qc.refetchQueries({ queryKey: courseKeys.lesson(courseSlug, lessonSlug) });
     },
     onError: (err) => {
       const msg = errMsg(err);

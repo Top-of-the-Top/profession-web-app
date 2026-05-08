@@ -504,29 +504,6 @@ const WebinarWidget: React.FC<{
   }
 
   if (!isTeacher) {
-    if (webinarStatus === 'pending') {
-      return (
-        <div className={styles.linksRow}>
-          <button
-            type="button"
-            className={styles.quickLinkButton}
-            onPointerEnter={() => {
-              void preloadWebinarRoute();
-            }}
-            onFocus={() => {
-              void preloadWebinarRoute();
-            }}
-            onClick={() => {
-              void handleJoinLive();
-            }}
-            disabled={isJoiningWebinar}
-          >
-            <Video size={20} />
-            <span>{isJoiningWebinar ? 'Переход...' : 'Войти в вебинар'}</span>
-          </button>
-        </div>
-      );
-    }
     return null;
   }
 
@@ -865,6 +842,7 @@ export default function LessonViewPage() {
     setLiveWebinarStatus(lessonDetail?.webinar_status ?? null);
   }, [lessonDetail?.webinar_status]);
 
+  const refetchLesson = lessonQuery.refetch;
   useEffect(() => {
     if (!webinarId) return;
     return connectWebinarSSE({
@@ -872,12 +850,14 @@ export default function LessonViewPage() {
       onEvent: (event) => {
         if (event.type === 'webinar_started') {
           setLiveWebinarStatus('live');
+          void refetchLesson();
         } else if (event.type === 'webinar_ended') {
           setLiveWebinarStatus('ended');
+          void refetchLesson();
         }
       },
     });
-  }, [webinarId]);
+  }, [webinarId, refetchLesson]);
 
   const courseTitle =
     lessonDetail?.course_title

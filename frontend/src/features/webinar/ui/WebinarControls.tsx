@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Mic, MicOff, Video, VideoOff, Circle, LogOut, PhoneOff, MessageSquare } from 'lucide-react';
 import { cn } from '@shared/lib/utils';
 import styles from './WebinarControls.module.css';
@@ -11,6 +12,7 @@ interface WebinarControlsProps {
   recordingPending: boolean;
   stopRecordingPending: boolean;
   stopWebinarPending: boolean;
+  webinarStartedAt: string | null;
   isChatOpen: boolean;
   onToggleMic: () => void;
   onToggleCamera: () => void;
@@ -30,6 +32,7 @@ export function WebinarControls({
   recordingPending,
   stopRecordingPending,
   stopWebinarPending,
+  webinarStartedAt,
   isChatOpen,
   onToggleMic,
   onToggleCamera,
@@ -39,8 +42,36 @@ export function WebinarControls({
   onLeave,
   onStopWebinar,
 }: WebinarControlsProps) {
+  const webinarStartedAtMs = useMemo(() => {
+    if (!webinarStartedAt) return null;
+    const parsed = new Date(webinarStartedAt).getTime();
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [webinarStartedAt]);
+
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!webinarStartedAtMs) return;
+    setNowMs(Date.now());
+    const timerId = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timerId);
+  }, [webinarStartedAtMs]);
+
+  const webinarDurationLabel = useMemo(() => {
+    if (!webinarStartedAtMs) return null;
+    const elapsedSeconds = Math.max(0, Math.floor((nowMs - webinarStartedAtMs) / 1000));
+    const hours = Math.floor(elapsedSeconds / 3600);
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+    const seconds = elapsedSeconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }, [nowMs, webinarStartedAtMs]);
+
   return (
     <div className={styles.bar}>
+      {webinarDurationLabel ? (
+        <span className={styles.webinarDurationBadge}>В эфире {webinarDurationLabel}</span>
+      ) : null}
+
       <button
         type="button"
         className={cn(styles.btn, micOn && styles.btnActive)}

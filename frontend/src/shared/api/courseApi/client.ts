@@ -139,7 +139,7 @@ export const courseApi = {
     return apiClient.request<Lesson>(
       `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
       {
-        method: 'PUT',
+        method: 'PATCH',
         body: JSON.stringify(body),
       },
     );

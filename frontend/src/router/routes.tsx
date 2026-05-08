@@ -21,6 +21,8 @@ import {
   WebinarRecordPage,
   MyHomeworksPage,
   SchedulePage,
+  StatisticsPage,
+  StatisticsStudentCardPage,
   AppLayout,
 } from './lazyPages';
 import ProfileRoutePage from '@pages/profile/ui/ProfileRoutePage';
@@ -114,6 +116,16 @@ export const routes: AppRoute[] = [
       {
         path: 'cart',
         element: <CartPage />,
+      },
+      {
+        path: 'statistics',
+        element: <StatisticsPage />,
+        roles: ['teacher', 'moderator'],
+      },
+      {
+        path: 'statistics/students/:userId/courses/:courseId',
+        element: <StatisticsStudentCardPage />,
+        roles: ['teacher', 'moderator'],
       },
     ],
   },

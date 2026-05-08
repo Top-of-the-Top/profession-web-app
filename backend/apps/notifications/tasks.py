@@ -108,3 +108,82 @@ def send_mass_course_email(course_id, subject, message):
 def send_mass_system_email(subject, message):
     for user in User.objects.all():
         send_single_email(user.id, subject, message)
+
+
+@shared_task
+def send_webinar_scheduled_notification(
+    course_id,
+    title,
+    message,
+    webinar_id,
+    course_slug,
+    lesson_slug,
+    scheduled_at,
+):
+    notif = Notification.objects.create(
+        course_id=course_id,
+        title=title,
+        notification_type=Notification.COURSE,
+        message=message,
+    )
+
+    publish_event(
+        routing_key=f"course.{course_id}",
+        payload={
+            "id": notif.id,
+            "type": "webinar_scheduled",
+            "title": title,
+            "message": message,
+            "created_at": notif.created_at.isoformat(),
+            "webinar_id": str(webinar_id),
+            "course_id": str(course_id),
+            "course_slug": course_slug,
+            "lesson_slug": lesson_slug,
+            "scheduled_at": scheduled_at,
+        },
+    )
+
+
+@shared_task
+def send_webinar_started_notification(
+    course_id,
+    lesson_id,
+    course_slug,
+    lesson_slug,
+    course_title,
+    lesson_title,
+    webinar_id,
+):
+    title = "Преподаватель начал вебинар"
+    message = f"Идет прямой эфир по уроку «{lesson_title}» курса «{course_title}». Присоединяйтесь!"
+
+    notif = Notification.objects.create(
+        course_id=course_id,
+        title=title,
+        notification_type=Notification.COURSE,
+        message=message,
+    )
+
+    publish_event(
+        routing_key=f"course.{course_id}",
+        payload={
+            "id": notif.id,
+            "type": "webinar_started",
+            "title": title,
+            "message": message,
+            "created_at": notif.created_at.isoformat(),
+            "webinar_id": str(webinar_id),
+            "course_id": course_id,
+            "lesson_id": lesson_id,
+            "course_slug": course_slug,
+            "lesson_slug": lesson_slug,
+        },
+    )
+
+    user_ids = (
+        User.objects.filter(purchased_courses__course_id=course_id)
+        .distinct()
+        .values_list("id", flat=True)
+    )
+    for user_id in user_ids:
+        send_single_email.delay(user_id, title, message)

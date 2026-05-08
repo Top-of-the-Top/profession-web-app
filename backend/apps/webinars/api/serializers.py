@@ -48,11 +48,21 @@ class WebinarTokenSerializer(serializers.Serializer):
     whiteboard_room_token = serializers.CharField()
     whiteboard_region = serializers.CharField()
     role = serializers.CharField()
+    started_at = serializers.DateTimeField(allow_null=True)
 
 
 class WebinarStartResponseSerializer(serializers.Serializer):
     detail = serializers.CharField()
     webinar_id = serializers.UUIDField()
+
+
+class WebinarScheduleRequestSerializer(serializers.Serializer):
+    scheduled_at = serializers.DateTimeField(allow_null=True)
+
+
+class WebinarScheduleResponseSerializer(serializers.Serializer):
+    webinar_id = serializers.UUIDField()
+    scheduled_at = serializers.DateTimeField(allow_null=True)
 
 
 class WebinarRecordingStartResponseSerializer(serializers.Serializer):

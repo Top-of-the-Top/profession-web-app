@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../interceptor';
 import {
   courseApi,
   type AppCourseLesson,
@@ -40,6 +41,7 @@ function sectionRecordToAppSection(record: SectionRecord): AppCourseSection {
     slug: record.slug,
     lessons: [],
     type: record.type,
+    section_completed: null,
   };
 }
 
@@ -50,6 +52,7 @@ function lessonToAppLesson(lesson: Lesson): AppCourseLesson {
     title: lesson.title,
     slug: lesson.slug,
     type: lesson.type,
+    is_completed: null,
   };
 }
 
@@ -82,6 +85,7 @@ export function useCreateSection(courseSlug: string) {
             slug: undefined,
             lessons: [],
             type: 'draft',
+            section_completed: null,
           };
           return { ...old, content: [...old.content, optimistic] };
         },
@@ -277,6 +281,7 @@ export function useCreateLesson(courseSlug: string) {
                 title: payload.title,
                 slug: pendingSlug,
                 type: 'draft',
+                is_completed: null,
               };
               return {
                 ...section,
@@ -446,6 +451,47 @@ export function useSaveLessonContent(
       notifyError({
         title: 'Не удалось сохранить урок',
         description: errMsg(err),
+      });
+    },
+  });
+}
+
+export function useScheduleWebinar(courseSlug: string, lessonSlug: string) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (scheduledAt: string | null) =>
+      apiClient.request<{ webinar_id: string; scheduled_at: string | null }>(
+        `/api/courses/${courseSlug}/lessons/${lessonSlug}/webinar/schedule/`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ scheduled_at: scheduledAt }),
+        },
+      ),
+    onSuccess: (data) => {
+      notifySuccess({ title: 'Время вебинара сохранено' });
+      qc.setQueryData<CourseLessonDetail>(
+        courseKeys.lesson(courseSlug, lessonSlug),
+        (old) => old ? { ...old, scheduled_at: data.scheduled_at } : old,
+      );
+      void qc.refetchQueries({ queryKey: courseKeys.lesson(courseSlug, lessonSlug) });
+    },
+    onError: (err) => {
+      const msg = errMsg(err);
+      if (msg.includes('API_ERROR_409')) {
+        notifyError({
+          title: 'Вебинар сейчас идёт',
+          description: 'Остановите эфир перед изменением расписания.',
+        });
+        return;
+      }
+      if (msg.includes('API_ERROR_403')) {
+        notifyError({ title: 'Недостаточно прав' });
+        return;
+      }
+      notifyError({
+        title: 'Не удалось сохранить время',
+        description: msg,
       });
     },
   });
@@ -723,6 +769,7 @@ export function useSubmitHomeworkAttempt(
 export function useReviewHomeworkAttempt(
   courseSlug: string,
   attemptId: string,
+  lessonSlug?: string,
 ) {
   const qc = useQueryClient();
   return useMutation({
@@ -736,7 +783,11 @@ export function useReviewHomeworkAttempt(
       void qc.invalidateQueries({
         queryKey: courseKeys.homeworkAttemptsByCourse(courseSlug),
       });
-      void qc.invalidateQueries({ queryKey: courseKeys.all });
+      if (lessonSlug) {
+        void qc.invalidateQueries({
+          queryKey: courseKeys.lesson(courseSlug, lessonSlug),
+        });
+      }
     },
     onError: (err) => {
       notifyError({

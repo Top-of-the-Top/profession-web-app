@@ -14,12 +14,56 @@ export type WebinarSseEvent =
       ended_at: string;
     }
   | {
+      type: 'webinar_started';
+      webinar_id: string;
+      course_slug: string;
+      lesson_slug: string;
+      started_at?: string;
+    }
+  | {
+      type: 'webinar_start';
+      webinar_id: string;
+      course_slug?: string;
+      lesson_slug?: string;
+      started_at?: string;
+    }
+  | {
       type: 'webinar_ended';
       webinar_id: string;
+      course_slug?: string;
+      lesson_slug?: string;
+    }
+  | {
+      type: 'webinar_end';
+      webinar_id: string;
+    }
+  | {
+      type: 'webinar_scheduled';
+      webinar_id: string;
+      course_slug?: string;
+      lesson_slug?: string;
+      scheduled_at: string | null;
+    }
+  | {
+      type: 'webinar_schedule_changed';
+      webinar_id: string;
+      course_slug?: string;
+      lesson_slug?: string;
+      scheduled_at: string | null;
+    }
+  | {
+      type: string;
+      webinar_id: string;
+      course_slug?: string;
+      lesson_slug?: string;
+      started_at?: string;
+      scheduled_at?: string | null;
     };
 
 interface ConnectWebinarSseParams {
-  webinarId: string;
+  webinarId?: string | null;
+  courseSlug?: string | null;
+  lessonSlug?: string | null;
   onEvent: (event: WebinarSseEvent) => void;
   onError?: (message: string) => void;
 }
@@ -38,32 +82,55 @@ function logSse(message: string, detail?: unknown) {
   }
 }
 
-function buildSseUrl(webinarId: string): string | null {
+function buildSseUrl(webinarId?: string | null): string | null {
   const token = tokenService.getAccessToken();
   if (!token) {
     return null;
   }
-
-  return `${API_URL}/api/notifications/sse/?token=${encodeURIComponent(token)}&webinar_id=${encodeURIComponent(webinarId)}`;
+  const params = new URLSearchParams();
+  params.set('token', token);
+  if (webinarId) {
+    params.set('webinar_id', webinarId);
+  }
+  return `${API_URL}/api/notifications/sse/?${params.toString()}`;
 }
 
 function parseWebinarEvent(raw: string): WebinarSseEvent | null {
   try {
-    const payload = JSON.parse(raw) as WebinarSseEvent;
+    const payload = JSON.parse(raw) as Record<string, unknown>;
     if (
       payload &&
       typeof payload === 'object' &&
       typeof payload.type === 'string' &&
       typeof payload.webinar_id === 'string'
     ) {
-      if (payload.type === 'recording_started' && 'recording_id' in payload) {
-        return payload;
+      if (payload.type === 'recording_started' && typeof payload.recording_id === 'string') {
+        return payload as WebinarSseEvent;
       }
-      if (payload.type === 'recording_stopped' && 'recording_id' in payload) {
-        return payload;
+      if (payload.type === 'recording_stopped' && typeof payload.recording_id === 'string') {
+        return payload as WebinarSseEvent;
+      }
+      if (
+        payload.type === 'webinar_started' &&
+        typeof payload.course_slug === 'string' &&
+        typeof payload.lesson_slug === 'string'
+      ) {
+        return payload as WebinarSseEvent;
+      }
+      if (payload.type === 'webinar_start') {
+        return payload as WebinarSseEvent;
       }
       if (payload.type === 'webinar_ended') {
-        return payload;
+        return payload as WebinarSseEvent;
+      }
+      if (payload.type === 'webinar_end') {
+        return payload as WebinarSseEvent;
+      }
+      if (payload.type === 'webinar_scheduled' && 'scheduled_at' in payload) {
+        return payload as WebinarSseEvent;
+      }
+      if (payload.type === 'webinar_schedule_changed' && 'scheduled_at' in payload) {
+        return payload as WebinarSseEvent;
       }
     }
     return null;
@@ -74,6 +141,8 @@ function parseWebinarEvent(raw: string): WebinarSseEvent | null {
 
 export function connectWebinarSSE({
   webinarId,
+  courseSlug,
+  lessonSlug,
   onEvent,
   onError,
 }: ConnectWebinarSseParams): () => void {
@@ -132,10 +201,30 @@ export function connectWebinarSSE({
         });
         return;
       }
-      if (parsedEvent.webinar_id !== webinarId) {
+      if (webinarId && parsedEvent.webinar_id !== webinarId) {
         logSse('message ignored (other webinar)', {
           expectedWebinarId: webinarId,
           payloadWebinarId: parsedEvent.webinar_id,
+          type: parsedEvent.type,
+        });
+        return;
+      }
+      if (
+        (!webinarId || parsedEvent.webinar_id !== webinarId) &&
+        courseSlug &&
+        lessonSlug &&
+        (((('course_slug' in parsedEvent && parsedEvent.course_slug) || undefined) !== courseSlug) ||
+          ((('lesson_slug' in parsedEvent && parsedEvent.lesson_slug) || undefined) !== lessonSlug))
+      ) {
+        const payloadCourseSlug =
+          'course_slug' in parsedEvent ? parsedEvent.course_slug : undefined;
+        const payloadLessonSlug =
+          'lesson_slug' in parsedEvent ? parsedEvent.lesson_slug : undefined;
+        logSse('message ignored (other lesson)', {
+          expectedCourseSlug: courseSlug,
+          expectedLessonSlug: lessonSlug,
+          payloadCourseSlug,
+          payloadLessonSlug,
           type: parsedEvent.type,
         });
         return;

@@ -288,6 +288,8 @@ export default function WebinarRecordPage() {
       userName: session.user_name,
     });
   }, [session]);
+  const whiteboardDisplayUid =
+    (session?.user_name ?? '').trim() || String(session?.uid ?? '');
 
   const [recorderAnyRemoteVideo, setRecorderAnyRemoteVideo] = useState(false);
   const onSubscribeOnlyAnyRemoteVideo = useCallback((v: boolean) => {
@@ -417,8 +419,8 @@ export default function WebinarRecordPage() {
             roomUUID={session.whiteboard_room_uuid}
             roomToken={session.whiteboard_room_token}
             region={session.whiteboard_region}
-            uid={session.user_name?.trim() || String(session.uid)}
-            userName={session.user_name}
+            uid={whiteboardDisplayUid}
+            userName={whiteboardDisplayUid}
             isWritable={false}
           />
         </div>

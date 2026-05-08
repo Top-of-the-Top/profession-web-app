@@ -213,13 +213,18 @@ export function connectWebinarSSE({
         (!webinarId || parsedEvent.webinar_id !== webinarId) &&
         courseSlug &&
         lessonSlug &&
-        (parsedEvent.course_slug !== courseSlug || parsedEvent.lesson_slug !== lessonSlug)
+        (((('course_slug' in parsedEvent && parsedEvent.course_slug) || undefined) !== courseSlug) ||
+          ((('lesson_slug' in parsedEvent && parsedEvent.lesson_slug) || undefined) !== lessonSlug))
       ) {
+        const payloadCourseSlug =
+          'course_slug' in parsedEvent ? parsedEvent.course_slug : undefined;
+        const payloadLessonSlug =
+          'lesson_slug' in parsedEvent ? parsedEvent.lesson_slug : undefined;
         logSse('message ignored (other lesson)', {
           expectedCourseSlug: courseSlug,
           expectedLessonSlug: lessonSlug,
-          payloadCourseSlug: parsedEvent.course_slug,
-          payloadLessonSlug: parsedEvent.lesson_slug,
+          payloadCourseSlug,
+          payloadLessonSlug,
           type: parsedEvent.type,
         });
         return;

@@ -2,7 +2,7 @@ import { Suspense, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
-import { House, ShoppingBag, CalendarDays, ClipboardList, BarChart2 } from 'lucide-react';
+import { House, ShoppingBag, CalendarDays, ClipboardList, BarChart2, Settings } from 'lucide-react';
 import { Button, Spinner, ContentErrorFallback } from '@shared/ui';
 import { cn } from '@shared/lib/utils';
 import { tokenService } from '@shared/lib/auth/tokenService';
@@ -39,8 +39,9 @@ export default function AppLayout() {
   const { pathname } = useLocation();
   const lessonEditorLayout = isLessonEditorPage(pathname);
   const hasToken = tokenService.hasToken();
-  const { hasAny } = useRole();
+  const { hasAny, role } = useRole();
   const canSeeStats = hasAny('teacher', 'moderator');
+  const isModerator = role === 'moderator';
   const { data: user } = useProfile(hasToken);
 
   const { data: cart } = useCart();
@@ -111,6 +112,9 @@ export default function AppLayout() {
     },
     ...(canSeeStats
       ? [{ href: '/app/statistics', label: 'Статистика', icon: BarChart2, id: 'statistics' }]
+      : []),
+    ...(isModerator
+      ? [{ href: '/app/admin', label: 'Админ-панель', icon: Settings, id: 'admin' }]
       : []),
   ];
 

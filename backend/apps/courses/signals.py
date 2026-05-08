@@ -3,7 +3,7 @@ import logging
 from datetime import timedelta
 
 from django.core.cache import caches
-from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
+from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 
@@ -326,3 +326,14 @@ def invalidate_cache_on_role_change(sender, instance, **kwargs):
         return
     if old.role != instance.role:
         invalidate_user_role_cache(instance.pk)
+
+
+@receiver(m2m_changed, sender=Course.authors.through)
+def invalidate_course_cache_on_author_change(sender, instance, action, **kwargs):
+    if action not in ("post_add", "post_remove", "post_clear"):
+        return
+    if isinstance(instance, Course):
+        invalidate_on_course_model_change(instance.slug)
+    else:
+        for course in Course.objects.filter(authors=instance):
+            invalidate_on_course_model_change(course.slug)

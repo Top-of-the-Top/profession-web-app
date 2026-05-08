@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from apps.admin_panel.models import TeacherInvite
 from apps.core.api.permissions import require_moderator
+from apps.courses.api.utils.cache_utils import invalidate_on_course_model_change
 from apps.courses.models import Course
 from apps.users.api.utils.crypto_utils import encrypt_data
 from apps.users.api.utils.notification_utils import send_teacher_invite_email
@@ -73,6 +74,7 @@ class CourseAddAuthorView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         course.authors.add(user)
+        invalidate_on_course_model_change(course.slug)
         return Response(TeacherSerializer(course.authors.all(), many=True).data)
 
 
@@ -106,6 +108,7 @@ class CourseRemoveAuthorView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         course.authors.remove(user)
+        invalidate_on_course_model_change(course.slug)
         return Response(TeacherSerializer(course.authors.all(), many=True).data)
 
 

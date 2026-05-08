@@ -20,3 +20,5 @@ export { default as HomeworkReviewPage } from './homeworkReview/ui/HomeworkRevie
 export { default as HomeworkReviewAttemptsPage } from './homeworkReviewAttempts/ui/HomeworkReviewAttemptsPage'
 export { default as StatisticsPage } from './statistics/ui/StatisticsPage'
 export { default as StatisticsStudentCardPage } from './statisticsStudentCard/ui/StatisticsStudentCardPage'
+export { default as AdminPanelPage } from './adminPanel/ui/AdminPanelPage'
+export { default as TeacherRegisterPage } from './teacherRegister/ui/TeacherRegisterPage'

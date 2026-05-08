@@ -23,6 +23,8 @@ import {
   SchedulePage,
   StatisticsPage,
   StatisticsStudentCardPage,
+  AdminPanelPage,
+  TeacherRegisterPage,
   AppLayout,
 } from './lazyPages';
 import ProfileRoutePage from '@pages/profile/ui/ProfileRoutePage';
@@ -49,6 +51,10 @@ export const routes: AppRoute[] = [
   {
     path: '/recover',
     element: <RecoverPage />,
+  },
+  {
+    path: '/register-teacher',
+    element: <TeacherRegisterPage />,
   },
   {
     path: '/oauth/vk/callback',
@@ -126,6 +132,11 @@ export const routes: AppRoute[] = [
         path: 'statistics/students/:userId/courses/:courseId',
         element: <StatisticsStudentCardPage />,
         roles: ['teacher', 'moderator'],
+      },
+      {
+        path: 'admin',
+        element: <AdminPanelPage />,
+        roles: ['moderator'],
       },
     ],
   },

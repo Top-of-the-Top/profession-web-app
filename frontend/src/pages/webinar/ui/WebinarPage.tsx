@@ -55,6 +55,9 @@ export default function WebinarPage() {
   }, []);
 
   const { micOn, cameraOn, toggleMic, toggleCamera } = useMediaControls();
+  const whiteboardDisplayUid =
+    (rtcUidToLabel?.[session?.uid ?? 0] ?? session?.user_name ?? '').trim() ||
+    String(session?.uid ?? '');
 
   const { messages: chatMessages, sendMessage, broadcastPresence } = useWebinarChat({
     appId: session?.agora_app_id ?? '',
@@ -401,7 +404,7 @@ export default function WebinarPage() {
             roomUUID={session.whiteboard_room_uuid}
             roomToken={session.whiteboard_room_token}
             region={session.whiteboard_region}
-            uid={session.user_name?.trim() || String(session.uid)}
+            uid={whiteboardDisplayUid}
             userName={session.user_name}
             isWritable={true}
           />

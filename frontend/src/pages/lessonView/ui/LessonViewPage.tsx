@@ -42,10 +42,7 @@ import type {
   LessonHomework,
   WebinarStatus,
 } from '@shared/api/courseApi';
-import {
-  useCourseHomeBySlug,
-  useLessonBySlug,
-} from '@shared/api/queries/courses';
+import { useLessonBySlug } from '@shared/api/queries/courses';
 import {
   useDeleteRecording,
   useDeleteRecordingPdf,
@@ -582,7 +579,6 @@ type RecordingDeleteConfirm =
 
 const LessonRecordingCard: React.FC<{
   recording: LessonRecording;
-  lessonSlug: string | undefined;
   isTeacher: boolean;
   onRequestDeletePdf: (payload: { recordingId: string; dateLabel: string }) => void;
   onRequestDeleteRecording: (payload: {
@@ -595,7 +591,6 @@ const LessonRecordingCard: React.FC<{
   onLeavingRemoveComplete?: () => void;
 }> = ({
   recording,
-  lessonSlug,
   isTeacher,
   onRequestDeletePdf,
   onRequestDeleteRecording,
@@ -608,12 +603,12 @@ const LessonRecordingCard: React.FC<{
   const kinescopeContainerRef = useRef<HTMLDivElement>(null);
 
   const embedUrl =
-    !recording.kind || recording.kind !== 'whiteboard_only'
-      ? (recording.kinescope_embed_url ?? null)
+    recording.kind !== 'whiteboard_only' && recording.kinescope_embed_url
+      ? recording.kinescope_embed_url
       : null;
 
   useRecordingHeartbeat({
-    lessonSlug,
+    recordingId: recording.recording_id || null,
     embedUrl,
     containerRef: kinescopeContainerRef,
   });
@@ -749,13 +744,14 @@ export default function LessonViewPage() {
   const { hasAny } = useRole();
   const isTeacher = hasAny('teacher', 'moderator');
 
-  const homeQuery = useCourseHomeBySlug(courseSlug);
   const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
 
-  const courseTitle =
-    homeQuery.data?.title ?? courseSlug?.replace(/-/g, ' ') ?? 'Курс';
-
   const lessonDetail = lessonQuery.data;
+
+  const courseTitle =
+    lessonDetail?.course_title
+    ?? courseSlug?.replace(/-/g, ' ')
+    ?? 'Курс';
   const deleteRecordingPdf = useDeleteRecordingPdf(courseSlug ?? '', lessonSlug ?? '');
   const deleteRecording = useDeleteRecording(courseSlug ?? '', lessonSlug ?? '');
   const [recordingDeleteConfirm, setRecordingDeleteConfirm] =
@@ -936,7 +932,6 @@ export default function LessonViewPage() {
                     <LessonRecordingCard
                       key={`${recording.recording_id}-${recording.started_at ?? 'recording'}`}
                       recording={recording}
-                      lessonSlug={lessonSlug}
                       isTeacher={isTeacher}
                       onRequestDeletePdf={({ recordingId, dateLabel }) => {
                         setRecordingDeleteConfirm({

@@ -361,6 +361,7 @@ export type LessonMeta = LessonMetaStudent | LessonMetaStaff | LessonMetaUnknown
 export interface CourseLessonDetail {
   lesson_id: number;
   title: string;
+  course_title: string | null;
   document: string;
   started_at: string | null;
   webinar_status: WebinarStatus | null;
@@ -436,6 +437,7 @@ export type RawCourseHomeResponse = Partial<CourseHomeResponse> & {
 export type RawLessonDetailResponse = {
   lesson_id: number;
   title: string;
+  course_title?: unknown;
   content: {
     document?: string;
     recording_url?: string | null;

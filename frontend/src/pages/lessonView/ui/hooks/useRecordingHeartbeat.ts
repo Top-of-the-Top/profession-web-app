@@ -5,13 +5,13 @@ import { apiClient } from '@shared/api/interceptor';
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
 interface UseRecordingHeartbeatOptions {
-  lessonSlug: string | null | undefined;
+  recordingId: string | null | undefined;
   embedUrl: string | null | undefined;
   containerRef: RefObject<HTMLDivElement | null>;
 }
 
 export function useRecordingHeartbeat({
-  lessonSlug,
+  recordingId,
   embedUrl,
   containerRef,
 }: UseRecordingHeartbeatOptions) {
@@ -20,7 +20,7 @@ export function useRecordingHeartbeat({
   const currentTimeRef = useRef(0);
 
   useEffect(() => {
-    if (!embedUrl || !containerRef.current || !lessonSlug) return;
+    if (!embedUrl || !containerRef.current || !recordingId) return;
 
     const container = containerRef.current;
     let destroyed = false;
@@ -28,7 +28,7 @@ export function useRecordingHeartbeat({
 
     const sendHeartbeat = (currentTime: number) => {
       apiClient
-        .request<void>(`/api/statistics/lessons/${lessonSlug}/recording/heartbeat/`, {
+        .request<void>(`/api/statistics/recordings/${recordingId}/view/heartbeat/`, {
           method: 'POST',
           body: JSON.stringify({ current_time: Math.floor(currentTime) }),
         })
@@ -101,5 +101,5 @@ export function useRecordingHeartbeat({
         p.destroy().catch(() => {});
       }
     };
-  }, [embedUrl, lessonSlug]);
+  }, [embedUrl, recordingId]);
 }

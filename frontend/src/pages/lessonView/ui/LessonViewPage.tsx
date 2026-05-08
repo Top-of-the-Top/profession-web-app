@@ -848,9 +848,11 @@ export default function LessonViewPage() {
     setLiveScheduledAt(lessonDetail?.scheduled_at ?? null);
   }, [lessonDetail?.scheduled_at]);
   useEffect(() => {
-    if (!webinarId) return;
+    if (!courseSlug || !lessonSlug) return;
     return connectWebinarSSE({
       webinarId,
+      courseSlug,
+      lessonSlug,
       onEvent: (event) => {
         if (event.type === 'webinar_started' || event.type === 'webinar_start') {
           setLiveWebinarStatus('live');
@@ -868,10 +870,17 @@ export default function LessonViewPage() {
           setLiveWebinarStatus((prev) =>
             prev === 'live' ? prev : event.scheduled_at ? 'pending' : null,
           );
+          return;
+        }
+        if ('scheduled_at' in event) {
+          setLiveScheduledAt(event.scheduled_at ?? null);
+          setLiveWebinarStatus((prev) =>
+            prev === 'live' ? prev : event.scheduled_at ? 'pending' : null,
+          );
         }
       },
     });
-  }, [webinarId]);
+  }, [courseSlug, lessonSlug, webinarId]);
 
   const courseTitle =
     lessonDetail?.course_title

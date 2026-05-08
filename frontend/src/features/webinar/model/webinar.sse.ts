@@ -30,6 +30,8 @@ export type WebinarSseEvent =
   | {
       type: 'webinar_ended';
       webinar_id: string;
+      course_slug?: string;
+      lesson_slug?: string;
     }
   | {
       type: 'webinar_end';
@@ -48,10 +50,20 @@ export type WebinarSseEvent =
       course_slug?: string;
       lesson_slug?: string;
       scheduled_at: string | null;
+    }
+  | {
+      type: string;
+      webinar_id: string;
+      course_slug?: string;
+      lesson_slug?: string;
+      started_at?: string;
+      scheduled_at?: string | null;
     };
 
 interface ConnectWebinarSseParams {
-  webinarId: string;
+  webinarId?: string | null;
+  courseSlug?: string | null;
+  lessonSlug?: string | null;
   onEvent: (event: WebinarSseEvent) => void;
   onError?: (message: string) => void;
 }
@@ -70,13 +82,17 @@ function logSse(message: string, detail?: unknown) {
   }
 }
 
-function buildSseUrl(webinarId: string): string | null {
+function buildSseUrl(webinarId?: string | null): string | null {
   const token = tokenService.getAccessToken();
   if (!token) {
     return null;
   }
-
-  return `${API_URL}/api/notifications/sse/?token=${encodeURIComponent(token)}&webinar_id=${encodeURIComponent(webinarId)}`;
+  const params = new URLSearchParams();
+  params.set('token', token);
+  if (webinarId) {
+    params.set('webinar_id', webinarId);
+  }
+  return `${API_URL}/api/notifications/sse/?${params.toString()}`;
 }
 
 function parseWebinarEvent(raw: string): WebinarSseEvent | null {
@@ -125,6 +141,8 @@ function parseWebinarEvent(raw: string): WebinarSseEvent | null {
 
 export function connectWebinarSSE({
   webinarId,
+  courseSlug,
+  lessonSlug,
   onEvent,
   onError,
 }: ConnectWebinarSseParams): () => void {
@@ -183,10 +201,25 @@ export function connectWebinarSSE({
         });
         return;
       }
-      if (parsedEvent.webinar_id !== webinarId) {
+      if (webinarId && parsedEvent.webinar_id !== webinarId) {
         logSse('message ignored (other webinar)', {
           expectedWebinarId: webinarId,
           payloadWebinarId: parsedEvent.webinar_id,
+          type: parsedEvent.type,
+        });
+        return;
+      }
+      if (
+        (!webinarId || parsedEvent.webinar_id !== webinarId) &&
+        courseSlug &&
+        lessonSlug &&
+        (parsedEvent.course_slug !== courseSlug || parsedEvent.lesson_slug !== lessonSlug)
+      ) {
+        logSse('message ignored (other lesson)', {
+          expectedCourseSlug: courseSlug,
+          expectedLessonSlug: lessonSlug,
+          payloadCourseSlug: parsedEvent.course_slug,
+          payloadLessonSlug: parsedEvent.lesson_slug,
           type: parsedEvent.type,
         });
         return;

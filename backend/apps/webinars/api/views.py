@@ -226,6 +226,19 @@ class WebinarStartView(APIView):
         webinar.ended_at = None
         webinar.save()
 
+        from apps.notifications.tasks import send_webinar_started_notification
+
+        course = lesson.section.course
+        send_webinar_started_notification.delay(
+            course_id=str(course.course_id),
+            lesson_id=str(lesson.lesson_id),
+            course_slug=course.slug,
+            lesson_slug=lesson.slug,
+            course_title=course.title,
+            lesson_title=lesson.title,
+            webinar_id=str(webinar.webinar_id),
+        )
+
         return Response({"detail": "Вебинар запущен", "webinar_id": str(webinar.webinar_id)})
 
 
@@ -288,6 +301,19 @@ class WebinarStopView(APIView):
             payload={
                 "type": "webinar_ended",
                 "webinar_id": str(webinar.webinar_id),
+            },
+        )
+
+        course = lesson.section.course
+        publish_event_async.delay(
+            routing_key=f"course.{course.course_id}",
+            payload={
+                "type": "webinar_ended",
+                "webinar_id": str(webinar.webinar_id),
+                "course_id": str(course.course_id),
+                "lesson_id": str(lesson.lesson_id),
+                "course_slug": course.slug,
+                "lesson_slug": lesson.slug,
             },
         )
 

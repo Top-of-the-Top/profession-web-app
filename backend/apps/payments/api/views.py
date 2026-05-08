@@ -46,12 +46,8 @@ class CartPayView(APIView):
     @extend_schema(
         summary="Оплатить корзину",
         description=(
-            "Создаёт платёж на основе текущей корзины пользователя. Требуется Authorization: Bearer <access_token>. "
+            "Создаёт платёж на основе текущей корзины пользователя."
             "Корзина должна быть непустой; все курсы в корзине не должны быть уже куплены. "
-            "При успехе создаётся платёж, возвращается полный объект платежа (payment_id, total_sum, status, mock_payment_url, items с курсами и ценами). "
-            "Статус платежа обновляется асинхронно через Celery после создания. "
-            "400: пустая корзина (error: «Корзина пуста...») или часть курсов уже куплена (error и course_ids). "
-            "401: токен отсутствует или недействителен."
         ),
         tags=["Carts"],
         responses={
@@ -161,12 +157,7 @@ class PaymentListView(APIView):
 
     @extend_schema(
         summary="Список платежей",
-        description=(
-            "Возвращает список всех платежей текущего пользователя (краткий формат). "
-            "Требуется Authorization: Bearer <access_token>. "
-            "Каждый элемент: payment_id, total_sum, status, status_display, created_at, paid_at. "
-            "При невалидном токене — 401 с полем detail."
-        ),
+        description=("Возвращает список всех платежей текущего пользователя."),
         tags=["Payments"],
         responses={
             200: PaymentShortSerializer(many=True),
@@ -187,12 +178,7 @@ class PaymentDetailView(APIView):
 
     @extend_schema(
         summary="Детали платежа",
-        description=(
-            "Возвращает полную информацию о платеже по payment_id (в пути URL). Требуется Authorization: Bearer <access_token>. "
-            "Доступ только к своим платежам; при запросе чужого или несуществующего — 404. "
-            "В ответе: payment_id, total_sum, status, status_display, mock_payment_url, mock_yookassa_id, created_at, updated_at, paid_at, items (массив позиций: course, price). "
-            "При невалидном токене — 401; при ненайденном/чужом платеже — 404 с полем detail: «Платёж не найден.»."
-        ),
+        description=("Возвращает полную информацию о платеже по payment_id.",),
         tags=["Payments"],
         responses={
             200: PaymentSerializer,

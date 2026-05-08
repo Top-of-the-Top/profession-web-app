@@ -154,7 +154,7 @@ class CourseDetailView(APIView):
     serializer_class = CourseSerializer
 
     @extend_schema(
-        summary="Курс по slug",
+        summary="Превью курса в магазине.",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
@@ -239,7 +239,7 @@ class MyCourses(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Мои курсы",
+        summary="Список моих курсов",
         tags=["Home"],
         responses={
             200: CourseDTOSerializer(many=True),
@@ -262,14 +262,8 @@ class MyScheduleView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Расписание по моим курсам",
-        description=(
-            "Возвращает список объектов расписания (вебинары и дедлайны домашних заданий) "
-            "в заданном диапазоне дат. "
-            "Студент видит объекты своих купленных курсов. "
-            "Преподаватель видит объекты своих курсов (в том числе черновики). "
-            "Модератор видит всё."
-        ),
+        summary="Мое расписание",
+        description=("Возвращает список объектов расписания - вебинаров и домашних заданий"),
         tags=["Home"],
         parameters=[
             OpenApiParameter(
@@ -387,7 +381,7 @@ class CourseHomePageView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Главная курса",
+        summary="Главная страничка курса",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
@@ -538,11 +532,7 @@ class LessonCreateView(APIView):
     @extend_schema(
         methods=["POST"],
         summary="Создать урок",
-        description=(
-            "Тело: `section`, `title`, `type` (по умолчанию draft). "
-            "Поле `content` в POST не допускается — контент и вложения задаются PUT "
-            "на `/api/courses/{slug}/lessons/{lesson_slug}/`."
-        ),
+        description=("Создать новый урок в курсе"),
         tags=["Course"],
         request=LessonSimpleCreateSerializer,
         responses={
@@ -611,7 +601,8 @@ class LessonDetailView(APIView):
         )
 
     @extend_schema(
-        summary="Обновить урок (PUT)",
+        summary="Обновить урок",
+        description="Обновить содержимое урока. ",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
@@ -699,7 +690,7 @@ class HomeworkDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Домашка",
+        summary="Домашнее задание",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
@@ -734,7 +725,7 @@ class HomeworkDetailView(APIView):
         )
 
     @extend_schema(
-        summary="Обновить домашку",
+        summary="Обновить домашнее задание",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
@@ -763,7 +754,7 @@ class HomeworkDetailView(APIView):
         return Response(response_serializer.data)
 
     @extend_schema(
-        summary="Удалить домашку",
+        summary="Удалить домашенее задание",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
@@ -792,7 +783,7 @@ class TaskCreateView(APIView):
     serializer_class = TaskSerializer
 
     @extend_schema(
-        summary="Создать задачу",
+        summary="Создать задачу с развернутым ответом",
         tags=["Homework"],
         request=TaskSerializer,
         responses={
@@ -818,7 +809,7 @@ class TaskDetailView(APIView):
     serializer_class = TaskSerializer
 
     @extend_schema(
-        summary="Обновить задачу",
+        summary="Обновить задачу с развернутым ответом",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
@@ -846,7 +837,7 @@ class TaskDetailView(APIView):
         return Response(serializer.data)
 
     @extend_schema(
-        summary="Удалить задачу",
+        summary="Удалить задачу с развернутым ответом",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
@@ -875,7 +866,7 @@ class QuestionCreateView(APIView):
     serializer_class = QuestionSerializer
 
     @extend_schema(
-        summary="Создать вопрос",
+        summary="Создать вопрос с вариантами выбора ответа",
         tags=["Homework"],
         request=QuestionSerializer,
         responses={
@@ -900,7 +891,7 @@ class MyContentView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Мои курсы с уроками",
+        summary="Мой контент на платформе",
         description=(
             "Возвращает курсы пользователя с плоским списком уроков. "
             "Студент видит купленные курсы и опубликованные уроки. "
@@ -930,7 +921,7 @@ class QuestionDetailView(APIView):
     serializer_class = QuestionSerializer
 
     @extend_schema(
-        summary="Обновить вопрос",
+        summary="Обновить вопрос с вариантами выбора ответов",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
@@ -958,7 +949,7 @@ class QuestionDetailView(APIView):
         return Response(serializer.data)
 
     @extend_schema(
-        summary="Удалить вопрос",
+        summary="Удалить вопрос с вариантами выбора ответа",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(

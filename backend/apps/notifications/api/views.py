@@ -5,6 +5,7 @@ import logging
 import aio_pika
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from django.db import close_old_connections
 from django.db.models import Exists, OuterRef, Q
 from django.http import HttpResponse, HttpResponseNotAllowed, StreamingHttpResponse
 from drf_spectacular.types import OpenApiTypes
@@ -144,18 +145,27 @@ async def sse_notifications(request):
         user_id = access_token.get("user_id")
         if not user_id:
             return HttpResponse("Invalid token payload", status=401)
-        user = await sync_to_async(User.objects.get, thread_sensitive=False)(pk=user_id)
-    except (TokenError, User.DoesNotExist):
+    except TokenError:
         return HttpResponse("Invalid token", status=401)
 
     webinar_id = request.GET.get("webinar_id")
 
-    user_pk = user.pk
-    get_course_ids = sync_to_async(
-        lambda: list(user.get_purchased_courses_ids()),
-        thread_sensitive=False,
-    )
-    user_course_ids = await get_course_ids()
+    def _load_user_context():
+        try:
+            user = User.objects.only("pk").get(pk=user_id)
+        except User.DoesNotExist:
+            return None
+        return user.pk, list(user.get_purchased_courses_ids())
+
+    try:
+        user_context = await sync_to_async(_load_user_context)()
+    finally:
+        await sync_to_async(close_old_connections)()
+
+    if user_context is None:
+        return HttpResponse("Invalid token", status=401)
+
+    user_pk, user_course_ids = user_context
 
     async def event_stream():
         connection = None

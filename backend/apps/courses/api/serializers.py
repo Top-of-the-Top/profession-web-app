@@ -293,12 +293,21 @@ class LessonContentReadSerializer(serializers.Serializer):
 
 class LessonDetailReadSerializer(serializers.ModelSerializer):
     lesson_id = serializers.UUIDField(read_only=True)
+    course_title = serializers.SerializerMethodField()
     content = serializers.SerializerMethodField()
     meta = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
-        fields = ("lesson_id", "title", "content", "meta")
+        fields = ("lesson_id", "title", "course_title", "content", "meta")
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_course_title(self, lesson):
+        section = lesson.section
+        if section is None:
+            return None
+        course = section.course
+        return course.title if course else None
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_meta(self, lesson):

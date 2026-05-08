@@ -23,6 +23,11 @@ class RecordingViewHeartbeatResponseSerializer(serializers.Serializer):
     last_position = serializers.IntegerField()
 
 
+class UserBriefSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField()
+    full_name = serializers.CharField()
+
+
 class WebinarTableRowSerializer(serializers.Serializer):
     webinar_id = serializers.UUIDField()
     course_title = serializers.CharField()
@@ -34,6 +39,9 @@ class WebinarTableRowSerializer(serializers.Serializer):
     attended_any = serializers.IntegerField()
     attended_threshold = serializers.IntegerField()
     homework_submitted_count = serializers.IntegerField()
+    attended_any_users = UserBriefSerializer(many=True)
+    attended_threshold_users = UserBriefSerializer(many=True)
+    homework_submitted_users = UserBriefSerializer(many=True)
 
 
 class StudentCourseRefSerializer(serializers.Serializer):

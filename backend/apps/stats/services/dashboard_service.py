@@ -9,16 +9,16 @@ from apps.stats.services.progress_service import (
     _active_purchaser_ids,
     _course_homework_completion_rate,
     _course_webinar_attendance_rate,
-    _lesson_attended_count,
-    _lesson_homework_submitted_count,
     _webinar_duration_seconds,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def list_webinars_table(*, requester, course_title=None, date_from=None, date_to=None):
-    from apps.stats.models import WebinarAttendance
+def list_webinars_table(*, requester, course_slug=None, date_from=None, date_to=None):
+    from apps.stats.models import LessonProgress, WebinarAttendance
+    from apps.stats.services.progress_service import WEBINAR_THRESHOLD
+    from apps.users.models import User
     from apps.webinars.models import Webinar
 
     qs = (
@@ -40,15 +40,40 @@ def list_webinars_table(*, requester, course_title=None, date_from=None, date_to
         course = webinar.lesson.section.course
         active = _active_purchaser_ids(course)
 
-        attended_threshold = _lesson_attended_count(webinar.lesson, active)
-        attended_any = (
+        attended_any_ids = set(
             WebinarAttendance.objects
             .filter(webinar=webinar, user_id__in=active)
-            .values("user_id")
+            .values_list("user_id", flat=True)
             .distinct()
-            .count()
         )
-        hw_submitted = _lesson_homework_submitted_count(webinar.lesson, active)
+
+        attended_threshold_ids = set(
+            LessonProgress.objects
+            .filter(
+                lesson=webinar.lesson,
+                user_id__in=active,
+                watched_ratio__gte=WEBINAR_THRESHOLD,
+            )
+            .values_list("user_id", flat=True)
+        )
+
+        hw_submitted_ids = set(
+            LessonProgress.objects
+            .filter(
+                lesson=webinar.lesson,
+                user_id__in=active,
+                all_homeworks_submitted=True,
+            )
+            .values_list("user_id", flat=True)
+        )
+
+        relevant_ids = attended_any_ids | attended_threshold_ids | hw_submitted_ids
+        users_by_id = {
+            u.pk: u
+            for u in User.objects.filter(pk__in=relevant_ids).only(
+                "pk", "first_name", "last_name",
+            )
+        }
 
         rows.append({
             "webinar_id": str(webinar.pk),
@@ -58,14 +83,29 @@ def list_webinars_table(*, requester, course_title=None, date_from=None, date_to
             "started_at": webinar.started_at,
             "ended_at": webinar.ended_at,
             "attended_total": len(active),
-            "attended_any": attended_any,
-            "attended_threshold": attended_threshold,
-            "homework_submitted_count": hw_submitted,
+            "attended_any": len(attended_any_ids),
+            "attended_threshold": len(attended_threshold_ids),
+            "homework_submitted_count": len(hw_submitted_ids),
+            "attended_any_users": _users_brief(attended_any_ids, users_by_id),
+            "attended_threshold_users": _users_brief(attended_threshold_ids, users_by_id),
+            "homework_submitted_users": _users_brief(hw_submitted_ids, users_by_id),
         })
     return rows
 
 
-def list_students(*, requester, course_title=None, query=None):
+def _users_brief(user_ids, users_by_id):
+    rows = []
+    for uid in user_ids:
+        user = users_by_id.get(uid)
+        if user is None:
+            continue
+        full_name = f"{user.first_name} {user.last_name}".strip() or "—"
+        rows.append({"user_id": user.pk, "full_name": full_name})
+    rows.sort(key=lambda r: r["full_name"])
+    return rows
+
+
+def list_students(*, requester, course_slug=None, query=None):
     from apps.courses.models import PurchasedCourse
     from apps.users.api.utils.crypto_utils import decrypt_data
     from apps.users.models import User

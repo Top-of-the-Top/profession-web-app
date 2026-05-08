@@ -148,8 +148,8 @@
 }
 
 .iconBtnGreen {
-  color: #027a48;
-  border-color: #abefc6;
+  color: #3BC531;
+  border-color: #E0F3DF;
 }
 
 .iconBtnGreen:hover {
@@ -185,6 +185,50 @@
 .iconBtnRed:hover {
   background: #fff4f2;
   color: #b42318;
+}
+
+.publishToggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 24px;
+  border-radius: 9999px;
+  border: none;
+  background: #e1e1e1c2;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.publishToggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.publishToggleOn {
+  background: #9fdd9c	;
+}
+
+.publishToggleThumb {
+  position: absolute;
+  left: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  color: #667085;
+  transition: left 0.2s, color 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.publishToggleOn .publishToggleThumb {
+  left: calc(100% - 21px);
+  color: #027a48;
 }
 
 /* ── Form card ── */
@@ -306,6 +350,11 @@
   vertical-align: middle;
 }
 
+.thStatus {
+  width: 140px;
+  min-width: 140px;
+}
+
 .tdNum {
   padding: 12px 16px;
   color: #1d2939;
@@ -322,7 +371,7 @@
   white-space: nowrap;
 }
 
-.tdActions {
+.tdActionsInner {
   display: flex;
   gap: 6px;
   align-items: center;
@@ -381,8 +430,8 @@
 }
 
 .badgeGreen {
-  background: #ecfdf3;
-  color: #027a48;
+  background: #E0F3DF;
+  color: #3BC531;
 }
 
 .badgeGray {

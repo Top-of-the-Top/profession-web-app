@@ -2,7 +2,7 @@ import { Suspense, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
-import { House, ShoppingBag, CalendarDays, ClipboardList, BarChart2, Settings } from 'lucide-react';
+import { House, ShoppingBag, Calendar, BookOpenCheck , BarChart2, SquareTerminal } from 'lucide-react';
 import { Button, Spinner, ContentErrorFallback } from '@shared/ui';
 import { cn } from '@shared/lib/utils';
 import { tokenService } from '@shared/lib/auth/tokenService';
@@ -92,29 +92,17 @@ export default function AppLayout() {
 
   const navItems = [
     { href: '/app', label: 'Домашняя', icon: House, id: 'home' },
-    {
-      href: '/app/store',
-      label: 'Магазин',
-      icon: ShoppingBag,
-      id: 'upload',
-    },
-    {
-      href: '/app/schedule',
-      label: 'Расписание',
-      icon: CalendarDays,
-      id: 'schedule',
-    },
-    {
-      href: '/app/homeworks',
-      label: 'Задания',
-      icon: ClipboardList,
-      id: 'distribute',
-    },
+    { href: '/app/store', label: 'Магазин', icon: ShoppingBag, id: 'upload' },
+    { href: '/app/schedule', label: 'Расписание', icon: Calendar, id: 'schedule' },
+    { href: '/app/homeworks', label: 'Задания', icon: BookOpenCheck, id: 'distribute' },
+  ];
+
+  const navBottomItems = [
     ...(canSeeStats
       ? [{ href: '/app/statistics', label: 'Статистика', icon: BarChart2, id: 'statistics' }]
       : []),
     ...(isModerator
-      ? [{ href: '/app/admin', label: 'Админ-панель', icon: Settings, id: 'admin' }]
+      ? [{ href: '/app/admin', label: 'Админ-панель', icon: SquareTerminal, id: 'admin' }]
       : []),
   ];
 
@@ -153,35 +141,45 @@ export default function AppLayout() {
         <div className={styles.sidebar}>
           <div className={styles.navContainer}>
             <nav className={styles.nav}>
-              {navItems.map(({ href, label, icon: Icon, id }) => {
-                return (
-                  <NavLink
-                    key={href}
-                    to={href}
-                    end={href === '/app'}
-                    onPointerEnter={() => {
-                      prefetchAppSidebarHref(href);
-                    }}
-                    onFocus={() => {
-                      prefetchAppSidebarHref(href);
-                    }}
-                    className={({ isActive }) =>
-                      cn(
-                        styles.navLink,
-                        styles[id],
-                        isActive && styles.navLinkActive
-                      )
-                    }
-                  >
-                    <Button variant="ghost" className={styles.navButton}>
-                      <Icon className={styles.navIcon} strokeWidth={2} />
-                    </Button>
-                    <span className={styles.navTooltip}>{label}</span>
-                  </NavLink>
-                );
-              })}
+              {navItems.map(({ href, label, icon: Icon, id }) => (
+                <NavLink
+                  key={href}
+                  to={href}
+                  end={href === '/app'}
+                  onPointerEnter={() => prefetchAppSidebarHref(href)}
+                  onFocus={() => prefetchAppSidebarHref(href)}
+                  className={({ isActive }) =>
+                    cn(styles.navLink, styles[id], isActive && styles.navLinkActive)
+                  }
+                >
+                  <Button variant="ghost" className={styles.navButton}>
+                    <Icon className={styles.navIcon} strokeWidth={2} />
+                  </Button>
+                  <span className={styles.navTooltip}>{label}</span>
+                </NavLink>
+              ))}
             </nav>
           </div>
+          {navBottomItems.length > 0 && (
+            <nav className={cn(styles.nav, styles.navBottom)}>
+              {navBottomItems.map(({ href, label, icon: Icon, id }) => (
+                <NavLink
+                  key={href}
+                  to={href}
+                  onPointerEnter={() => prefetchAppSidebarHref(href)}
+                  onFocus={() => prefetchAppSidebarHref(href)}
+                  className={({ isActive }) =>
+                    cn(styles.navLink, styles[id], isActive && styles.navLinkActive)
+                  }
+                >
+                  <Button variant="ghost" className={styles.navButton}>
+                    <Icon className={styles.navIcon} strokeWidth={2} />
+                  </Button>
+                  <span className={styles.navTooltip}>{label}</span>
+                </NavLink>
+              ))}
+            </nav>
+          )}
 
           {/* <div className={styles.statsSection}>
             {status === 'connecting' && (

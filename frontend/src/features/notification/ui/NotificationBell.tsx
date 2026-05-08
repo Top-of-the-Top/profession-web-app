@@ -122,15 +122,7 @@ export function NotificationBell() {
               {notifications.map((n) => (
                 <li key={n.id} className={[styles.item, !n.is_read ? styles.itemUnread : ''].join(' ')}>
                   {!n.is_read && (
-                    <img
-                      src="/bell-full.svg"
-                      alt=""
-                      width={8}
-                      height={8}
-                      className={styles.itemUnreadIcon}
-                      decoding="async"
-                      aria-hidden
-                    />
+                    <span className={styles.itemUnreadDot} aria-hidden />
                   )}
                   <span className={styles.itemTitle}>{n.title}</span>
                   <span className={styles.itemMessage}>{n.message}</span>

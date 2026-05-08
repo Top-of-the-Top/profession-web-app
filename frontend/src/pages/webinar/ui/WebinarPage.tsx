@@ -32,6 +32,7 @@ export default function WebinarPage() {
     slug: string;
     lessonSlug: string;
   }>();
+	
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 

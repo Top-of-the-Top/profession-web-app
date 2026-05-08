@@ -45,7 +45,8 @@
 
 .tabBtn:hover {
   color: #1d2939;
-  background: #f9fafb;
+  /* background: #c7d5e4; */
+	background-color: #d2dff0;
 }
 
 .tabBtnActive {
@@ -186,6 +187,32 @@
   white-space: nowrap;
 }
 
+.dateCell {
+  position: relative;
+  /* top: -3px; */
+}
+
+.fractionSlash {
+  position: relative;
+  top: -1px;
+}
+
+.thCenter {
+  text-align: center;
+}
+
+.thRight {
+  text-align: right;
+}
+
+.tdCenter {
+  text-align: center;
+}
+
+.tdRight {
+  text-align: right;
+}
+
 .subPct {
   color: #98a2b3;
   font-weight: 400;
@@ -203,9 +230,9 @@
 .numCellCount {
   font-weight: 500;
   color: #1d2939;
-  text-decoration: underline;
+  /* text-decoration: underline;
   text-decoration-style: dotted;
-  text-underline-offset: 3px;
+  text-underline-offset: 4px; */
 }
 
 .numPopup {

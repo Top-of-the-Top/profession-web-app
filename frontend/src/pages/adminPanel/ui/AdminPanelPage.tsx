@@ -199,7 +199,7 @@ function CoursesTab() {
           <thead>
             <tr>
               <th className={styles.th}>Название</th>
-              <th className={styles.th}>Статус</th>
+              <th className={cn(styles.th, styles.thStatus)}>Статус</th>
               <th className={styles.th}>Цена</th>
               <th className={styles.th}>Авторы</th>
               <th className={styles.th}>Действия</th>
@@ -235,47 +235,45 @@ function CoursesTab() {
                     </div>
                   </td>
                   <td className={styles.tdActions}>
-                    <button
-                      className={styles.iconBtn}
-                      title="Редактировать"
-                      onClick={() => setEditingSlug(editingSlug === course.slug ? null : course.slug)}
-                    >
-                      <Pencil size={15} />
-                    </button>
-                    {course.type === 'draft' ? (
+                    <div className={styles.tdActionsInner}>
                       <button
-                        className={cn(styles.iconBtn, styles.iconBtnGreen)}
-                        title="Опубликовать"
-                        onClick={() => publishCourse.mutate(course.slug)}
-                        disabled={publishCourse.isPending}
+                        className={styles.iconBtn}
+                        title="Редактировать"
+                        onClick={() => setEditingSlug(editingSlug === course.slug ? null : course.slug)}
                       >
-                        <Eye size={15} />
+                        <Pencil size={15} />
                       </button>
-                    ) : (
                       <button
-                        className={cn(styles.iconBtn, styles.iconBtnOrange)}
-                        title="Снять с публикации"
-                        onClick={() => unpublishCourse.mutate(course.slug)}
-                        disabled={unpublishCourse.isPending}
+                        type="button"
+                        className={cn(styles.publishToggle, course.type === 'published' && styles.publishToggleOn)}
+                        title={course.type === 'published' ? 'Снять с публикации' : 'Опубликовать'}
+                        onClick={() =>
+                          course.type === 'draft'
+                            ? publishCourse.mutate(course.slug)
+                            : unpublishCourse.mutate(course.slug)
+                        }
+                        disabled={publishCourse.isPending || unpublishCourse.isPending}
                       >
-                        <EyeOff size={15} />
+                        <span className={styles.publishToggleThumb}>
+                          {course.type === 'published' ? <Eye size={12} /> : <EyeOff size={12} />}
+                        </span>
                       </button>
-                    )}
-                    <button
-                      className={cn(styles.iconBtn, styles.iconBtnBlue)}
-                      title="Управление авторами"
-                      onClick={() => setManagingSlug(managingSlug === course.slug ? null : course.slug)}
-                    >
-                      <Users size={15} />
-                    </button>
-                    <button
-                      className={cn(styles.iconBtn, styles.iconBtnRed)}
-                      title="Удалить"
-                      onClick={() => { if (confirm('Удалить курс?')) deleteCourse.mutate(course.slug); }}
-                      disabled={deleteCourse.isPending}
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                      <button
+                        className={cn(styles.iconBtn, styles.iconBtnBlue)}
+                        title="Управление авторами"
+                        onClick={() => setManagingSlug(managingSlug === course.slug ? null : course.slug)}
+                      >
+                        <Users size={15} />
+                      </button>
+                      <button
+                        className={cn(styles.iconBtn, styles.iconBtnRed)}
+                        title="Удалить"
+                        onClick={() => { if (confirm('Удалить курс?')) deleteCourse.mutate(course.slug); }}
+                        disabled={deleteCourse.isPending}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 {editingSlug === course.slug && (

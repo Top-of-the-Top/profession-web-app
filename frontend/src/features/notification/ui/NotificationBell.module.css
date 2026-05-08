@@ -97,24 +97,30 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 16px 10px 28px;
+  padding: 10px 16px 10px 32px;
   border-bottom: 1px solid #f3f4f6;
   cursor: default;
   transition: background 0.14s ease;
 }
 
 .itemUnread {
-  background: #fef2f2;
-}
-
-.itemUnread:hover {
-  background: #fee2e2;
+  background: transparent;
 }
 
 .itemUnreadIcon {
   position: absolute;
   left: 12px;
   top: 16px;
+}
+
+.itemUnreadDot {
+  position: absolute;
+  left: 12px;
+  top: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #EEA949;
 }
 
 .item:last-child {

@@ -32,6 +32,7 @@ def send_course_notification(course_id, title, message):
         payload={
             "id": notif.id,
             "type": "course_update",
+            "notification_type": Notification.COURSE,
             "title": title,
             "message": message,
             "created_at": timezone.now().isoformat(),
@@ -52,6 +53,7 @@ def send_personal_notification(user_id, title, message):
         payload={
             "id": notif.id,
             "type": "personal",
+            "notification_type": Notification.PERSONAL,
             "title": title,
             "message": message,
             "created_at": timezone.now().isoformat(),
@@ -71,6 +73,7 @@ def send_system_notification(title, message):
         payload={
             "id": notif.id,
             "type": "system",
+            "notification_type": Notification.SYSTEM,
             "title": title,
             "message": message,
             "created_at": timezone.now().isoformat(),

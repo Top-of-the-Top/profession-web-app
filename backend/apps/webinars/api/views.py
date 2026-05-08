@@ -417,9 +417,22 @@ class WebinarScheduleView(APIView):
                     f'"{lesson.title}".\nНовое начало: {scheduled_str}.'
                 )
 
-        from apps.notifications.tasks import send_course_notification
+        if scheduled_at is None:
+            from apps.notifications.tasks import send_course_notification
 
-        send_course_notification.delay(course.course_id, title, message)
+            send_course_notification.delay(course.course_id, title, message)
+        else:
+            from apps.notifications.tasks import send_webinar_scheduled_notification
+
+            send_webinar_scheduled_notification.delay(
+                course_id=str(course.course_id),
+                title=title,
+                message=message,
+                webinar_id=str(webinar.webinar_id),
+                course_slug=course.slug,
+                lesson_slug=lesson.slug,
+                scheduled_at=scheduled_at.isoformat(),
+            )
 
         return Response(
             {

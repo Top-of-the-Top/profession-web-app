@@ -111,6 +111,40 @@ def send_mass_system_email(subject, message):
 
 
 @shared_task
+def send_webinar_scheduled_notification(
+    course_id,
+    title,
+    message,
+    webinar_id,
+    course_slug,
+    lesson_slug,
+    scheduled_at,
+):
+    notif = Notification.objects.create(
+        course_id=course_id,
+        title=title,
+        notification_type=Notification.COURSE,
+        message=message,
+    )
+
+    publish_event(
+        routing_key=f"course.{course_id}",
+        payload={
+            "id": notif.id,
+            "type": "webinar_scheduled",
+            "title": title,
+            "message": message,
+            "created_at": notif.created_at.isoformat(),
+            "webinar_id": str(webinar_id),
+            "course_id": str(course_id),
+            "course_slug": course_slug,
+            "lesson_slug": lesson_slug,
+            "scheduled_at": scheduled_at,
+        },
+    )
+
+
+@shared_task
 def send_webinar_started_notification(
     course_id,
     lesson_id,

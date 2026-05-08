@@ -14,6 +14,12 @@ export type WebinarSseEvent =
       ended_at: string;
     }
   | {
+      type: 'webinar_started';
+      webinar_id: string;
+      course_slug: string;
+      lesson_slug: string;
+    }
+  | {
       type: 'webinar_ended';
       webinar_id: string;
     };
@@ -60,6 +66,13 @@ function parseWebinarEvent(raw: string): WebinarSseEvent | null {
         return payload;
       }
       if (payload.type === 'recording_stopped' && 'recording_id' in payload) {
+        return payload;
+      }
+      if (
+        payload.type === 'webinar_started' &&
+        'course_slug' in payload &&
+        'lesson_slug' in payload
+      ) {
         return payload;
       }
       if (payload.type === 'webinar_ended') {

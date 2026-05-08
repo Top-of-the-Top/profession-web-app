@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../interceptor';
 import {
   courseApi,
   type AppCourseLesson,
@@ -450,6 +451,43 @@ export function useSaveLessonContent(
       notifyError({
         title: 'Не удалось сохранить урок',
         description: errMsg(err),
+      });
+    },
+  });
+}
+
+export function useScheduleWebinar(courseSlug: string, lessonSlug: string) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (scheduledAt: string | null) =>
+      apiClient.request<{ webinar_id: string; scheduled_at: string | null }>(
+        `/api/courses/${courseSlug}/lessons/${lessonSlug}/webinar/schedule/`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ scheduled_at: scheduledAt }),
+        },
+      ),
+    onSuccess: () => {
+      notifySuccess({ title: 'Время вебинара сохранено' });
+      void qc.invalidateQueries({ queryKey: courseKeys.lesson(courseSlug, lessonSlug) });
+    },
+    onError: (err) => {
+      const msg = errMsg(err);
+      if (msg.includes('API_ERROR_409')) {
+        notifyError({
+          title: 'Вебинар сейчас идёт',
+          description: 'Остановите эфир перед изменением расписания.',
+        });
+        return;
+      }
+      if (msg.includes('API_ERROR_403')) {
+        notifyError({ title: 'Недостаточно прав' });
+        return;
+      }
+      notifyError({
+        title: 'Не удалось сохранить время',
+        description: msg,
       });
     },
   });

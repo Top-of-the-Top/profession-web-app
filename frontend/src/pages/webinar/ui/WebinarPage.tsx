@@ -56,7 +56,7 @@ export default function WebinarPage() {
 
   const { micOn, cameraOn, toggleMic, toggleCamera } = useMediaControls();
   const whiteboardDisplayUid =
-    (rtcUidToLabel?.[session?.uid ?? 0] ?? session?.user_name ?? '').trim() ||
+    (session?.user_name ?? rtcUidToLabel?.[session?.uid ?? 0] ?? '').trim() ||
     String(session?.uid ?? '');
 
   const { messages: chatMessages, sendMessage, broadcastPresence } = useWebinarChat({

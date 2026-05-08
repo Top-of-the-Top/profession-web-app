@@ -363,6 +363,7 @@ export interface CourseLessonDetail {
   title: string;
   course_title: string | null;
   document: string;
+  scheduled_at: string | null;
   started_at: string | null;
   webinar_status: WebinarStatus | null;
   recordings: LessonRecording[];
@@ -441,6 +442,7 @@ export type RawLessonDetailResponse = {
   content: {
     document?: string;
     recording_url?: string | null;
+    scheduled_at?: string | null;
     started_at?: string | null;
     webinar_status?: WebinarStatus | null;
     whiteboard_pdf_url?: string | null;

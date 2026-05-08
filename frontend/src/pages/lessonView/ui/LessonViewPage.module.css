@@ -408,19 +408,19 @@
 }
 
 .timerCard {
-  background: #ffffff;
+  background: #f5f7fa;
   border-radius: 16px;
-  padding: 14px;
+  padding: 16px;
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .timerCard .sidebarCardHeader {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .timerCard .sidebarCardTitle {
-  font-size: 16px;
-  /* font-weight: 700;	 */
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .sidebarCardHeader {
@@ -455,25 +455,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  background: #191970;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  background: #232a72;
   color: #fff;
-  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.22);
 }
 
 .timerValue {
-  font-size: 25px;
-  line-height: 1.1;
-  /* font-weight: 600; */
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .timerLabel {
   font-size: 11px;
   color: #64748b;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
 }
 
 /* ── Webinar quick links ── */
@@ -513,6 +514,114 @@
 .quickLinkDisabled {
   pointer-events: none;
   opacity: 0.55;
+}
+
+/* ── Webinar schedule widget ── */
+
+.scheduleRow {
+  margin-bottom: 10px;
+}
+
+.scheduleInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1a1a;
+  background: #fff;
+  outline: none;
+}
+
+.scheduleInput:focus {
+  border-color: #191970;
+  box-shadow: 0 0 0 2px rgba(25, 25, 112, 0.12);
+}
+
+.scheduleActions {
+  display: flex;
+  gap: 8px;
+}
+
+.scheduleBtn {
+  flex: 1;
+  padding: 8px 0;
+  background: #191970;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.scheduleBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.scheduleBtn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.scheduleBtnClear {
+  padding: 8px 12px;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.scheduleBtnClear:hover:not(:disabled) {
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.scheduleBtnClear:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.scheduleOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scheduleModal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px;
+  width: min(360px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.scheduleModalTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.scheduleModalActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 /* ── Homework widget ── */
@@ -770,11 +879,8 @@
     min-width: 260px;
   }
 
-  .timerCell {
-    width: 52px;
-    height: 52px;
-  }
 }
+
 
 @media (max-width: 768px) {
   .layout {

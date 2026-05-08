@@ -43,12 +43,13 @@ import type {
   WebinarStatus,
 } from '@shared/api/courseApi';
 import { useLessonBySlug } from '@shared/api/queries/courses';
+import { connectWebinarSSE } from '../../../features/webinar';
 import {
   useDeleteRecording,
   useDeleteRecordingPdf,
   useStartWebinar,
 } from '@shared/api/mutations/webinar';
-import { useToggleHomeworkType } from '@shared/api/mutations/courses';
+import { useToggleHomeworkType, useScheduleWebinar } from '@shared/api/mutations/courses';
 import { useRole } from '@shared/lib/rbac';
 import { homeworkReviewNavigateState } from '@shared/lib/homeworkReviewNavigation';
 import { cn } from '@shared/lib/utils';
@@ -572,6 +573,103 @@ const LessonEditWidget: React.FC<{
   );
 };
 
+function toLocalDatetimeValue(iso: string | null): string {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return '';
+  }
+}
+
+const WebinarScheduleWidget: React.FC<{
+  courseSlug: string;
+  lessonSlug: string;
+  scheduledAt: string | null;
+}> = ({ courseSlug, lessonSlug, scheduledAt }) => {
+  const schedule = useScheduleWebinar(courseSlug, lessonSlug);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [value, setValue] = useState('');
+
+  const openModal = () => {
+    setValue(toLocalDatetimeValue(scheduledAt));
+    setModalOpen(true);
+  };
+
+  const handleSave = () => {
+    if (!value) return;
+    schedule.mutate(new Date(value).toISOString(), {
+      onSuccess: () => setModalOpen(false),
+    });
+  };
+
+  const handleClear = () => {
+    schedule.mutate(null);
+  };
+
+  return (
+    <>
+      <div className={styles.sidebarCard}>
+        <div className={styles.sidebarCardHeader}>
+          <Clock3 size={18} />
+          <span className={styles.sidebarCardTitle}>Время вебинара</span>
+        </div>
+        <div className={styles.scheduleActions}>
+          <button type="button" className={styles.scheduleBtn} onClick={openModal}>
+            {scheduledAt ? 'Изменить время' : 'Назначить вебинар'}
+          </button>
+          {scheduledAt && (
+            <button
+              type="button"
+              className={styles.scheduleBtnClear}
+              disabled={schedule.isPending}
+              onClick={handleClear}
+            >
+              Снять расписание
+            </button>
+          )}
+        </div>
+      </div>
+
+      {modalOpen && (
+        <div className={styles.scheduleOverlay} onClick={() => setModalOpen(false)}>
+          <div className={styles.scheduleModal} onClick={(e) => e.stopPropagation()}>
+            <p className={styles.scheduleModalTitle}>
+              {scheduledAt ? 'Изменить время вебинара' : 'Назначить вебинар'}
+            </p>
+            <input
+              type="datetime-local"
+              className={styles.scheduleInput}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+            <div className={styles.scheduleModalActions}>
+              <button
+                type="button"
+                className={styles.scheduleBtnClear}
+                onClick={() => setModalOpen(false)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className={styles.scheduleBtn}
+                disabled={schedule.isPending || !value}
+                onClick={handleSave}
+              >
+                {schedule.isPending ? 'Сохранение…' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 type RecordingDeleteConfirm =
   | null
   | { kind: 'recording'; recordingId: string; dateLabel: string }
@@ -753,6 +851,33 @@ export default function LessonViewPage() {
   const lessonQuery = useLessonBySlug(courseSlug, lessonSlug);
 
   const lessonDetail = lessonQuery.data;
+
+  const webinarId = useMemo(() => {
+    const m = lessonDetail?.meta as Record<string, unknown> | undefined;
+    return typeof m?.webinar_id === 'string' ? m.webinar_id : null;
+  }, [lessonDetail?.meta]);
+
+  const [liveWebinarStatus, setLiveWebinarStatus] = useState<WebinarStatus | null>(
+    lessonDetail?.webinar_status ?? null,
+  );
+
+  useEffect(() => {
+    setLiveWebinarStatus(lessonDetail?.webinar_status ?? null);
+  }, [lessonDetail?.webinar_status]);
+
+  useEffect(() => {
+    if (!webinarId) return;
+    return connectWebinarSSE({
+      webinarId,
+      onEvent: (event) => {
+        if (event.type === 'webinar_started') {
+          setLiveWebinarStatus('live');
+        } else if (event.type === 'webinar_ended') {
+          setLiveWebinarStatus('ended');
+        }
+      },
+    });
+  }, [webinarId]);
 
   const courseTitle =
     lessonDetail?.course_title
@@ -976,21 +1101,28 @@ export default function LessonViewPage() {
         </div>
 
         <aside className={styles.sidebar}>
-          {(lessonDetail.webinar_status === null ||
-            lessonDetail.webinar_status === 'pending') &&
-            lessonDetail.started_at && (
-              <TimerWidget targetIso={lessonDetail.started_at} />
+          {(liveWebinarStatus === null ||
+            liveWebinarStatus === 'pending') &&
+            lessonDetail.scheduled_at && (
+              <TimerWidget targetIso={lessonDetail.scheduled_at} />
             )}
           <WebinarWidget
             courseSlug={courseSlug ?? ''}
             lessonSlug={lessonSlug ?? ''}
             isTeacher={isTeacher}
-            webinarStatus={lessonDetail.webinar_status}
+            webinarStatus={liveWebinarStatus}
           />
           {isTeacher && (
             <LessonEditWidget
               courseSlug={courseSlug ?? ''}
               lessonSlug={lessonSlug ?? ''}
+            />
+          )}
+          {isTeacher && (
+            <WebinarScheduleWidget
+              courseSlug={courseSlug ?? ''}
+              lessonSlug={lessonSlug ?? ''}
+              scheduledAt={lessonDetail.scheduled_at}
             />
           )}
           <HomeworkWidget

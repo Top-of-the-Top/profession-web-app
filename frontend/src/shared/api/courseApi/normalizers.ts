@@ -256,6 +256,7 @@ export function normalizeLessonDetailRead(raw: RawLessonDetailResponse): CourseL
     title: raw.title,
     course_title: typeof raw.course_title === 'string' ? raw.course_title : null,
     document: c.document ?? '',
+    scheduled_at: c.scheduled_at ?? null,
     started_at: c.started_at ?? null,
     webinar_status: c.webinar_status ?? null,
     recordings: normalizeLessonRecordings(c),

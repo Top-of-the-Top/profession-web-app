@@ -54,8 +54,9 @@ def my_schedule_cache_key(user_id, start_date=None, end_date=None):
 DETAIL_CACHE_SCOPES = ("pub", "all")
 
 
-def lesson_detail_cache_key(course_slug, slug, scope="pub"):
-    return f"default:lessons:detail:{course_slug}:{slug}:{scope}"
+def lesson_detail_cache_key(course_slug, slug, scope="pub", user_id=None):
+    suffix = f":{int(user_id)}" if user_id is not None else ":anon"
+    return f"default:lessons:detail:{course_slug}:{slug}:{scope}{suffix}"
 
 
 def homework_detail_cache_key(course_slug, lesson_slug, slug, scope="pub"):
@@ -64,6 +65,10 @@ def homework_detail_cache_key(course_slug, lesson_slug, slug, scope="pub"):
 
 def invalidate_lesson_detail_cache(course_slug, lesson_slug):
     c = default_cache()
+    pattern = f"default:lessons:detail:{course_slug}:{lesson_slug}:*"
+    if hasattr(c, "delete_pattern"):
+        c.delete_pattern(pattern)
+        return
     for scope in DETAIL_CACHE_SCOPES:
         c.delete(lesson_detail_cache_key(course_slug, lesson_slug, scope))
 

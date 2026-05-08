@@ -23,16 +23,12 @@ interface UseWebinarChatParams {
 interface UseWebinarChatReturn {
   messages: ChatMessage[];
   sendMessage: (text: string) => void;
+  broadcastPresence: () => void;
   isConnected: boolean;
 }
 
-// Publish own presence into the channel so peers can map uid → name.
-// Retried PRESENCE_RETRIES times with PRESENCE_INTERVAL_MS delay to cover
-// late-joining peers who weren't subscribed yet on first broadcast.
 const PRESENCE_RETRIES = 3;
 const PRESENCE_INTERVAL_MS = 8_000;
-
-// Max reconnect attempts on connection drop before giving up.
 const MAX_RECONNECT = 4;
 
 async function withRetry<T>(
@@ -63,11 +59,11 @@ export function useWebinarChat({
   const [isConnected, setIsConnected] = useState(false);
 
   const rtmRef = useRef<InstanceType<typeof RTM> | null>(null);
-  // Always-current refs so closures inside the effect don't go stale.
   const onPeerLabelRef = useRef(onPeerLabel);
   onPeerLabelRef.current = onPeerLabel;
   const userNameRef = useRef(userName);
   userNameRef.current = userName;
+  const publishPresenceRef = useRef<(() => void) | null>(null);
 
   const disabled = !rtmToken || !chatChannelName || !appId || !uid;
 
@@ -77,13 +73,10 @@ export function useWebinarChat({
     let mounted = true;
     let reconnectCount = 0;
     const presenceTimers: ReturnType<typeof setTimeout>[] = [];
-    // Track peers we've already replied to so we don't cause reply loops.
     const repliedTo = new Set<string>();
 
     const rtm = new RTM(appId, String(uid));
     rtmRef.current = rtm;
-
-    // --- helpers ---
 
     const publishPresence = () => {
       if (!mounted) return;
@@ -95,8 +88,8 @@ export function useWebinarChat({
         )
         .catch(() => {});
     };
+    publishPresenceRef.current = publishPresence;
 
-    // Broadcast own presence, then repeat a few times for late joiners.
     const schedulePresenceBroadcast = () => {
       publishPresence();
       for (let i = 1; i <= PRESENCE_RETRIES; i++) {
@@ -113,11 +106,8 @@ export function useWebinarChat({
       presenceTimers.length = 0;
     };
 
-    // --- message handler ---
-
     const messageHandler = (event: { message: string | Uint8Array; publisher: string }) => {
       if (!mounted) return;
-      // Ignore own echoes (RTM may echo back to sender in some configs).
       if (event.publisher === String(uid)) return;
 
       let payload: Record<string, unknown>;
@@ -136,7 +126,6 @@ export function useWebinarChat({
           peerName
         ) {
           onPeerLabelRef.current?.(peerRtcUid, peerName);
-          // Reply once so the newcomer learns our name too.
           if (!repliedTo.has(event.publisher)) {
             repliedTo.add(event.publisher);
             publishPresence();
@@ -166,8 +155,6 @@ export function useWebinarChat({
         },
       ]);
     };
-
-    // --- connect / reconnect ---
 
     const connect = async () => {
       try {
@@ -214,9 +201,10 @@ export function useWebinarChat({
       rtm.removeEventListener('message', messageHandler);
       rtm.removeEventListener('status', statusHandler as Parameters<typeof rtm.addEventListener<'status'>>[1]);
       rtm.unsubscribe(chatChannelName).catch(() => {}).finally(() => rtm.logout().catch(() => {}));
+      publishPresenceRef.current = null;
       setIsConnected(false);
     };
-  }, [appId, rtmToken, chatChannelName, uid, userName, disabled]);
+  }, [appId, rtmToken, chatChannelName, uid, disabled]);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -225,7 +213,6 @@ export function useWebinarChat({
 
       const createdAt = Date.now();
 
-      // Optimistic local append.
       setMessages((prev) => [
         ...prev,
         {
@@ -248,5 +235,9 @@ export function useWebinarChat({
     [chatChannelName, isConnected, uid],
   );
 
-  return { messages, sendMessage, isConnected };
+  const broadcastPresence = useCallback(() => {
+    publishPresenceRef.current?.();
+  }, []);
+
+  return { messages, sendMessage, broadcastPresence, isConnected };
 }

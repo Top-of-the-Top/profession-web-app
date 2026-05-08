@@ -220,7 +220,21 @@ def check_kinescope_processing(self, recording_id):
     if video_status == "done":
         recording.kinescope_upload_status = Recording.READY_STATUS
         recording.status = Recording.READY_STATUS
-        recording.save(update_fields=["kinescope_upload_status", "status", "updated_at"])
+
+        update_fields = ["kinescope_upload_status", "status", "updated_at"]
+        duration = video_data.get("duration")
+        if duration:
+            try:
+                recording.duration_seconds = int(float(duration))
+                update_fields.append("duration_seconds")
+            except (TypeError, ValueError):
+                logger.warning(
+                    "Не удалось распарсить duration от Kinescope для recording %s: %r",
+                    recording_id,
+                    duration,
+                )
+
+        recording.save(update_fields=update_fields)
 
         from apps.core.meta_management.factory import build_asset_service
 

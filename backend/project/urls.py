@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/", include("apps.homeworks.api.urls")),
     path("api/", include("apps.core.api.urls")),
     path("api/", include("apps.admin_panel.api.url")),
+    path("api/statistics/", include("apps.stats.api.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/swagger",

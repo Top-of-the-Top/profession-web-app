@@ -11,6 +11,11 @@ urlpatterns = [
         name="webinar-start",
     ),
     path(
+        "courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/schedule/",
+        views.WebinarScheduleView.as_view(),
+        name="webinar-schedule",
+    ),
+    path(
         "courses/<slug:course_slug>/lessons/<slug:lesson_slug>/webinar/stop/",
         views.WebinarStopView.as_view(),
         name="webinar-stop",

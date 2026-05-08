@@ -59,7 +59,7 @@ export default function HomeworkReviewPage() {
 
   const attemptQuery = useHomeworkAttemptForReview(courseSlug, attemptId);
   const homeworkQuery = useHomeworkDetail(courseSlug, lessonSlug, homeworkSlug);
-  const reviewMutation = useReviewHomeworkAttempt(courseSlug ?? '', attemptId ?? '');
+  const reviewMutation = useReviewHomeworkAttempt(courseSlug ?? '', attemptId ?? '', lessonSlug);
 
   const { persist: persistDraft } = useReviewDraft(attemptId);
 

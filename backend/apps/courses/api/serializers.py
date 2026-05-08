@@ -109,32 +109,95 @@ class SectionSerializer(serializers.ModelSerializer):
         )
 
 
+def _lesson_is_completed_for_request(lesson, request):
+    if request is None or not request.user.is_authenticated:
+        return None
+    if not request.user.is_student():
+        return None
+    from apps.stats.models import LessonProgress
+
+    progress = LessonProgress.objects.filter(user=request.user, lesson=lesson).first()
+    return bool(progress and progress.is_completed)
+
+
 class LessonBriefSerializer(serializers.ModelSerializer):
+    is_completed = serializers.SerializerMethodField()
+
     class Meta:
         model = Lesson
-        fields = ["lesson_id", "lesson_number", "title", "slug"]
+        fields = ["lesson_id", "lesson_number", "title", "slug", "is_completed"]
+
+    @extend_schema_field(serializers.BooleanField(allow_null=True))
+    def get_is_completed(self, lesson):
+        return _lesson_is_completed_for_request(lesson, self.context.get("request"))
 
 
 class LessonBriefWithTypeSerializer(serializers.ModelSerializer):
+    is_completed = serializers.SerializerMethodField()
+
     class Meta:
         model = Lesson
-        fields = ["lesson_id", "lesson_number", "title", "slug", "type"]
+        fields = ["lesson_id", "lesson_number", "title", "slug", "type", "is_completed"]
+
+    @extend_schema_field(serializers.BooleanField(allow_null=True))
+    def get_is_completed(self, lesson):
+        return _lesson_is_completed_for_request(lesson, self.context.get("request"))
+
+
+def _section_completed_for_request(section, request):
+    if request is None or not request.user.is_authenticated:
+        return None
+    if not request.user.is_student():
+        return None
+    from apps.stats.models import LessonProgress
+
+    published_lesson_ids = list(
+        Lesson.objects.filter(section=section, type=Lesson.PUBLISHED_STATUS).values_list(
+            "pk", flat=True
+        )
+    )
+    if not published_lesson_ids:
+        return False
+    completed = LessonProgress.objects.filter(
+        user=request.user,
+        lesson_id__in=published_lesson_ids,
+        is_completed=True,
+    ).count()
+    return completed == len(published_lesson_ids)
 
 
 class SectionWithLessonsSerializer(serializers.ModelSerializer):
     lessons = LessonBriefSerializer(many=True, read_only=True, source="lesson_set")
+    section_completed = serializers.SerializerMethodField()
 
     class Meta:
         model = Section
-        fields = ["section_id", "section_number", "title", "lessons", "slug"]
+        fields = ["section_id", "section_number", "title", "section_completed", "lessons", "slug"]
+
+    @extend_schema_field(serializers.BooleanField(allow_null=True))
+    def get_section_completed(self, section):
+        return _section_completed_for_request(section, self.context.get("request"))
 
 
 class SectionWithLessonsAndTypeSerializer(serializers.ModelSerializer):
     lessons = LessonBriefWithTypeSerializer(many=True, read_only=True, source="lesson_set")
+    section_completed = serializers.SerializerMethodField()
 
     class Meta:
         model = Section
-        fields = ["section_id", "section_number", "title", "type", "lessons", "slug"]
+        fields = [
+            "section_id",
+            "section_number",
+            "title",
+            "type",
+            "section_completed",
+            "lessons",
+            "slug",
+        ]
+
+    @extend_schema_field(serializers.BooleanField(allow_null=True))
+    def get_section_completed(self, section):
+        return _section_completed_for_request(section, self.context.get("request"))
 
 
 class CourseHomeSerializer(serializers.Serializer):
@@ -146,6 +209,7 @@ class CourseHomeSerializer(serializers.Serializer):
     @extend_schema_field(SectionWithLessonsAndTypeSerializer(many=True))
     def get_content(self, obj):
         is_author = self.context.get("is_author", False)
+        child_context = {"request": self.context.get("request")}
 
         if is_author:
             lesson_qs = Lesson.objects.order_by("lesson_number")
@@ -154,7 +218,9 @@ class CourseHomeSerializer(serializers.Serializer):
                 .order_by("section_number")
                 .prefetch_related(Prefetch("lesson_set", queryset=lesson_qs))
             )
-            return SectionWithLessonsAndTypeSerializer(sections, many=True).data
+            return SectionWithLessonsAndTypeSerializer(
+                sections, many=True, context=child_context
+            ).data
 
         if obj.type != Course.PUBLISHED_STATUS:
             return []
@@ -165,11 +231,16 @@ class CourseHomeSerializer(serializers.Serializer):
             .order_by("section_number")
             .prefetch_related(Prefetch("lesson_set", queryset=lesson_qs))
         )
-        return SectionWithLessonsSerializer(sections, many=True).data
+        return SectionWithLessonsSerializer(sections, many=True, context=child_context).data
 
     @extend_schema_field(OpenApiTypes.OBJECT)
-    def get_meta(self, obj):
-        return {}
+    def get_meta(self, course):
+        from apps.stats.services.progress_service import course_meta_for_user
+
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return {}
+        return course_meta_for_user(user=request.user, course=course)
 
 
 class HomeworkBriefSerializer(serializers.Serializer):
@@ -178,10 +249,59 @@ class HomeworkBriefSerializer(serializers.Serializer):
     homework_slug = serializers.SlugField()
     deadline = serializers.DateTimeField()
     type = serializers.CharField()
+    attempt_status = serializers.CharField(allow_null=True, required=False)
+    attempt_grade = serializers.IntegerField(allow_null=True, required=False)
+    attempt_max_points = serializers.IntegerField(required=False)
+    percentile = serializers.IntegerField(allow_null=True, required=False)
+
+
+def _build_homework_brief(homework, request):
+    """
+    Возвращает данные одного ДЗ для LessonDetailReadSerializer.
+    Поля attempt_* и percentile наполняются только для роли student.
+    """
+    base = {
+        "homework_id": homework.homework_id,
+        "title": homework.title,
+        "homework_slug": homework.slug,
+        "deadline": homework.deadline,
+        "type": homework.type,
+        "attempt_status": None,
+        "attempt_grade": None,
+        "attempt_max_points": _homework_max_points(homework),
+        "percentile": None,
+    }
+    if request is None or not request.user.is_authenticated:
+        return base
+    if not request.user.is_student():
+        return base
+
+    from apps.homeworks.models import Attempt
+    from apps.stats.services.progress_service import compute_homework_percentile
+
+    attempt = Attempt.objects.filter(user=request.user, homework=homework).first()
+    if attempt is None:
+        base["attempt_status"] = "not_started"
+    else:
+        base["attempt_status"] = attempt.status
+        if attempt.status == Attempt.REVIEWED_STATUS:
+            base["attempt_grade"] = attempt.grade
+
+    base["percentile"] = compute_homework_percentile(user=request.user, homework=homework)
+    return base
+
+
+def _homework_max_points(homework):
+    from django.db.models import Sum
+
+    q_total = homework.question_set.aggregate(s=Sum("max_points"))["s"] or 0
+    t_total = homework.task_set.aggregate(s=Sum("max_points"))["s"] or 0
+    return q_total + t_total
 
 
 class LessonContentReadSerializer(serializers.Serializer):
     document = serializers.CharField()
+    scheduled_at = serializers.DateTimeField(required=False, allow_null=True)
     started_at = serializers.DateTimeField(required=False, allow_null=True)
     webinar_status = serializers.CharField(allow_null=True)
     recordings = serializers.ListField(child=serializers.DictField())
@@ -190,11 +310,30 @@ class LessonContentReadSerializer(serializers.Serializer):
 
 class LessonDetailReadSerializer(serializers.ModelSerializer):
     lesson_id = serializers.UUIDField(read_only=True)
+    course_title = serializers.SerializerMethodField()
     content = serializers.SerializerMethodField()
+    meta = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
-        fields = ("lesson_id", "title", "content")
+        fields = ("lesson_id", "title", "course_title", "content", "meta")
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_course_title(self, lesson):
+        section = lesson.section
+        if section is None:
+            return None
+        course = section.course
+        return course.title if course else None
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_meta(self, lesson):
+        from apps.stats.services.progress_service import lesson_meta_for_user
+
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return {}
+        return lesson_meta_for_user(user=request.user, lesson=lesson)
 
     @extend_schema_field(LessonContentReadSerializer)
     def get_content(self, obj):
@@ -206,8 +345,10 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
 
         include_drafts = self.context.get("include_drafts", False)
         hws = filter_homework_queryset_for_visibility(obj.homework_set.all(), include_drafts)
+        request = self.context.get("request")
 
         webinar = getattr(obj, "webinar", None)
+        scheduled_at = webinar.scheduled_at if webinar else None
         started_at = webinar.started_at if webinar else None
         webinar_status = webinar.status if webinar else None
 
@@ -230,7 +371,6 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
         document = obj.document or ""
         asset_ids = extract_asset_ids(document)
         if asset_ids:
-            request = self.context.get("request")
             viewer = getattr(request, "user", None) if request is not None else None
             access = build_access_api()
             try:
@@ -241,19 +381,11 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
 
         return {
             "document": document,
+            "scheduled_at": scheduled_at,
             "started_at": started_at,
             "webinar_status": webinar_status,
             "recordings": recordings_data,
-            "homeworks": [
-                {
-                    "homework_id": h.homework_id,
-                    "title": h.title,
-                    "homework_slug": h.slug,
-                    "deadline": h.deadline,
-                    "type": h.type,
-                }
-                for h in hws
-            ],
+            "homeworks": [_build_homework_brief(h, request) for h in hws],
         }
 
 

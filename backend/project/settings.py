@@ -17,6 +17,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-ci-secret-key-for-tests-on
 DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
+STATISTICS_WEBINAR_THRESHOLD = 0.7
+
 INSTALLED_APPS = [
     "daphne",
     "django.contrib.admin",
@@ -41,6 +43,7 @@ INSTALLED_APPS = [
     "apps.webinars.apps.WebinarsConfig",
     "apps.ai_chat_bot.apps.AiChatBotConfig",
     "apps.admin_panel.apps.AdminPanelConfig",
+    "apps.stats",
 ]
 
 USE_S3 = os.environ.get("USE_S3", "False") == "True"

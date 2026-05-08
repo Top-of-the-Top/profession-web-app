@@ -55,6 +55,11 @@ class Webinar(TimestampedMixin):
         verbose_name="Whiteboard Room UUID",
     )
 
+    scheduled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Запланированное начало",
+    )
     started_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -161,6 +166,11 @@ class Recording(TimestampedMixin):
         null=True,
         blank=True,
         verbose_name="Конец",
+    )
+    duration_seconds = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Длительность записи",
     )
 
     is_deleted = models.BooleanField(default=False)

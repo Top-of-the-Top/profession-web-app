@@ -417,7 +417,7 @@ class CourseHomePageView(APIView):
 
         serializer = CourseHomeSerializer(
             course,
-            context={"is_author": vis.show_types_in_tree},
+            context={"is_author": vis.show_types_in_tree, "request": request},
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -596,12 +596,17 @@ class LessonDetailView(APIView):
     def get(self, request, course_slug, lesson_slug):
         course = get_object_or_404(Course, slug=course_slug)
         vis = course_content_visibility(request.user, course)
-        key = lesson_detail_cache_key(course_slug, lesson_slug, vis.cache_scope)
+        key = lesson_detail_cache_key(
+            course_slug,
+            lesson_slug,
+            vis.cache_scope,
+            user_id=request.user.pk,
+        )
         return cached_detail_response(
             key,
             lambda: LessonDetailReadSerializer(
                 get_lesson_or_404(course_slug, lesson_slug, include_drafts=vis.include_drafts),
-                context={"include_drafts": vis.include_drafts},
+                context={"include_drafts": vis.include_drafts, "request": request},
             ).data,
         )
 

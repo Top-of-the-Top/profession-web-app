@@ -39,6 +39,20 @@ class Attempt(TimestampedMixin):
         null=True, blank=True, default=None, verbose_name="Количество баллов"
     )
 
+    reviewed_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_attempts",
+        verbose_name="Кто проверил",
+    )
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Когда проверено",
+    )
+
     class Meta:
         verbose_name = "Попытка"
         verbose_name_plural = "Попытки"

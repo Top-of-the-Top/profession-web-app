@@ -29,6 +29,9 @@ const importMap = {
   webinarRecord: () => import('@pages/webinarRecord/ui/WebinarRecordPage'),
   myHomeworks: () => import('@pages/myHomeworks/ui/MyHomeworksPage'),
   schedule: () => import('@pages/schedule/ui/SchedulePage'),
+  statistics: () => import('@pages/statistics/ui/StatisticsPage'),
+  statisticsStudentCard: () =>
+    import('@pages/statisticsStudentCard/ui/StatisticsStudentCardPage'),
 };
 
 export const LandingPage = lazy(importMap.landing);
@@ -57,6 +60,8 @@ export const WebinarPage = lazy(importMap.webinar);
 export const WebinarRecordPage = lazy(importMap.webinarRecord);
 export const MyHomeworksPage = lazy(importMap.myHomeworks);
 export const SchedulePage = lazy(importMap.schedule);
+export const StatisticsPage = lazy(importMap.statistics);
+export const StatisticsStudentCardPage = lazy(importMap.statisticsStudentCard);
 
 export function runWhenIdle(fn: () => void, timeoutMs = 2500): void {
   if (typeof requestIdleCallback === 'function') {
@@ -101,6 +106,10 @@ export function prefetchAppSidebarHref(href: string): void {
   }
   if (href === '/app/schedule') {
     void importMap.schedule();
+    return;
+  }
+  if (href === '/app/statistics') {
+    void importMap.statistics();
     return;
   }
 }

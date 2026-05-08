@@ -358,8 +358,6 @@ class WebinarScheduleView(APIView):
 
         webinar.save(update_fields=update_fields)
 
-        invalidate_lesson_detail_cache(course_slug, lesson_slug)
-
         course = lesson.section.course
         if scheduled_at is None:
             logger.info(

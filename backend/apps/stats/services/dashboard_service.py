@@ -21,11 +21,7 @@ def list_webinars_table(*, requester, course_title=None, date_from=None, date_to
     from apps.users.models import User
     from apps.webinars.models import Webinar
 
-    qs = (
-        Webinar.objects
-        .filter(ended_at__isnull=False)
-        .select_related("lesson__section__course")
-    )
+    qs = Webinar.objects.filter(ended_at__isnull=False).select_related("lesson__section__course")
     if not requester.is_moderator():
         qs = qs.filter(lesson__section__course__authors=requester)
     if course_title:
@@ -41,55 +37,54 @@ def list_webinars_table(*, requester, course_title=None, date_from=None, date_to
         active = _active_purchaser_ids(course)
 
         attended_any_ids = set(
-            WebinarAttendance.objects
-            .filter(webinar=webinar, user_id__in=active)
+            WebinarAttendance.objects.filter(webinar=webinar, user_id__in=active)
             .values_list("user_id", flat=True)
             .distinct()
         )
 
         attended_threshold_ids = set(
-            LessonProgress.objects
-            .filter(
+            LessonProgress.objects.filter(
                 lesson=webinar.lesson,
                 user_id__in=active,
                 watched_ratio__gte=WEBINAR_THRESHOLD,
-            )
-            .values_list("user_id", flat=True)
+            ).values_list("user_id", flat=True)
         )
 
         hw_submitted_ids = set(
-            LessonProgress.objects
-            .filter(
+            LessonProgress.objects.filter(
                 lesson=webinar.lesson,
                 user_id__in=active,
                 all_homeworks_submitted=True,
-            )
-            .values_list("user_id", flat=True)
+            ).values_list("user_id", flat=True)
         )
 
         relevant_ids = attended_any_ids | attended_threshold_ids | hw_submitted_ids
         users_by_id = {
             u.pk: u
             for u in User.objects.filter(pk__in=relevant_ids).only(
-                "pk", "first_name", "last_name",
+                "pk",
+                "first_name",
+                "last_name",
             )
         }
 
-        rows.append({
-            "webinar_id": str(webinar.pk),
-            "course_title": course.title,
-            "course_slug": course.slug,
-            "lesson_title": webinar.lesson.title,
-            "started_at": webinar.started_at,
-            "ended_at": webinar.ended_at,
-            "attended_total": len(active),
-            "attended_any": len(attended_any_ids),
-            "attended_threshold": len(attended_threshold_ids),
-            "homework_submitted_count": len(hw_submitted_ids),
-            "attended_any_users": _users_brief(attended_any_ids, users_by_id),
-            "attended_threshold_users": _users_brief(attended_threshold_ids, users_by_id),
-            "homework_submitted_users": _users_brief(hw_submitted_ids, users_by_id),
-        })
+        rows.append(
+            {
+                "webinar_id": str(webinar.pk),
+                "course_title": course.title,
+                "course_slug": course.slug,
+                "lesson_title": webinar.lesson.title,
+                "started_at": webinar.started_at,
+                "ended_at": webinar.ended_at,
+                "attended_total": len(active),
+                "attended_any": len(attended_any_ids),
+                "attended_threshold": len(attended_threshold_ids),
+                "homework_submitted_count": len(hw_submitted_ids),
+                "attended_any_users": _users_brief(attended_any_ids, users_by_id),
+                "attended_threshold_users": _users_brief(attended_threshold_ids, users_by_id),
+                "homework_submitted_users": _users_brief(hw_submitted_ids, users_by_id),
+            }
+        )
     return rows
 
 
@@ -110,13 +105,9 @@ def list_students(*, requester, course_title=None, query=None):
     from apps.users.api.utils.crypto_utils import decrypt_data
     from apps.users.models import User
 
-    purchases = (
-        PurchasedCourse.objects
-        .select_related("course", "user")
-        .filter(
-            access_expires_at__gt=timezone.now(),
-            user__role=User.ROLE_STUDENT,
-        )
+    purchases = PurchasedCourse.objects.select_related("course", "user").filter(
+        access_expires_at__gt=timezone.now(),
+        user__role=User.ROLE_STUDENT,
     )
     if not requester.is_moderator():
         purchases = purchases.filter(course__authors=requester)
@@ -126,27 +117,31 @@ def list_students(*, requester, course_title=None, query=None):
     by_user = {}
     for purchase in purchases:
         u = purchase.user
-        item = by_user.setdefault(u.pk, {
-            "user_id": u.pk,
-            "full_name": f"{u.first_name} {u.last_name}".strip() or "—",
-            "email": decrypt_data(u.email_cipher) if u.email_cipher else "",
-            "phone": decrypt_data(u.phone_cipher) if u.phone_cipher else "",
-            "courses": [],
-        })
-        item["courses"].append({
-            "course_id": str(purchase.course.pk),
-            "course_slug": purchase.course.slug,
-            "title": purchase.course.title,
-        })
+        item = by_user.setdefault(
+            u.pk,
+            {
+                "user_id": u.pk,
+                "full_name": f"{u.first_name} {u.last_name}".strip() or "—",
+                "email": decrypt_data(u.email_cipher) if u.email_cipher else "",
+                "phone": decrypt_data(u.phone_cipher) if u.phone_cipher else "",
+                "courses": [],
+            },
+        )
+        item["courses"].append(
+            {
+                "course_id": str(purchase.course.pk),
+                "course_slug": purchase.course.slug,
+                "title": purchase.course.title,
+            }
+        )
 
     rows = list(by_user.values())
     if query:
         q = query.lower()
         rows = [
-            r for r in rows
-            if q in r["full_name"].lower()
-            or q in r["email"].lower()
-            or q in r["phone"].lower()
+            r
+            for r in rows
+            if q in r["full_name"].lower() or q in r["email"].lower() or q in r["phone"].lower()
         ]
     return rows
 
@@ -172,8 +167,7 @@ def student_card(*, requester, student_id, course_slug):
     pub = PublishableMixin.PUBLISHED_STATUS
 
     lessons = (
-        Lesson.objects
-        .filter(section__course=course, type=pub, section__type=pub)
+        Lesson.objects.filter(section__course=course, type=pub, section__type=pub)
         .select_related("section")
         .prefetch_related("homework_set")
         .order_by("section__section_number", "lesson_number")
@@ -192,23 +186,29 @@ def student_card(*, requester, student_id, course_slug):
             status = "not_started" if attempt is None else attempt.status
             if status in SUBMITTED_STATUSES:
                 submitted += 1
-            homeworks.append({
-                "homework_id": str(hw.pk),
-                "title": hw.title,
-                "status": status,
-                "grade": attempt.grade if attempt and status == Attempt.REVIEWED_STATUS else None,
-            })
+            homeworks.append(
+                {
+                    "homework_id": str(hw.pk),
+                    "title": hw.title,
+                    "status": status,
+                    "grade": (
+                        attempt.grade if attempt and status == Attempt.REVIEWED_STATUS else None
+                    ),
+                }
+            )
 
         progress = LessonProgress.objects.filter(user=student, lesson=lesson).first()
-        rows.append({
-            "lesson_id": str(lesson.pk),
-            "lesson_title": lesson.title,
-            "webinar": webinar_info,
-            "homeworks": homeworks,
-            "homeworks_submitted": submitted,
-            "homeworks_total": len(published_homeworks),
-            "is_completed": bool(progress and progress.is_completed),
-        })
+        rows.append(
+            {
+                "lesson_id": str(lesson.pk),
+                "lesson_title": lesson.title,
+                "webinar": webinar_info,
+                "homeworks": homeworks,
+                "homeworks_submitted": submitted,
+                "homeworks_total": len(published_homeworks),
+                "is_completed": bool(progress and progress.is_completed),
+            }
+        )
 
     return {
         "student_id": student.pk,
@@ -226,20 +226,18 @@ def _student_webinar_info(student, webinar):
     duration = _webinar_duration_seconds(webinar)
     if duration > 0:
         live_seconds = (
-            WebinarAttendance.objects
-            .filter(user=student, webinar=webinar)
-            .aggregate(total=Sum("watched_seconds"))["total"]
+            WebinarAttendance.objects.filter(user=student, webinar=webinar).aggregate(
+                total=Sum("watched_seconds")
+            )["total"]
         ) or 0
         live_ratio = min(live_seconds / duration, 1.0)
     else:
         live_ratio = 0.0
 
     best_rec_ratio = 0.0
-    rec_views = (
-        RecordingView.objects
-        .filter(user=student, recording__webinar=webinar)
-        .select_related("recording")
-    )
+    rec_views = RecordingView.objects.filter(
+        user=student, recording__webinar=webinar
+    ).select_related("recording")
     for view in rec_views:
         rec = view.recording
         if rec.is_deleted or not rec.duration_seconds:
@@ -264,14 +262,16 @@ def school_courses_table():
     for course in Course.objects.all():
         active = _active_purchaser_ids(course)
         if not active:
-            rows.append({
-                "course_id": str(course.pk),
-                "title": course.title,
-                "students": 0,
-                "avg_progress": 0.0,
-                "avg_attendance": 0.0,
-                "avg_homework": 0.0,
-            })
+            rows.append(
+                {
+                    "course_id": str(course.pk),
+                    "title": course.title,
+                    "students": 0,
+                    "avg_progress": 0.0,
+                    "avg_attendance": 0.0,
+                    "avg_homework": 0.0,
+                }
+            )
             continue
 
         lessons_total = sum(
@@ -281,27 +281,25 @@ def school_courses_table():
         if lessons_total == 0:
             avg_progress = 0.0
         else:
-            completed = (
-                LessonProgress.objects
-                .filter(
-                    user_id__in=active,
-                    lesson__section__course=course,
-                    lesson__type=pub,
-                    lesson__section__type=pub,
-                    is_completed=True,
-                )
-                .count()
-            )
+            completed = LessonProgress.objects.filter(
+                user_id__in=active,
+                lesson__section__course=course,
+                lesson__type=pub,
+                lesson__section__type=pub,
+                is_completed=True,
+            ).count()
             avg_progress = completed / (lessons_total * len(active))
 
-        rows.append({
-            "course_id": str(course.pk),
-            "title": course.title,
-            "students": len(active),
-            "avg_progress": round(avg_progress, 2),
-            "avg_attendance": round(_course_webinar_attendance_rate(course), 2),
-            "avg_homework": round(_course_homework_completion_rate(course), 2),
-        })
+        rows.append(
+            {
+                "course_id": str(course.pk),
+                "title": course.title,
+                "students": len(active),
+                "avg_progress": round(avg_progress, 2),
+                "avg_attendance": round(_course_webinar_attendance_rate(course), 2),
+                "avg_homework": round(_course_homework_completion_rate(course), 2),
+            }
+        )
     return rows
 
 
@@ -313,11 +311,13 @@ def school_teachers_table():
     rows = []
     for teacher in User.objects.filter(role=User.ROLE_TEACHER).order_by("first_name", "last_name"):
         reviewed = Attempt.objects.filter(reviewed_by=teacher, reviewed_at__isnull=False)
-        rows.append({
-            "user_id": teacher.pk,
-            "full_name": f"{teacher.first_name} {teacher.last_name}".strip() or "—",
-            "reviewed_7d": reviewed.filter(reviewed_at__gte=now - timedelta(days=7)).count(),
-            "reviewed_30d": reviewed.filter(reviewed_at__gte=now - timedelta(days=30)).count(),
-            "last_login": teacher.last_login,
-        })
+        rows.append(
+            {
+                "user_id": teacher.pk,
+                "full_name": f"{teacher.first_name} {teacher.last_name}".strip() or "—",
+                "reviewed_7d": reviewed.filter(reviewed_at__gte=now - timedelta(days=7)).count(),
+                "reviewed_30d": reviewed.filter(reviewed_at__gte=now - timedelta(days=30)).count(),
+                "last_login": teacher.last_login,
+            }
+        )
     return rows

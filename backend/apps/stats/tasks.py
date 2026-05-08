@@ -15,7 +15,9 @@ def recompute_lesson_progress_task(user_id, lesson_id):
         user = User.objects.get(pk=user_id)
         lesson = Lesson.objects.get(pk=lesson_id)
     except (User.DoesNotExist, Lesson.DoesNotExist):
-        logger.warning("Не найден user=%s или lesson=%s для пересчёта прогресса", user_id, lesson_id)
+        logger.warning(
+            "Не найден user=%s или lesson=%s для пересчёта прогресса", user_id, lesson_id
+        )
         return
 
     recompute_lesson_progress(user=user, lesson=lesson)

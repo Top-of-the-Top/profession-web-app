@@ -1,4 +1,5 @@
 from django.contrib import admin
+
 from .models import LessonProgress, RecordingView, WebinarAttendance
 
 
@@ -20,7 +21,14 @@ class RecordingViewAdmin(admin.ModelAdmin):
 
 @admin.register(LessonProgress)
 class LessonProgressAdmin(admin.ModelAdmin):
-    list_display = ("user", "lesson", "watched_ratio", "all_homeworks_submitted", "is_completed", "completed_at")
+    list_display = (
+        "user",
+        "lesson",
+        "watched_ratio",
+        "all_homeworks_submitted",
+        "is_completed",
+        "completed_at",
+    )
     list_filter = ("is_completed",)
     search_fields = ("user__email_cipher", "lesson__title")
     raw_id_fields = ("user", "lesson")

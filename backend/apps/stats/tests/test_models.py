@@ -9,15 +9,9 @@ from apps.webinars.models import Recording, Webinar
 
 class StatisticsModelsTest(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
-            email_cipher="enc_email", password="pass12345"
-        )
-        author = User.objects.create_user(
-            email_cipher="enc_author", password="pass12345"
-        )
-        self.course = Course.objects.create(
-            title="Тест", sub_title="t", description="d", price=0
-        )
+        self.user = User.objects.create_user(email_cipher="enc_email", password="pass12345")
+        author = User.objects.create_user(email_cipher="enc_author", password="pass12345")
+        self.course = Course.objects.create(title="Тест", sub_title="t", description="d", price=0)
         self.course.authors.add(author)
         self.section = Section.objects.create(course=self.course, title="С1")
         self.lesson = Lesson.objects.create(section=self.section, title="У1")
@@ -35,9 +29,7 @@ class StatisticsModelsTest(TestCase):
         self.assertIsNone(att.left_at)
 
     def test_recording_view_unique(self):
-        RecordingView.objects.create(
-            user=self.user, recording=self.recording, watched_seconds=10
-        )
+        RecordingView.objects.create(user=self.user, recording=self.recording, watched_seconds=10)
         with self.assertRaises(Exception):
             RecordingView.objects.create(
                 user=self.user, recording=self.recording, watched_seconds=20

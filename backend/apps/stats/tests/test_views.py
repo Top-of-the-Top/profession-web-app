@@ -18,16 +18,12 @@ class HeartbeatViewsTest(APITestCase):
         self.author = User.objects.create_user(
             email_cipher="t@x", password="p", role=User.ROLE_TEACHER
         )
-        self.course = Course.objects.create(
-            title="C", sub_title="s", description="d", price=0
-        )
+        self.course = Course.objects.create(title="C", sub_title="s", description="d", price=0)
         self.course.authors.add(self.author)
         section = Section.objects.create(course=self.course, title="S")
         self.lesson = Lesson.objects.create(section=section, title="L")
         self.webinar = Webinar.objects.create(lesson=self.lesson)
-        self.recording = Recording.objects.create(
-            webinar=self.webinar, duration_seconds=600
-        )
+        self.recording = Recording.objects.create(webinar=self.webinar, duration_seconds=600)
 
     def test_webinar_heartbeat_creates_attendance(self):
         self.client.force_authenticate(self.author)
@@ -61,7 +57,11 @@ class CourseHomeMetaTest(APITestCase):
         )
 
         self.course = Course.objects.create(
-            title="Курс", sub_title="s", description="d", price=0, type=pub,
+            title="Курс",
+            sub_title="s",
+            description="d",
+            price=0,
+            type=pub,
         )
         self.course.authors.add(self.author)
 
@@ -78,9 +78,7 @@ class CourseHomeMetaTest(APITestCase):
 
     def _get_home(self, user):
         self.client.force_authenticate(user)
-        url = reverse(
-            "courses:course-homepage", kwargs={"course_slug": self.course.slug}
-        )
+        url = reverse("courses:course-homepage", kwargs={"course_slug": self.course.slug})
         return self.client.get(url)
 
     def test_student_meta_has_progress_fields(self):
@@ -134,7 +132,11 @@ class LessonDetailMetaTest(APITestCase):
             email_cipher="s2", password="p", role=User.ROLE_STUDENT
         )
         self.course = Course.objects.create(
-            title="Курс2", sub_title="s", description="d", price=0, type=pub,
+            title="Курс2",
+            sub_title="s",
+            description="d",
+            price=0,
+            type=pub,
         )
         self.course.authors.add(self.author)
         section = Section.objects.create(course=self.course, title="С", type=pub)
@@ -179,20 +181,31 @@ class LessonDetailMetaTest(APITestCase):
 class StatsRoutesAccessTest(APITestCase):
     def setUp(self):
         self.student = User.objects.create_user(
-            email_cipher="acc_s", password="p", role=User.ROLE_STUDENT,
+            email_cipher="acc_s",
+            password="p",
+            role=User.ROLE_STUDENT,
         )
         self.teacher_with_course = User.objects.create_user(
-            email_cipher="acc_t1", password="p", role=User.ROLE_TEACHER,
+            email_cipher="acc_t1",
+            password="p",
+            role=User.ROLE_TEACHER,
         )
         self.teacher_no_course = User.objects.create_user(
-            email_cipher="acc_t2", password="p", role=User.ROLE_TEACHER,
+            email_cipher="acc_t2",
+            password="p",
+            role=User.ROLE_TEACHER,
         )
         self.moderator = User.objects.create_user(
-            email_cipher="acc_m", password="p", role=User.ROLE_MODERATOR,
+            email_cipher="acc_m",
+            password="p",
+            role=User.ROLE_MODERATOR,
         )
 
         self.course = Course.objects.create(
-            title="Курс", sub_title="s", description="d", price=0,
+            title="Курс",
+            sub_title="s",
+            description="d",
+            price=0,
         )
         self.course.authors.add(self.teacher_with_course)
 

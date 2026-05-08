@@ -1,17 +1,14 @@
 import logging
 
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiParameter, extend_schema
 from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.stats.api.permissions import (
-    IsEnrolledOrCourseStaff,
-    IsTeacherAuthorOrModerator,
-)
+from apps.stats.api.permissions import IsEnrolledOrCourseStaff, IsTeacherAuthorOrModerator
 from apps.stats.api.serializers import (
     RecordingViewHeartbeatRequestSerializer,
     RecordingViewHeartbeatResponseSerializer,
@@ -29,10 +26,7 @@ from apps.stats.services.dashboard_service import (
     school_teachers_table,
     student_card,
 )
-from apps.stats.services.progress_service import (
-    RecordingViewService,
-    WebinarAttendanceService,
-)
+from apps.stats.services.progress_service import RecordingViewService, WebinarAttendanceService
 from apps.webinars.models import Recording, Webinar
 
 logger = logging.getLogger(__name__)
@@ -45,7 +39,9 @@ class WebinarHeartbeatView(APIView):
         summary="Heartbeat присутствия на вебинаре",
         tags=["Statistics"],
         parameters=[
-            OpenApiParameter(name="webinar_id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH),
+            OpenApiParameter(
+                name="webinar_id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH
+            ),
         ],
         request=None,
         responses={200: WebinarAttendanceHeartbeatResponseSerializer},
@@ -54,12 +50,12 @@ class WebinarHeartbeatView(APIView):
         webinar = get_object_or_404(Webinar, pk=webinar_id)
         self.check_object_permissions(request, webinar)
 
-        attendance, total = WebinarAttendanceService.heartbeat(
-            user=request.user, webinar=webinar
-        )
+        attendance, total = WebinarAttendanceService.heartbeat(user=request.user, webinar=webinar)
         logger.info(
             "Heartbeat вебинара: user=%s webinar=%s total=%ss",
-            request.user.pk, webinar.pk, total,
+            request.user.pk,
+            webinar.pk,
+            total,
         )
         return Response(
             {
@@ -77,7 +73,9 @@ class RecordingHeartbeatView(APIView):
         summary="Heartbeat просмотра записи",
         tags=["Statistics"],
         parameters=[
-            OpenApiParameter(name="recording_id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH),
+            OpenApiParameter(
+                name="recording_id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH
+            ),
         ],
         request=RecordingViewHeartbeatRequestSerializer,
         responses={200: RecordingViewHeartbeatResponseSerializer},
@@ -96,7 +94,10 @@ class RecordingHeartbeatView(APIView):
         )
         logger.info(
             "Heartbeat записи: user=%s recording=%s position=%ss watched=%ss",
-            request.user.pk, recording.pk, view.last_position, view.watched_seconds,
+            request.user.pk,
+            recording.pk,
+            view.last_position,
+            view.watched_seconds,
         )
         return Response(
             {
@@ -116,16 +117,25 @@ class StatsWebinarsView(APIView):
         tags=["Statistics"],
         parameters=[
             OpenApiParameter(
-                name="course_title", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
-                required=False, description="Фильтр по названию курса (частичное совпадение)",
+                name="course_title",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Фильтр по названию курса (частичное совпадение)",
             ),
             OpenApiParameter(
-                name="from", type=OpenApiTypes.DATETIME, location=OpenApiParameter.QUERY,
-                required=False, description="Нижняя граница периода (по ended_at)",
+                name="from",
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Нижняя граница периода (по ended_at)",
             ),
             OpenApiParameter(
-                name="to", type=OpenApiTypes.DATETIME, location=OpenApiParameter.QUERY,
-                required=False, description="Верхняя граница периода (по ended_at)",
+                name="to",
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Верхняя граница периода (по ended_at)",
             ),
         ],
         responses={200: WebinarTableRowSerializer(many=True)},
@@ -148,12 +158,18 @@ class StatsStudentsView(APIView):
         tags=["Statistics"],
         parameters=[
             OpenApiParameter(
-                name="course_title", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
-                required=False, description="Фильтр по названию курса (частичное совпадение)",
+                name="course_title",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Фильтр по названию курса (частичное совпадение)",
             ),
             OpenApiParameter(
-                name="q", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
-                required=False, description="Поиск по ФИО / email / телефону",
+                name="q",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Поиск по ФИО / email / телефону",
             ),
         ],
         responses={200: StudentRowSerializer(many=True)},
@@ -175,7 +191,9 @@ class StatsStudentCardView(APIView):
         tags=["Statistics"],
         parameters=[
             OpenApiParameter(name="user_id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
-            OpenApiParameter(name="course_id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH),
+            OpenApiParameter(
+                name="course_id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH
+            ),
         ],
         responses={200: StudentCardSerializer},
     )

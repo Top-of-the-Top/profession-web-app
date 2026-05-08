@@ -590,7 +590,10 @@ class LessonDetailView(APIView):
         course = get_object_or_404(Course, slug=course_slug)
         vis = course_content_visibility(request.user, course)
         key = lesson_detail_cache_key(
-            course_slug, lesson_slug, vis.cache_scope, user_id=request.user.pk,
+            course_slug,
+            lesson_slug,
+            vis.cache_scope,
+            user_id=request.user.pk,
         )
         return cached_detail_response(
             key,

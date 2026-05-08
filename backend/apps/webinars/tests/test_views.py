@@ -1007,9 +1007,7 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
         response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_author_creates_webinar_and_sets_scheduled_at(
-        self, mock_invalidate, mock_notify, *_
-    ):
+    def test_author_creates_webinar_and_sets_scheduled_at(self, mock_invalidate, mock_notify, *_):
         self.authenticate(self.teacher)
 
         response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
@@ -1045,9 +1043,7 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
         title = mock_notify.call_args.args[1]
         self.assertIn("Время вебинара изменено", title)
 
-    def test_clearing_schedule_sends_cancel_notification(
-        self, mock_invalidate, mock_notify, *_
-    ):
+    def test_clearing_schedule_sends_cancel_notification(self, mock_invalidate, mock_notify, *_):
         Webinar.objects.create(
             lesson=self.lesson,
             scheduled_at=timezone.now(),
@@ -1055,9 +1051,7 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
         )
         self.authenticate(self.teacher)
 
-        response = self.client.patch(
-            self.url_schedule(), {"scheduled_at": None}, format="json"
-        )
+        response = self.client.patch(self.url_schedule(), {"scheduled_at": None}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         webinar = Webinar.objects.get(lesson=self.lesson)

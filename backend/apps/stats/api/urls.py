@@ -13,7 +13,6 @@ urlpatterns = [
         views.RecordingHeartbeatView.as_view(),
         name="recording-heartbeat",
     ),
-
     path(
         "webinars/",
         views.StatsWebinarsView.as_view(),

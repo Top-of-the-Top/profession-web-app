@@ -44,4 +44,3 @@ class IsTeacherAuthorOrModerator(BasePermission):
         if user.is_teacher() and user.authored_courses.exists():
             return True
         return False
-    

@@ -15,12 +15,8 @@ from apps.webinars.models import Recording, Webinar
 class RecomputeLessonProgressTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(email_cipher="x", password="p")
-        author = User.objects.create_user(
-            email_cipher="a", password="p", role=User.ROLE_TEACHER
-        )
-        self.course = Course.objects.create(
-            title="C", sub_title="s", description="d", price=0
-        )
+        author = User.objects.create_user(email_cipher="a", password="p", role=User.ROLE_TEACHER)
+        self.course = Course.objects.create(title="C", sub_title="s", description="d", price=0)
         self.course.authors.add(author)
         self.section = Section.objects.create(course=self.course, title="S")
         self.lesson = Lesson.objects.create(section=self.section, title="L")
@@ -46,7 +42,9 @@ class RecomputeLessonProgressTest(TestCase):
             watched_seconds=int(3600 * 0.8),
         )
         Attempt.objects.create(
-            user=self.user, homework=hw, status=Attempt.SUBMITTED_STATUS,
+            user=self.user,
+            homework=hw,
+            status=Attempt.SUBMITTED_STATUS,
             send_at=timezone.now(),
         )
         progress = recompute_lesson_progress(user=self.user, lesson=self.lesson)
@@ -61,9 +59,7 @@ class RecomputeLessonProgressTest(TestCase):
             started_at=timezone.now() - timedelta(hours=1),
             ended_at=timezone.now(),
         )
-        recording = Recording.objects.create(
-            webinar=webinar, duration_seconds=1800
-        )
+        recording = Recording.objects.create(webinar=webinar, duration_seconds=1800)
         RecordingView.objects.create(
             user=self.user,
             recording=recording,
@@ -81,7 +77,9 @@ class RecomputeLessonProgressTest(TestCase):
             lesson=self.lesson, title="hw2", deadline=timezone.now() + timedelta(days=1)
         )
         Attempt.objects.create(
-            user=self.user, homework=hw2, status=Attempt.SUBMITTED_STATUS,
+            user=self.user,
+            homework=hw2,
+            status=Attempt.SUBMITTED_STATUS,
             send_at=timezone.now(),
         )
         progress = recompute_lesson_progress(user=self.user, lesson=self.lesson)

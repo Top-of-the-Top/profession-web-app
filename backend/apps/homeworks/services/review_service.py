@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from django.db import transaction
 from django.utils import timezone
+
 from apps.homeworks.models import Attempt, TaskAnswer, TaskReview
 from apps.homeworks.services.errors import (
     AttemptNotSubmitted,
@@ -58,7 +59,7 @@ class ReviewService:
             attempt.grade = self._calculate_total_grade(attempt, items)
             attempt.status = Attempt.REVIEWED_STATUS
             attempt.reviewed_by = reviewer
-            attempt.reviewed_at = timezone.now() 
+            attempt.reviewed_at = timezone.now()
             attempt.save(update_fields=["grade", "status", "reviewed_by", "reviewed_at"])
 
         attempt.refresh_from_db()

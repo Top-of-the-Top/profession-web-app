@@ -139,8 +139,9 @@ def _section_completed_for_request(section, request):
     from apps.stats.models import LessonProgress
 
     published_lesson_ids = list(
-        Lesson.objects.filter(section=section, type=Lesson.PUBLISHED_STATUS)
-        .values_list("pk", flat=True)
+        Lesson.objects.filter(section=section, type=Lesson.PUBLISHED_STATUS).values_list(
+            "pk", flat=True
+        )
     )
     if not published_lesson_ids:
         return False
@@ -172,8 +173,13 @@ class SectionWithLessonsAndTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
         fields = [
-            "section_id", "section_number", "title", "type",
-            "section_completed", "lessons", "slug",
+            "section_id",
+            "section_number",
+            "title",
+            "type",
+            "section_completed",
+            "lessons",
+            "slug",
         ]
 
     @extend_schema_field(serializers.BooleanField(allow_null=True))
@@ -212,9 +218,7 @@ class CourseHomeSerializer(serializers.Serializer):
             .order_by("section_number")
             .prefetch_related(Prefetch("lesson_set", queryset=lesson_qs))
         )
-        return SectionWithLessonsSerializer(
-            sections, many=True, context=child_context
-        ).data
+        return SectionWithLessonsSerializer(sections, many=True, context=child_context).data
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_meta(self, course):

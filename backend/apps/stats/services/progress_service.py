@@ -1,14 +1,14 @@
 import logging
 from datetime import timedelta
 
+from django.conf import settings
+from django.core.cache import caches
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
 from apps.stats.models import RecordingView, WebinarAttendance
 from apps.webinars.models import Webinar
-from django.conf import settings
-from django.core.cache import caches
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +30,7 @@ class WebinarAttendanceService:
         now = now or timezone.now()
 
         recent = (
-            WebinarAttendance.objects
-            .select_for_update()
+            WebinarAttendance.objects.select_for_update()
             .filter(user=user, webinar=webinar)
             .order_by("-joined_at")
             .first()
@@ -61,13 +60,14 @@ class WebinarAttendanceService:
             )
             logger.info(
                 "Новая сессия посещения вебинара: user=%s webinar=%s",
-                user.pk, webinar.pk,
+                user.pk,
+                webinar.pk,
             )
 
         total = (
-            WebinarAttendance.objects
-            .filter(user=user, webinar=webinar)
-            .aggregate(total=Sum("watched_seconds"))["total"]
+            WebinarAttendance.objects.filter(user=user, webinar=webinar).aggregate(
+                total=Sum("watched_seconds")
+            )["total"]
         ) or 0
         return attendance, total
 
@@ -98,7 +98,10 @@ class RecordingViewService:
                 logger.warning(
                     "Подозрительный рост watched_seconds: "
                     "user=%s recording=%s growth=%s elapsed=%.1f",
-                    user.pk, recording.pk, growth, elapsed,
+                    user.pk,
+                    recording.pk,
+                    growth,
+                    elapsed,
                 )
                 view.watched_seconds += allowed_growth
             else:
@@ -122,13 +125,11 @@ def recompute_lesson_progress(*, user, lesson):
     if not homeworks:
         all_homeworks_submitted = True
     else:
-        submitted_count = (
-            Attempt.objects.filter(
-                user=user,
-                homework__in=homeworks,
-                status__in=SUBMITTED_STATUSES,
-            ).count()
-        )
+        submitted_count = Attempt.objects.filter(
+            user=user,
+            homework__in=homeworks,
+            status__in=SUBMITTED_STATUSES,
+        ).count()
         all_homeworks_submitted = submitted_count == len(homeworks)
 
     if webinar is None:
@@ -150,7 +151,11 @@ def recompute_lesson_progress(*, user, lesson):
 
     logger.info(
         "Пересчитан прогресс по уроку: user=%s lesson=%s watched=%.2f hw=%s done=%s",
-        user.pk, lesson.pk, watched_ratio, all_homeworks_submitted, is_completed,
+        user.pk,
+        lesson.pk,
+        watched_ratio,
+        all_homeworks_submitted,
+        is_completed,
     )
     return progress
 
@@ -163,20 +168,16 @@ def _calc_watched_ratio(*, user, webinar):
 
     webinar_duration = _webinar_duration_seconds(webinar)
     if webinar_duration > 0:
-        live_watched = (
-            WebinarAttendance.objects
-            .filter(user=user, webinar=webinar)
-            .values_list("watched_seconds", flat=True)
+        live_watched = WebinarAttendance.objects.filter(user=user, webinar=webinar).values_list(
+            "watched_seconds", flat=True
         )
         live_ratio = min(sum(live_watched) / webinar_duration, 1.0)
     else:
         live_ratio = 0.0
 
     recording_ratio = 0.0
-    views = (
-        RecordingView.objects
-        .filter(user=user, recording__webinar=webinar)
-        .select_related("recording")
+    views = RecordingView.objects.filter(user=user, recording__webinar=webinar).select_related(
+        "recording"
     )
     for view in views:
         rec = view.recording
@@ -197,36 +198,30 @@ def _webinar_duration_seconds(webinar):
     return 0
 
 
-
-
 def _active_purchaser_ids(course):
     from apps.courses.models import PurchasedCourse
 
     return list(
-        PurchasedCourse.objects
-        .filter(course=course, access_expires_at__gt=timezone.now())
-        .values_list("user_id", flat=True)
+        PurchasedCourse.objects.filter(
+            course=course, access_expires_at__gt=timezone.now()
+        ).values_list("user_id", flat=True)
     )
 
 
 def _lesson_attended_count(lesson, user_ids):
     from apps.stats.models import LessonProgress
 
-    return (
-        LessonProgress.objects
-        .filter(lesson=lesson, user_id__in=user_ids, watched_ratio__gte=WEBINAR_THRESHOLD)
-        .count()
-    )
+    return LessonProgress.objects.filter(
+        lesson=lesson, user_id__in=user_ids, watched_ratio__gte=WEBINAR_THRESHOLD
+    ).count()
 
 
 def _lesson_homework_submitted_count(lesson, user_ids):
     from apps.stats.models import LessonProgress
 
-    return (
-        LessonProgress.objects
-        .filter(lesson=lesson, user_id__in=user_ids, all_homeworks_submitted=True)
-        .count()
-    )
+    return LessonProgress.objects.filter(
+        lesson=lesson, user_id__in=user_ids, all_homeworks_submitted=True
+    ).count()
 
 
 def _course_webinar_attendance_rate(course):
@@ -237,11 +232,9 @@ def _course_webinar_attendance_rate(course):
     if not active_students:
         return 0.0
 
-    lessons_with_webinar = (
-        Lesson.objects
-        .filter(section__course=course, type="published", section__type="published")
-        .filter(webinar__isnull=False)
-    )
+    lessons_with_webinar = Lesson.objects.filter(
+        section__course=course, type="published", section__type="published"
+    ).filter(webinar__isnull=False)
     if not lessons_with_webinar.exists():
         return 0.0
 
@@ -262,8 +255,7 @@ def _course_homework_completion_rate(course):
         return 0.0
 
     lessons_with_hw = (
-        Lesson.objects
-        .filter(section__course=course, type="published", section__type="published")
+        Lesson.objects.filter(section__course=course, type="published", section__type="published")
         .filter(homework__type="published")
         .distinct()
     )
@@ -284,18 +276,13 @@ def _attendance_streak(*, user, course):
     from apps.webinars.models import Webinar
 
     webinars = (
-        Webinar.objects
-        .filter(lesson__section__course=course, ended_at__isnull=False)
+        Webinar.objects.filter(lesson__section__course=course, ended_at__isnull=False)
         .order_by("-ended_at")
         .values_list("lesson_id", flat=True)
     )
     streak = 0
     for lesson_id in webinars:
-        progress = (
-            LessonProgress.objects
-            .filter(user=user, lesson_id=lesson_id)
-            .first()
-        )
+        progress = LessonProgress.objects.filter(user=user, lesson_id=lesson_id).first()
         if progress and progress.watched_ratio >= WEBINAR_THRESHOLD:
             streak += 1
         else:
@@ -327,7 +314,9 @@ def _course_meta_student(*, user, course):
     pub = PublishableMixin.PUBLISHED_STATUS
 
     lessons_total = Lesson.objects.filter(
-        section__course=course, type=pub, section__type=pub,
+        section__course=course,
+        type=pub,
+        section__type=pub,
     ).count()
     lessons_completed = LessonProgress.objects.filter(
         user=user,
@@ -361,7 +350,7 @@ def _course_meta_student(*, user, course):
         "homeworks_submitted": homeworks_submitted,
         "homeworks_total": homeworks_total,
         "attendance_streak": streak,
-        "course_rank_top_percent": None, 
+        "course_rank_top_percent": None,
     }
 
 
@@ -439,15 +428,15 @@ def compute_homework_percentile(*, user, homework):
         return None
 
     user_attempt = Attempt.objects.filter(
-        user=user, homework=homework, status__in=SUBMITTED_STATUSES,
+        user=user,
+        homework=homework,
+        status__in=SUBMITTED_STATUSES,
     ).first()
     if user_attempt is None or user_attempt.send_at is None:
         return None
 
-    others = (
-        Attempt.objects
-        .filter(homework=homework, user_id__in=course_students)
-        .values("user_id", "status", "send_at")
+    others = Attempt.objects.filter(homework=homework, user_id__in=course_students).values(
+        "user_id", "status", "send_at"
     )
     submitted_other = {
         row["user_id"]: row["send_at"]

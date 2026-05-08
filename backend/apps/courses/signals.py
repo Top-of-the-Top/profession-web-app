@@ -16,6 +16,7 @@ from apps.notifications.tasks import (
     send_mass_course_email,
     send_personal_notification,
 )
+
 from .api.utils.cache_utils import (
     course_list_cache_key,
     invalidate_lesson_detail_cache,

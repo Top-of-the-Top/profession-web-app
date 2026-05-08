@@ -1,4 +1,4 @@
-from typing import Callable, Type, TypeVar
+from typing import Callable
 
 from django.conf import settings
 
@@ -21,15 +21,13 @@ from .tasks import (
     send_webinar_started_notification,
 )
 
-E = TypeVar("E")
-
 
 class NotificationDispatcher:
     def __init__(self) -> None:
         self._registry: dict[type, Callable] = {}
 
-    def register(self, event_type: Type[E]) -> Callable:
-        def decorator(handler: Callable[[E], None]) -> Callable[[E], None]:
+    def register(self, event_type: type) -> Callable:
+        def decorator(handler: Callable) -> Callable:
             self._registry[event_type] = handler
             return handler
 

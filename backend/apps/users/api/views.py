@@ -226,7 +226,7 @@ class VerifyRegisterView(APIView):
             email_cipher = encrypt_data(reg_data["contact"])
             user = User.objects.create_user(email_cipher=email_cipher)
 
-        user.password = reg_data["password"]
+        user.password = reg_data["password_hash"]
         user.save(update_fields=["password"])
 
         return Response(get_tokens_for_user(user), status=status.HTTP_200_OK)

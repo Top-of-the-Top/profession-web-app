@@ -173,7 +173,18 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         response = self.client.post("/api/courses/", data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_update_course_as_author(self):
+    def test_update_course_as_moderator(self):
+        course = create_test_course()
+
+        self.authenticate_user(self.moderator)
+
+        data = {"title": "Updated Title"}
+        response = self.client.patch(f"/api/courses/{course.slug}/", data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "Updated Title")
+
+    def test_update_course_as_author_forbidden(self):
         course = create_test_course()
         course.authors.add(self.teacher)
 
@@ -182,8 +193,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         data = {"title": "Updated Title"}
         response = self.client.patch(f"/api/courses/{course.slug}/", data, format="json")
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["title"], "Updated Title")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_course_as_moderator(self):
         course = create_test_course()
@@ -192,7 +202,8 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         response = self.client.delete(f"/api/courses/{course.slug}/")
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(Course.objects.filter(slug=course.slug).exists())
+        course.refresh_from_db()
+        self.assertTrue(course.is_deleted)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
@@ -753,8 +764,12 @@ class LandingCoursesIntegrationTest(BaseTestCase):
         self.storage_patcher.stop()
 
     def test_landing_courses_public_access(self):
-        create_test_course(title="Course 1", sub_title="Sub 1", price=1000)
-        create_test_course(title="Course 2", sub_title="Sub 2", price=2000)
+        create_test_course(
+            title="Course 1", sub_title="Sub 1", price=1000, type=Course.PUBLISHED_STATUS
+        )
+        create_test_course(
+            title="Course 2", sub_title="Sub 2", price=2000, type=Course.PUBLISHED_STATUS
+        )
 
         response = self.client.get("/api/landing/courses/")
 

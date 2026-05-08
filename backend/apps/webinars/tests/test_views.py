@@ -988,7 +988,7 @@ class WebinarStartIdempotencyTest(WebinarEndpointsBase):
         self.assertEqual(Webinar.objects.filter(lesson=self.lesson).count(), 1)
 
 
-@patch("apps.webinars.api.views.send_course_notification.delay")
+@patch("apps.notifications.tasks.send_course_notification.delay")
 @patch("apps.webinars.api.views.invalidate_lesson_detail_cache")
 class WebinarScheduleViewTest(WebinarEndpointsBase):
     SCHEDULE_PAYLOAD = {"scheduled_at": "2026-06-01T18:00:00Z"}

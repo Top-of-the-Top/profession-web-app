@@ -48,17 +48,8 @@ class BaseTestCase(TestCase):
     """Базовый класс для тестов сигналов с мокированием всех внешних зависимостей"""
 
     CELERY_TASKS_TO_MOCK = [
-        "apps.courses.signals.send_course_notification.delay",
-        "apps.courses.signals.send_course_notification.apply_async",
-        "apps.courses.signals.send_personal_notification.delay",
-        "apps.courses.signals.send_mass_course_email.delay",
-        "apps.courses.signals.send_mass_course_email.apply_async",
-        "apps.courses.signals.send_mass_system_email.delay",
-        "apps.courses.signals.send_single_email.delay",
-        "apps.notifications.tasks.send_course_notification.delay",
+        "apps.notifications.dispatcher.dispatcher.dispatch",
         "apps.notifications.tasks.send_course_notification.apply_async",
-        "apps.notifications.tasks.send_personal_notification.delay",
-        "apps.notifications.tasks.send_mass_course_email.delay",
         "apps.notifications.tasks.send_mass_course_email.apply_async",
         "apps.notifications.rabbit.publish_event",
         "pika.BlockingConnection",
@@ -88,10 +79,10 @@ class HomeworkDeadlineReminderRevokeSignalTest(BaseTestCase):
         super().setUp()
 
         self.celery_apply_async_patcher = patch(
-            "apps.courses.signals.send_course_notification.apply_async"
+            "apps.notifications.tasks.send_course_notification.apply_async"
         )
         self.email_apply_async_patcher = patch(
-            "apps.courses.signals.send_mass_course_email.apply_async"
+            "apps.notifications.tasks.send_mass_course_email.apply_async"
         )
         self.revoke_patcher = patch("celery.current_app.control.revoke")
 
@@ -233,156 +224,160 @@ class HomeworkNotificationDeadlineChangeTest(BaseTestCase):
     def setUp(self):
         super().setUp()
 
-        self.send_course_patcher = patch("apps.courses.signals.send_course_notification.delay")
-        self.send_personal_patcher = patch("apps.courses.signals.send_personal_notification.delay")
-        self.email_async_patcher = patch("apps.courses.signals.send_mass_course_email.apply_async")
-
-        self.mock_send_course = self.send_course_patcher.start()
-        self.mock_send_personal = self.send_personal_patcher.start()
-        self.mock_email_async = self.email_async_patcher.start()
+        self.dispatch_patcher = patch("apps.notifications.dispatcher.dispatcher.dispatch")
+        self.mock_dispatch = self.dispatch_patcher.start()
 
         self.course = create_test_course()
         self.section = create_test_section(self.course)
         self.lesson = create_test_lesson(self.section)
 
     def tearDown(self):
-        self.send_course_patcher.stop()
-        self.send_personal_patcher.stop()
-        self.email_async_patcher.stop()
+        self.dispatch_patcher.stop()
         super().tearDown()
 
-    def test_notification_sent_when_deadline_extended(self):
-        old_deadline = timezone.now() + timedelta(days=2)
+    def _get_dispatched_events(self, event_class):
+        return [
+            call.args[0]
+            for call in self.mock_dispatch.call_args_list
+            if isinstance(call.args[0], event_class)
+        ]
 
+    def test_notification_sent_when_deadline_extended(self):
+        from apps.notifications.events import DeadlineChangedEvent
+
+        old_deadline = timezone.now() + timedelta(days=2)
         homework = Homework.objects.create(
             lesson=self.lesson, title="Test Homework", deadline=old_deadline
         )
-
-        self.mock_send_course.reset_mock()
+        self.mock_dispatch.reset_mock()
 
         new_deadline = timezone.now() + timedelta(days=5)
         homework.deadline = new_deadline
         homework.save()
 
-        self.mock_send_course.assert_called_once()
+        events = self._get_dispatched_events(DeadlineChangedEvent)
+        self.assertEqual(len(events), 1)
 
     def test_notification_contains_new_deadlines(self):
-        old_deadline = timezone.now() + timedelta(days=2)
-        self.mock_send_course.reset_mock()
+        from apps.notifications.events import DeadlineChangedEvent
 
+        old_deadline = timezone.now() + timedelta(days=2)
         homework = Homework.objects.create(
             lesson=self.lesson, title="Test Homework", deadline=old_deadline
         )
+        self.mock_dispatch.reset_mock()
 
         new_deadline = timezone.now() + timedelta(days=5)
         homework.deadline = new_deadline
         homework.save()
 
-        args = self.mock_send_course.call_args[0]
-        message = args[2]
-
-        self.assertIn(new_deadline.strftime("%d.%m %H:%M"), message)
+        events = self._get_dispatched_events(DeadlineChangedEvent)
+        self.assertEqual(events[0].deadline, new_deadline)
 
     def test_notification_not_sent_when_only_title_changed(self):
-        deadline = timezone.now() + timedelta(days=2)
+        from apps.notifications.events import DeadlineChangedEvent
 
+        deadline = timezone.now() + timedelta(days=2)
         homework = Homework.objects.create(
             lesson=self.lesson, title="Original Title", deadline=deadline
         )
-
-        self.mock_send_course.reset_mock()
+        self.mock_dispatch.reset_mock()
 
         homework.title = "New Title"
         homework.save()
 
-        self.mock_send_course.assert_not_called()
+        events = self._get_dispatched_events(DeadlineChangedEvent)
+        self.assertEqual(len(events), 0)
 
     def test_notification_sent_when_deadline_changed_even_with_title_change(self):
-        old_deadline = timezone.now() + timedelta(days=2)
+        from apps.notifications.events import DeadlineChangedEvent
 
+        old_deadline = timezone.now() + timedelta(days=2)
         homework = Homework.objects.create(
             lesson=self.lesson, title="Original Title", deadline=old_deadline
         )
-
-        self.mock_send_course.reset_mock()
+        self.mock_dispatch.reset_mock()
 
         new_deadline = timezone.now() + timedelta(days=5)
         homework.title = "New Title"
         homework.deadline = new_deadline
         homework.save()
 
-        self.mock_send_course.assert_called_once()
+        events = self._get_dispatched_events(DeadlineChangedEvent)
+        self.assertEqual(len(events), 1)
 
     def test_notification_sent_on_homework_creation(self):
+        from apps.notifications.events import NewHomeworkEvent
+
         deadline = timezone.now() + timedelta(days=7)
+        Homework.objects.create(lesson=self.lesson, title="New Homework", deadline=deadline)
 
-        homework = Homework.objects.create(
-            lesson=self.lesson, title="New Homework", deadline=deadline
-        )
-
-        self.mock_send_course.assert_called_once()
+        events = self._get_dispatched_events(NewHomeworkEvent)
+        self.assertEqual(len(events), 1)
 
     def test_notification_sent_when_deadline_extended_with_correct_text(self):
+        from apps.notifications.events import DeadlineChangedEvent
+
         old_deadline = timezone.now() + timedelta(days=2)
         homework = Homework.objects.create(
             lesson=self.lesson, title="Test Homework", deadline=old_deadline
         )
-
-        self.mock_send_course.reset_mock()
+        self.mock_dispatch.reset_mock()
 
         new_deadline = timezone.now() + timedelta(days=5)
         homework.deadline = new_deadline
         homework.save()
 
-        args = self.mock_send_course.call_args[0]
-        title = args[1]
-        self.assertIn("перенесён", title)
+        events = self._get_dispatched_events(DeadlineChangedEvent)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].deadline, new_deadline)
 
     def test_notification_contains_old_deadline(self):
+        from apps.notifications.events import DeadlineChangedEvent
+
         old_deadline = timezone.now() + timedelta(days=2)
         homework = Homework.objects.create(
             lesson=self.lesson, title="Test Homework", deadline=old_deadline
         )
-
-        self.mock_send_course.reset_mock()
+        self.mock_dispatch.reset_mock()
 
         new_deadline = timezone.now() + timedelta(days=5)
         homework.deadline = new_deadline
         homework.save()
 
-        args = self.mock_send_course.call_args[0]
-        message = args[2]
-        self.assertIn(new_deadline.strftime("%d.%m %H:%M"), message)
+        events = self._get_dispatched_events(DeadlineChangedEvent)
+        self.assertEqual(events[0].deadline, new_deadline)
 
     def test_author_notified_on_homework_creation(self):
-        user = create_test_user()
+        from apps.notifications.events import AuthorActionEvent
 
+        user = create_test_user()
         deadline = timezone.now() + timedelta(days=7)
-        homework = Homework.objects.create(
+        Homework.objects.create(
             lesson=self.lesson,
             title="New Homework",
             deadline=deadline,
             last_modified_by=user,
         )
 
-        self.mock_send_personal.assert_called_once()
-        args = self.mock_send_personal.call_args[0]
-        self.assertEqual(args[0], user.id)
+        events = self._get_dispatched_events(AuthorActionEvent)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].user_id, user.id)
 
     def test_author_notified_on_homework_update(self):
-        user = create_test_user()
+        from apps.notifications.events import AuthorActionEvent
 
+        user = create_test_user()
         deadline = timezone.now() + timedelta(days=7)
         homework = Homework.objects.create(
             lesson=self.lesson, title="Original Title", deadline=deadline
         )
-
-        self.mock_send_personal.reset_mock()
+        self.mock_dispatch.reset_mock()
 
         homework.title = "Updated Title"
         homework.last_modified_by = user
         homework.save()
 
-        self.mock_send_personal.assert_called_once()
-        args = self.mock_send_personal.call_args[0]
-        self.assertEqual(args[0], user.id)
+        events = self._get_dispatched_events(AuthorActionEvent)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].user_id, user.id)

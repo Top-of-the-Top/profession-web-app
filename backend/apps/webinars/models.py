@@ -162,6 +162,11 @@ class Recording(TimestampedMixin):
         blank=True,
         verbose_name="Конец",
     )
+    duration_seconds = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Длительность записи",
+    )
 
     is_deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(null=True, blank=True)

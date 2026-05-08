@@ -21,6 +21,9 @@ STATISTICS_WEBINAR_THRESHOLD = 0.7
 
 INSTALLED_APPS = [
     "daphne",
+    "unfold",
+    "unfold.contrib.filters",
+    "unfold.contrib.forms",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -103,7 +106,7 @@ ROOT_URLCONF = "project.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -196,6 +199,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 AUTH_USER_MODEL = "users.User"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
@@ -408,6 +412,238 @@ CHANNEL_LAYERS = {
             "hosts": [("redis", 6379)],
         },
     },
+}
+
+UNFOLD = {
+    "SITE_TITLE": "Профессия — Панель управления",
+    "SITE_HEADER": "Профессия — Панель управления",
+    "SITE_URL": "/",
+    "SITE_SYMBOL": "school",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
+    "COLORS": {
+        "primary": {
+            "50": "240 249 255",
+            "100": "224 242 254",
+            "200": "186 230 253",
+            "300": "125 211 252",
+            "400": "56 189 248",
+            "500": "14 165 233",
+            "600": "2 132 199",
+            "700": "3 105 161",
+            "800": "7 89 133",
+            "900": "12 74 110",
+            "950": "8 47 73",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": "Главная",
+                "separator": False,
+                "items": [
+                    {
+                        "title": "Дашборд",
+                        "icon": "dashboard",
+                        "link": "/admin/",
+                    },
+                ],
+            },
+            {
+                "title": "Пользователи",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Пользователи",
+                        "icon": "person",
+                        "link": "/admin/users/user/",
+                    },
+                    {
+                        "title": "Профили",
+                        "icon": "manage_accounts",
+                        "link": "/admin/users/profile/",
+                    },
+                    {
+                        "title": "Приглашения",
+                        "icon": "mail",
+                        "link": "/admin/admin_panel/invitation/",
+                    },
+                ],
+            },
+            {
+                "title": "Обучение",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Курсы",
+                        "icon": "menu_book",
+                        "link": "/admin/courses/course/",
+                    },
+                    {
+                        "title": "Секции",
+                        "icon": "folder_open",
+                        "link": "/admin/courses/section/",
+                    },
+                    {
+                        "title": "Уроки",
+                        "icon": "play_lesson",
+                        "link": "/admin/courses/lesson/",
+                    },
+                    {
+                        "title": "Купленные курсы",
+                        "icon": "shopping_bag",
+                        "link": "/admin/courses/purchasedcourse/",
+                    },
+                ],
+            },
+            {
+                "title": "Домашние задания",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Домашние задания",
+                        "icon": "assignment",
+                        "link": "/admin/courses/homework/",
+                    },
+                    {
+                        "title": "Вопросы",
+                        "icon": "help_outline",
+                        "link": "/admin/courses/question/",
+                    },
+                    {
+                        "title": "Задания",
+                        "icon": "edit_note",
+                        "link": "/admin/courses/task/",
+                    },
+                    {
+                        "title": "Попытки",
+                        "icon": "rate_review",
+                        "link": "/admin/homeworks/attempt/",
+                    },
+                    {
+                        "title": "Ответы на вопросы",
+                        "icon": "quiz",
+                        "link": "/admin/homeworks/questionanswer/",
+                    },
+                    {
+                        "title": "Ответы на задания",
+                        "icon": "task_alt",
+                        "link": "/admin/homeworks/taskanswer/",
+                    },
+                    {
+                        "title": "Ревью заданий",
+                        "icon": "grading",
+                        "link": "/admin/homeworks/taskreview/",
+                    },
+                ],
+            },
+            {
+                "title": "Финансы",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Платежи",
+                        "icon": "payments",
+                        "link": "/admin/payments/payment/",
+                    },
+                    {
+                        "title": "Корзины",
+                        "icon": "shopping_cart",
+                        "link": "/admin/carts/cart/",
+                    },
+                    {
+                        "title": "Товары в корзинах",
+                        "icon": "add_shopping_cart",
+                        "link": "/admin/carts/cartitem/",
+                    },
+                ],
+            },
+            {
+                "title": "Вебинары",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Вебинары",
+                        "icon": "videocam",
+                        "link": "/admin/webinars/webinar/",
+                    },
+                    {
+                        "title": "Записи",
+                        "icon": "video_library",
+                        "link": "/admin/webinars/recording/",
+                    },
+                ],
+            },
+            {
+                "title": "Аналитика",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Прогресс по урокам",
+                        "icon": "trending_up",
+                        "link": "/admin/stats/lessonprogress/",
+                    },
+                    {
+                        "title": "Посещения вебинаров",
+                        "icon": "groups",
+                        "link": "/admin/stats/webinarattendance/",
+                    },
+                    {
+                        "title": "Просмотры записей",
+                        "icon": "ondemand_video",
+                        "link": "/admin/stats/recordingview/",
+                    },
+                ],
+            },
+            {
+                "title": "Уведомления и чат",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Уведомления",
+                        "icon": "notifications",
+                        "link": "/admin/notifications/notification/",
+                    },
+                    {
+                        "title": "AI-сессии",
+                        "icon": "smart_toy",
+                        "link": "/admin/ai_chat_bot/session/",
+                    },
+                    {
+                        "title": "AI-чаты",
+                        "icon": "chat",
+                        "link": "/admin/ai_chat_bot/chat/",
+                    },
+                    {
+                        "title": "AI-сообщения",
+                        "icon": "forum",
+                        "link": "/admin/ai_chat_bot/message/",
+                    },
+                ],
+            },
+            {
+                "title": "Медиа",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Медиа-активы",
+                        "icon": "perm_media",
+                        "link": "/admin/core/mediaasset/",
+                    },
+                    {
+                        "title": "Использование медиа",
+                        "icon": "link",
+                        "link": "/admin/core/assetusage/",
+                    },
+                ],
+            },
+        ],
+    },
+    "DASHBOARD_CALLBACK": "project.dashboard.dashboard_callback",
+    "STYLES": [],
+    "SCRIPTS": [],
 }
 
 LOGGING = {

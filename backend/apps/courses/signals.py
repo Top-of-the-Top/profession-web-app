@@ -94,7 +94,6 @@ def course_notification_signal(sender, instance, created, **kwargs):
         )
 
         send_course_notification.delay(*notification)
-        send_mass_course_email.delay(*notification)
 
 
 def get_reminder_task_id_for_homework(homework_id, reminder_type, task_type):

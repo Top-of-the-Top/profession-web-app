@@ -16,6 +16,14 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-ci-secret-key-for-tests-on
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        "http://localhost,http://127.0.0.1,https://professionkid-testing.ru,http://professionkid-testing.ru",
+    ).split(",")
+    if origin.strip()
+]
 
 STATISTICS_WEBINAR_THRESHOLD = 0.7
 

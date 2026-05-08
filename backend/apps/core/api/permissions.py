@@ -7,7 +7,7 @@ from rest_framework.response import Response
 def _extract_request(args):
     if not args:
         return None
-    return args[0] if hasattr(args[0], 'user') else (args[1] if len(args) > 1 else None)
+    return args[0] if hasattr(args[0], "user") else (args[1] if len(args) > 1 else None)
 
 
 def require_moderator(view_func):
@@ -16,13 +16,14 @@ def require_moderator(view_func):
         request = _extract_request(args)
         if request is None or not request.user or not request.user.is_authenticated:
             return Response(
-                {'detail': 'Требуется авторизация'},
+                {"detail": "Требуется авторизация"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         if not request.user.is_moderator():
             return Response(
-                {'detail': 'Доступ запрещен. Требуется роль модератора'},
+                {"detail": "Доступ запрещен. Требуется роль модератора"},
                 status=status.HTTP_403_FORBIDDEN,
             )
         return view_func(*args, **kwargs)
+
     return wrapper

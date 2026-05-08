@@ -4,24 +4,23 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0010_remove_webinar_kinescope_upload_status_and_more'),
+        ("courses", "0010_remove_webinar_kinescope_upload_status_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='webinar',
-            name='lesson',
+            model_name="webinar",
+            name="lesson",
         ),
         migrations.RemoveField(
-            model_name='webinar',
-            name='started_by',
+            model_name="webinar",
+            name="started_by",
         ),
         migrations.DeleteModel(
-            name='Recording',
+            name="Recording",
         ),
         migrations.DeleteModel(
-            name='Webinar',
+            name="Webinar",
         ),
     ]

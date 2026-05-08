@@ -1,14 +1,18 @@
-from .models import Attempt, TaskAnswer, QuestionAnswer
 from django.contrib import admin
+
+from .models import Attempt, QuestionAnswer, TaskAnswer
+
 
 @admin.register(TaskAnswer)
 class TaskAnswerAdmin(admin.ModelAdmin):
-    pass 
+    pass
+
 
 @admin.register(QuestionAnswer)
 class QuestionAnswerAdmin(admin.ModelAdmin):
-    pass 
+    pass
+
 
 @admin.register(Attempt)
 class AttemptAdmin(admin.ModelAdmin):
-    pass 
+    pass

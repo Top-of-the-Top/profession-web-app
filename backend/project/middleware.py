@@ -1,24 +1,24 @@
-import time
-import sys
-from urllib.parse import parse_qs
 import logging
+import sys
+import time
+from urllib.parse import parse_qs
+
 from channels.db import database_sync_to_async
 from channels.middleware import BaseMiddleware
-
 
 logger = logging.getLogger(__name__)
 
 
 class Term:
-    GRAY = '\033[90m'
-    CYAN = '\033[36m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    MAGENTA = '\033[95m'
-    WHITE = '\033[97m'
-    BOLD = '\033[1m'
-    RESET = '\033[0m'
+    GRAY = "\033[90m"
+    CYAN = "\033[36m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    MAGENTA = "\033[95m"
+    WHITE = "\033[97m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
 
 
 class RequestTimingMiddleware:
@@ -50,10 +50,11 @@ class RequestTimingMiddleware:
             f"{Term.GRAY}|{Term.RESET} {time_color}{duration:.4f}s{Term.RESET}"
         )
 
-        sys.stdout.write(log_entry + '\n')
+        sys.stdout.write(log_entry + "\n")
         sys.stdout.flush()
 
         return response
+
 
 @database_sync_to_async
 def _resolve_user(token):

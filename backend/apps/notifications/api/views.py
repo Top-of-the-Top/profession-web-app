@@ -1,21 +1,24 @@
 import asyncio
 import json
-import aio_pika
 import logging
-from django.http import StreamingHttpResponse, HttpResponse, HttpResponseNotAllowed
-from rest_framework.response import Response
-from django.conf import settings
+
+import aio_pika
 from asgiref.sync import sync_to_async
-from django.db.models import Q, Exists, OuterRef
+from django.conf import settings
+from django.db.models import Exists, OuterRef, Q
+from django.http import HttpResponse, HttpResponseNotAllowed, StreamingHttpResponse
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
-from drf_spectacular.utils import extend_schema, OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
-from .serializers import NotificationSerializer
-from ..models import Notification
+from rest_framework_simplejwt.tokens import AccessToken
+
 from apps.users.models import User
+
+from ..models import Notification
+from .serializers import NotificationSerializer
 
 RABBITMQ_CONNECT_RETRIES = 5
 RABBITMQ_RETRY_DELAY = 2
@@ -28,13 +31,15 @@ def _user_notifications_qs(user):
     purchased_course_ids = user.get_purchased_courses_ids()
     return (
         Notification.objects.filter(
-            Q(user=user) | Q(course_id__in=purchased_course_ids) | Q(notification_type=Notification.SYSTEM)
+            Q(user=user)
+            | Q(course_id__in=purchased_course_ids)
+            | Q(notification_type=Notification.SYSTEM)
         )
         .distinct()
         .annotate(
             is_read=Exists(
                 Through.objects.filter(
-                    notification_id=OuterRef('pk'),
+                    notification_id=OuterRef("pk"),
                     user_id=user.pk,
                 )
             )
@@ -46,53 +51,54 @@ PAGE_SIZE = 20
 
 
 @extend_schema(
-    tags=['Notifications'],
-    summary='Список уведомлений пользователя',
+    tags=["Notifications"],
+    summary="Список уведомлений пользователя",
     parameters=[
         OpenApiParameter(
-            name='before_id',
+            name="before_id",
             type=OpenApiTypes.INT,
             location=OpenApiParameter.QUERY,
             required=False,
-            description='Вернуть уведомления с id строго меньше указанного (курсор пагинации)',
+            description="Вернуть уведомления с id строго меньше указанного (курсор пагинации)",
         ),
     ],
     responses={200: NotificationSerializer(many=True)},
 )
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_notifications_for_user(request):
     qs = _user_notifications_qs(request.user)
 
-    before_id = request.GET.get('before_id')
+    before_id = request.GET.get("before_id")
     if before_id:
         try:
             qs = qs.filter(id__lt=int(before_id))
         except (ValueError, TypeError):
-            pass
+            logger.debug(
+                "Invalid before_id query parameter: %r; skipping cursor filter",
+                before_id,
+            )
 
-    page = list(qs[:PAGE_SIZE + 1])
+    page = list(qs[: PAGE_SIZE + 1])
     has_more = len(page) > PAGE_SIZE
 
     serializer = NotificationSerializer(page[:PAGE_SIZE], many=True)
-    return Response({'results': serializer.data, 'has_more': has_more})
+    return Response({"results": serializer.data, "has_more": has_more})
 
 
 @extend_schema(
-    tags=['Notifications'],
-    summary='Пометить все уведомления пользователя как прочитанные',
-    responses={200: {'description': '{"marked": int}', 'content': {'application/json': {}}}},
+    tags=["Notifications"],
+    summary="Пометить все уведомления пользователя как прочитанные",
+    responses={200: {"description": '{"marked": int}', "content": {"application/json": {}}}},
 )
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def mark_all_read(request):
     user = request.user
     Through = Notification.read_by.through
 
     unread_ids = list(
-        _user_notifications_qs(user)
-        .filter(is_read=False)
-        .values_list('id', flat=True)
+        _user_notifications_qs(user).filter(is_read=False).values_list("id", flat=True)
     )
 
     if unread_ids:
@@ -101,48 +107,48 @@ def mark_all_read(request):
             ignore_conflicts=True,
         )
 
-    return Response({'marked': len(unread_ids)})
+    return Response({"marked": len(unread_ids)})
 
 
 @extend_schema(
-    tags=['Notifications'],
-    summary='Поток уведомлений (SSE)',
-    description='Server-Sent Events; требуется query-параметр token (JWT access).',
+    tags=["Notifications"],
+    summary="Поток уведомлений (SSE)",
+    description="Server-Sent Events; требуется query-параметр token (JWT access).",
     parameters=[
         OpenApiParameter(
-            name='token',
+            name="token",
             type=OpenApiTypes.STR,
             location=OpenApiParameter.QUERY,
             required=True,
-            description='JWT access token',
+            description="JWT access token",
         ),
     ],
     responses={
         200: {
-            'description': 'Поток text/event-stream',
-            'content': {'text/event-stream': {}},
+            "description": "Поток text/event-stream",
+            "content": {"text/event-stream": {}},
         },
-        401: {'description': 'Нет или неверный token'},
+        401: {"description": "Нет или неверный token"},
     },
 )
 async def sse_notifications(request):
-    if request.method != 'GET':
-        return HttpResponseNotAllowed(['GET'])
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
 
-    token = request.GET.get('token')
+    token = request.GET.get("token")
     if not token:
         return HttpResponse("Missing token", status=401)
 
     try:
         access_token = AccessToken(token)
-        user_id = access_token.get('user_id')
+        user_id = access_token.get("user_id")
         if not user_id:
             return HttpResponse("Invalid token payload", status=401)
         user = await sync_to_async(User.objects.get, thread_sensitive=False)(pk=user_id)
     except (TokenError, User.DoesNotExist):
         return HttpResponse("Invalid token", status=401)
 
-    webinar_id = request.GET.get('webinar_id')
+    webinar_id = request.GET.get("webinar_id")
 
     user_pk = user.pk
     get_course_ids = sync_to_async(
@@ -162,19 +168,22 @@ async def sse_notifications(request):
                 )
                 break
             except Exception as exc:
-                logger.warning('SSE: RabbitMQ подключение #%d не удалось: %s', attempt, exc)
+                logger.warning("SSE: RabbitMQ подключение #%d не удалось: %s", attempt, exc)
                 if attempt < RABBITMQ_CONNECT_RETRIES:
                     await asyncio.sleep(RABBITMQ_RETRY_DELAY)
                 else:
-                    logger.error('SSE: RabbitMQ недоступен после %d попыток', RABBITMQ_CONNECT_RETRIES)
-                    yield b"event: error\ndata: {\"detail\": \"broker_unavailable\"}\n\n"
+                    logger.error(
+                        "SSE: RabbitMQ недоступен после %d попыток",
+                        RABBITMQ_CONNECT_RETRIES,
+                    )
+                    yield b'event: error\ndata: {"detail": "broker_unavailable"}\n\n'
                     return
 
         try:
             channel = await connection.channel()
 
             exchange = await channel.declare_exchange(
-                'notifications',
+                "notifications",
                 aio_pika.ExchangeType.TOPIC,
                 durable=True,
             )
@@ -195,12 +204,12 @@ async def sse_notifications(request):
                 async for message in queue_iter:
                     async with message.process():
                         data = json.loads(message.body.decode())
-                        yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n".encode('utf-8')
+                        yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8")
 
         except Exception as exc:
-            logger.warning('SSE: ошибка в потоке уведомлений для user=%s: %s', user_pk, exc)
+            logger.warning("SSE: ошибка в потоке уведомлений для user=%s: %s", user_pk, exc)
         finally:
             if connection and not connection.is_closed:
                 await connection.close()
 
-    return StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+    return StreamingHttpResponse(event_stream(), content_type="text/event-stream")

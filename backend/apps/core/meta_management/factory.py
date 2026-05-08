@@ -16,8 +16,8 @@ from .storages.s3 import S3Backend
 def _get_backends():
     backends = {}
 
-    if getattr(settings, 'USE_S3', False):
-        backends['s3'] = S3Backend(
+    if getattr(settings, "USE_S3", False):
+        backends["s3"] = S3Backend(
             bucket=settings.AWS_S3_BUCKET_NAME,
             access_key=settings.AWS_ACCESS_KEY_ID,
             secret_key=settings.AWS_SECRET_ACCESS_KEY,
@@ -25,12 +25,12 @@ def _get_backends():
             region_name=settings.AWS_S3_REGION_NAME,
         )
 
-    backends['kinescope'] = KinescopeBackend(
-        api_key=getattr(settings, 'KINESCOPE_API_TOKEN', ''),
-        project_id=getattr(settings, 'KINESCOPE_PROJECT_ID', ''),
+    backends["kinescope"] = KinescopeBackend(
+        api_key=getattr(settings, "KINESCOPE_API_TOKEN", ""),
+        project_id=getattr(settings, "KINESCOPE_PROJECT_ID", ""),
     )
 
-    backends['external'] = ExternalBackend()
+    backends["external"] = ExternalBackend()
 
     return backends
 

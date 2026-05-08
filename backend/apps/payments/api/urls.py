@@ -1,12 +1,9 @@
 from django.urls import path
-from .views import (
-    CartPayView,
-    PaymentListView,
-    PaymentDetailView,
-)
+
+from .views import CartPayView, PaymentDetailView, PaymentListView
 
 urlpatterns = [
-    path('carts/pay/', CartPayView.as_view(), name='carts-pay'),
-    path('payments/', PaymentListView.as_view(), name='payment-list'),
-    path('payments/<int:payment_id>/', PaymentDetailView.as_view(), name='payment-detail'),
+    path("carts/pay/", CartPayView.as_view(), name="carts-pay"),
+    path("payments/", PaymentListView.as_view(), name="payment-list"),
+    path("payments/<int:payment_id>/", PaymentDetailView.as_view(), name="payment-detail"),
 ]

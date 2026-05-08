@@ -2,6 +2,9 @@ COMPOSE    = docker-compose
 BACKEND    = $(COMPOSE) exec backend
 MANAGE     = $(BACKEND) python3 manage.py
 CELERY_SVC = celery_worker
+APP        ?=
+PATH       ?= apps
+ARGS       ?=
 
 .PHONY: help
 help: ## Показать список доступных команд
@@ -56,6 +59,11 @@ migrate: ## Применить миграции
 makemigrations: ## Создать миграции
 	$(MANAGE) makemigrations
 
+.PHONY: startapp
+startapp: ## Создать новое Django app
+	@if [ -z "$(APP)" ]; then echo "Usage: make startapp APP=<app_name> [PATH=apps]"; exit 1; fi
+	$(MANAGE) startapp $(APP) $(PATH)/$(APP)
+
 .PHONY: createsuperuser
 createsuperuser: ## Создать суперпользователя
 	$(MANAGE) createsuperuser
@@ -68,9 +76,14 @@ collectstatic: ## Собрать статику
 shell: ## Django shell
 	$(MANAGE) shell
 
-.PHONY: test 
+.PHONY: test
 test: ## Запустить тесты
-	$(MANAGE) test 
+	$(MANAGE) test
+
+.PHONY: test-app
+test-app: ## Запустить тесты по app (APP=homeworks)
+	@if [ -z "$(APP)" ]; then echo "Usage: make test-app APP=<app_label>"; exit 1; fi
+	$(MANAGE) test $(APP)
 
 .PHONY: bash
 bash: ## Bash внутри контейнера backend

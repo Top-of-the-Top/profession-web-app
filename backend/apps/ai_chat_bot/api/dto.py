@@ -149,7 +149,7 @@ class FinishingAnswerMessage(WsMessage):
 
     def to_content(self) -> dict[str, Any]:
         return {}
-    
+
     def to_dict(self) -> dict[str, Any]:
         payload = super().to_dict()
         payload["chat_id"] = self.chat_id
@@ -206,11 +206,12 @@ class SendMessageRequest(WsRequest):
     def message_type(self) -> str:
         return "send message"
 
+
 def parse_ws_request(payload: dict[str, Any]) -> WsRequest:
     message_type = str(payload.get("type", "")).strip().lower()
     chat_id = str(payload.get("chat_id", "")).strip()
     content = payload.get("content", {})
-    
+
     if message_type == "start new chat":
         return StartNewChatRequest()
     if message_type == "delete chat":

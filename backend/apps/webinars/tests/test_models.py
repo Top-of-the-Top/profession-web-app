@@ -1,28 +1,30 @@
-from django.test import TestCase
-from unittest.mock import patch
-from django.utils import timezone
 from datetime import timedelta
+from unittest.mock import patch
 
-from apps.users.models import User
+from django.test import TestCase
+from django.utils import timezone
+
+from apps.courses.models import Course, Lesson, Section
 from apps.users.api.utils.crypto_utils import encrypt_data
-from apps.courses.models import Course, Section, Lesson
-from ..models import Webinar, Recording
+from apps.users.models import User
+
+from ..models import Recording, Webinar
 
 
-def create_test_user(email='test@test.com', role='teacher'):
+def create_test_user(email="test@test.com", role="teacher"):
     return User.objects.create_user(
         email_cipher=encrypt_data(email),
-        password='testpass123',
+        password="testpass123",
         role=role,
     )
 
 
 def create_test_course(**kwargs):
     defaults = {
-        'title': 'Тестовый курс',
-        'sub_title': 'Краткое описание',
-        'description': 'Описание',
-        'price': 9000,
+        "title": "Тестовый курс",
+        "sub_title": "Краткое описание",
+        "description": "Описание",
+        "price": 9000,
     }
     defaults.update(kwargs)
     return Course.objects.create(**defaults)
@@ -30,8 +32,8 @@ def create_test_course(**kwargs):
 
 def create_test_section(course, **kwargs):
     defaults = {
-        'course': course,
-        'title': 'Тестовая секция',
+        "course": course,
+        "title": "Тестовая секция",
     }
     defaults.update(kwargs)
     return Section.objects.create(**defaults)
@@ -39,8 +41,8 @@ def create_test_section(course, **kwargs):
 
 def create_test_lesson(section, **kwargs):
     defaults = {
-        'section': section,
-        'title': 'Тестовый урок',
+        "section": section,
+        "title": "Тестовый урок",
     }
     defaults.update(kwargs)
     return Lesson.objects.create(**defaults)
@@ -50,13 +52,13 @@ class BaseWebinarTestCase(TestCase):
     """Мокаем celery-задачи, которые могут вызываться из сигналов courses."""
 
     CELERY_TASKS_TO_MOCK = [
-        'apps.courses.signals.send_course_notification.delay',
-        'apps.courses.signals.send_course_notification.apply_async',
-        'apps.courses.signals.send_personal_notification.delay',
-        'apps.courses.signals.send_mass_course_email.delay',
-        'apps.courses.signals.send_mass_course_email.apply_async',
-        'apps.courses.signals.send_mass_system_email.delay',
-        'apps.courses.signals.send_single_email.delay',
+        "apps.courses.signals.send_course_notification.delay",
+        "apps.courses.signals.send_course_notification.apply_async",
+        "apps.courses.signals.send_personal_notification.delay",
+        "apps.courses.signals.send_mass_course_email.delay",
+        "apps.courses.signals.send_mass_course_email.apply_async",
+        "apps.courses.signals.send_mass_system_email.delay",
+        "apps.courses.signals.send_single_email.delay",
     ]
 
     def setUp(self):
@@ -74,13 +76,12 @@ class BaseWebinarTestCase(TestCase):
 
 
 class WebinarModelTest(BaseWebinarTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
         self.section = create_test_section(self.course)
         self.lesson = create_test_lesson(self.section)
-        self.user = create_test_user(email='teacher_m@test.com', role='teacher')
+        self.user = create_test_user(email="teacher_m@test.com", role="teacher")
 
     def test_webinar_created_with_pending_status_by_default(self):
         webinar = Webinar.objects.create(lesson=self.lesson)
@@ -89,13 +90,13 @@ class WebinarModelTest(BaseWebinarTestCase):
     def test_webinar_generates_agora_channel_name_on_save(self):
         webinar = Webinar.objects.create(lesson=self.lesson)
 
-        self.assertTrue(webinar.agora_channel_name.startswith('webinar-'))
-        self.assertEqual(len(webinar.agora_channel_name), len('webinar-') + 8)
+        self.assertTrue(webinar.agora_channel_name.startswith("webinar-"))
+        self.assertEqual(len(webinar.agora_channel_name), len("webinar-") + 8)
 
     def test_webinar_does_not_overwrite_existing_agora_channel_name(self):
         webinar = Webinar.objects.create(
             lesson=self.lesson,
-            agora_channel_name='custom-channel',
+            agora_channel_name="custom-channel",
         )
         original = webinar.agora_channel_name
 
@@ -108,22 +109,24 @@ class WebinarModelTest(BaseWebinarTestCase):
     def test_webinar_agora_channel_name_is_unique(self):
         Webinar.objects.create(
             lesson=self.lesson,
-            agora_channel_name='unique-channel',
+            agora_channel_name="unique-channel",
         )
 
-        other_lesson = create_test_lesson(self.section, title='Другой урок')
+        other_lesson = create_test_lesson(self.section, title="Другой урок")
         from django.db import IntegrityError, transaction
+
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 Webinar.objects.create(
                     lesson=other_lesson,
-                    agora_channel_name='unique-channel',
+                    agora_channel_name="unique-channel",
                 )
 
     def test_webinar_has_one_to_one_with_lesson(self):
         Webinar.objects.create(lesson=self.lesson)
 
         from django.db import IntegrityError, transaction
+
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 Webinar.objects.create(lesson=self.lesson)
@@ -144,11 +147,11 @@ class WebinarModelTest(BaseWebinarTestCase):
         self.assertIsNone(webinar.started_by)
 
     def test_webinar_str_contains_lesson_title(self):
-        self.lesson.title = 'Мой урок'
+        self.lesson.title = "Мой урок"
         self.lesson.save()
         webinar = Webinar.objects.create(lesson=self.lesson)
 
-        self.assertIn('Мой урок', str(webinar))
+        self.assertIn("Мой урок", str(webinar))
 
     def test_webinar_status_choices(self):
         statuses = [s[0] for s in Webinar.STATUS_CHOICES]
@@ -158,14 +161,13 @@ class WebinarModelTest(BaseWebinarTestCase):
 
 
 class RecordingModelTest(BaseWebinarTestCase):
-
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
         self.section = create_test_section(self.course)
         self.lesson = create_test_lesson(self.section)
         self.webinar = Webinar.objects.create(lesson=self.lesson)
-        self.user = create_test_user(email='recstart@test.com', role='teacher')
+        self.user = create_test_user(email="recstart@test.com", role="teacher")
 
     def test_recording_default_status_is_recording(self):
         rec = Recording.objects.create(webinar=self.webinar)
@@ -173,7 +175,7 @@ class RecordingModelTest(BaseWebinarTestCase):
 
     def test_recording_default_kinescope_upload_status_is_none(self):
         rec = Recording.objects.create(webinar=self.webinar)
-        self.assertEqual(rec.kinescope_upload_status, 'none')
+        self.assertEqual(rec.kinescope_upload_status, "none")
 
     def test_recording_cascade_deleted_when_webinar_deleted(self):
         rec = Recording.objects.create(webinar=self.webinar)
@@ -235,5 +237,12 @@ class RecordingModelTest(BaseWebinarTestCase):
 
     def test_recording_kinescope_upload_status_choices(self):
         statuses = [s[0] for s in Recording.KINESCOPE_UPLOAD_STATUS_CHOICES]
-        for expected in ('none', 'pending', 'uploading', 'processing', 'ready', 'failed'):
+        for expected in (
+            "none",
+            "pending",
+            "uploading",
+            "processing",
+            "ready",
+            "failed",
+        ):
             self.assertIn(expected, statuses)

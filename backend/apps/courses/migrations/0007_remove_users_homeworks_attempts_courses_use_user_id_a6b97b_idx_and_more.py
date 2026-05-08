@@ -4,47 +4,46 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0006_merge_20260414_1651'),
+        ("courses", "0006_merge_20260414_1651"),
     ]
 
     operations = [
         migrations.RemoveIndex(
-            model_name='users_homeworks_attempts',
-            name='courses_use_user_id_a6b97b_idx',
+            model_name="users_homeworks_attempts",
+            name="courses_use_user_id_a6b97b_idx",
         ),
         migrations.RemoveIndex(
-            model_name='users_questions_answers',
-            name='courses_use_questio_c70b63_idx',
+            model_name="users_questions_answers",
+            name="courses_use_questio_c70b63_idx",
         ),
         migrations.RemoveIndex(
-            model_name='users_tasks_answers',
-            name='courses_use_task_an_38adfc_idx',
+            model_name="users_tasks_answers",
+            name="courses_use_task_an_38adfc_idx",
         ),
         migrations.RemoveField(
-            model_name='users_homeworks_attempts',
-            name='homework',
+            model_name="users_homeworks_attempts",
+            name="homework",
         ),
         migrations.RemoveField(
-            model_name='users_homeworks_attempts',
-            name='user',
+            model_name="users_homeworks_attempts",
+            name="user",
         ),
         migrations.RemoveField(
-            model_name='users_tasks_answers',
-            name='attempt',
+            model_name="users_tasks_answers",
+            name="attempt",
         ),
         migrations.RemoveField(
-            model_name='users_tasks_answers',
-            name='task',
+            model_name="users_tasks_answers",
+            name="task",
         ),
         migrations.DeleteModel(
-            name='Users_questions_answers',
+            name="Users_questions_answers",
         ),
         migrations.DeleteModel(
-            name='Users_Homeworks_Attempts',
+            name="Users_Homeworks_Attempts",
         ),
         migrations.DeleteModel(
-            name='Users_tasks_answers',
+            name="Users_tasks_answers",
         ),
     ]

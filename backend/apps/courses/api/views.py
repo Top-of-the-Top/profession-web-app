@@ -71,7 +71,7 @@ class CourseDTOList(generics.ListAPIView):
     serializer_class = CourseDTOSerializer
 
     def get_queryset(self):
-        return Course.objects.all()
+        return Course.objects.filter(is_deleted=False, type=Course.PUBLISHED_STATUS)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -113,11 +113,17 @@ class CourseListView(APIView):
 
         user = request.user
         if user.is_moderator():
-            qs = Course.objects.all()
+            qs = Course.objects.filter(is_deleted=False)
         elif user.is_teacher():
-            qs = Course.objects.filter(Q(type=Course.PUBLISHED_STATUS) | Q(authors=user)).distinct()
+            qs = (
+                Course.objects.filter(
+                    is_deleted=False,
+                )
+                .filter(Q(type=Course.PUBLISHED_STATUS) | Q(authors=user))
+                .distinct()
+            )
         else:
-            qs = Course.objects.filter(type=Course.PUBLISHED_STATUS)
+            qs = Course.objects.filter(is_deleted=False, type=Course.PUBLISHED_STATUS)
 
         serializer = CourseSerializer(qs, many=True, context={"request": request})
         cache.set(key, serializer.data)
@@ -170,7 +176,7 @@ class CourseDetailView(APIView):
         cached = cache.get(key)
         if cached is not None:
             return Response(cached)
-        course = get_object_or_404(Course, slug=slug)
+        course = get_object_or_404(Course, slug=slug, is_deleted=False)
         data = CourseSerializer(course).data
         cache.set(key, data)
         return Response(data)
@@ -195,9 +201,9 @@ class CourseDetailView(APIView):
             500: {"schema": SCHEMA_DETAIL},
         },
     )
-    @require_course_author
+    @require_moderator
     def patch(self, request, slug):
-        course = get_object_or_404(Course, slug=slug)
+        course = get_object_or_404(Course, slug=slug, is_deleted=False)
         serializer = CourseSerializer(course, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -221,10 +227,11 @@ class CourseDetailView(APIView):
             500: {"schema": SCHEMA_DETAIL},
         },
     )
-    @require_course_author
+    @require_moderator
     def delete(self, request, slug):
-        course = get_object_or_404(Course, slug=slug)
-        course.delete()
+        course = get_object_or_404(Course, slug=slug, is_deleted=False)
+        course.is_deleted = True
+        course.save(update_fields=["is_deleted"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

@@ -115,6 +115,14 @@ class Course(AbstractComponentModel):
         null=True,
         verbose_name="Yandex Vector Store ID",
     )
+    is_deleted = models.BooleanField(default=False, verbose_name="Удалён")
+    starts_at = models.DateField(null=True, blank=True, verbose_name="Дата старта курса")
+    duration_weeks = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="Длительность курса (недели)"
+    )
+    min_age = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="Минимальный возраст"
+    )
 
     @property
     def image_url(self):

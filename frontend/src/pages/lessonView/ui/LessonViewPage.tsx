@@ -602,14 +602,20 @@ const LessonRecordingCard: React.FC<{
   const leaveExitDoneRef = useRef(false);
   const kinescopeContainerRef = useRef<HTMLDivElement>(null);
 
-  const embedUrl =
+  const incomingEmbedUrl =
     recording.kind !== 'whiteboard_only' && recording.kinescope_embed_url
       ? recording.kinescope_embed_url
       : null;
+  const [stableEmbedUrl, setStableEmbedUrl] = useState<string | null>(incomingEmbedUrl);
+  useEffect(() => {
+    if (incomingEmbedUrl) {
+      setStableEmbedUrl(incomingEmbedUrl);
+    }
+  }, [incomingEmbedUrl]);
 
   useRecordingHeartbeat({
     recordingId: recording.recording_id || null,
-    embedUrl,
+    embedUrl: stableEmbedUrl,
     containerRef: kinescopeContainerRef,
   });
 
@@ -658,7 +664,7 @@ const LessonRecordingCard: React.FC<{
 
       {!isWhiteboardOnly &&
         (recording.kinescope_upload_status === 'ready' &&
-        recording.kinescope_embed_url ? (
+        stableEmbedUrl ? (
           <div className={styles.recordingIframeWrap}>
             <div
               ref={kinescopeContainerRef}

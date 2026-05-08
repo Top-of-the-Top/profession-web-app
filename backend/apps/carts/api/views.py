@@ -115,7 +115,9 @@ class AddToCartView(APIView):
     )
     def post(self, request, slug):
         cart, _ = Cart.objects.get_or_create(user=request.user)
-        course = Course.objects.filter(slug=slug).first()
+        course = Course.objects.filter(
+            slug=slug, is_deleted=False, type=Course.PUBLISHED_STATUS
+        ).first()
 
         if course is None:
             return Response(

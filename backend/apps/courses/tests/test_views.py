@@ -119,12 +119,31 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
 
     def test_retrieve_course_by_slug(self):
         course = create_test_course(title="Test Course", sub_title="Sub", price=5000)
+        publish_course_tree(course)
 
         self.authenticate_user(self.student)
         response = self.client.get(f"/api/courses/{course.slug}/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Test Course")
+
+    def test_retrieve_unpublished_course_returns_404_for_non_privileged_user(self):
+        course = create_test_course(title="Draft Course", sub_title="Sub", price=5000)
+
+        self.authenticate_user(self.student)
+        response = self.client.get(f"/api/courses/{course.slug}/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_retrieve_unpublished_course_allowed_for_enrolled_student(self):
+        course = create_test_course(title="Draft Course", sub_title="Sub", price=5000)
+        student = self.create_enrolled_student(course)
+
+        self.authenticate_user(student)
+        response = self.client.get(f"/api/courses/{course.slug}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "Draft Course")
 
     def test_create_course_as_moderator(self):
         self.authenticate_user(self.moderator)
@@ -310,6 +329,27 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertIn("started_at", response.data["content"])
         self.assertIn("homeworks", response.data["content"])
         self.assertIn("document", response.data["content"])
+
+    def test_enrolled_student_retrieves_lesson_when_course_unpublished(self):
+        self.course.type = Course.DRAFT_STATUS
+        self.course.save(update_fields=["type"])
+
+        self.authenticate_user(self.student)
+        response = self.client.get(f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "Lesson 1")
+
+    def test_course_home_shows_tree_for_student_when_course_unpublished(self):
+        self.course.type = Course.DRAFT_STATUS
+        self.course.save(update_fields=["type"])
+
+        self.authenticate_user(self.student)
+        response = self.client.get(f"/api/courses/{self.course.slug}/home/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        content = response.data.get("content", [])
+        self.assertGreaterEqual(len(content), 1)
+        lesson_slugs = [lesson["slug"] for sec in content for lesson in sec.get("lessons", [])]
+        self.assertIn(self.lesson.slug, lesson_slugs)
 
     def test_lesson_create_as_author(self):
         self.authenticate_user(self.teacher)

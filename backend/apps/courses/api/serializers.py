@@ -222,9 +222,6 @@ class CourseHomeSerializer(serializers.Serializer):
                 sections, many=True, context=child_context
             ).data
 
-        if obj.type != Course.PUBLISHED_STATUS:
-            return []
-
         lesson_qs = Lesson.objects.filter(type=Lesson.PUBLISHED_STATUS).order_by("lesson_number")
         sections = (
             Section.objects.filter(course=obj, type=Section.PUBLISHED_STATUS)

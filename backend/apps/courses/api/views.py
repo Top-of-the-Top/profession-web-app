@@ -171,14 +171,27 @@ class CourseDetailView(APIView):
         },
     )
     def get(self, request, slug):
+        course = get_object_or_404(Course, slug=slug, is_deleted=False)
+        user = request.user
+        can_see_unpublished = user.is_authenticated and (
+            user.is_moderator() or user.is_course_author(course) or user.is_enrolled(course)
+        )
+        if course.type != Course.PUBLISHED_STATUS and not can_see_unpublished:
+            return Response(
+                {"detail": "Курс не найден"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         cache = caches["default"]
         key = course_detail_cache_key(slug)
-        cached = cache.get(key)
-        if cached is not None:
-            return Response(cached)
-        course = get_object_or_404(Course, slug=slug, is_deleted=False)
+        if course.type == Course.PUBLISHED_STATUS:
+            cached = cache.get(key)
+            if cached is not None:
+                return Response(cached)
+
         data = CourseSerializer(course).data
-        cache.set(key, data)
+        if course.type == Course.PUBLISHED_STATUS:
+            cache.set(key, data)
         return Response(data)
 
     @extend_schema(

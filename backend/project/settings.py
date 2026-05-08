@@ -176,8 +176,8 @@ SPECTACULAR_SETTINGS = {
             "description": "Уведомления пользователя: список и поток SSE.",
         },
         {
-            "name": "AI Chat",
-            "description": "ИИ-чат по курсу (документация WebSocket; см. эндпоинт docs).",
+            "name": "Admin Panel",
+            "description": "Панель модератор",
         },
     ],
     "POSTPROCESSING_HOOKS": [
@@ -206,6 +206,7 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL", "webmaster@localhost")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
 SMS_BACKEND = os.getenv("SMS_BACKEND", "sms.backends.console.SmsBackend")

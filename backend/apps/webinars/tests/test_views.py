@@ -58,6 +58,9 @@ class WebinarEndpointsBase(BaseWebinarTestCase, ViewTestMixin):
     def url_start(self):
         return f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/start/"
 
+    def url_schedule(self):
+        return f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/schedule/"
+
     def url_stop(self):
         return f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/stop/"
 
@@ -983,3 +986,117 @@ class WebinarStartIdempotencyTest(WebinarEndpointsBase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Webinar.objects.filter(lesson=self.lesson).count(), 1)
+
+
+@patch("apps.webinars.api.views.send_course_notification.delay")
+@patch("apps.webinars.api.views.invalidate_lesson_detail_cache")
+class WebinarScheduleViewTest(WebinarEndpointsBase):
+    SCHEDULE_PAYLOAD = {"scheduled_at": "2026-06-01T18:00:00Z"}
+
+    def test_requires_authentication(self, *_):
+        response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_student_cannot_schedule(self, *_):
+        self.authenticate(self.student)
+        response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_other_teacher_cannot_schedule(self, *_):
+        self.authenticate(self.other_teacher)
+        response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_author_creates_webinar_and_sets_scheduled_at(
+        self, mock_invalidate, mock_notify, *_
+    ):
+        self.authenticate(self.teacher)
+
+        response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        webinar = Webinar.objects.get(lesson=self.lesson)
+        self.assertIsNotNone(webinar.scheduled_at)
+        self.assertEqual(response.data["webinar_id"], str(webinar.webinar_id))
+        self.assertEqual(webinar.status, Webinar.PENDING_STATUS)
+        mock_invalidate.assert_called_once_with(self.course.slug, self.lesson.slug)
+        mock_notify.assert_called_once()
+        title = mock_notify.call_args.args[1]
+        self.assertIn("Назначен вебинар", title)
+
+    def test_moderator_can_schedule(self, mock_invalidate, mock_notify, *_):
+        self.authenticate(self.moderator)
+        response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_existing_pending_update_sends_change_notification(
+        self, mock_invalidate, mock_notify, *_
+    ):
+        Webinar.objects.create(
+            lesson=self.lesson,
+            scheduled_at=timezone.now(),
+            status=Webinar.PENDING_STATUS,
+        )
+        self.authenticate(self.teacher)
+
+        response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        title = mock_notify.call_args.args[1]
+        self.assertIn("Время вебинара изменено", title)
+
+    def test_clearing_schedule_sends_cancel_notification(
+        self, mock_invalidate, mock_notify, *_
+    ):
+        Webinar.objects.create(
+            lesson=self.lesson,
+            scheduled_at=timezone.now(),
+            status=Webinar.PENDING_STATUS,
+        )
+        self.authenticate(self.teacher)
+
+        response = self.client.patch(
+            self.url_schedule(), {"scheduled_at": None}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        webinar = Webinar.objects.get(lesson=self.lesson)
+        self.assertIsNone(webinar.scheduled_at)
+        title = mock_notify.call_args.args[1]
+        self.assertIn("Вебинар отменён", title)
+
+    def test_live_webinar_returns_409(self, *_):
+        Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
+        self.authenticate(self.teacher)
+
+        response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
+    def test_ended_webinar_is_reset_to_pending(self, *_):
+        Webinar.objects.create(
+            lesson=self.lesson,
+            status=Webinar.ENDED_STATUS,
+            ended_at=timezone.now(),
+        )
+        self.authenticate(self.teacher)
+
+        response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        webinar = Webinar.objects.get(lesson=self.lesson)
+        self.assertEqual(webinar.status, Webinar.PENDING_STATUS)
+        self.assertIsNone(webinar.ended_at)
+
+    def test_invalid_payload_returns_400(self, *_):
+        self.authenticate(self.teacher)
+        response = self.client.patch(
+            self.url_schedule(), {"scheduled_at": "not-a-date"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_404_for_nonexistent_lesson(self, *_):
+        self.authenticate(self.teacher)
+        url = f"/api/courses/{self.course.slug}/lessons/missing-lesson/webinar/schedule/"
+        response = self.client.patch(url, self.SCHEDULE_PAYLOAD, format="json")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

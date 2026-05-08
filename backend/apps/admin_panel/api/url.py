@@ -5,10 +5,10 @@ from .views import (
     CoursePublishView,
     CourseRemoveAuthorView,
     CourseUnpublishView,
+    InvitationListView,
     InviteTeacherview,
     InviteValidateView,
     RegisterByInviteView,
-    TeacherInviteListView,
     TeacherListView,
 )
 
@@ -36,7 +36,7 @@ urlpatterns = [
         CourseUnpublishView.as_view(),
         name="course-unpublish",
     ),
-    path("admin-panel/invites/", TeacherInviteListView.as_view(), name="invite-list"),
+    path("admin-panel/invites/", InvitationListView.as_view(), name="invite-list"),
     path("admin-panel/invites/send/", InviteTeacherview.as_view(), name="invite-send"),
     path("admin-panel/invites/validate/", InviteValidateView.as_view(), name="invite-validate"),
     path("admin-panel/invites/register/", RegisterByInviteView.as_view(), name="invite-register"),

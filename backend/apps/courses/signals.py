@@ -11,15 +11,16 @@ from project.celery import app as celery_app
 
 logger = logging.getLogger(__name__)
 
-from apps.notifications.tasks import (
-    send_course_notification,
-    send_mass_course_email,
-    send_personal_notification,
+from apps.notifications.dispatcher import dispatcher
+from apps.notifications.events import (
+    AuthorActionEvent,
+    CourseUpdatedEvent,
+    DeadlineChangedEvent,
+    NewHomeworkEvent,
 )
 
 from .api.utils.cache_utils import (
     course_list_cache_key,
-    invalidate_lesson_detail_cache,
     invalidate_on_course_model_change,
     invalidate_on_homework_tree_change,
     invalidate_on_lesson_model_change,
@@ -70,10 +71,12 @@ def delete_course_image(sender, instance, **kwargs):
 
 def notify_author(instance, action_name: str):
     if instance.last_modified_by:
-        send_personal_notification.delay(
-            instance.last_modified_by.id,
-            "Система",
-            f"Объект '{instance}' успешно {action_name}.",
+        dispatcher.dispatch(
+            AuthorActionEvent(
+                user_id=instance.last_modified_by.id,
+                object_repr=str(instance),
+                action=action_name,
+            )
         )
 
 
@@ -84,16 +87,12 @@ def course_notification_signal(sender, instance, created, **kwargs):
     notify_author(instance, action)
 
     if not created:
-        course_id = instance.pk
-        title = f"Обновление курса: {instance.title}"
-        message = "В материалы курса внесены изменения."
-        notification = (
-            course_id,
-            title,
-            message,
+        dispatcher.dispatch(
+            CourseUpdatedEvent(
+                course_id=instance.pk,
+                course_title=instance.title,
+            )
         )
-
-        send_course_notification.delay(*notification)
 
 
 def get_reminder_task_id_for_homework(homework_id, reminder_type, task_type):
@@ -126,33 +125,33 @@ def invalidate_student_cache_on_homework_change(sender, instance, **kwargs):
 @receiver(post_save, sender=Homework)
 def homework_notification(sender, instance, created, **kwargs):
     course = instance.lesson.section.course
-    deadline_str = instance.deadline.strftime("%d.%m %H:%M")
 
     notify_author(instance, "прикреплено" if created else "изменено")
 
     if created and instance.deadline > timezone.now():
-        title = f"Новое домашнее задание: {instance.title}"
-        message = (
-            f'По курсу "{course.title}" добавлено новое задание.\n'
-            f"Дедлайн: {deadline_str}.\n"
-            f"Урок: {instance.lesson.title}."
+        dispatcher.dispatch(
+            NewHomeworkEvent(
+                course_id=course.course_id,
+                course_title=course.title,
+                homework_title=instance.title,
+                lesson_title=instance.lesson.title,
+                deadline=instance.deadline,
+            )
         )
-        send_course_notification.delay(course.course_id, title, message)
-        send_mass_course_email.delay(course.course_id, title, message)
     elif instance.deadline > timezone.now():
         deadline_changed = getattr(instance, "_deadline_changed", False)
         old_deadline = getattr(instance, "_old_deadline", None)
 
         if deadline_changed and old_deadline:
-            title = f"Дедлайн домашнего задания перенесён: {instance.title}"
-            message = (
-                f'В курсе "{course.title}" обновлен дедлайн домашнего задания "{instance.title}"\n'
-                f"Новый дедлайн: {deadline_str}.\n"
-                f"Урок: {instance.lesson.title}."
+            dispatcher.dispatch(
+                DeadlineChangedEvent(
+                    course_id=course.course_id,
+                    course_title=course.title,
+                    homework_title=instance.title,
+                    lesson_title=instance.lesson.title,
+                    deadline=instance.deadline,
+                )
             )
-
-            send_course_notification.delay(course.course_id, title, message)
-            send_mass_course_email.delay(course.course_id, title, message)
 
 
 @receiver(post_save, sender=Homework)
@@ -164,10 +163,15 @@ def handle_deadline_reminders(sender, instance, created, **kwargs):
     old_deadline = getattr(instance, "_old_deadline", None)
 
     if created or (deadline_changed and old_deadline):
-        for r_type, delta, base_message in REMINDER_CONFIGS:
+        for r_type, delta, label in REMINDER_CONFIGS:
             eta = instance.deadline - delta
 
             if eta > now:
+                from apps.notifications.tasks import (
+                    send_course_notification,
+                    send_mass_course_email,
+                )
+
                 notif_task_id = get_reminder_task_id_for_homework(
                     instance.pk, r_type, "notification"
                 )
@@ -175,7 +179,7 @@ def handle_deadline_reminders(sender, instance, created, **kwargs):
 
                 title = f"Напоминание: {instance.title}"
                 message = (
-                    f"{base_message}.\n"
+                    f"{label}.\n"
                     f'Задание: "{instance.title}"\n'
                     f"Дедлайн: {instance.deadline.strftime('%d.%m %H:%M')}"
                 )

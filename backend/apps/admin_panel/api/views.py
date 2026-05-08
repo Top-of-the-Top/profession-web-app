@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.admin_panel.models import TeacherInvite
+from apps.admin_panel.models import Invitation
 from apps.core.api.permissions import require_moderator
 from apps.courses.api.utils.cache_utils import invalidate_on_course_model_change
 from apps.courses.models import Course
@@ -15,7 +15,7 @@ from apps.users.api.utils.notification_utils import send_teacher_invite_email
 from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.users.models import Profile, User
 
-from .serializers import TeacherInviteCreateSerializer, TeacherInviteSerializer, TeacherSerializer
+from .serializers import InvitationCreateSerializer, InvitationSerializer, TeacherSerializer
 
 SCHEMA_DETAIL = {"type": "object", "properties": {"detail": {"type": "string"}}}
 SCHEMA_VALIDATION = {"type": "object", "description": "Объект с ошибками валидации по полям."}
@@ -170,14 +170,14 @@ class CourseUnpublishView(APIView):
         return Response({"status": course.type})
 
 
-class TeacherInviteListView(APIView):
+class InvitationListView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         summary="Список инвайтов",
         tags=["Admin Panel"],
         responses={
-            200: TeacherInviteSerializer(many=True),
+            200: InvitationSerializer(many=True),
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
@@ -185,8 +185,8 @@ class TeacherInviteListView(APIView):
     )
     @require_moderator
     def get(self, request):  # noqa: ARG002
-        invites = TeacherInvite.objects.select_related("created_by").all()
-        return Response(TeacherInviteSerializer(invites, many=True).data)
+        invites = Invitation.objects.select_related("invited_by").all()
+        return Response(InvitationSerializer(invites, many=True).data)
 
 
 class InviteTeacherview(APIView):
@@ -195,9 +195,9 @@ class InviteTeacherview(APIView):
     @extend_schema(
         summary="Создать инвайт и отправить письмо",
         tags=["Admin Panel"],
-        request=TeacherInviteCreateSerializer,
+        request=InvitationCreateSerializer,
         responses={
-            201: TeacherInviteSerializer,
+            201: InvitationSerializer,
             400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
@@ -206,12 +206,12 @@ class InviteTeacherview(APIView):
     )
     @require_moderator
     def post(self, request):
-        serializer = TeacherInviteCreateSerializer(data=request.data)
+        serializer = InvitationCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        invite = TeacherInvite.objects.create(
+        invite = Invitation.objects.create(
             email=serializer.validated_data["email"],
-            created_by=request.user,
+            invited_by=request.user,
         )
 
         from django.conf import settings
@@ -225,7 +225,7 @@ class InviteTeacherview(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        return Response(TeacherInviteSerializer(invite).data, status=status.HTTP_201_CREATED)
+        return Response(InvitationSerializer(invite).data, status=status.HTTP_201_CREATED)
 
 
 class InviteValidateView(APIView):
@@ -242,7 +242,7 @@ class InviteValidateView(APIView):
     )
     def get(self, request):
         token = request.query_params.get("token", "").strip()
-        invite = TeacherInvite.objects.filter(token=token).first()
+        invite = Invitation.objects.filter(token=token).first()
         if not invite:
             return Response({"detail": "Приглашение не найдено."}, status=status.HTTP_404_NOT_FOUND)
         if invite.is_used:
@@ -304,7 +304,7 @@ class RegisterByInviteView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        invite = TeacherInvite.objects.filter(token=token).first()
+        invite = Invitation.objects.filter(token=token).first()
         if not invite:
             return Response({"detail": "Приглашение не найдено."}, status=status.HTTP_404_NOT_FOUND)
         if invite.is_used:

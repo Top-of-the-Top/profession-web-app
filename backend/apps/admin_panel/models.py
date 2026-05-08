@@ -10,19 +10,33 @@ from apps.users.models import User
 INVITE_TTL_DAYS = 3
 
 
-class TeacherInvite(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    token = models.CharField(max_length=64, unique=True, db_index=True)
-    email = models.EmailField(verbose_name="Email приглашённого")
-    created_by = models.ForeignKey(
+class Invitation(models.Model):
+
+    invitation_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    token = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+    )
+
+    email = models.EmailField(verbose_name="Email приглашеенного", null=False)
+
+    invited_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         related_name="sent_invites",
         verbose_name="Кто создал",
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано в")
     expires_at = models.DateTimeField(verbose_name="Истекает")
+
     used_at = models.DateTimeField(null=True, blank=True, verbose_name="Использован")
 
     class Meta:

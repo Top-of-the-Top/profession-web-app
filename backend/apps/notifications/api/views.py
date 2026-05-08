@@ -3,11 +3,10 @@ import json
 import logging
 
 import aio_pika
-from asgiref.sync import sync_to_async
 from django.conf import settings
-from django.db import close_old_connections
 from django.db.models import Exists, OuterRef, Q
 from django.http import HttpResponse, HttpResponseNotAllowed, StreamingHttpResponse
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.decorators import api_view, permission_classes
@@ -16,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import AccessToken
 
+from apps.courses.models import PurchasedCourse
 from apps.users.models import User
 
 from ..models import Notification
@@ -111,6 +111,14 @@ def mark_all_read(request):
     return Response({"marked": len(unread_ids)})
 
 
+async def _get_user_course_ids(user_id: int) -> list:
+    qs = PurchasedCourse.objects.filter(
+        user_id=user_id,
+        access_expires_at__gt=timezone.now(),
+    ).values_list("course_id", flat=True)
+    return [c_id async for c_id in qs.aiterator()]
+
+
 @extend_schema(
     tags=["Notifications"],
     summary="Поток уведомлений (SSE)",
@@ -150,22 +158,14 @@ async def sse_notifications(request):
 
     webinar_id = request.GET.get("webinar_id")
 
-    def _load_user_context():
-        try:
-            user = User.objects.only("pk").get(pk=user_id)
-        except User.DoesNotExist:
-            return None
-        return user.pk, list(user.get_purchased_courses_ids())
-
     try:
-        user_context = await sync_to_async(_load_user_context)()
-    finally:
-        await sync_to_async(close_old_connections)()
-
-    if user_context is None:
-        return HttpResponse("Invalid token", status=401)
-
-    user_pk, user_course_ids = user_context
+        user_exists = await User.objects.filter(pk=user_id).aexists()
+        if not user_exists:
+            return HttpResponse("Invalid token", status=401)
+        user_course_ids = await _get_user_course_ids(user_id)
+    except Exception as exc:
+        logger.error("SSE: ошибка загрузки пользователя user=%s: %s", user_id, exc)
+        return HttpResponse("Server error", status=500)
 
     async def event_stream():
         connection = None
@@ -183,29 +183,24 @@ async def sse_notifications(request):
                     await asyncio.sleep(RABBITMQ_RETRY_DELAY)
                 else:
                     logger.error(
-                        "SSE: RabbitMQ недоступен после %d попыток",
-                        RABBITMQ_CONNECT_RETRIES,
+                        "SSE: RabbitMQ недоступен после %d попыток", RABBITMQ_CONNECT_RETRIES
                     )
                     yield b'event: error\ndata: {"detail": "broker_unavailable"}\n\n'
                     return
 
         try:
             channel = await connection.channel()
-
             exchange = await channel.declare_exchange(
                 "notifications",
                 aio_pika.ExchangeType.TOPIC,
                 durable=True,
             )
-
             queue = await channel.declare_queue(exclusive=True)
-            await queue.bind(exchange, routing_key=f"user.{user_pk}")
 
+            await queue.bind(exchange, routing_key=f"user.{user_id}")
             for c_id in user_course_ids:
                 await queue.bind(exchange, routing_key=f"course.{c_id}")
-
             await queue.bind(exchange, routing_key="system.all")
-
             if webinar_id:
                 await queue.bind(exchange, routing_key=f"webinar.{webinar_id}")
 
@@ -217,7 +212,7 @@ async def sse_notifications(request):
                         yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8")
 
         except Exception as exc:
-            logger.warning("SSE: ошибка в потоке уведомлений для user=%s: %s", user_pk, exc)
+            logger.warning("SSE: ошибка в потоке уведомлений для user=%s: %s", user_id, exc)
         finally:
             if connection and not connection.is_closed:
                 await connection.close()

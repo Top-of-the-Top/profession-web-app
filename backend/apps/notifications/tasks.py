@@ -27,16 +27,16 @@ def send_course_notification(course_id, title, message):
         notification_type=Notification.COURSE,
         message=message,
     )
-
-    payload = {
-        "id": notif.id,
-        "type": "course_update",
-        "title": title,
-        "message": message,
-        "created_at": timezone.now().isoformat(),
-    }
-
-    publish_event(routing_key=f"course.{course_id}", payload=payload)
+    publish_event(
+        routing_key=f"course.{course_id}",
+        payload={
+            "id": notif.id,
+            "type": "course_update",
+            "title": title,
+            "message": message,
+            "created_at": timezone.now().isoformat(),
+        },
+    )
 
 
 @shared_task
@@ -47,16 +47,16 @@ def send_personal_notification(user_id, title, message):
         notification_type=Notification.PERSONAL,
         message=message,
     )
-
-    payload = {
-        "id": notif.id,
-        "type": "personal",
-        "title": title,
-        "message": message,
-        "created_at": timezone.now().isoformat(),
-    }
-
-    publish_event(routing_key=f"user.{user_id}", payload=payload)
+    publish_event(
+        routing_key=f"user.{user_id}",
+        payload={
+            "id": notif.id,
+            "type": "personal",
+            "title": title,
+            "message": message,
+            "created_at": timezone.now().isoformat(),
+        },
+    )
 
 
 @shared_task
@@ -66,16 +66,16 @@ def send_system_notification(title, message):
         notification_type=Notification.SYSTEM,
         message=message,
     )
-
-    payload = {
-        "id": notif.id,
-        "type": "system",
-        "title": title,
-        "message": message,
-        "created_at": timezone.now().isoformat(),
-    }
-
-    publish_event(routing_key="system.all", payload=payload)
+    publish_event(
+        routing_key="system.all",
+        payload={
+            "id": notif.id,
+            "type": "system",
+            "title": title,
+            "message": message,
+            "created_at": timezone.now().isoformat(),
+        },
+    )
 
 
 @shared_task
@@ -91,23 +91,27 @@ def send_single_email(user_id, subject, message):
                 recipient_list=[user_email],
             )
     except User.DoesNotExist:
-        logger.error(f"Пользователь {user_id} не найден")
+        logger.error("Пользователь %s не найден", user_id)
     except Exception as e:
-        logger.error(f"Ошибка отправки письма пользователю {user_id}: {e}")
+        logger.error("Ошибка отправки письма пользователю %s: %s", user_id, e)
 
 
 @shared_task
 def send_mass_course_email(course_id, subject, message):
-    users = User.objects.filter(purchased_courses__course_id=course_id).distinct()
-
-    for user in users:
-        send_single_email(user.id, subject, message)
+    user_ids = (
+        User.objects.filter(purchased_courses__course_id=course_id)
+        .distinct()
+        .values_list("id", flat=True)
+    )
+    for user_id in user_ids:
+        send_single_email.delay(user_id, subject, message)
 
 
 @shared_task
 def send_mass_system_email(subject, message):
-    for user in User.objects.all():
-        send_single_email(user.id, subject, message)
+    user_ids = User.objects.values_list("id", flat=True)
+    for user_id in user_ids:
+        send_single_email.delay(user_id, subject, message)
 
 
 @shared_task
@@ -126,7 +130,6 @@ def send_webinar_scheduled_notification(
         notification_type=Notification.COURSE,
         message=message,
     )
-
     publish_event(
         routing_key=f"course.{course_id}",
         payload={
@@ -163,7 +166,6 @@ def send_webinar_started_notification(
         notification_type=Notification.COURSE,
         message=message,
     )
-
     publish_event(
         routing_key=f"course.{course_id}",
         payload={

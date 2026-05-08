@@ -284,6 +284,7 @@ def _homework_max_points(homework):
 
 class LessonContentReadSerializer(serializers.Serializer):
     document = serializers.CharField()
+    scheduled_at = serializers.DateTimeField(required=False, allow_null=True)
     started_at = serializers.DateTimeField(required=False, allow_null=True)
     webinar_status = serializers.CharField(allow_null=True)
     recordings = serializers.ListField(child=serializers.DictField())
@@ -321,6 +322,7 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
 
         webinar = getattr(obj, "webinar", None)
+        scheduled_at = webinar.scheduled_at if webinar else None
         started_at = webinar.started_at if webinar else None
         webinar_status = webinar.status if webinar else None
 
@@ -353,6 +355,7 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
 
         return {
             "document": document,
+            "scheduled_at": scheduled_at,
             "started_at": started_at,
             "webinar_status": webinar_status,
             "recordings": recordings_data,

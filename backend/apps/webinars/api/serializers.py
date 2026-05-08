@@ -55,6 +55,15 @@ class WebinarStartResponseSerializer(serializers.Serializer):
     webinar_id = serializers.UUIDField()
 
 
+class WebinarScheduleRequestSerializer(serializers.Serializer):
+    scheduled_at = serializers.DateTimeField(allow_null=True)
+
+
+class WebinarScheduleResponseSerializer(serializers.Serializer):
+    webinar_id = serializers.UUIDField()
+    scheduled_at = serializers.DateTimeField(allow_null=True)
+
+
 class WebinarRecordingStartResponseSerializer(serializers.Serializer):
     detail = serializers.CharField()
     recording_id = serializers.UUIDField()

@@ -2,7 +2,7 @@ import { Suspense, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
-import { House, ShoppingBag, CalendarDays, ClipboardList } from 'lucide-react';
+import { House, ShoppingBag, CalendarDays, ClipboardList, BarChart2 } from 'lucide-react';
 import { Button, Spinner, ContentErrorFallback } from '@shared/ui';
 import { cn } from '@shared/lib/utils';
 import { tokenService } from '@shared/lib/auth/tokenService';
@@ -16,6 +16,7 @@ import {
 import { useNotificationStore } from '../../../features/notification/model/notification.store';
 import { NotificationBell } from '../../../features/notification/ui/NotificationBell';
 import { prefetchAppSidebarHref } from '@router/lazyPages';
+import { useRole } from '@shared/lib/rbac';
 
 import styles from './AppLayout.module.css';
 
@@ -38,6 +39,8 @@ export default function AppLayout() {
   const { pathname } = useLocation();
   const lessonEditorLayout = isLessonEditorPage(pathname);
   const hasToken = tokenService.hasToken();
+  const { hasAny } = useRole();
+  const canSeeStats = hasAny('teacher', 'moderator');
   const { data: user } = useProfile(hasToken);
 
   const { data: cart } = useCart();
@@ -106,6 +109,9 @@ export default function AppLayout() {
       icon: ClipboardList,
       id: 'distribute',
     },
+    ...(canSeeStats
+      ? [{ href: '/app/statistics', label: 'Статистика', icon: BarChart2, id: 'statistics' }]
+      : []),
   ];
 
   return (

@@ -116,8 +116,8 @@ class StatsWebinarsView(APIView):
         tags=["Statistics"],
         parameters=[
             OpenApiParameter(
-                name="course", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
-                required=False, description="Фильтр по slug курса",
+                name="course_title", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                required=False, description="Фильтр по названию курса (частичное совпадение)",
             ),
             OpenApiParameter(
                 name="from", type=OpenApiTypes.DATETIME, location=OpenApiParameter.QUERY,
@@ -133,7 +133,7 @@ class StatsWebinarsView(APIView):
     def get(self, request):
         rows = list_webinars_table(
             requester=request.user,
-            course_slug=request.query_params.get("course"),
+            course_title=request.query_params.get("course_title"),
             date_from=request.query_params.get("from") or None,
             date_to=request.query_params.get("to") or None,
         )
@@ -148,8 +148,8 @@ class StatsStudentsView(APIView):
         tags=["Statistics"],
         parameters=[
             OpenApiParameter(
-                name="course", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
-                required=False, description="Фильтр по slug курса",
+                name="course_title", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                required=False, description="Фильтр по названию курса (частичное совпадение)",
             ),
             OpenApiParameter(
                 name="q", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
@@ -161,7 +161,7 @@ class StatsStudentsView(APIView):
     def get(self, request):
         rows = list_students(
             requester=request.user,
-            course_slug=request.query_params.get("course"),
+            course_title=request.query_params.get("course_title"),
             query=request.query_params.get("q"),
         )
         return Response(StudentRowSerializer(rows, many=True).data)

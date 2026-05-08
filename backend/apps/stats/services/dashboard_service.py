@@ -17,7 +17,7 @@ from apps.stats.services.progress_service import (
 logger = logging.getLogger(__name__)
 
 
-def list_webinars_table(*, requester, course_slug=None, date_from=None, date_to=None):
+def list_webinars_table(*, requester, course_title=None, date_from=None, date_to=None):
     from apps.stats.models import WebinarAttendance
     from apps.webinars.models import Webinar
 
@@ -28,8 +28,8 @@ def list_webinars_table(*, requester, course_slug=None, date_from=None, date_to=
     )
     if not requester.is_moderator():
         qs = qs.filter(lesson__section__course__authors=requester)
-    if course_slug:
-        qs = qs.filter(lesson__section__course__slug=course_slug)
+    if course_title:
+        qs = qs.filter(lesson__section__course__title__icontains=course_title)
     if date_from:
         qs = qs.filter(ended_at__gte=date_from)
     if date_to:
@@ -65,7 +65,7 @@ def list_webinars_table(*, requester, course_slug=None, date_from=None, date_to=
     return rows
 
 
-def list_students(*, requester, course_slug=None, query=None):
+def list_students(*, requester, course_title=None, query=None):
     from apps.courses.models import PurchasedCourse
     from apps.users.api.utils.crypto_utils import decrypt_data
     from apps.users.models import User
@@ -80,8 +80,8 @@ def list_students(*, requester, course_slug=None, query=None):
     )
     if not requester.is_moderator():
         purchases = purchases.filter(course__authors=requester)
-    if course_slug:
-        purchases = purchases.filter(course__slug=course_slug)
+    if course_title:
+        purchases = purchases.filter(course__title__icontains=course_title)
 
     by_user = {}
     for purchase in purchases:

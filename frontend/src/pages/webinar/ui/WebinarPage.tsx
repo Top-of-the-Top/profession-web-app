@@ -20,6 +20,7 @@ import {
   connectWebinarSSE,
   useMediaControls,
   useWebinarChat,
+  useWebinarHeartbeat,
   buildRtcUidLabelMap,
   type WhiteboardPanelHandle,
 } from '../../../features/webinar';
@@ -253,6 +254,8 @@ export default function WebinarPage() {
       ? lessonQuery.data.meta.webinar_id
       : null;
   const webinarId = session?.webinar_id ?? webinarIdFromMeta;
+  const isStudent = session?.role === 'student';
+  useWebinarHeartbeat(webinarId, !!session && isStudent);
 
   useEffect(() => {
     if (!session) return;

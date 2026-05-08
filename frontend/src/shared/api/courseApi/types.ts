@@ -29,6 +29,7 @@ export interface AppCourseLesson {
   title: string;
   slug: string;
   type?: CourseContentType;
+  is_completed: boolean | null;
 }
 
 export interface AppCourseSection {
@@ -38,12 +39,30 @@ export interface AppCourseSection {
   slug?: string;
   lessons: AppCourseLesson[];
   type?: CourseContentType;
+  section_completed: boolean | null;
 }
 
-export interface CourseHomeMeta {
-  completed_sections_id: string[];
-  completed_lessons_id: string[];
+export interface CourseHomeMetaStudent {
+  role: 'student';
+  lessons_completed: number;
+  lessons_total: number;
+  homeworks_submitted: number;
+  homeworks_total: number;
+  attendance_streak: number;
+  course_rank_top_percent: number | null;
 }
+
+export interface CourseHomeMetaStaff {
+  role: 'teacher_or_moderator';
+  webinar_attendance_rate: number;
+  homework_completion_rate: number;
+}
+
+export interface CourseHomeMetaUnknown {
+  role: string;
+}
+
+export type CourseHomeMeta = CourseHomeMetaStudent | CourseHomeMetaStaff | CourseHomeMetaUnknown;
 
 export interface CourseHomeResponse {
   course_id: string;
@@ -67,12 +86,18 @@ export interface Lesson {
   last_modified_by: number | null;
 }
 
+export type HomeworkAttemptStatusFull = 'not_started' | 'draft' | 'submitted' | 'reviewed';
+
 export interface LessonHomework {
   homework_id: string;
   title: string;
   deadline: string;
   homework_slug: string;
   type: CourseContentType;
+  attempt_status: HomeworkAttemptStatusFull | null;
+  attempt_grade: number | null;
+  attempt_max_points: number;
+  percentile: number | null;
 }
 
 export interface HomeworkDetailItem {
@@ -311,6 +336,28 @@ export interface LessonRecording {
   whiteboard_pdf_url: string;
 }
 
+export interface LessonMetaStudent {
+  role: 'student';
+  watched_ratio: number;
+  homeworks_submitted: number;
+  homeworks_total: number;
+  is_completed: boolean;
+}
+
+export interface LessonMetaStaff {
+  role: 'teacher_or_moderator';
+  attended_count: number;
+  attended_total: number;
+  homework_submitted_count: number;
+  homework_submitted_total: number;
+}
+
+export interface LessonMetaUnknown {
+  role: string;
+}
+
+export type LessonMeta = LessonMetaStudent | LessonMetaStaff | LessonMetaUnknown;
+
 export interface CourseLessonDetail {
   lesson_id: number;
   title: string;
@@ -319,7 +366,7 @@ export interface CourseLessonDetail {
   webinar_status: WebinarStatus | null;
   recordings: LessonRecording[];
   homeworks: LessonHomework[];
-  meta: Record<string, unknown>;
+  meta: LessonMeta;
 }
 
 export interface PurchasedCourseItem {
@@ -407,7 +454,17 @@ export type RawLessonDetailResponse = {
       kinescope_embed_url?: string | null;
       whiteboard_pdf_url?: string | null;
     }>;
-    homeworks?: LessonHomework[];
+    homeworks?: Array<{
+      homework_id?: unknown;
+      title?: unknown;
+      deadline?: unknown;
+      homework_slug?: unknown;
+      type?: unknown;
+      attempt_status?: unknown;
+      attempt_grade?: unknown;
+      attempt_max_points?: unknown;
+      percentile?: unknown;
+    }>;
   };
   meta?: Record<string, unknown>;
 };

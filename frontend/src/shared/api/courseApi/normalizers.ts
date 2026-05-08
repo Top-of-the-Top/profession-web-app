@@ -2,6 +2,7 @@ import type {
   Course,
   CourseApiAnswer,
   CourseDTO,
+  CourseHomeMeta,
   CourseHomeResponse,
   CourseLessonDetail,
   HomeworkAttempt,
@@ -9,6 +10,8 @@ import type {
   HomeworkAttemptListItem,
   HomeworkAttemptItem,
   HomeworkTaskReview,
+  LessonHomework,
+  LessonMeta,
   LessonRecording,
   RawCourseBySlugResponse,
   RawCourseHomeResponse,
@@ -128,37 +131,126 @@ export function normalizeCourseBySlugResponse(raw: RawCourseBySlugResponse): Cou
   };
 }
 
-function normalizeIdList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((item) => String(item));
+function normalizeBoolNull(value: unknown): boolean | null {
+  if (value === true || value === false) return value;
+  return null;
+}
+
+function normalizeCourseHomeMeta(raw: unknown): CourseHomeMeta {
+  const obj =
+    raw != null && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
+
+  const role = typeof obj.role === 'string' ? obj.role : '';
+
+  if (role === 'student') {
+    return {
+      role: 'student',
+      lessons_completed: Number(obj.lessons_completed ?? 0),
+      lessons_total: Number(obj.lessons_total ?? 0),
+      homeworks_submitted: Number(obj.homeworks_submitted ?? 0),
+      homeworks_total: Number(obj.homeworks_total ?? 0),
+      attendance_streak: Number(obj.attendance_streak ?? 0),
+      course_rank_top_percent:
+        obj.course_rank_top_percent == null ? null : Number(obj.course_rank_top_percent),
+    };
+  }
+
+  if (role === 'teacher_or_moderator') {
+    return {
+      role: 'teacher_or_moderator',
+      webinar_attendance_rate: Number(obj.webinar_attendance_rate ?? 0),
+      homework_completion_rate: Number(obj.homework_completion_rate ?? 0),
+    };
+  }
+
+  return { role };
 }
 
 export function normalizeCourseHomeResponse(raw: RawCourseHomeResponse): CourseHomeResponse {
   const rawContent = raw.content;
-  const content = Array.isArray(rawContent)
+  const contentArr = Array.isArray(rawContent)
     ? rawContent
     : rawContent != null
       ? [rawContent]
       : [];
 
-  const metaObj =
-    raw.meta != null && typeof raw.meta === 'object' && !Array.isArray(raw.meta)
-      ? (raw.meta as Record<string, unknown>)
-      : {};
+  const content = contentArr.map((section) => ({
+    ...section,
+    section_completed: normalizeBoolNull((section as Record<string, unknown>).section_completed),
+    lessons: Array.isArray(section.lessons)
+      ? section.lessons.map((lesson) => ({
+          ...lesson,
+          is_completed: normalizeBoolNull((lesson as Record<string, unknown>).is_completed),
+        }))
+      : [],
+  }));
 
   return {
     course_id: String(raw.course_id ?? ''),
     title: String(raw.title ?? ''),
     content,
-    meta: {
-      completed_sections_id: normalizeIdList(metaObj.completed_sections_id),
-      completed_lessons_id: normalizeIdList(metaObj.completed_lessons_id),
-    },
+    meta: normalizeCourseHomeMeta(raw.meta),
   };
+}
+
+function normalizeLessonHomework(raw: Record<string, unknown>): LessonHomework {
+  const attemptStatusRaw = raw.attempt_status;
+  const validStatuses = ['not_started', 'draft', 'submitted', 'reviewed'] as const;
+  const attempt_status =
+    typeof attemptStatusRaw === 'string' &&
+    (validStatuses as readonly string[]).includes(attemptStatusRaw)
+      ? (attemptStatusRaw as LessonHomework['attempt_status'])
+      : null;
+
+  return {
+    homework_id: String(raw.homework_id ?? ''),
+    title: String(raw.title ?? ''),
+    deadline: String(raw.deadline ?? ''),
+    homework_slug: String(raw.homework_slug ?? ''),
+    type: raw.type === 'draft' ? 'draft' : 'published',
+    attempt_status,
+    attempt_grade: raw.attempt_grade == null ? null : Number(raw.attempt_grade),
+    attempt_max_points: Number(raw.attempt_max_points ?? 0),
+    percentile: raw.percentile == null ? null : Number(raw.percentile),
+  };
+}
+
+function normalizeLessonMeta(raw: unknown): LessonMeta {
+  const obj =
+    raw != null && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
+
+  const role = typeof obj.role === 'string' ? obj.role : '';
+
+  if (role === 'student') {
+    return {
+      role: 'student',
+      watched_ratio: Number(obj.watched_ratio ?? 0),
+      homeworks_submitted: Number(obj.homeworks_submitted ?? 0),
+      homeworks_total: Number(obj.homeworks_total ?? 0),
+      is_completed: Boolean(obj.is_completed),
+    };
+  }
+
+  if (role === 'teacher_or_moderator') {
+    return {
+      role: 'teacher_or_moderator',
+      attended_count: Number(obj.attended_count ?? 0),
+      attended_total: Number(obj.attended_total ?? 0),
+      homework_submitted_count: Number(obj.homework_submitted_count ?? 0),
+      homework_submitted_total: Number(obj.homework_submitted_total ?? 0),
+    };
+  }
+
+  return { role };
 }
 
 export function normalizeLessonDetailRead(raw: RawLessonDetailResponse): CourseLessonDetail {
   const c = raw.content ?? {};
+  const homeworksRaw = Array.isArray(c.homeworks) ? c.homeworks : [];
   return {
     lesson_id: raw.lesson_id,
     title: raw.title,
@@ -166,8 +258,10 @@ export function normalizeLessonDetailRead(raw: RawLessonDetailResponse): CourseL
     started_at: c.started_at ?? null,
     webinar_status: c.webinar_status ?? null,
     recordings: normalizeLessonRecordings(c),
-    homeworks: Array.isArray(c.homeworks) ? c.homeworks : [],
-    meta: raw.meta ?? {},
+    homeworks: homeworksRaw.map((hw) =>
+      normalizeLessonHomework(hw as Record<string, unknown>),
+    ),
+    meta: normalizeLessonMeta(raw.meta),
   };
 }
 

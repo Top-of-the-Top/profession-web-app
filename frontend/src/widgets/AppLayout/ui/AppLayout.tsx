@@ -27,6 +27,12 @@ function isLessonEditorPage(pathname: string) {
   return pathname.includes('/courses/') && pathname.endsWith('/edit');
 }
 
+function getUserInitials(firstName?: string | null, lastName?: string | null): string {
+  const first = firstName?.trim().charAt(0) ?? '';
+  const last = lastName?.trim().charAt(0) ?? '';
+  return (first + last).toUpperCase() || 'U';
+}
+
 
 export default function AppLayout() {
   const { pathname } = useLocation();
@@ -37,9 +43,7 @@ export default function AppLayout() {
   const { data: cart } = useCart();
   const cartHasItems = (cart?.courses?.length ?? 0) > 0;
 
-  const initials = [user?.first_name?.at(0), user?.last_name?.at(-1)]
-    .filter(Boolean)
-    .join('');
+  const initials = getUserInitials(user?.first_name, user?.last_name);
 
   const setInitial = useNotificationStore((s) => s.setInitial);
 

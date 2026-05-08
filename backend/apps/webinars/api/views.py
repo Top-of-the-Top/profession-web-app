@@ -23,6 +23,8 @@ from .schema import SCHEMA_DETAIL
 from .serializers import (
     DetailResponseSerializer,
     WebinarRecordingStartResponseSerializer,
+    WebinarScheduleRequestSerializer,
+    WebinarScheduleResponseSerializer,
     WebinarStartResponseSerializer,
     WebinarTokenSerializer,
 )
@@ -290,6 +292,117 @@ class WebinarStopView(APIView):
         )
 
         return Response({"detail": "Вебинар завершен"})
+
+
+@extend_schema_view(
+    patch=extend_schema(
+        summary="Запланировать или изменить время начала вебинара",
+        tags=["Webinar"],
+        parameters=[
+            OpenApiParameter(
+                name="course_slug",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+            OpenApiParameter(
+                name="lesson_slug",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+            ),
+        ],
+        request=WebinarScheduleRequestSerializer,
+        responses={
+            200: WebinarScheduleResponseSerializer,
+            400: {"schema": SCHEMA_DETAIL},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            409: {"schema": SCHEMA_DETAIL},
+        },
+    ),
+)
+class WebinarScheduleView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @require_course_author
+    def patch(self, request, course_slug, lesson_slug):
+        lesson = get_object_or_404(
+            Lesson.objects.select_related("section__course"),
+            slug=lesson_slug,
+            section__course__slug=course_slug,
+        )
+
+        serializer = WebinarScheduleRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        scheduled_at = serializer.validated_data["scheduled_at"]
+
+        webinar, _ = Webinar.objects.get_or_create(
+            lesson=lesson,
+            defaults={"started_by": request.user},
+        )
+
+        if webinar.status == Webinar.LIVE_STATUS:
+            return Response(
+                {"detail": "Нельзя изменить расписание вебинара, который сейчас идёт"},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        previous_scheduled_at = webinar.scheduled_at
+        webinar.scheduled_at = scheduled_at
+
+        update_fields = ["scheduled_at", "updated_at"]
+        if webinar.status == Webinar.ENDED_STATUS:
+            webinar.status = Webinar.PENDING_STATUS
+            webinar.ended_at = None
+            update_fields.extend(["status", "ended_at"])
+
+        webinar.save(update_fields=update_fields)
+
+        invalidate_lesson_detail_cache(course_slug, lesson_slug)
+
+        course = lesson.section.course
+        if scheduled_at is None:
+            logger.info(
+                "Расписание вебинара урока %s снято пользователем %s",
+                lesson.slug,
+                request.user.pk,
+            )
+            title = f"Вебинар отменён: {lesson.title}"
+            message = (
+                f'В курсе "{course.title}" отменено запланированное время '
+                f'вебинара урока "{lesson.title}".'
+            )
+        else:
+            logger.info(
+                "Расписание вебинара урока %s обновлено пользователем %s на %s",
+                lesson.slug,
+                request.user.pk,
+                scheduled_at.isoformat(),
+            )
+            scheduled_str = timezone.localtime(scheduled_at).strftime("%d.%m %H:%M")
+            if previous_scheduled_at is None:
+                title = f"Назначен вебинар: {lesson.title}"
+                message = (
+                    f'В курсе "{course.title}" назначен вебинар по уроку '
+                    f'"{lesson.title}".\nНачало: {scheduled_str}.'
+                )
+            else:
+                title = f"Время вебинара изменено: {lesson.title}"
+                message = (
+                    f'В курсе "{course.title}" изменено время вебинара по уроку '
+                    f'"{lesson.title}".\nНовое начало: {scheduled_str}.'
+                )
+
+        from apps.notifications.tasks import send_course_notification
+
+        send_course_notification.delay(course.course_id, title, message)
+
+        return Response(
+            {
+                "webinar_id": str(webinar.webinar_id),
+                "scheduled_at": webinar.scheduled_at,
+            }
+        )
 
 
 @extend_schema_view(

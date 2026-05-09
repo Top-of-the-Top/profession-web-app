@@ -43,7 +43,7 @@ import type {
 export const courseApi = {
   getCourses(): Promise<CourseApiAnswer> {
     return apiClient
-      .request<RawCoursesResponse>('/api/courses/', {
+      .request<RawCoursesResponse>('/api/v1/courses/', {
         method: 'GET',
       })
       .then(normalizeCoursesResponse);
@@ -51,7 +51,7 @@ export const courseApi = {
 
   getCourseBySlug(slug: string): Promise<Course> {
     return apiClient
-      .request<RawCourseBySlugResponse>(`/api/courses/${slug}/`, {
+      .request<RawCourseBySlugResponse>(`/api/v1/courses/${slug}/`, {
         method: 'GET',
       })
       .then(normalizeCourseBySlugResponse);
@@ -59,7 +59,7 @@ export const courseApi = {
 
   getCourseHomeBySlug(slug: string) {
     return apiClient
-      .request<RawCourseHomeResponse>(`/api/courses/${slug}/home/`, {
+      .request<RawCourseHomeResponse>(`/api/v1/courses/${slug}/home/`, {
         method: 'GET',
       })
       .then(normalizeCourseHomeResponse);
@@ -67,7 +67,7 @@ export const courseApi = {
 
   patchCourse(slug: string, payload: CoursePatchPayload): Promise<Course> {
     return apiClient
-      .request<RawCourseBySlugResponse>(`/api/courses/${slug}/`, {
+      .request<RawCourseBySlugResponse>(`/api/v1/courses/${slug}/`, {
         method: 'PATCH',
         body: JSON.stringify(payload),
       })
@@ -79,7 +79,7 @@ export const courseApi = {
     payload: SectionCreatePayload,
   ): Promise<SectionRecord> {
     return apiClient.request<SectionRecord>(
-      `/api/courses/${courseSlug}/sections/`,
+      `/api/v1/courses/${courseSlug}/sections/`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -93,7 +93,7 @@ export const courseApi = {
     payload: SectionPatchPayload,
   ): Promise<SectionRecord> {
     return apiClient.request<SectionRecord>(
-      `/api/courses/${courseSlug}/sections/${sectionSlug}/`,
+      `/api/v1/courses/${courseSlug}/sections/${sectionSlug}/`,
       {
         method: 'PATCH',
         body: JSON.stringify(payload),
@@ -103,7 +103,7 @@ export const courseApi = {
 
   deleteSection(courseSlug: string, sectionSlug: string): Promise<void> {
     return apiClient.request<void>(
-      `/api/courses/${courseSlug}/sections/${sectionSlug}/`,
+      `/api/v1/courses/${courseSlug}/sections/${sectionSlug}/`,
       { method: 'DELETE' },
     );
   },
@@ -117,7 +117,7 @@ export const courseApi = {
     if (payload.document !== undefined) {
       body.content = { document: payload.document };
     }
-    return apiClient.request<Lesson>(`/api/courses/${courseSlug}/lessons/`, {
+    return apiClient.request<Lesson>(`/api/v1/courses/${courseSlug}/lessons/`, {
       method: 'PUT',
       body: JSON.stringify(body),
     });
@@ -137,7 +137,7 @@ export const courseApi = {
       body.content = { document: payload.document };
     }
     return apiClient.request<Lesson>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/`,
       {
         method: 'PATCH',
         body: JSON.stringify(body),
@@ -147,7 +147,7 @@ export const courseApi = {
 
   deleteLesson(courseSlug: string, lessonSlug: string): Promise<void> {
     return apiClient.request<void>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/`,
       { method: 'DELETE' },
     );
   },
@@ -158,7 +158,7 @@ export const courseApi = {
   ): Promise<CourseLessonDetail> {
     return apiClient
       .request<RawLessonDetailResponse>(
-        `/api/courses/${courseSlug}/lessons/${lessonSlug}/`,
+        `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/`,
         {
           method: 'GET',
         },
@@ -168,7 +168,7 @@ export const courseApi = {
 
   getMyCourses(): Promise<CourseDTO[]> {
     return apiClient
-      .request<unknown>('/api/my-courses/', {
+      .request<unknown>('/api/v1/my-courses/', {
         method: 'GET',
       })
       .then(normalizeMyCoursesList);
@@ -186,7 +186,7 @@ export const courseApi = {
     if (params.courseSlug) query.set('course_slug', params.courseSlug);
     if (params.lessonSlug) query.set('lesson_slug', params.lessonSlug);
     return apiClient.request<MyHomeworksResponse>(
-      `/api/my-homeworks/?${query.toString()}`,
+      `/api/v1/my-homeworks/?${query.toString()}`,
       { method: 'GET' },
     );
   },
@@ -197,7 +197,7 @@ export const courseApi = {
     payload: HomeworkCreatePayload,
   ): Promise<HomeworkDetail> {
     return apiClient.request<HomeworkDetail>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/`,
       { method: 'POST', body: JSON.stringify(payload) },
     );
   },
@@ -208,7 +208,7 @@ export const courseApi = {
     homeworkSlug: string,
   ): Promise<HomeworkDetail> {
     return apiClient.request<HomeworkDetail>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
       { method: 'GET' },
     );
   },
@@ -219,7 +219,7 @@ export const courseApi = {
   ): Promise<HomeworkAttempt> {
     return apiClient
       .request<RawHomeworkAttempt>(
-        `/api/courses/${courseSlug}/homeworks/${homeworkSlug}/attempt/`,
+        `/api/v1/courses/${courseSlug}/homeworks/${homeworkSlug}/attempt/`,
         {
           method: 'GET',
         },
@@ -234,7 +234,7 @@ export const courseApi = {
   ): Promise<HomeworkAttempt> {
     return apiClient
       .request<RawHomeworkAttempt>(
-        `/api/courses/${courseSlug}/homeworks/${homeworkSlug}/attempt/submit/`,
+        `/api/v1/courses/${courseSlug}/homeworks/${homeworkSlug}/attempt/submit/`,
         {
           method: 'POST',
           body: JSON.stringify(payload),
@@ -245,7 +245,7 @@ export const courseApi = {
 
   getHomeworkAttemptsByCourse(courseSlug: string): Promise<HomeworkAttemptListItem[]> {
     return apiClient
-      .request<unknown>(`/api/courses/${courseSlug}/attempts/`, {
+      .request<unknown>(`/api/v1/courses/${courseSlug}/attempts/`, {
         method: 'GET',
       })
       .then(normalizeHomeworkAttemptsList);
@@ -256,7 +256,7 @@ export const courseApi = {
     attemptId: string,
   ): Promise<HomeworkAttempt> {
     return apiClient
-      .request<RawHomeworkAttempt>(`/api/courses/${courseSlug}/attempts/${attemptId}/`, {
+      .request<RawHomeworkAttempt>(`/api/v1/courses/${courseSlug}/attempts/${attemptId}/`, {
         method: 'GET',
       })
       .then(normalizeHomeworkAttempt);
@@ -269,7 +269,7 @@ export const courseApi = {
   ): Promise<HomeworkAttempt> {
     return apiClient
       .request<RawHomeworkAttempt>(
-        `/api/courses/${courseSlug}/attempts/${attemptId}/review/`,
+        `/api/v1/courses/${courseSlug}/attempts/${attemptId}/review/`,
         {
           method: 'POST',
           body: JSON.stringify(payload),
@@ -285,7 +285,7 @@ export const courseApi = {
     payload: HomeworkPatchPayload,
   ): Promise<HomeworkDetail> {
     return apiClient.request<HomeworkDetail>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
       { method: 'PATCH', body: JSON.stringify(payload) },
     );
   },
@@ -296,7 +296,7 @@ export const courseApi = {
     homeworkSlug: string,
   ): Promise<void> {
     return apiClient.request<void>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/`,
       { method: 'DELETE' },
     );
   },
@@ -308,7 +308,7 @@ export const courseApi = {
     payload: QuestionCreatePayload,
   ): Promise<CourseItemWriteResponse> {
     return apiClient.request<CourseItemWriteResponse>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/questions/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/questions/`,
       { method: 'POST', body: JSON.stringify(payload) },
     );
   },
@@ -321,7 +321,7 @@ export const courseApi = {
     payload: QuestionPatchPayload,
   ): Promise<CourseItemWriteResponse> {
     return apiClient.request<CourseItemWriteResponse>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/questions/${questionId}/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/questions/${questionId}/`,
       { method: 'PATCH', body: JSON.stringify(payload) },
     );
   },
@@ -333,7 +333,7 @@ export const courseApi = {
     questionId: string,
   ): Promise<void> {
     return apiClient.request<void>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/questions/${questionId}/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/questions/${questionId}/`,
       { method: 'DELETE' },
     );
   },
@@ -345,7 +345,7 @@ export const courseApi = {
     payload: TaskCreatePayload,
   ): Promise<CourseItemWriteResponse> {
     return apiClient.request<CourseItemWriteResponse>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/`,
       { method: 'POST', body: JSON.stringify(payload) },
     );
   },
@@ -358,7 +358,7 @@ export const courseApi = {
     payload: TaskPatchPayload,
   ): Promise<CourseItemWriteResponse> {
     return apiClient.request<CourseItemWriteResponse>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/${taskId}/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/${taskId}/`,
       { method: 'PATCH', body: JSON.stringify(payload) },
     );
   },
@@ -370,7 +370,7 @@ export const courseApi = {
     taskId: string,
   ): Promise<void> {
     return apiClient.request<void>(
-      `/api/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/${taskId}/`,
+      `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/homeworks/${homeworkSlug}/tasks/${taskId}/`,
       { method: 'DELETE' },
     );
   },

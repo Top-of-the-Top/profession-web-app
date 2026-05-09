@@ -9,7 +9,7 @@ export function useWebinarHeartbeat(webinarId: string | null | undefined, isActi
 
     const tick = () => {
       apiClient
-        .request<void>(`/api/statistics/webinars/${webinarId}/attendance/heartbeat/`, {
+        .request<void>(`/api/v1/statistics/webinars/${webinarId}/attendance/heartbeat/`, {
           method: 'POST',
         })
         .catch(() => {});

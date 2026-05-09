@@ -82,7 +82,7 @@ if DEBUG:
         "SLOW_QUERY_THRESHOLD_MS": 200,
         "STORAGE_LIMIT": 2000,
         "AUTH_CHECK": lambda request: True,
-        "IGNORE_PATHS": ["/orbit/", "/static/", "/media/", "/api/schema/"],
+        "IGNORE_PATHS": ["/orbit/", "/static/", "/media/", "/api/v1/schema/"],
         "WATCHER_FAIL_SILENTLY": True,
     }
 
@@ -221,7 +221,7 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL", "webmaster@localhost")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_HOST = os.getenv("FRONTEND_HOST", "http://localhost:3000")
 
 
 SMS_BACKEND = os.getenv("SMS_BACKEND", "sms.backends.console.SmsBackend")

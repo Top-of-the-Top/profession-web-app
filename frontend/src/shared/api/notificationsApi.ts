@@ -24,13 +24,13 @@ export interface MarkAllReadResponse {
 export const notificationsApi = {
   getAll(beforeId?: number): Promise<NotificationListResponse> {
     const query = typeof beforeId === 'number' ? `?before_id=${beforeId}` : '';
-    return apiClient.request<NotificationListResponse>(`/api/notifications/${query}`, {
+    return apiClient.request<NotificationListResponse>(`/api/v1/notifications/${query}`, {
       method: 'GET',
     });
   },
 
   markAllRead(): Promise<MarkAllReadResponse> {
-    return apiClient.request<MarkAllReadResponse>('/api/notifications/read-all/', {
+    return apiClient.request<MarkAllReadResponse>('/api/v1/notifications/read-all/', {
       method: 'POST',
     });
   },

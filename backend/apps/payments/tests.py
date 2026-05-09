@@ -271,13 +271,13 @@ class CartPayViewUnitTests(SimpleTestCase):
         self.mock_cart_item.course_id = self.mock_course
 
     def test_cart_pay_without_auth(self):
-        request = self.factory.post("/api/payments/pay/")
+        request = self.factory.post("/api/v1/payments/pay/")
         response = CartPayView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_cart_pay_empty_cart(self):
-        request = self.factory.post("/api/payments/pay/")
+        request = self.factory.post("/api/v1/payments/pay/")
         force_authenticate(request, user=self.mock_user)
 
         mock_cart = MagicMock()
@@ -307,7 +307,7 @@ class CartPayViewUnitTests(SimpleTestCase):
             self.assertIn("Корзина пуста", response.data["error"])
 
     def test_cart_pay_with_purchased_courses(self):
-        request = self.factory.post("/api/payments/pay/")
+        request = self.factory.post("/api/v1/payments/pay/")
         force_authenticate(request, user=self.mock_user)
 
         mock_cart = MagicMock()
@@ -333,7 +333,7 @@ class CartPayViewUnitTests(SimpleTestCase):
             self.assertIn("уже куплены", response.data["error"])
 
     def test_cart_pay_success(self):
-        request = self.factory.post("/api/payments/pay/")
+        request = self.factory.post("/api/v1/payments/pay/")
         force_authenticate(request, user=self.mock_user)
 
         mock_cart = MagicMock()
@@ -389,13 +389,13 @@ class PaymentListViewUnitTests(SimpleTestCase):
         self.mock_user.is_authenticated = True
 
     def test_payment_list_without_auth(self):
-        request = self.factory.get("/api/payments/")
+        request = self.factory.get("/api/v1/payments/")
         response = PaymentListView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_payment_list_empty(self):
-        request = self.factory.get("/api/payments/")
+        request = self.factory.get("/api/v1/payments/")
         force_authenticate(request, user=self.mock_user)
 
         with (
@@ -411,7 +411,7 @@ class PaymentListViewUnitTests(SimpleTestCase):
             self.assertEqual(response.data, [])
 
     def test_payment_list_with_payments(self):
-        request = self.factory.get("/api/payments/")
+        request = self.factory.get("/api/v1/payments/")
         force_authenticate(request, user=self.mock_user)
 
         mock_payment1 = MagicMock()
@@ -445,13 +445,13 @@ class PaymentDetailViewUnitTests(SimpleTestCase):
         self.mock_payment.user = self.mock_user
 
     def test_payment_detail_without_auth(self):
-        request = self.factory.get("/api/payments/1/")
+        request = self.factory.get("/api/v1/payments/1/")
         response = PaymentDetailView.as_view()(request, payment_id=1)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_payment_detail_not_found(self):
-        request = self.factory.get("/api/payments/999/")
+        request = self.factory.get("/api/v1/payments/999/")
         force_authenticate(request, user=self.mock_user)
 
         with patch("apps.payments.api.views.Payment.objects.filter") as mock_filter:
@@ -463,7 +463,7 @@ class PaymentDetailViewUnitTests(SimpleTestCase):
             self.assertEqual(response.data["detail"], "Платёж не найден.")
 
     def test_payment_detail_success(self):
-        request = self.factory.get("/api/payments/1/")
+        request = self.factory.get("/api/v1/payments/1/")
         force_authenticate(request, user=self.mock_user)
 
         with (

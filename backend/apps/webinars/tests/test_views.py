@@ -56,35 +56,35 @@ class WebinarEndpointsBase(BaseWebinarTestCase, ViewTestMixin):
         self.enroll(self.student, self.course)
 
     def url_start(self):
-        return f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/start/"
+        return f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/start/"
 
     def url_schedule(self):
-        return f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/schedule/"
+        return f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/schedule/"
 
     def url_stop(self):
-        return f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/stop/"
+        return f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/stop/"
 
     def url_join(self):
-        return f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/join/"
+        return f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/join/"
 
     def url_recorder_join(self):
-        return f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/recorder-join/"
+        return (
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/recorder-join/"
+        )
 
     def url_rec_start(self):
-        return (
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/recording/start/"
-        )
+        return f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/recording/start/"
 
     def url_rec_stop(self):
-        return f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/recording/stop/"
-
-    def url_pdf(self, rec_id):
         return (
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/recordings/{rec_id}/pdf/"
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/webinar/recording/stop/"
         )
 
+    def url_pdf(self, rec_id):
+        return f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/recordings/{rec_id}/pdf/"
+
     def url_rec_delete(self, rec_id):
-        return f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/recordings/{rec_id}/"
+        return f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/recordings/{rec_id}/"
 
 
 @patch("apps.webinars.api.views.create_whiteboard_room", return_value="room-new")
@@ -180,7 +180,7 @@ class WebinarStartViewTest(WebinarEndpointsBase):
 
     def test_404_for_nonexistent_lesson(self, *_):
         self.authenticate(self.teacher)
-        url = f"/api/courses/{self.course.slug}/lessons/no-such-lesson/webinar/start/"
+        url = f"/api/v1/courses/{self.course.slug}/lessons/no-such-lesson/webinar/start/"
         response = self.client.post(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -190,7 +190,7 @@ class WebinarStartViewTest(WebinarEndpointsBase):
         other_lesson = create_test_lesson(other_section, title="урок")
 
         self.authenticate(self.teacher)
-        url = f"/api/courses/{self.course.slug}/lessons/{other_lesson.slug}/webinar/start/"
+        url = f"/api/v1/courses/{self.course.slug}/lessons/{other_lesson.slug}/webinar/start/"
         response = self.client.post(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -789,7 +789,7 @@ class RecordingDeleteViewTest(WebinarEndpointsBase):
 
 
 class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
-    URL = "/api/kinescope/drm-auth/"
+    URL = "/api/v1/kinescope/drm-auth/"
 
     def setUp(self):
         super().setUp()
@@ -1091,6 +1091,6 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
 
     def test_404_for_nonexistent_lesson(self, *_):
         self.authenticate(self.teacher)
-        url = f"/api/courses/{self.course.slug}/lessons/missing-lesson/webinar/schedule/"
+        url = f"/api/v1/courses/{self.course.slug}/lessons/missing-lesson/webinar/schedule/"
         response = self.client.patch(url, self.SCHEDULE_PAYLOAD, format="json")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

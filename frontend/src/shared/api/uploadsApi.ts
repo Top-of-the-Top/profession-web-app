@@ -52,7 +52,7 @@ export interface UploadStatusResponse {
 
 export const uploadsApi = {
   initiate(payload: InitiateUploadPayload): Promise<InitiateUploadResponse> {
-    return apiClient.request<InitiateUploadResponse>('/api/uploads/initiate/', {
+    return apiClient.request<InitiateUploadResponse>('/api/v1/uploads/initiate/', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -60,7 +60,7 @@ export const uploadsApi = {
 
   status(assetId: string): Promise<UploadStatusResponse> {
     return apiClient.request<UploadStatusResponse>(
-      `/api/uploads/${assetId}/status/`,
+      `/api/v1/uploads/${assetId}/status/`,
       { method: 'GET' },
     );
   },

@@ -11,6 +11,8 @@ from rest_framework.views import APIView
 
 from apps.courses.api.permissions import require_course_author
 from apps.courses.models import Course, CourseEnrollment
+from apps.notifications.dispatcher import dispatcher
+from apps.notifications.events import ApplicationStatusChangedEvent
 
 from ..models import CourseApplication
 from .serializers import ApplicationReviewedSerializer, CourseApplicationSerializer
@@ -203,9 +205,6 @@ class CourseApplicationApproveView(APIView):
                 },
             )
 
-        from apps.notifications.dispatcher import dispatcher
-        from apps.notifications.events import ApplicationStatusChangedEvent
-
         dispatcher.dispatch(
             ApplicationStatusChangedEvent(
                 user_id=application.user.id,
@@ -260,9 +259,6 @@ class CourseApplicationRejectView(APIView):
         application.reviewed_by = request.user
         application.reviewed_at = timezone.now()
         application.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
-
-        from apps.notifications.dispatcher import dispatcher
-        from apps.notifications.events import ApplicationStatusChangedEvent
 
         dispatcher.dispatch(
             ApplicationStatusChangedEvent(

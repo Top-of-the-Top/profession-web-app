@@ -2,6 +2,7 @@ from django.core.cache import caches
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from apps.courses.models import Course
 from apps.courses.tests.test_models import BaseTestCase, create_test_course, create_test_user
 from apps.users.api.utils.token_utils import get_tokens_for_user
 
@@ -17,9 +18,13 @@ class SpecialCourseVisibilityTest(BaseTestCase):
         self.moderator = create_test_user(email="vis_mod@test.com", role="moderator")
 
         self.normal_course = create_test_course(title="Normal Course", price=100)
+        self.normal_course.type = Course.PUBLISHED_STATUS
+        self.normal_course.save(update_fields=["type"])
+
         self.special_course = create_test_course(title="Special Course", price=0)
         self.special_course.is_special = True
-        self.special_course.save(update_fields=["is_special"])
+        self.special_course.type = Course.PUBLISHED_STATUS
+        self.special_course.save(update_fields=["is_special", "type"])
         self.special_course.authors.add(self.teacher)
 
     def _auth(self, user):
@@ -55,9 +60,9 @@ class SpecialCourseVisibilityTest(BaseTestCase):
         slugs = [c["slug"] for c in r.data]
         self.assertIn(self.special_course.slug, slugs)
 
-    def test_special_course_detail_returns_404_for_unauthenticated(self):
+    def test_special_course_detail_returns_401_for_unauthenticated(self):
         r = self.client.get(f"/api/v1/courses/{self.special_course.slug}/")
-        self.assertEqual(r.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_special_course_detail_returns_404_for_student_without_enrollment(self):
         self._auth(self.student)

@@ -147,6 +147,39 @@ class CoursesCatalogHttpTests(BaseTestCase, ViewTestMixin):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_course_detail_is_enrolled_false_for_non_enrolled_student(self):
+        course = create_test_course(title="Not Enrolled", sub_title="Sub", price=5000)
+        publish_course_tree(course)
+        self.authenticate_user(self.student)
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["is_enrolled"])
+
+    def test_course_detail_is_enrolled_true_for_enrolled_student(self):
+        course = create_test_course(title="Enrolled Course", sub_title="Sub", price=5000)
+        publish_course_tree(course)
+        student = self.create_enrolled_student(course)
+        self.authenticate_user(student)
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_enrolled"])
+
+    def test_course_detail_is_enrolled_true_for_teacher(self):
+        course = create_test_course(title="Teacher Course", sub_title="Sub", price=5000)
+        publish_course_tree(course)
+        self.authenticate_user(self.teacher)
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_enrolled"])
+
+    def test_course_detail_is_enrolled_true_for_moderator(self):
+        course = create_test_course(title="Mod Course", sub_title="Sub", price=5000)
+        publish_course_tree(course)
+        self.authenticate_user(self.moderator)
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_enrolled"])
+
     def test_get_catalog_and_my_courses_anonymous_returns_401(self):
         self.assertEqual(
             self.client.get("/api/v1/courses/").status_code, status.HTTP_401_UNAUTHORIZED

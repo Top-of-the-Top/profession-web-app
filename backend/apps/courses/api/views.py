@@ -57,6 +57,14 @@ from .utils.queryset_utils import get_homework_or_404, get_lesson_or_404
 logger = logging.getLogger(__name__)
 
 
+def _get_is_enrolled(user, course):
+    if not user.is_authenticated:
+        return False
+    if user.is_moderator() or user.is_teacher():
+        return True
+    return user.is_enrolled(course)
+
+
 @extend_schema_view(
     list=extend_schema(
         summary="Лендинг: список курсов",
@@ -188,14 +196,17 @@ class CourseDetailView(APIView):
 
         cache = caches["default"]
         key = course_detail_cache_key(slug)
-        if course.type == Course.PUBLISHED_STATUS and not course.is_special:
+        cacheable = course.type == Course.PUBLISHED_STATUS and not course.is_special
+
+        if cacheable:
             cached = cache.get(key)
             if cached is not None:
+                cached["is_enrolled"] = _get_is_enrolled(request.user, course)
                 return Response(cached)
 
-        data = CourseSerializer(course).data
-        if course.type == Course.PUBLISHED_STATUS and not course.is_special:
-            cache.set(key, data)
+        data = CourseSerializer(course, context={"request": request}).data
+        if cacheable:
+            cache.set(key, {k: v for k, v in data.items() if k != "is_enrolled"})
         return Response(data)
 
     @extend_schema(

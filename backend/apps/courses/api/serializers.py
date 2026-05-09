@@ -45,6 +45,7 @@ class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
     cover_asset_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     authors = CourseAuthorSerializer(many=True, read_only=True)
     image_url = serializers.SerializerMethodField()
+    is_enrolled = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -57,6 +58,15 @@ class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
         if covers:
             return covers[0].get("url")
         return obj.image_url
+
+    def get_is_enrolled(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        user = request.user
+        if user.is_moderator() or user.is_teacher():
+            return True
+        return user.is_enrolled(obj)
 
 
 class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):

@@ -64,10 +64,11 @@ class SpecialCourseVisibilityTest(BaseTestCase):
         r = self.client.get(f"/api/v1/courses/{self.special_course.slug}/")
         self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_special_course_detail_returns_404_for_student_without_enrollment(self):
+    def test_special_course_detail_returns_200_for_student_without_enrollment(self):
         self._auth(self.student)
         r = self.client.get(f"/api/v1/courses/{self.special_course.slug}/")
-        self.assertEqual(r.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertFalse(r.data["is_enrolled"])
 
     def test_special_course_detail_accessible_to_author(self):
         self._auth(self.teacher)

@@ -68,7 +68,7 @@ function CoursesTab() {
   const unpublishCourse = useUnpublishCourse();
 
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ title: '', sub_title: '', description: '', price: '', starts_at: '', duration_weeks: '', min_age: '' });
+  const [createForm, setCreateForm] = useState({ title: '', sub_title: '', description: '', price: '', starts_at: '', duration_weeks: '', min_age: '', is_special: false });
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [managingSlug, setManagingSlug] = useState<string | null>(null);
 
@@ -78,7 +78,8 @@ function CoursesTab() {
         title: createForm.title,
         sub_title: createForm.sub_title,
         description: createForm.description,
-        price: Number(createForm.price),
+        price: createForm.is_special ? 0 : Number(createForm.price),
+        is_special: createForm.is_special,
         starts_at: createForm.starts_at || null,
         duration_weeks: createForm.duration_weeks ? Number(createForm.duration_weeks) : null,
         min_age: createForm.min_age ? Number(createForm.min_age) : null,
@@ -86,7 +87,7 @@ function CoursesTab() {
       {
         onSuccess: () => {
           setShowCreate(false);
-          setCreateForm({ title: '', sub_title: '', description: '', price: '', starts_at: '', duration_weeks: '', min_age: '' });
+          setCreateForm({ title: '', sub_title: '', description: '', price: '', starts_at: '', duration_weeks: '', min_age: '', is_special: false });
         },
       },
     );
@@ -126,18 +127,29 @@ function CoursesTab() {
                 placeholder="Краткое описание"
               />
             </label>
-            <label className={styles.formLabel}>
-              Цена (₽)
+            <label className={cn(styles.formLabel, styles.formLabelFull, styles.formLabelCheckbox)}>
               <input
-                className={styles.formInput}
-                type="number"
-                min="0"
-                value={createForm.price}
-                onChange={(e) => setCreateForm((p) => ({ ...p, price: e.target.value }))}
-                placeholder="0"
+                type="checkbox"
+                className={styles.formCheckbox}
+                checked={createForm.is_special}
+                onChange={(e) => setCreateForm((p) => ({ ...p, is_special: e.target.checked }))}
               />
+              Курс по записи (особый)
             </label>
-            <label className={styles.formLabel}>
+            {!createForm.is_special && (
+              <label className={cn(styles.formLabel, styles.formLabelFull)}>
+                Цена (₽)
+                <input
+                  className={styles.formInput}
+                  type="number"
+                  min="0"
+                  value={createForm.price}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, price: e.target.value }))}
+                  placeholder="0"
+                />
+              </label>
+            )}
+            <label className={cn(styles.formLabel, styles.formLabelFull)}>
               Дата старта
               <input
                 className={styles.formInput}
@@ -146,7 +158,7 @@ function CoursesTab() {
                 onChange={(e) => setCreateForm((p) => ({ ...p, starts_at: e.target.value }))}
               />
             </label>
-            <label className={styles.formLabel}>
+            <label className={cn(styles.formLabel, styles.formLabelFull)}>
               Длительность (недели)
               <input
                 className={styles.formInput}
@@ -157,7 +169,7 @@ function CoursesTab() {
                 placeholder="—"
               />
             </label>
-            <label className={styles.formLabel}>
+            <label className={cn(styles.formLabel, styles.formLabelFull)}>
               Мин. возраст
               <input
                 className={styles.formInput}
@@ -224,14 +236,16 @@ function CoursesTab() {
                   <td className={styles.tdNum}>{course.price.toLocaleString('ru')} ₽</td>
                   <td className={styles.td}>
                     <div className={styles.authorsList}>
-                      {(course.authors as unknown as AdminTeacher[]).map((a) => (
-                        <span key={a.id} className={styles.authorChip}>
-                          {a.first_name} {a.last_name}
-                        </span>
-                      ))}
-                      {!(course.authors as unknown as AdminTeacher[]).length && (
-                        <span className={styles.noAuthors}>—</span>
-                      )}
+                      {(Array.isArray(course.authors) && course.authors.length > 0)
+                        ? course.authors.map((a) => {
+                            const id = typeof a === 'object' && a !== null ? (a as AdminTeacher).id : (a as number);
+                            const teacher = teachers?.find((t) => t.id === id);
+                            const label = teacher
+                              ? `${teacher.first_name} ${teacher.last_name}`.trim()
+                              : String(id);
+                            return <span key={id} className={styles.authorChip}>{label}</span>;
+                          })
+                        : <span className={styles.noAuthors}>—</span>}
                     </div>
                   </td>
                   <td className={styles.tdActions}>
@@ -247,11 +261,11 @@ function CoursesTab() {
                         type="button"
                         className={cn(styles.publishToggle, course.type === 'published' && styles.publishToggleOn)}
                         title={course.type === 'published' ? 'Снять с публикации' : 'Опубликовать'}
-                        onClick={() =>
-                          course.type === 'draft'
-                            ? publishCourse.mutate(course.slug)
-                            : unpublishCourse.mutate(course.slug)
-                        }
+                        onClick={() => {
+                          if (publishCourse.isPending || unpublishCourse.isPending) return;
+                          if (course.type === 'draft') publishCourse.mutate(course.slug);
+                          else if (course.type === 'published') unpublishCourse.mutate(course.slug);
+                        }}
                         disabled={publishCourse.isPending || unpublishCourse.isPending}
                       >
                         <span className={styles.publishToggleThumb}>
@@ -367,8 +381,11 @@ function ManageAuthorsPanel({
 }) {
   const addAuthor = useAddCourseAuthor(course.slug);
   const removeAuthor = useRemoveCourseAuthor(course.slug);
-  const courseAuthors = course.authors as unknown as AdminTeacher[];
-  const courseAuthorIds = new Set(courseAuthors.map((a) => a.id));
+  const courseAuthorIds = new Set(
+    (course.authors as (number | AdminTeacher)[]).map((a) =>
+      typeof a === 'object' && a !== null ? (a as AdminTeacher).id : (a as number),
+    ),
+  );
 
   return (
     <div className={styles.expandedForm}>

@@ -269,6 +269,24 @@
   grid-column: 1 / -1;
 }
 
+.formLabelCheckbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #1d2939;
+  cursor: pointer;
+}
+
+.formCheckbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #211c84;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 .formInput {
   height: 38px;
   padding: 0 12px;

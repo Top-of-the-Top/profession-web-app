@@ -5,6 +5,7 @@ export interface CourseDTO {
   image_url: string;
   price: number;
   slug: string;
+  is_special?: boolean;
 }
 
 export interface Course extends CourseDTO {
@@ -14,6 +15,9 @@ export interface Course extends CourseDTO {
   image: string;
   last_modified_by: number | null;
   authors: number[];
+  is_special: boolean;
+  is_enrolled: boolean;
+  application_status: 'pending' | 'approved' | 'rejected' | null;
 }
 
 export interface CourseApiAnswer {

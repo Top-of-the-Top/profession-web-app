@@ -3,6 +3,23 @@ import { apiClient } from '../interceptor';
 import { adminKeys, type AdminCourse, type AdminTeacher, type AdminTeacherInvite } from '../queries/adminPanel';
 import { notifySuccess, notifyError } from '@shared/lib/sileo/notify';
 
+function adminCourseTypeFromApiStatus(status: unknown): AdminCourse['type'] {
+  return typeof status === 'string' && status.trim().toLowerCase() === 'published'
+    ? 'published'
+    : 'draft';
+}
+
+function patchAdminCoursesCache(
+  qc: ReturnType<typeof useQueryClient>,
+  slug: string,
+  nextType: AdminCourse['type'],
+) {
+  qc.setQueryData<AdminCourse[]>(adminKeys.courses(), (old) => {
+    if (!old) return old;
+    return old.map((c) => (c.slug === slug ? { ...c, type: nextType } : c));
+  });
+}
+
 function errMsg(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
@@ -16,6 +33,7 @@ export function useCreateCourse() {
       sub_title: string;
       description: string;
       price: number;
+      is_special?: boolean;
       starts_at?: string | null;
       duration_weeks?: number | null;
       min_age?: number | null;
@@ -74,12 +92,14 @@ export function usePublishCourse() {
       apiClient.request<{ status: string }>(`/api/v1/admin-panel/courses/${slug}/publish/`, {
         method: 'POST',
       }),
-    onSuccess: () => {
+    onSuccess: (data, slug) => {
       notifySuccess({ title: 'Курс опубликован' });
+      patchAdminCoursesCache(qc, slug, adminCourseTypeFromApiStatus(data?.status));
       void qc.invalidateQueries({ queryKey: adminKeys.courses() });
     },
     onError: (err) => {
       notifyError({ title: 'Не удалось опубликовать курс', description: errMsg(err) });
+      void qc.invalidateQueries({ queryKey: adminKeys.courses() });
     },
   });
 }
@@ -91,12 +111,14 @@ export function useUnpublishCourse() {
       apiClient.request<{ status: string }>(`/api/v1/admin-panel/courses/${slug}/unpublish/`, {
         method: 'POST',
       }),
-    onSuccess: () => {
+    onSuccess: (data, slug) => {
       notifySuccess({ title: 'Курс снят с публикации' });
+      patchAdminCoursesCache(qc, slug, adminCourseTypeFromApiStatus(data?.status));
       void qc.invalidateQueries({ queryKey: adminKeys.courses() });
     },
     onError: (err) => {
       notifyError({ title: 'Не удалось снять курс с публикации', description: errMsg(err) });
+      void qc.invalidateQueries({ queryKey: adminKeys.courses() });
     },
   });
 }

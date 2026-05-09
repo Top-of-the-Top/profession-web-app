@@ -17,6 +17,7 @@ export interface AdminTeacher {
 export interface AdminTeacherInvite {
   id: string;
   email: string;
+  token: string;
   created_by: AdminTeacher | null;
   created_at: string;
   expires_at: string;
@@ -51,6 +52,31 @@ export function useAdminInvites() {
 export function useAdminCourses() {
   return useQuery({
     queryKey: adminKeys.courses(),
-    queryFn: () => apiClient.request<AdminCourse[]>('/api/v1/courses/'),
+    queryFn: async () => {
+      const raw = await apiClient.request<unknown>('/api/v1/courses/');
+      const list: unknown[] = Array.isArray(raw)
+        ? raw
+        : Array.isArray((raw as { data?: unknown })?.data)
+          ? (raw as { data: unknown[] }).data
+          : [];
+      return list.map((item) => {
+        const c = (item ?? {}) as Record<string, unknown>;
+        const rawType = c.type ?? c.status ?? c.course_status;
+        const typeStr =
+          typeof rawType === 'string' ? rawType.trim().toLowerCase() : '';
+        const type: AdminCourse['type'] =
+          typeStr === 'published' ? 'published' : 'draft';
+        return {
+          course_id: String(c.course_id ?? c.id ?? ''),
+          title: String(c.title ?? ''),
+          sub_title: String(c.sub_title ?? ''),
+          slug: String(c.slug ?? ''),
+          price: Number(c.price ?? 0),
+          type,
+          authors: Array.isArray(c.authors) ? c.authors : [],
+          image_url: c.image_url != null ? String(c.image_url) : null,
+        } satisfies AdminCourse;
+      });
+    },
   });
 }

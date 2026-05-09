@@ -113,7 +113,6 @@ function mapLayoutToPayload(
   };
 }
 
-// per-question touched fields
 interface QuestionTouched {
   title: boolean;
   score: boolean;
@@ -149,10 +148,8 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
   const [showSwitchDialog, setShowSwitchDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  // sidebar field touched state
   const [titleTouched, setTitleTouched] = useState(false);
   const [deadlineTouched, setDeadlineTouched] = useState(false);
-  // per-question touched map
   const [questionTouched, setQuestionTouched] = useState<Record<string, QuestionTouched>>({});
 
   const errors = useMemo(() => validateHomeworkLayout(layout), [layout]);
@@ -178,7 +175,6 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
     });
   }, [lessonHomeworks]);
 
-  // Reset initializedForSlug whenever the user picks a different HW
   useEffect(() => {
     setInitializedForSlug(null);
     setTitleTouched(false);
@@ -210,7 +206,6 @@ export const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({
 
   const touchAllAndSave = (targetType: CourseContentType) => {
     if (selectedHomeworkSlug !== 'new' && selectedHomeworkQuery.isFetching) return;
-    // mark everything touched so all errors become visible
     setTitleTouched(true);
     setDeadlineTouched(true);
     const allTouched: Record<string, QuestionTouched> = {};

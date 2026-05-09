@@ -21,9 +21,7 @@ interface ConfirmContactProps {
   isVisible: boolean;
   onClose?: () => void;
   initialContact?: string | null;
-  /** PATCH профиля с новым контактом; после успеха показывается шаг ввода кода. */
   onRequestChange: (contact: string) => Promise<void>;
-  /** Подтверждение кода из письма или SMS. */
   onVerify: (code: string) => Promise<void>;
 }
 

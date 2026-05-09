@@ -11,7 +11,7 @@
   position: relative;
 }
 
-/* Фоновый шум */
+
 .root::before {
   content: '';
   position: fixed;
@@ -48,7 +48,7 @@
   user-select: none;
 }
 
-/* Видео-ноль */
+
 .videoZero {
   position: relative;
   width: clamp(120px, 18vw, 200px);
@@ -86,7 +86,7 @@
   display: block;
 }
 
-/* Плашка при отсутствии видео */
+
 .placeholder {
   width: 100%;
   height: 100%;
@@ -100,7 +100,7 @@
   padding: 12px;
 }
 
-/* Текст под числом */
+
 .message {
   text-align: center;
   line-height: 1.5;
@@ -120,7 +120,7 @@
   font-family: Arial, sans-serif;
 }
 
-/* Кнопка */
+
 .btn {
   display: inline-block;
   margin-top: 8px;
@@ -144,7 +144,7 @@
   transform: translateY(-2px);
 }
 
-/* Мелкий код внизу */
+
 .codeHint {
   position: fixed;
   bottom: 24px;

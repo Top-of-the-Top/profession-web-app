@@ -61,8 +61,8 @@ function formatTime(iso: string): string {
 }
 
 interface LoadedRange {
-  start: Date; // monday of earliest loaded week
-  end: Date;   // sunday of latest loaded week
+  start: Date;
+  end: Date;
 }
 
 function EventCard({ item }: { item: ScheduleItem }) {
@@ -97,13 +97,11 @@ export default function SchedulePage() {
 
   const thisWeekMonday = useMemo(() => startOfWeek(today), [today]);
 
-  // Current displayed week
   const [weekStart, setWeekStart] = useState<Date>(() => thisWeekMonday);
 
-  // Loaded range: initially [-1w, +2w] = 4 weeks
   const [loadedRange, setLoadedRange] = useState<LoadedRange>(() => ({
     start: addDays(thisWeekMonday, -7),
-    end: addDays(thisWeekMonday, 3 * 7 - 1), // +2w sunday
+    end: addDays(thisWeekMonday, 3 * 7 - 1),
   }));
 
   const rangeStartIso = toISODate(loadedRange.start);
@@ -151,7 +149,6 @@ export default function SchedulePage() {
     setWeekStart((w) => {
       const next = addDays(w, 7);
       const nextEnd = addDays(next, 6);
-      // If the new week's end would be within 1 week of loadedRange.end → extend by 4 weeks
       setLoadedRange((r) => {
         if (nextEnd.getTime() >= addDays(r.end, -7).getTime()) {
           return { ...r, end: addDays(r.end, 4 * 7) };
@@ -165,7 +162,6 @@ export default function SchedulePage() {
   function goPrev() {
     setWeekStart((w) => {
       const prev = addDays(w, -7);
-      // If the new week's start would be within 1 week of loadedRange.start → extend by 2 weeks
       setLoadedRange((r) => {
         if (prev.getTime() <= addDays(r.start, 7).getTime()) {
           return { ...r, start: addDays(r.start, -2 * 7) };

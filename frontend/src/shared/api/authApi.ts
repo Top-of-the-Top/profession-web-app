@@ -1,4 +1,3 @@
-// shared/api/authApi.ts
 import { apiClient } from './interceptor';
 
 export interface AuthTokenBundleResponse {

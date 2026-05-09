@@ -76,7 +76,6 @@ export default function HomeworkReviewPage() {
     const nextDrafts: Record<string, ReviewDraft> = {};
     for (const item of attemptQuery.data.items) {
       if (item.type !== 'task') continue;
-      // If reviewed — use server data; if draft in LS exists — prefer it; else default
       if (isAlreadyReviewed) {
         nextDrafts[item.answer_id] = {
           points: item.review?.points ?? 0,
@@ -96,7 +95,6 @@ export default function HomeworkReviewPage() {
   const currentItem = items[step];
   const isReviewed = attemptQuery.data?.status === 'reviewed';
 
-  // Persist draft to localStorage on every change (skip when already reviewed)
   useEffect(() => {
     if (isReviewed || Object.keys(drafts).length === 0) return;
     persistDraft(drafts);

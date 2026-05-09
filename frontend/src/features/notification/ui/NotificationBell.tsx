@@ -66,7 +66,6 @@ export function NotificationBell() {
       .finally(() => setIsLoadingMore(false));
   }
 
-  // close on outside click
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {

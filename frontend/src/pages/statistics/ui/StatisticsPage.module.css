@@ -18,7 +18,7 @@
   margin: 0;
 }
 
-/* ── Tab bar ── */
+
 .tabBar {
   display: flex;
   gap: 4px;
@@ -45,7 +45,7 @@
 
 .tabBtn:hover {
   color: #1d2939;
-  /* background: #c7d5e4; */
+
 	background-color: #d2dff0;
 }
 
@@ -55,14 +55,14 @@
   background: transparent;
 }
 
-/* ── Tab content ── */
+
 .tabContent {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-/* ── Filter row ── */
+
 .filterRow {
   display: flex;
   gap: 12px;
@@ -116,7 +116,7 @@
   border-color: #211c84;
 }
 
-/* ── Table ── */
+
 .tableWrap {
   overflow-x: auto;
   border-radius: 12px;
@@ -189,7 +189,7 @@
 
 .dateCell {
   position: relative;
-  /* top: -3px; */
+
 }
 
 .fractionSlash {
@@ -230,9 +230,7 @@
 .numCellCount {
   font-weight: 500;
   color: #1d2939;
-  /* text-decoration: underline;
-  text-decoration-style: dotted;
-  text-underline-offset: 4px; */
+
 }
 
 .numPopup {
@@ -270,7 +268,7 @@
   font-size: 0.9375rem;
 }
 
-/* ── Progress bar (in table cells) ── */
+
 .progressCell {
   display: flex;
   align-items: center;
@@ -301,7 +299,7 @@
   text-align: right;
 }
 
-/* ── Students grid ── */
+
 .studentGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -392,7 +390,7 @@
   color: #211c84;
 }
 
-/* ── Utils ── */
+
 .centered {
   display: flex;
   justify-content: center;

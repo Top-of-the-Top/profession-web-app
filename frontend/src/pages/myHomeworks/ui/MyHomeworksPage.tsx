@@ -59,8 +59,6 @@ function StatusIcon({ status }: { status: string }) {
 
 type Tab = 'waiting' | 'done' | 'all';
 
-// ─── Teacher ──────────────────────────────────────────────────────────────────
-
 function TeacherView({
   items,
   reviewReturnHref,
@@ -192,8 +190,6 @@ function TeacherView({
     </>
   );
 }
-
-// ─── Student ──────────────────────────────────────────────────────────────────
 
 type StudentTab = 'todo' | 'pending' | 'reviewed';
 
@@ -338,8 +334,6 @@ function StudentView({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function MyHomeworksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const reviewReturnHref = useMemo(() => {
@@ -402,7 +396,6 @@ export default function MyHomeworksPage() {
   return (
     <PageFrame>
       <div className={styles.wrap}>
-        {/* Breadcrumb */}
         <nav className={styles.breadcrumb}>
           <Link to="/app"><Home size={14} /></Link>
           {selectedCourse && (
@@ -419,7 +412,6 @@ export default function MyHomeworksPage() {
           )}
         </nav>
 
-        {/* Selectors */}
         <div className={styles.selectors}>
           <Select
             value={courseSlug ?? '__all__'}

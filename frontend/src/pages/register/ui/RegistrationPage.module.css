@@ -31,10 +31,10 @@
   border-radius: 0px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   padding: 32px;
-}	
+}
 
 .cardHeader {
-  /* text-align: left; */
+
   padding-bottom: 5px;
 	padding-left: 0 !important;
 }
@@ -238,11 +238,11 @@
 .otpHint {
   font-size: 13px;
   color: #6b7280;
-  /* text-align: center; */
+
   margin-top: 4px;
 }
 
-/* Назад: тёмный текст, не как основная синяя кнопка */
+
 .backButton {
   width: 100%;
   padding: 12px;

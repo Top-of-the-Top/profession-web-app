@@ -100,7 +100,7 @@
   align-items: center;
   gap: 16px;
   flex: 1;
-	
+
 }
 
 
@@ -177,19 +177,19 @@
 }
 
 .pencilIcon {
-  /* Force pencil color; Button sets `color` on the button */
+
   color: var(--profession-grey-primary) !important;
 }
 
 .plusIcon {
-  /* Force plus color; Button sets `color` на кнопку для ghost */
+
   color: var(--profession-grey-primary) !important;
 }
 
 
 .profileFieldAction button:hover {
 	background-color: transparent !important;
-	
+
 }
 
 .profileFieldButton {
@@ -200,11 +200,11 @@
 }
 
 .profileFieldButton:hover {
-  /* background-color: transparent !important; */
+
   color: #1e293b;
 }
 
-/* Responsive */
+
 @media (max-width: 640px) {
   .profilePageTitle {
     font-size: 20px;
@@ -231,7 +231,7 @@
 
 .profileFieldInfo {
 	text-align: left;
-	/* padding: 16px; */
+
 }
 
 .genderTrigger.profileField {
@@ -256,7 +256,7 @@
 .genderSelectContent {
   width: 100%;
   border-radius: 12px;
-  /* background-color: #EEEEF0; */
+
   padding: 4px 0;
 }
 

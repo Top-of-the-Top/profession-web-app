@@ -108,8 +108,6 @@ function renderBlock(block: Block) {
   }
 }
 
-/* ── Content grid ── */
-
 const LessonContent: React.FC<{ layout: LessonLayout }> = ({ layout }) => {
   const maxRow = layout.blocks.reduce((acc, b) => Math.max(acc, b.y + b.h), 0);
 
@@ -137,8 +135,6 @@ const LessonContent: React.FC<{ layout: LessonLayout }> = ({ layout }) => {
     </div>
   );
 };
-
-/* ── Sidebar widgets ── */
 
 function formatDeadline(iso: string): string {
   try {
@@ -813,8 +809,6 @@ const LessonRecordingCard: React.FC<{
 
 const TITLE_CENTER_MIN_WIDTH = 130;
 const TITLE_CENTER_MAX_WIDTH = 560;
-
-/* ── Page ── */
 
 export default function LessonViewPage() {
   const { slug: courseSlug, lessonSlug } = useParams<{

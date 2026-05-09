@@ -18,7 +18,7 @@
   white-space: nowrap;
   gap: calc(var(--spacing) * 2);
 
-  /* Icon */
+
   & svg {
     flex-shrink: 0;
     width: calc(var(--spacing) * 4);
@@ -26,17 +26,17 @@
     pointer-events: none;
   }
 
-  /* Chevron */
+
   &:not([data-placeholder]) > svg:last-child {
     opacity: 0.5;
   }
 
-  /* Placeholder */
+
   &[data-placeholder] {
     color: var(--color-muted-foreground);
   }
 
-  /* Size */
+
   &[data-size="default"] {
     height: calc(var(--spacing) * 9);
   }
@@ -45,7 +45,7 @@
     height: calc(var(--spacing) * 8);
   }
 
-  /* Has value */
+
   [data-slot="select-value"] {
     display: flex;
     align-items: center;
@@ -56,12 +56,12 @@
     line-clamp: 1;
   }
 
-  /* Invalid */
+
   &[aria-invalid="true"] {
     border-color: var(--color-destructive);
   }
 
-  /* Focus */
+
   &:focus-visible {
     border-color: var(--ring);
     box-shadow: 0 0 0 3px color-mix(in oklab, var(--colo-ring) 50%, transparent);
@@ -73,7 +73,7 @@
     }
   }
 
-  /* Disabled */
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -93,7 +93,7 @@
   box-shadow: var(--shadow-md);
   color: var(--color-popover-foreground);
 
-  /* Position (popper) */
+
   &[data-is-popper="true"] {
     &[data-side="bottom"] {
       transform: translateY(var(--spacing));
@@ -112,7 +112,7 @@
     }
   }
 
-  /* State */
+
   &[data-state="open"] {
     animation-duration: var(--dialog-motion-duration);
     animation-timing-function: var(--dialog-motion-ease);
@@ -140,7 +140,7 @@
   padding: var(--spacing);
 	background-color: var(--profession-white-bg);
 
-  /* Position (popper) */
+
   &[data-is-popper="true"] {
     width: 100%;
     min-width: var(--radix-select-trigger-width);
@@ -184,7 +184,7 @@
     gap: calc(var(--spacing) * 2);
   }
 
-  /* Check (icon) */
+
   & > span:first-child {
     position: absolute;
     width: calc(var(--spacing) * 3.5);
@@ -198,14 +198,14 @@
     }
   }
 
-  /* Focus */
+
   &:focus {
     background-color: rgb(245, 245, 245);
 		cursor: pointer;
     color: var(--accent-foreground);
   }
 
-  /* Disabled */
+
   &[data-disabled] {
     opacity: 0.5;
     pointer-events: none;

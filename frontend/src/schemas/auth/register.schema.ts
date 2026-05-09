@@ -11,9 +11,6 @@ function pickUserFacingText(v: unknown): string | null {
 const DEFAULT_CODE_SENT =
   "Код подтверждения отправлен на почту или телефон.";
 
-/**
- * Ответ шага 1 регистрации. Допускаем вариации полей с бэка (detail/message, массивы DRF).
- */
 export const RegisterCodeSentSchema = z
   .object({
     status: z.unknown(),

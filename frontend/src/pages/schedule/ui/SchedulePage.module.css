@@ -12,7 +12,7 @@
   gap: 20px;
 }
 
-/* ── Header ── */
+
 .header {
   display: flex;
   align-items: center;
@@ -58,7 +58,7 @@
   font-weight: 400;
 }
 
-/* ── Grid ── */
+
 .grid {
   background: var(--background, #fff);
   border: 1px solid var(--border, #e4e7ec);
@@ -70,7 +70,7 @@
   min-height: 560px;
 }
 
-/* Day header row */
+
 .dayHeader {
   display: flex;
   flex-direction: column;
@@ -118,7 +118,7 @@
   border-radius: 50%;
 }
 
-/* Day columns */
+
 .dayCol {
   padding: 10px 8px;
   border-right: 1px solid var(--border, #e4e7ec);
@@ -143,9 +143,9 @@
   padding-top: 24px;
 }
 
-/* ── Event cards ── */
 
-/* Webinar card — yellow */
+
+
 .cardWebinar {
   background: #fffde7;
   border-radius: 10px;
@@ -162,7 +162,7 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.10);
 }
 
-/* Homework card — pink */
+
 .cardHomework {
   background: #fff0f6;
   border-radius: 10px;
@@ -179,7 +179,7 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.10);
 }
 
-/* Icon + time/type row */
+
 .cardHeader {
   display: flex;
   align-items: flex-start;
@@ -198,7 +198,7 @@
   margin-top: 2px;
 }
 
-/* Right side of header: time on top, type below */
+
 .cardHeaderMeta {
   display: flex;
   flex-direction: column;

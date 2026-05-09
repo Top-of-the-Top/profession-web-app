@@ -9,7 +9,6 @@ const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim() ?? 
 
 export type TokensResponse = Tokens;
 
-/** Параметры fetch: без передачи Bearer (для логина, регистрации, сброса пароля и т.д.). */
 export type ApiRequestInit = RequestInit & { skipAuth?: boolean };
 
 type RefreshTokensResult = {

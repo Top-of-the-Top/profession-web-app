@@ -1,4 +1,3 @@
-// router/PublicRoute.tsx
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useUserStore } from '@entities/user/model/userStore';

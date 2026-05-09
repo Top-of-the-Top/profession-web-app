@@ -121,7 +121,6 @@ export default function ProfilePage() {
     setAvatarUrl(user?.avatar || null);
   }, [user]);
 
-  // --- Изменение пола ---
   const updateGender = async (value: string) => {
     const previous = gender;
     setGender(value);

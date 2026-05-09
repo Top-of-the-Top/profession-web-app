@@ -173,9 +173,7 @@
   aspect-ratio: 1 / 1;
 }
 
-/* .detailsButton:hover .arrowIcon {
-  transform: translateX(4px);
-} */
+
 
 .selectButton {
   padding: 14px 24px !important;
@@ -199,10 +197,10 @@
 .selectButton:active {
   transform: scale(0.98);
 }
- 
 
 
-/* Responsive */
+
+
 @media (max-width: 768px) {
   .catalogTitle {
     font-size: 24px;

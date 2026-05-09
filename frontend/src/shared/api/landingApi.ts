@@ -1,4 +1,3 @@
-// shared/api/landingApi.ts
 import { apiClient } from './interceptor';
 import { type ApiLandingResponse } from './types';
 import { type Track } from '@schemas/types';

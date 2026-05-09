@@ -13,7 +13,7 @@
   gap: 16px;
 }
 
-/* breadcrumb */
+
 .breadcrumb {
   display: flex;
   align-items: center;
@@ -41,7 +41,7 @@
   font-weight: 500;
 }
 
-/* selectors row */
+
 .selectors {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -64,7 +64,7 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
-/* tabs bar */
+
 .tabsBar {
   display: flex;
   align-items: center;
@@ -139,7 +139,7 @@
   color: #3bc531;
 }
 
-/* search */
+
 .searchWrap {
   display: flex;
   align-items: center;
@@ -166,7 +166,7 @@
   color: var(--muted-foreground);
 }
 
-/* table card */
+
 .card {
   background: var(--background);
   border-radius: 16px;
@@ -230,7 +230,7 @@
   background: var(--muted, #f8fafc);
 }
 
-/* cell types */
+
 .cellStudent {
   display: flex;
   flex-direction: column;
@@ -288,7 +288,7 @@
   border: 2px solid var(--border);
 }
 
-/* hw title cell */
+
 .hwTitle {
   font-size: 0.9375rem;
   font-weight: 500;

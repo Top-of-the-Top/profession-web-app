@@ -30,7 +30,6 @@ export function clearReviewDraft(attemptId: string): void {
   try {
     localStorage.removeItem(storageKey(attemptId));
   } catch {
-    // ignore
   }
 }
 
@@ -47,7 +46,6 @@ export function useReviewDraft(attemptId: string | undefined) {
           } satisfies ReviewDraftData),
         );
       } catch {
-        // localStorage full or unavailable
       }
     },
     [attemptId],

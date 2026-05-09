@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.courses.models import PurchasedCourse
+from apps.courses.models import CourseEnrollment
 from apps.courses.tests.test_models import create_test_course, create_test_user
 from apps.notifications.models import Notification
 from apps.payments.models import Payment
@@ -20,7 +20,7 @@ class NotificationsApiHttpTests(TestCase):
         self.student = create_test_user(email="api_notes_student@test.com", role="student")
         self.course = create_test_course(title="ApiNotesCourse")
         payment = Payment.objects.create(user=self.student, total_sum=500, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.student,
             course=self.course,
             payment=payment,

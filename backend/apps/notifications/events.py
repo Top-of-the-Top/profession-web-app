@@ -69,6 +69,14 @@ class WebinarScheduledEvent:
 
 
 @dataclass
+class ApplicationStatusChangedEvent:
+    user_id: int
+    course_title: str
+    new_status: str
+    with_email: bool = False
+
+
+@dataclass
 class WebinarStartedEvent:
     course_id: UUID
     lesson_id: UUID

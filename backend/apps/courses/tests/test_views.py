@@ -14,7 +14,7 @@ from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.webinars.models import Webinar
 
 from ..api.utils.cache_utils import course_list_cache_key, landing_courses_cache_key
-from ..models import Course, Homework, Lesson, PurchasedCourse, Question, Task
+from ..models import Course, CourseEnrollment, Homework, Lesson, Question, Task
 from .test_models import (
     BaseTestCase,
     create_test_course,
@@ -35,7 +35,7 @@ class ViewTestMixin:
     def create_enrolled_student(self, course):
         student = create_test_user(email=f"student_{course.course_id}@test.com", role="student")
         payment = Payment.objects.create(user=student, total_sum=5000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=student,
             course=course,
             payment=payment,
@@ -174,7 +174,7 @@ class MyCoursesHttpTests(BaseTestCase, ViewTestMixin):
 
     def test_get_my_courses_returns_single_purchase(self):
         payment = Payment.objects.create(user=self.user, total_sum=5000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.user,
             course=self.course,
             payment=payment,
@@ -502,7 +502,7 @@ class CourseContentNestedHttpTests(BaseTestCase, ViewTestMixin):
     def test_non_enrolled_student_cannot_access(self):
         other_student = create_test_user(email="other@test.com", role="student")
         self.assertFalse(
-            PurchasedCourse.objects.filter(user=other_student, course=self.course).exists()
+            CourseEnrollment.objects.filter(user=other_student, course=self.course).exists()
         )
         self.authenticate_user(other_student)
         response = self.client.get(

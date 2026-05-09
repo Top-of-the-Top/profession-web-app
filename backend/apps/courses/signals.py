@@ -32,9 +32,9 @@ from .api.utils.cache_utils import (
 from .models import (
     DEFAULT_COURSE_IMAGE,
     Course,
+    CourseEnrollment,
     Homework,
     Lesson,
-    PurchasedCourse,
     Question,
     Section,
     Task,
@@ -312,8 +312,8 @@ def recalc_homework_max_points_on_question_delete(sender, instance, **kwargs):
     instance.homework.recalc_max_points()
 
 
-@receiver((pre_save, pre_delete), sender=PurchasedCourse)
-def invalidate_default_purchased_cache(sender, instance, **kwargs):
+@receiver((pre_save, pre_delete), sender=CourseEnrollment)
+def invalidate_default_enrolled_cache(sender, instance, **kwargs):
     cache = caches["default"]
     cache.delete(purchased_courses_cache_key(instance.user_id))
     cache.delete(course_list_cache_key(instance.user_id))

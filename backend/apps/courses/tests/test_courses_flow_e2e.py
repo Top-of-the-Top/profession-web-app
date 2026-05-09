@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 from apps.payments.models import Payment
 from apps.users.api.utils.token_utils import get_tokens_for_user
 
-from ..models import Course, Homework, PurchasedCourse
+from ..models import Course, CourseEnrollment, Homework
 from .test_models import (
     BaseTestCase,
     create_test_homework,
@@ -56,7 +56,7 @@ class CoursesPublishedStudentFlowE2eTests(BaseTestCase):
 
         student = create_test_user(email="student_flow@test.com", role="student")
         payment = Payment.objects.create(user=student, total_sum=3000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=student,
             course=course,
             payment=payment,

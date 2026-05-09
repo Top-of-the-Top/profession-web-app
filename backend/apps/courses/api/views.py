@@ -71,7 +71,9 @@ class CourseDTOList(generics.ListAPIView):
     serializer_class = CourseDTOSerializer
 
     def get_queryset(self):
-        return Course.objects.filter(is_deleted=False, type=Course.PUBLISHED_STATUS)
+        return Course.objects.filter(
+            is_deleted=False, type=Course.PUBLISHED_STATUS, is_special=False
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -123,7 +125,9 @@ class CourseListView(APIView):
                 .distinct()
             )
         else:
-            qs = Course.objects.filter(is_deleted=False, type=Course.PUBLISHED_STATUS)
+            qs = Course.objects.filter(
+                is_deleted=False, type=Course.PUBLISHED_STATUS, is_special=False
+            )
 
         serializer = CourseSerializer(qs, many=True, context={"request": request})
         cache.set(key, serializer.data)
@@ -173,24 +177,28 @@ class CourseDetailView(APIView):
     def get(self, request, slug):
         course = get_object_or_404(Course, slug=slug, is_deleted=False)
         user = request.user
+
         can_see_unpublished = user.is_authenticated and (
             user.is_moderator() or user.is_course_author(course) or user.is_enrolled(course)
         )
         if course.type != Course.PUBLISHED_STATUS and not can_see_unpublished:
-            return Response(
-                {"detail": "Курс не найден"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({"detail": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
+
+        if course.is_special and not (
+            user.is_authenticated
+            and (user.is_moderator() or user.is_course_author(course) or user.is_enrolled(course))
+        ):
+            return Response({"detail": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
 
         cache = caches["default"]
         key = course_detail_cache_key(slug)
-        if course.type == Course.PUBLISHED_STATUS:
+        if course.type == Course.PUBLISHED_STATUS and not course.is_special:
             cached = cache.get(key)
             if cached is not None:
                 return Response(cached)
 
         data = CourseSerializer(course).data
-        if course.type == Course.PUBLISHED_STATUS:
+        if course.type == Course.PUBLISHED_STATUS and not course.is_special:
             cache.set(key, data)
         return Response(data)
 

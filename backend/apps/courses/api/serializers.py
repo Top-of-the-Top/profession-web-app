@@ -13,10 +13,10 @@ from apps.users.models import User
 from ..lesson_content import extract_asset_ids, parse_content_value, substitute_asset_uris
 from ..models import (
     Course,
+    CourseEnrollment,
     Homework,
     Lesson,
     PublishableMixin,
-    PurchasedCourse,
     Question,
     Section,
     Task,
@@ -88,13 +88,13 @@ class CourseListResponseSerializer(serializers.Serializer):
     data = CourseDTOSerializer(many=True, read_only=True)
 
 
-class PurchasedCourseSerializer(serializers.ModelSerializer):
+class CourseEnrollmentSerializer(serializers.ModelSerializer):
     course = CourseDTOSerializer(read_only=True)
     is_active = serializers.BooleanField(read_only=True)
 
     class Meta:
-        model = PurchasedCourse
-        fields = ("id", "user", "course", "payment", "access_expires_at", "is_active")
+        model = CourseEnrollment
+        fields = ("id", "user", "course", "payment", "source", "access_expires_at", "is_active")
 
 
 class SectionSerializer(serializers.ModelSerializer):
@@ -253,10 +253,6 @@ class HomeworkBriefSerializer(serializers.Serializer):
 
 
 def _build_homework_brief(homework, request):
-    """
-    Возвращает данные одного ДЗ для LessonDetailReadSerializer.
-    Поля attempt_* и percentile наполняются только для роли student.
-    """
     base = {
         "homework_id": homework.homework_id,
         "title": homework.title,

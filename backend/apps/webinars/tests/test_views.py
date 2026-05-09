@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.courses.models import PurchasedCourse
+from apps.courses.models import CourseEnrollment
 from apps.payments.models import Payment
 from apps.users.api.utils.token_utils import get_tokens_for_user
 
@@ -30,7 +30,7 @@ class ViewTestMixin:
         from datetime import timedelta
 
         payment = Payment.objects.create(user=user, total_sum=1000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=user,
             course=course,
             payment=payment,
@@ -839,7 +839,7 @@ class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
         from datetime import timedelta
 
         payment = Payment.objects.create(user=self.student, total_sum=1000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.student,
             course=self.course,
             payment=payment,

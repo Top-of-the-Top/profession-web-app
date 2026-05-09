@@ -12,7 +12,7 @@ from apps.core.api.permissions import require_moderator
 from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from apps.payments.models import Payment
 
-from ..models import Course, PurchasedCourse
+from ..models import Course, CourseEnrollment
 from .test_models import BaseTestCase, create_test_course, create_test_user
 
 
@@ -263,7 +263,7 @@ class RequireCourseEnrollmentIntegrationTest(DecoratorIntegrationTestMixin, Base
         self.course = create_test_course()
         self.course.authors.add(self.teacher)
         self.payment = Payment.objects.create(user=self.student, total_sum=5000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.student,
             course=self.course,
             payment=self.payment,
@@ -301,7 +301,7 @@ class RequireCourseEnrollmentIntegrationTest(DecoratorIntegrationTestMixin, Base
     def test_expired_enrollment_blocks_access(self):
         expired_course = create_test_course(title="Expired Course", sub_title="Sub", price=1000)
         payment = Payment.objects.create(user=self.other_student, total_sum=1000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.other_student,
             course=expired_course,
             payment=payment,
@@ -334,7 +334,7 @@ class DecoratorEdgeCasesTest(DecoratorIntegrationTestMixin, BaseTestCase):
         student = create_test_user(email="student@test.com", role="student")
         course = create_test_course()
         payment = Payment.objects.create(user=student, total_sum=5000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=student,
             course=course,
             payment=payment,

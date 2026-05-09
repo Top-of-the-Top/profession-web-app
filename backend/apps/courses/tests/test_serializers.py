@@ -9,14 +9,14 @@ from apps.payments.models import Payment
 
 from ..api.serializers import (
     CourseDTOSerializer,
+    CourseEnrollmentSerializer,
     CourseSerializer,
     HomeworkDetailSerializer,
     HomeworkItemsListSerializer,
     HomeworkSerializer,
     LessonSerializer,
-    PurchasedCourseSerializer,
 )
-from ..models import PurchasedCourse, Question, Task
+from ..models import CourseEnrollment, Question, Task
 from .test_models import (
     BaseTestCase,
     create_test_course,
@@ -45,10 +45,10 @@ class CoursesSerializerContractsTests(SimpleTestCase):
 
     def test_purchased_course_homework_and_item_list_shapes(self):
         self.assertEqual(
-            sorted(PurchasedCourseSerializer.Meta.fields),
-            sorted(["id", "user", "course", "payment", "access_expires_at", "is_active"]),
+            sorted(CourseEnrollmentSerializer.Meta.fields),
+            sorted(["id", "user", "course", "payment", "source", "access_expires_at", "is_active"]),
         )
-        pc = PurchasedCourseSerializer()
+        pc = CourseEnrollmentSerializer()
         self.assertTrue(pc.fields["course"].read_only)
         self.assertTrue(pc.fields["is_active"].read_only)
 
@@ -166,7 +166,7 @@ class CourseDTOSerializerIntegrationTest(BaseTestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
+class CourseEnrollmentSerializerIntegrationTest(BaseTestCase):
 
     def setUp(self):
         super().setUp()
@@ -180,34 +180,35 @@ class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
         super().tearDown()
         self.storage_patcher.stop()
 
-    def test_serialize_purchased_course(self):
+    def test_serialize_enrollment(self):
         future_date = timezone.now() + timedelta(days=30)
-        purchased = PurchasedCourse.objects.create(
+        enrollment = CourseEnrollment.objects.create(
             user=self.user, course=self.course, payment=self.payment, access_expires_at=future_date
         )
-        serializer = PurchasedCourseSerializer(purchased)
+        serializer = CourseEnrollmentSerializer(enrollment)
         data = serializer.data
         self.assertIn("course", data)
         self.assertIn("payment", data)
+        self.assertIn("source", data)
         self.assertIn("access_expires_at", data)
         self.assertIn("is_active", data)
         self.assertTrue(data["is_active"])
 
-    def test_serialize_expired_purchased_course(self):
+    def test_serialize_expired_enrollment(self):
         past_date = timezone.now() - timedelta(days=1)
-        purchased = PurchasedCourse.objects.create(
+        enrollment = CourseEnrollment.objects.create(
             user=self.user, course=self.course, payment=self.payment, access_expires_at=past_date
         )
-        serializer = PurchasedCourseSerializer(purchased)
+        serializer = CourseEnrollmentSerializer(enrollment)
         data = serializer.data
         self.assertFalse(data["is_active"])
 
-    def test_nested_course_dto_in_purchased(self):
+    def test_nested_course_dto_in_enrollment(self):
         future_date = timezone.now() + timedelta(days=30)
-        purchased = PurchasedCourse.objects.create(
+        enrollment = CourseEnrollment.objects.create(
             user=self.user, course=self.course, payment=self.payment, access_expires_at=future_date
         )
-        serializer = PurchasedCourseSerializer(purchased)
+        serializer = CourseEnrollmentSerializer(enrollment)
         data = serializer.data
         self.assertIn("title", data["course"])
         self.assertIn("slug", data["course"])

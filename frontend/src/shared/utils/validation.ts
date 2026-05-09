@@ -90,7 +90,6 @@ export const prepareAuthData = (
   return result;
 };
 
-/** Регистрация: одно поле контакта + пароль (без date_time). */
 export type RegisterPayload =
   | { email: string; password: string }
   | { phone_number: string; password: string };

@@ -48,7 +48,6 @@ declare module 'react-grid-layout' {
     children?: ReactNode;
   }
 
-  /** Non-responsive grid: single layout, fixed cols. Use for consistent export. */
   export interface FixedGridLayoutProps {
     className?: string;
     style?: React.CSSProperties;

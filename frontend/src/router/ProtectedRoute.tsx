@@ -1,4 +1,3 @@
-// router/ProtectedRoute.tsx
 import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '@entities/user/model/userStore';

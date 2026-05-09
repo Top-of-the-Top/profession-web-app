@@ -1,4 +1,4 @@
-import styles from './LandingPage.module.css'; // или создайте отдельный файл стилей
+import styles from './LandingPage.module.css';
 import {
   Collapsible,
   CollapsibleContent,

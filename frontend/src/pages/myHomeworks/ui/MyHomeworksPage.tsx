@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Clock, Search, Home } from 'lucide-react';
 import {
   PageFrame,
-  Spinner,
   Select,
   SelectContent,
   SelectItem,
@@ -14,7 +13,12 @@ import { useMyHomeworks, useCoursesForHome, useCourseHomeBySlug } from '@shared/
 import type { MyHomeworkStudentItem, MyHomeworkTeacherAttempt } from '@shared/api/courseApi/types';
 import { cn } from '@shared/lib/utils';
 import { homeworkReviewNavigateState } from '@shared/lib/homeworkReviewNavigation';
+import { useRole } from '@shared/lib/rbac';
 import styles from './MyHomeworksPage.module.css';
+import {
+  MyHomeworksStudentTableSkeleton,
+  MyHomeworksTeacherTableSkeleton,
+} from './MyHomeworksPageSkeleton';
 
 function timeAgo(iso: string | null): string {
   if (!iso) return '—';
@@ -59,14 +63,14 @@ function StatusIcon({ status }: { status: string }) {
 
 type Tab = 'waiting' | 'done' | 'all';
 
-// ─── Teacher ──────────────────────────────────────────────────────────────────
-
 function TeacherView({
   items,
   reviewReturnHref,
+  isLoading = false,
 }: {
   items: MyHomeworkTeacherAttempt[];
   reviewReturnHref: string;
+  isLoading?: boolean;
 }) {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('waiting');
@@ -129,7 +133,9 @@ function TeacherView({
       </div>
 
       <div className={styles.card}>
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <MyHomeworksTeacherTableSkeleton />
+        ) : filtered.length === 0 ? (
           <div className={styles.empty}>Нет попыток</div>
         ) : (
           <table className={styles.table}>
@@ -193,8 +199,6 @@ function TeacherView({
   );
 }
 
-// ─── Student ──────────────────────────────────────────────────────────────────
-
 type StudentTab = 'todo' | 'pending' | 'reviewed';
 
 function formatDeadlineFull(iso: string | null): { date: string; time: string } {
@@ -207,8 +211,10 @@ function formatDeadlineFull(iso: string | null): { date: string; time: string } 
 
 function StudentView({
   items,
+  isLoading = false,
 }: {
   items: MyHomeworkStudentItem[];
+  isLoading?: boolean;
 }) {
   const navigate = useNavigate();
   const [tab, setTab] = useState<StudentTab>('todo');
@@ -269,7 +275,9 @@ function StudentView({
       </div>
 
       <div className={styles.card}>
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <MyHomeworksStudentTableSkeleton tab={tab} />
+        ) : filtered.length === 0 ? (
           <div className={styles.empty}>Нет заданий</div>
         ) : (
           <table className={styles.table}>
@@ -338,9 +346,8 @@ function StudentView({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function MyHomeworksPage() {
+  const { is } = useRole();
   const [searchParams, setSearchParams] = useSearchParams();
   const reviewReturnHref = useMemo(() => {
     const s = searchParams.toString();
@@ -379,7 +386,16 @@ export default function MyHomeworksPage() {
 
   function renderContent() {
     if (homeworksQuery.isLoading) {
-      return <div className={styles.centered}><Spinner /></div>;
+      if (is.student) {
+        return <StudentView items={[]} isLoading />;
+      }
+      return (
+        <TeacherView
+          items={[]}
+          reviewReturnHref={reviewReturnHref}
+          isLoading
+        />
+      );
     }
     if (homeworksQuery.isError || !homeworksQuery.data) {
       return (
@@ -402,9 +418,8 @@ export default function MyHomeworksPage() {
   return (
     <PageFrame>
       <div className={styles.wrap}>
-        {/* Breadcrumb */}
         <nav className={styles.breadcrumb}>
-          <Link to="/app"><Home size={14} /></Link>
+          <Link to="/app"><Home size={18} /></Link>
           {selectedCourse && (
             <>
               <span className={styles.breadcrumbSep}>›</span>
@@ -419,7 +434,6 @@ export default function MyHomeworksPage() {
           )}
         </nav>
 
-        {/* Selectors */}
         <div className={styles.selectors}>
           <Select
             value={courseSlug ?? '__all__'}

@@ -354,15 +354,6 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
                   <BotMessageSquare size={20} style={{ transform: 'translateY(1px)' }}/> <span>ИИ-помощник</span>
                 </h3>
               </div>
-
-              {/* <p className={styles.status}>{statusLabel(status)}</p>
-              {error ? <p className={styles.error}>{error}</p> : null}
-
-              <p className={styles.activeChatLabel}>
-                {activeChatId
-                  ? chats.find((chat) => chat.chat_id === activeChatId)?.title ?? 'Выбран чат'
-                  : 'Выберите чат в списке слева'}
-              </p> */}
             </header>
 
             <div ref={messagesRef} className={styles.messages} onScroll={onMessagesScroll}>
@@ -371,12 +362,6 @@ export function AiChatPanel({ courseSlug }: AiChatPanelProps) {
                   {isLoadingOlder ? 'Загружаем более ранние сообщения...' : 'Прокрутите выше для загрузки истории'}
                 </p>
               ) : null}
-
-              {/* {!fullHistory.length && !activeStreamText ? (
-                <p className={styles.empty}>
-                  Выберите чат или создайте новый, чтобы начать диалог
-                </p>
-              ) : null} */}
 
               {visibleHistory.map((message) => (
                 <div

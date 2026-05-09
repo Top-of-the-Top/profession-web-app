@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { XIcon } from 'lucide-react';
-import { Button, PageFrame, Spinner } from '@shared/ui';
+import { Button, CenteredMessageBlock, PageFrame, Spinner } from '@shared/ui';
 import { useWebinarJoin } from '@shared/api/queries/webinar';
 import { courseKeys, useLessonBySlug } from '@shared/api/queries/courses';
 import {
@@ -390,19 +390,19 @@ export default function WebinarPage() {
   if (isError || !session) {
     return (
       <PageFrame className={styles.stateCenter}>
-        <div className={styles.errorBox}>
-          <p className={styles.errorText}>
-            Не удалось подключиться к вебинару. Проверьте, что вебинар запущен, и у вас есть доступ.
-          </p>
-          <div className={styles.errorActions}>
-            <Button variant="outline" onClick={() => navigate(-1)}>
-              Назад
-            </Button>
-            <Button onClick={() => void joinQuery.refetch()}>
-              Попробовать снова
-            </Button>
-          </div>
-        </div>
+        <CenteredMessageBlock
+          message="Не удалось подключиться к вебинару. Проверьте, что вебинар запущен, и у вас есть доступ."
+          actions={
+            <>
+              <Button variant="outline" onClick={() => navigate(-1)}>
+                Назад
+              </Button>
+              <Button onClick={() => void joinQuery.refetch()}>
+                Попробовать снова
+              </Button>
+            </>
+          }
+        />
       </PageFrame>
     );
   }

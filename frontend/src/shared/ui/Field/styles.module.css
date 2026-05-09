@@ -106,12 +106,12 @@
   width: 100%;
   gap: calc(var(--spacing) * 3);
 
-  /* Invalid */
+
   &[data-invalid="true"] {
     color: var(--color-destructive);
   }
 
-  /* Orientation */
+
   &[data-orientation="vertical"] {
     flex-direction: column;
 
@@ -182,7 +182,7 @@
     margin-block-end: calc(var(--spacing) * 3);
     font-weight: var(--font-weight-medium);
 
-    /* Variants */
+
     &[data-variant="legend"] {
       font-size: var(--text-base);
       line-height: var(--text-base--line-height);

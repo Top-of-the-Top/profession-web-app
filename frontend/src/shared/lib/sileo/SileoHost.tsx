@@ -85,7 +85,6 @@ export function SileoHost({ children }: { children: ReactNode }) {
     <SileoHostContext.Provider value={value}>
       {children}
       <Toaster
-        // position={config.position}
 				position='top-center'
         theme={config.theme}
         offset={offset}

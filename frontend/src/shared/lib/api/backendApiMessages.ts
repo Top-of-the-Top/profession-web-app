@@ -1,11 +1,3 @@
-/**
- * Сообщения для тостов: только явные соответствия телам ответов из репозитория backend/
- * (users/api/views.py, users/api/serializers.py, carts/api/views.py, courses/api/views.py,
- * payments/api/views.py). Без эвристик и «похожих» строк: совпадение по структуре/точным строкам.
- *
- * Если ответ не входит в каталог (например, неожиданный 500), используется fallback сцены.
- */
-
 export type UserFacingMessage = { title: string; description: string };
 
 export type ApiFailureScene =
@@ -96,7 +88,6 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
-/** Точное совпадение массива строк (как в JSON serializer.errors). */
 function strArrayEq(a: unknown, expected: readonly string[]): boolean {
   return (
     Array.isArray(a) &&
@@ -111,10 +102,6 @@ function detailString(body: unknown): string | null {
   return typeof d === 'string' ? d : null;
 }
 
-/**
- * Ответы аутентификации DRF / SimpleJWT (не из наших views, но реально приходят на 401).
- * Только поле detail; лишние ключи (code и т.д.) не мешают.
- */
 const JWT_OR_DRF_AUTH_DETAIL: Record<string, UserFacingMessage> = {
   'Authentication credentials were not provided.': {
     title: 'нужна авторизация',
@@ -139,8 +126,6 @@ function messageFromAuthDetail(body: unknown): UserFacingMessage | null {
   if (d == null) return null;
   return JWT_OR_DRF_AUTH_DETAIL[d] ?? null;
 }
-
-// --- Register: RegisterView 403 + RegisterSerializer + встроенные проверки DRF CharField (min_length=8) ---
 
 const REGISTER_PASSWORD_MIN_LENGTH_DRF = [
   'Ensure this field has at least 8 characters.',
@@ -189,8 +174,6 @@ function collectRegister403(body: unknown): UserFacingMessage | null {
   };
 }
 
-// --- Login: LoginView 400 + LoginSerializer ---
-
 function collectLogin400(body: unknown): UserFacingMessage | null {
   if (!isRecord(body)) return null;
   const parts: UserFacingMessage[] = [];
@@ -227,16 +210,12 @@ function collectLogin400(body: unknown): UserFacingMessage | null {
   };
 }
 
-// --- ResetPasswordView ---
-
 const RESET_DETAIL_NO_CONTACT = 'Необходимо указать email или phone_number';
 const RESET_DETAIL_USER_NOT_FOUND = 'Пользователь не найден';
 
 
 const RECOVER_DETAIL_MISSING = 'token и password обязательны';
 const RECOVER_DETAIL_BAD_TOKEN = 'Невалидный или истёкший токен';
-
-// --- Profile PATCH: UpdateProfileSerializer 400 ---
 
 function collectProfilePatch400(body: unknown): UserFacingMessage | null {
   if (!isRecord(body)) return null;
@@ -270,23 +249,15 @@ function collectProfilePatch400(body: unknown): UserFacingMessage | null {
   };
 }
 
-// --- Carts (views.py) ---
-
 const CART_DETAIL_COURSE_NOT_IN_CATALOG =
   'Курс с таким slug не найден в списке курсов.';
 const CART_DETAIL_COURSE_NOT_IN_CART = 'Курс с таким slug не найден в корзине.';
 const CART_ERROR_ALREADY_IN_CART = 'Курс уже в корзине';
 
-// --- CourseDetail ---
-
 const COURSE_DETAIL_NOT_FOUND = 'Курс не найден';
-
-// --- Payments CartPayView ---
 
 const PAY_ERROR_EMPTY_CART = 'Корзина пуста. Добавьте курсы перед оплатой.';
 const PAY_ERROR_ALREADY_PURCHASED = 'Некоторые курсы уже куплены.';
-
-// --- Fallback по сценам (если тело не распознано) ---
 
 const SCENE_FALLBACK: Record<ApiFailureScene, UserFacingMessage> = {
   register: {
@@ -690,10 +661,6 @@ function statusFallback(scene: ApiFailureScene, status: number): UserFacingMessa
   return SCENE_STATUS_FALLBACK[scene]?.[status] ?? null;
 }
 
-/**
- * ResetPasswordView: единственный осмысленный 500 — сбой send_mail; текст detail динамический,
- * поэтому для resetRequest+500 показываем фиксированное сообщение без разбора тела.
- */
 function isResetRequestMailFailure(status: number, scene: ApiFailureScene): boolean {
   return scene === 'resetRequest' && status === 500;
 }
@@ -878,7 +845,6 @@ export function resolveApiFailureMessage(
   return SCENE_FALLBACK[scene];
 }
 
-/** Оплата корзины (CartPayView) — на будущее; сейчас те же явные тела из views.py */
 export function resolveCartPayMessage(
   status: number,
   body: unknown,

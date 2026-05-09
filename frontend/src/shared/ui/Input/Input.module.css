@@ -14,23 +14,23 @@
   font-size: var(--text-sm);
   line-height: var(--text-sm--line-height);
 
-  /* Invalid */
+
   &[aria-invalid="true"] {
     border-color: var(--color-destructive);
   }
 
-  /* Placeholder */
+
   &::placeholder {
     color: var(--color-muted-foreground);
   }
 
-  /* Selection */
+
   &::selection {
     background-color: var(--color-primary);
     color: var(--color-primary-foreground);
   }
 
-  /* Upload */
+
   &::file-selector-button {
     height: 100%;
     border: none;
@@ -40,13 +40,13 @@
     font-weight: var(--font-weight-medium);
   }
 
-  /* Disabled */
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
-  /* Focus */
+
   &:focus {
     &:not([aria-invalid="true"]) {
       border-color: var(--color-ring);

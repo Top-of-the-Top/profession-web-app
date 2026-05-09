@@ -1,4 +1,3 @@
-	// Shared UI components
 	export { Button } from './Button'
 	export type { ButtonProps } from './Button'
 
@@ -92,6 +91,8 @@ export { SafeHtml } from './SafeHtml'
 	export { Switch } from './Switch'
 
 	export { PageFrame } from './PageFrame'
+	export { CenteredMessageBlock } from './CenteredMessageBlock'
+	export type { CenteredMessageBlockProps } from './CenteredMessageBlock'
 	export { Spinner } from './Spinner'
 export { Skeleton } from './Skeleton'
 export { OAuthButtons } from './OAuthButtons'

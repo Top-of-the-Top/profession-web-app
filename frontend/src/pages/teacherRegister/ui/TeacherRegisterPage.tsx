@@ -54,7 +54,7 @@ export default function TeacherRegisterPage() {
             const body = JSON.parse(msg.split('API_ERROR_400: ')[1] ?? '{}');
             if (body?.error === 'used') { setValidate({ status: 'used' }); return; }
             if (body?.error === 'expired') { setValidate({ status: 'expired' }); return; }
-          } catch { /* ignore */ }
+          } catch {}
         }
         setValidate({ status: 'not_found' });
       });
@@ -111,7 +111,7 @@ export default function TeacherRegisterPage() {
             notifyError({ title: body.detail });
             return;
           }
-        } catch { /* ignore */ }
+        } catch {}
       }
       notifyError({ title: 'Ошибка регистрации', description: 'Попробуйте позже.' });
     } finally {

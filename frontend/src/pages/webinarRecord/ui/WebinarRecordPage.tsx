@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
-import { Button, Spinner } from '@shared/ui';
+import { Button, CenteredMessageBlock, Spinner } from '@shared/ui';
 import { useRecorderJoin } from '@shared/api/queries/webinar';
 import type { WebinarJoinResponse } from '@shared/api/webinarApi';
 import { cn } from '@shared/lib/utils';
@@ -315,23 +315,27 @@ export default function WebinarRecordPage() {
 
     return (
       <div className={styles.stateCenter}>
-        <div className={styles.errorBox}>
-          <p className={styles.errorTitle}>Нет токена записи</p>
-          <p className={styles.errorText}>
-            Для выхода в эфир нужна ссылка с параметром <code className={styles.inlineCode}>token</code>,
-            которую выдаёт система. Если нужно только проверить запись экрана на этой странице — откройте
-            режим песочницы.
-          </p>
-          <div className={styles.errorActions}>
+        <CenteredMessageBlock
+          title="Нет токена записи"
+          message={
+            <p>
+              Для выхода в эфир нужна ссылка с параметром <code className={styles.inlineCode}>token</code>,
+              которую выдаёт система. Если нужно только проверить запись экрана на этой странице — откройте
+              режим песочницы.
+            </p>
+          }
+          actions={
             <Button asChild>
               <Link to={sandboxTo}>Режим песочницы (без токена)</Link>
             </Button>
-          </div>
-          <p className={styles.errorFootnote}>
-            Или вручную добавьте в адресную строку{' '}
-            <code className={styles.inlineCode}>?sandbox=1</code>
-          </p>
-        </div>
+          }
+          footnote={
+            <>
+              Или вручную добавьте в адресную строку{' '}
+              <code className={styles.inlineCode}>?sandbox=1</code>
+            </>
+          }
+        />
       </div>
     );
   }
@@ -387,12 +391,10 @@ export default function WebinarRecordPage() {
             lessonSlug={lessonSlug ?? ''}
           />
         ) : null}
-        <div className={styles.errorBox}>
-          <p className={styles.errorTitle}>Не удалось открыть запись</p>
-          <p className={styles.errorText}>
-            Токен недействителен или вебинар уже завершён.
-          </p>
-        </div>
+        <CenteredMessageBlock
+          title="Не удалось открыть запись"
+          message="Токен недействителен или вебинар уже завершён."
+        />
       </div>
     );
   }

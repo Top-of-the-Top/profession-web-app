@@ -268,7 +268,7 @@
   color: #1d4ed8;
 }
 
-/* .homeworkHeader removed — fields now live in .homeworkSidebarSection */
+
 
 .homeworkTitleInput {
   flex: 1;
@@ -497,14 +497,14 @@
   gap: 8px;
   padding: 4px;
 	border-radius: 20px;
-	
+
 }
 .homeworkOptionRowCorrect {
 	background-color: #B6B6D9;
 }
 .homeworkOptionRowCorrect input {
 	background-color: #B6B6D9 !important;
-	
+
 }
 
 .homeworkOptionRadio {
@@ -598,7 +598,7 @@
 	color: rgb(189, 13, 13);
 }
 
-/* ── Score stepper ───────────────────────────────────────────────────────── */
+
 
 .homeworkScoreStepper {
   display: inline-flex;
@@ -659,14 +659,14 @@
   outline: none;
 }
 
-/* ── Inline validation ───────────────────────────────────────────────────── */
+
 
 .fieldInvalid {
   border-color: #f87171 !important;
   background: #fff5f5 !important;
 }
 
-/* underline-only variant for borderless inputs (title, deadline) */
+
 .fieldInvalidUnderline {
   border-bottom-color: #f87171 !important;
 }
@@ -708,7 +708,7 @@
   color: #ef4444;
 }
 
-/* ── Tooltip for sidebar fields ──────────────────────────────────────────── */
+
 
 .tooltipWrap {
   position: relative;
@@ -742,7 +742,7 @@
   display: block;
 }
 
-/* ── Destructive dialog action ───────────────────────────────────────────── */
+
 
 .deleteActionBtn {
   background: #fee2e2 !important;
@@ -843,7 +843,7 @@
 .buttonSecondary {
   background-color: #d4d4d4;
   color: black;
-  
+
 }
 
 .buttonSecondary:hover {

@@ -19,7 +19,7 @@
   font-size: var(--text-sm);
   line-height: var(--text-sm--line-height);
 
-  /* Variant */
+
   &[data-variant="default"] {
     background-color: transparent;
   }
@@ -32,7 +32,7 @@
     background-color: color-mix(in oklch, var(--color-muted) 50%, transparent);
   }
 
-  /* Size */
+
   &[data-size="default"] {
     gap: calc(var(--spacing) * 4);
     padding: calc(var(--spacing) * 4);
@@ -43,14 +43,14 @@
     padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
   }
 
-  /* Focus */
+
   &:focus-visible {
     border-color: var(--color-ring);
     box-shadow: 0 0 0 3px
       color-mix(in oklch, var(--color-ring) 50%, transparent);
   }
 
-  /* Action */
+
   a {
     transition: background-color 0.1s var(--default-transition-timing-function);
 
@@ -74,7 +74,7 @@
       pointer-events: none;
     }
 
-    /* Variant */
+
     &[data-variant="default"] {
       background-color: transparent;
     }

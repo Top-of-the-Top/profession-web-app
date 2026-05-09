@@ -112,7 +112,7 @@
   letter-spacing: 0.04em;
 }
 
-/* Status badges on item header */
+
 .statusBadge {
   display: inline-flex;
   align-items: center;
@@ -183,7 +183,7 @@
   pointer-events: none;
 }
 
-/* hide native radio */
+
 .optionLabel input[type='radio'] {
   appearance: none;
   -webkit-appearance: none;
@@ -517,31 +517,14 @@
 }
 
 .centered {
+  flex: 1;
   display: flex;
-  min-height: 260px;
+  min-height: 0;
+  width: 100%;
   justify-content: center;
   align-items: center;
 }
 
-.errorBox {
-  background: #fff;
-  border: 1px solid #fecaca;
-  border-radius: 12px;
-  padding: 18px;
-  max-width: 460px;
-}
-
-.errorText {
-  margin: 0 0 14px;
-  color: #b91c1c;
-}
-
-.errorActions {
-  display: flex;
-  gap: 10px;
-}
-
-/* Slide animations */
 @keyframes slideInLeft {
   from { opacity: 0; transform: translateX(32px); }
   to   { opacity: 1; transform: translateX(0); }
@@ -560,7 +543,7 @@
   animation: slideInRight 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 
-/* Confirm dialog */
+
 .dialogOverlay {
   position: fixed;
   inset: 0;
@@ -593,7 +576,7 @@
   gap: 10px;
 }
 
-/* ── Status banners ─────────────────────────────────────────────────────── */
+
 
 @keyframes pulseAmber {
   0%, 100% { opacity: 1; }
@@ -629,14 +612,14 @@
   flex-shrink: 0;
 }
 
-/* ── Read-only item card tint ───────────────────────────────────────────── */
+
 
 .itemCardReadOnly {
   background: #fafafa;
   border-color: #e4e7ec;
 }
 
-/* ── Side card status chip ──────────────────────────────────────────────── */
+
 
 .sideStatusChip {
   display: inline-flex;
@@ -671,7 +654,7 @@
   font-size: 12px;
 }
 
-/* Answer label in reviewed mode */
+
 .answerLabel {
   font-size: 12px;
   color: #667085;
@@ -679,7 +662,7 @@
   text-align: right;
 }
 
-/* Teacher review comment block */
+
 .reviewComment {
   margin-top: 12px;
   border: 1px solid #e4e7ec;
@@ -745,7 +728,7 @@
   font-style: italic;
 }
 
-/* Result row */
+
 .resultRow {
   display: flex;
   align-items: center;
@@ -778,7 +761,7 @@
   color: #667085;
 }
 
-/* Donut score chart */
+
 .donutWrap {
   position: relative;
   width: 112px;

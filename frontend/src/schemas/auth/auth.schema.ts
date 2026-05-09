@@ -4,9 +4,6 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
-/**
- * Достаёт плоский объект с токенами из обёрток (data/result/tokens) и camelCase.
- */
 export function normalizeAuthTokensPayload(input: unknown): unknown {
   let cur: unknown = input;
 
@@ -73,7 +70,6 @@ const AuthTokensInnerSchema = z
     };
   });
 
-/** Ответ login / register/verify / recover с токенами (после нормализации). */
 export const AuthTokensSchema = z.preprocess(
   normalizeAuthTokensPayload,
   AuthTokensInnerSchema,

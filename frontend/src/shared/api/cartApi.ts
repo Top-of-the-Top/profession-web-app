@@ -1,4 +1,3 @@
-// shared/api/cartApi.ts
 import { apiClient } from './interceptor';
 import type { CourseDTO } from './courseApi';
 

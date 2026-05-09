@@ -101,6 +101,13 @@ export default function RegistrationForm({
   const [searchParams] = useSearchParams();
   const verifyInFlightRef = useRef(false);
   const verifySucceededRef = useRef(false);
+
+  const inviteToken = searchParams.get('invite');
+  useEffect(() => {
+    if (inviteToken) {
+      navigate(`/register-teacher?invite=${encodeURIComponent(inviteToken)}`, { replace: true });
+    }
+  }, [inviteToken, navigate]);
   const {
     register,
     handleSubmit,

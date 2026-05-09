@@ -11,7 +11,6 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   setStatus: (status) => set({ status }),
   setError: (message) => set({ error: message }),
 
-  // Полная замена списка из REST-ответа. Это единственный источник истины при первой загрузке.
   setInitial: (notificationsArray: Notification[], hasMore: boolean) => {
     const sorted = [...notificationsArray].sort(
       (a, b) => b.created_at.getTime() - a.created_at.getTime(),
@@ -20,7 +19,6 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     set({ notifications: sorted, unreadCount, hasMore });
   },
 
-  // Дозагрузка следующей страницы. Существующие записи (включая SSE) НЕ перезаписываются.
   appendPage: (notificationsArray: Notification[], hasMore: boolean) => {
     set((state) => {
       const existingIds = new Set(state.notifications.map((n) => n.id));
@@ -32,7 +30,6 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     });
   },
 
-  // SSE-приход нового уведомления. Дубль по id игнорирует инкремент счётчика.
   addNotification: (newNotification: Notification) => {
     set((state) => {
       const filtered = state.notifications.filter((n) => n.id !== newNotification.id);

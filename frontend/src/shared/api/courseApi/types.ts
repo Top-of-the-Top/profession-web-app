@@ -224,7 +224,6 @@ export interface HomeworkAttemptListItem {
   max_points: number | null;
 }
 
-// GET /api/v1/my-homeworks/ — student view
 export interface MyHomeworkStudentItem {
   attempt_id: string;
   status: HomeworkAttemptStatus;
@@ -241,7 +240,6 @@ export interface MyHomeworkStudentItem {
   send_at: string | null;
 }
 
-// GET /api/v1/my-homeworks/ — teacher view
 export interface MyHomeworkTeacherStudent {
   user_id: string;
   email: string;

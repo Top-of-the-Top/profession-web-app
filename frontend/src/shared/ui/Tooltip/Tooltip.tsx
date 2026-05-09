@@ -43,7 +43,6 @@ export function TooltipContent({
         {...props}
         className={`${styles["tooltip-content"]} ${className ?? ""}`.trim()}>
         {children}
-        {/* <TooltipPrimitive.Arrow className={styles["tooltip-arrow"]} /> */}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   );

@@ -1,6 +1,3 @@
-/**
- * Ошибки fetch из apiClient: throw new Error(`API_ERROR_${status}: ${text}`)
- */
 export type ParsedApiError = {
   status: number;
   body: unknown;

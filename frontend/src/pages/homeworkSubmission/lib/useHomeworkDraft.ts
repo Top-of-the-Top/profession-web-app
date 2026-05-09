@@ -35,7 +35,6 @@ export function clearDraft(homeworkSlug: string): void {
   try {
     localStorage.removeItem(storageKey(homeworkSlug));
   } catch {
-    // ignore
   }
 }
 
@@ -65,11 +64,6 @@ export function fromAttachmentMeta(
   return result;
 }
 
-/**
- * Returns a `persist` function that writes a draft snapshot immediately.
- * For text fields call it inside a debounce — pass the debounced variant from the page.
- * Always call with the NEW values, not the state snapshot from the previous render.
- */
 export function useHomeworkDraft(homeworkSlug: string | undefined) {
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -89,7 +83,6 @@ export function useHomeworkDraft(homeworkSlug: string | undefined) {
           } satisfies HomeworkDraftData),
         );
       } catch {
-        // localStorage full or unavailable
       }
     },
     [homeworkSlug],
@@ -109,7 +102,6 @@ export function useHomeworkDraft(homeworkSlug: string | undefined) {
     [persist],
   );
 
-  // Flush pending debounce on unmount
   useEffect(() => {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);

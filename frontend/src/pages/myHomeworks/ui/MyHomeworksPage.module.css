@@ -18,8 +18,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8125rem;
+  font-size: 0.9rem;
   color: var(--muted-foreground);
+	margin-bottom: 3px;
 }
 
 .breadcrumb a {

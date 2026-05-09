@@ -43,44 +43,12 @@
 
 .stateCenter {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100vh;
   width: 100vw;
   background: var(--background, #000);
-}
-
-.errorBox {
-  max-width: 480px;
-  padding: 32px;
-  text-align: center;
-  color: var(--foreground);
-}
-
-.errorTitle {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.errorText {
-  font-size: 1rem;
-  color: var(--muted-foreground);
-}
-
-.errorActions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.errorFootnote {
-  font-size: 0.875rem;
-  color: var(--muted-foreground);
-  margin: 16px 0 0;
-  line-height: 1.45;
 }
 
 .shellDebugPad {

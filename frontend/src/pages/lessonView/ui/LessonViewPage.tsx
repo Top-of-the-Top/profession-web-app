@@ -24,6 +24,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
+  CenteredMessageBlock,
   PageFrame,
   SafeHtml,
   Spinner,
@@ -937,23 +938,23 @@ export default function LessonViewPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>
-              Не удалось загрузить урок. Проверьте доступ и попробуйте снова.
-            </p>
-            <div className={styles.errorActions}>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate(-1)}
-              >
-                Назад
-              </Button>
-              <Button type="button" onClick={() => void lessonQuery.refetch()}>
-                Попробовать снова
-              </Button>
-            </div>
-          </div>
+          <CenteredMessageBlock
+            message="Не удалось загрузить урок. Проверьте доступ и попробуйте снова."
+            actions={
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(-1)}
+                >
+                  Назад
+                </Button>
+                <Button type="button" onClick={() => void lessonQuery.refetch()}>
+                  Попробовать снова
+                </Button>
+              </>
+            }
+          />
         </div>
       </PageFrame>
     );

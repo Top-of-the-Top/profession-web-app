@@ -9,6 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
+  CenteredMessageBlock,
   PageFrame,
   Spinner,
 } from '@shared/ui';
@@ -180,12 +181,14 @@ export default function CourseLessonsPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>Не указан адрес курса.</p>
-            <Button type="button" variant="outline" asChild>
-              <Link to="/app">На главную</Link>
-            </Button>
-          </div>
+          <CenteredMessageBlock
+            message="Не указан адрес курса."
+            actions={
+              <Button type="button" variant="outline" asChild>
+                <Link to="/app">На главную</Link>
+              </Button>
+            }
+          />
         </div>
       </PageFrame>
     );
@@ -205,15 +208,14 @@ export default function CourseLessonsPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>
-              Не удалось загрузить программу курса. Проверьте, что вы записаны
-              на курс, и попробуйте снова.
-            </p>
-            <Button type="button" onClick={() => void refetch()}>
-              Попробовать снова
-            </Button>
-          </div>
+          <CenteredMessageBlock
+            message="Не удалось загрузить программу курса. Проверьте, что вы записаны на курс, и попробуйте снова."
+            actions={
+              <Button type="button" onClick={() => void refetch()}>
+                Попробовать снова
+              </Button>
+            }
+          />
         </div>
       </PageFrame>
     );

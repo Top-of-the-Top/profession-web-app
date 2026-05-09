@@ -128,18 +128,8 @@
   min-height: 200px;
 }
 
-.errorBox {
+.homeMessageBlock {
   margin: 0 40px;
-  padding: 24px;
-  background: var(--profession-white-bg);
-  border-radius: 14px;
-  border: 1px solid #fecaca;
-  max-width: 480px;
-}
-
-.errorText {
-  margin: 0 0 16px;
-  color: #991b1b;
 }
 
 .emptyState {
@@ -184,7 +174,7 @@
     gap: 20px;
   }
 
-  .errorBox,
+  .homeMessageBlock,
   .emptyState {
     margin-left: 0;
     margin-right: 0;

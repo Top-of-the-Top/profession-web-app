@@ -397,7 +397,7 @@ export default function MyHomeworksPage() {
     <PageFrame>
       <div className={styles.wrap}>
         <nav className={styles.breadcrumb}>
-          <Link to="/app"><Home size={14} /></Link>
+          <Link to="/app"><Home size={18} /></Link>
           {selectedCourse && (
             <>
               <span className={styles.breadcrumbSep}>›</span>

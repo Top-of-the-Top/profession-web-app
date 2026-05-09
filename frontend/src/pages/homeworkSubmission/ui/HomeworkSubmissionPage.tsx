@@ -9,6 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
+  CenteredMessageBlock,
   PageFrame,
   RichTextEditor,
   SafeHtml,
@@ -349,10 +350,10 @@ export default function HomeworkSubmissionPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>Некорректный адрес задания.</p>
-            <Button type="button" onClick={() => navigate(-1)}>Назад</Button>
-          </div>
+          <CenteredMessageBlock
+            message="Некорректный адрес задания."
+            actions={<Button type="button" onClick={() => navigate(-1)}>Назад</Button>}
+          />
         </div>
       </PageFrame>
     );
@@ -386,13 +387,15 @@ export default function HomeworkSubmissionPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>Не удалось загрузить попытку для домашнего задания.</p>
-            <div className={styles.errorActions}>
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>Назад</Button>
-              <Button type="button" onClick={() => void attemptQuery.refetch()}>Обновить</Button>
-            </div>
-          </div>
+          <CenteredMessageBlock
+            message="Не удалось загрузить попытку для домашнего задания."
+            actions={
+              <>
+                <Button type="button" variant="outline" onClick={() => navigate(-1)}>Назад</Button>
+                <Button type="button" onClick={() => void attemptQuery.refetch()}>Обновить</Button>
+              </>
+            }
+          />
         </div>
       </PageFrame>
     );
@@ -402,13 +405,15 @@ export default function HomeworkSubmissionPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>Не удалось загрузить задания.</p>
-            <div className={styles.errorActions}>
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>Назад</Button>
-              <Button type="button" onClick={() => void detailQuery.refetch()}>Обновить</Button>
-            </div>
-          </div>
+          <CenteredMessageBlock
+            message="Не удалось загрузить задания."
+            actions={
+              <>
+                <Button type="button" variant="outline" onClick={() => navigate(-1)}>Назад</Button>
+                <Button type="button" onClick={() => void detailQuery.refetch()}>Обновить</Button>
+              </>
+            }
+          />
         </div>
       </PageFrame>
     );
@@ -420,10 +425,10 @@ export default function HomeworkSubmissionPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>В этом домашнем задании пока нет вопросов.</p>
-            <Button type="button" onClick={() => navigate(-1)}>Назад</Button>
-          </div>
+          <CenteredMessageBlock
+            message="В этом домашнем задании пока нет вопросов."
+            actions={<Button type="button" onClick={() => navigate(-1)}>Назад</Button>}
+          />
         </div>
       </PageFrame>
     );

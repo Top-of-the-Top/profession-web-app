@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { BarChart2, Users, BookOpen, GraduationCap, Search } from 'lucide-react';
 import { PageFrame, Spinner } from '@shared/ui';
 import { useRole } from '@shared/lib/rbac';
@@ -80,13 +81,8 @@ function NumCellWithPopup({
   users: UserBrief[];
   popupAlign?: 'left' | 'right';
 }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div
-      className={styles.numCell}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
+  const body = (
+    <>
       <span className={styles.numCellCount}>
         {count} <span className={styles.fractionSlash}>/</span> {total}
       </span>
@@ -95,16 +91,34 @@ function NumCellWithPopup({
           {` (${Math.round((count / total) * 100)}%)`}
         </span>
       )}
-      {open && users.length > 0 && (
-        <div className={cn(styles.numPopup, popupAlign === 'right' && styles.numPopupRight)}>
+    </>
+  );
+
+  if (users.length === 0) {
+    return <div className={styles.numCell}>{body}</div>;
+  }
+
+  return (
+    <TooltipPrimitive.Root>
+      <TooltipPrimitive.Trigger asChild>
+        <div className={styles.numCell}>{body}</div>
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          className={styles.numTooltipContent}
+          side="bottom"
+          sideOffset={6}
+          align={popupAlign === 'right' ? 'end' : 'start'}
+          collisionPadding={12}
+        >
           {users.map((u) => (
-            <div key={u.user_id} className={styles.numPopupItem}>
+            <div key={u.user_id} className={styles.numTooltipItem}>
               {u.full_name}
             </div>
           ))}
-        </div>
-      )}
-    </div>
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 }
 
@@ -143,63 +157,65 @@ function WebinarsTab({ isModerator }: { isModerator: boolean }) {
   }, [data, sort.key, sort.dir]);
 
   return (
-    <div className={styles.tabContent}>
-      <div className={styles.filterRow}>
-        <input
-          type="text"
-          className={styles.filterInput}
-          placeholder="Название курса..."
-          value={courseTitleFilter}
-          onChange={(e) => setCourseTitleFilter(e.target.value)}
-        />
-      </div>
-
-      {isLoading && <div className={styles.centered}><Spinner /></div>}
-      {isError && <div className={styles.errorMsg}>Нет доступа или ошибка загрузки.</div>}
-
-      {!isLoading && !isError && (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <SortTh label="Курс" sortKey="course_title" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
-                <SortTh label="Урок" sortKey="lesson_title" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
-                <SortTh label="Начало" sortKey="started_at" current={sort.key} dir={sort.dir} onSort={sort.toggle} extraClass={styles.thCenter} />
-                <SortTh label="Конец" sortKey="ended_at" current={sort.key} dir={sort.dir} onSort={sort.toggle} extraClass={styles.thCenter} />
-                <th className={cn(styles.th, styles.thCenter)}>Заходили</th>
-                <th className={cn(styles.th, styles.thCenter)}>Досмотрели 70%</th>
-                <th className={cn(styles.th, styles.thRight)}>Сдали ДЗ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className={styles.emptyCell}>Нет вебинаров за период</td>
-                </tr>
-              ) : (
-                sorted.map((w) => (
-                  <tr key={w.webinar_id} className={styles.tr}>
-                    <td className={styles.td}>{w.course_title}</td>
-                    <td className={styles.td}>{w.lesson_title}</td>
-                    <td className={cn(styles.tdMono, styles.tdCenter)}><span className={styles.dateCell}>{formatDateShort(w.started_at)}</span></td>
-                    <td className={cn(styles.tdMono, styles.tdCenter)}><span className={styles.dateCell}>{formatDateShort(w.ended_at)}</span></td>
-                    <td className={cn(styles.tdNum, styles.tdCenter)}>
-                      <NumCellWithPopup count={w.attended_any} total={w.attended_total} users={w.attended_any_users} />
-                    </td>
-                    <td className={cn(styles.tdNum, styles.tdCenter)}>
-                      <NumCellWithPopup count={w.attended_threshold} total={w.attended_total} users={w.attended_threshold_users} />
-                    </td>
-                    <td className={cn(styles.tdNum, styles.tdRight)}>
-                      <NumCellWithPopup count={w.homework_submitted_count} total={w.attended_total} users={w.homework_submitted_users} popupAlign="right" />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+    <TooltipPrimitive.Provider delayDuration={200}>
+      <div className={styles.tabContent}>
+        <div className={styles.filterRow}>
+          <input
+            type="text"
+            className={styles.filterInput}
+            placeholder="Название курса..."
+            value={courseTitleFilter}
+            onChange={(e) => setCourseTitleFilter(e.target.value)}
+          />
         </div>
-      )}
-    </div>
+
+        {isLoading && <div className={styles.centered}><Spinner /></div>}
+        {isError && <div className={styles.errorMsg}>Нет доступа или ошибка загрузки.</div>}
+
+        {!isLoading && !isError && (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <SortTh label="Курс" sortKey="course_title" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
+                  <SortTh label="Урок" sortKey="lesson_title" current={sort.key} dir={sort.dir} onSort={sort.toggle} />
+                  <SortTh label="Начало" sortKey="started_at" current={sort.key} dir={sort.dir} onSort={sort.toggle} extraClass={styles.thCenter} />
+                  <SortTh label="Конец" sortKey="ended_at" current={sort.key} dir={sort.dir} onSort={sort.toggle} extraClass={styles.thCenter} />
+                  <th className={cn(styles.th, styles.thCenter)}>Заходили</th>
+                  <th className={cn(styles.th, styles.thCenter)}>Досмотрели 70%</th>
+                  <th className={cn(styles.th, styles.thRight)}>Сдали ДЗ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className={styles.emptyCell}>Нет вебинаров за период</td>
+                  </tr>
+                ) : (
+                  sorted.map((w) => (
+                    <tr key={w.webinar_id} className={styles.tr}>
+                      <td className={styles.td}>{w.course_title}</td>
+                      <td className={styles.td}>{w.lesson_title}</td>
+                      <td className={cn(styles.tdMono, styles.tdCenter)}><span className={styles.dateCell}>{formatDateShort(w.started_at)}</span></td>
+                      <td className={cn(styles.tdMono, styles.tdCenter)}><span className={styles.dateCell}>{formatDateShort(w.ended_at)}</span></td>
+                      <td className={cn(styles.tdNum, styles.tdCenter)}>
+                        <NumCellWithPopup count={w.attended_any} total={w.attended_total} users={w.attended_any_users} />
+                      </td>
+                      <td className={cn(styles.tdNum, styles.tdCenter)}>
+                        <NumCellWithPopup count={w.attended_threshold} total={w.attended_total} users={w.attended_threshold_users} />
+                      </td>
+                      <td className={cn(styles.tdNum, styles.tdRight)}>
+                        <NumCellWithPopup count={w.homework_submitted_count} total={w.attended_total} users={w.homework_submitted_users} popupAlign="right" />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </TooltipPrimitive.Provider>
   );
 }
 

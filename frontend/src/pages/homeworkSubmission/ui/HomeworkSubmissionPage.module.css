@@ -517,30 +517,13 @@
 }
 
 .centered {
+  flex: 1;
   display: flex;
-  min-height: 260px;
+  min-height: 0;
+  width: 100%;
   justify-content: center;
   align-items: center;
 }
-
-.errorBox {
-  background: #fff;
-  border: 1px solid #fecaca;
-  border-radius: 12px;
-  padding: 18px;
-  max-width: 460px;
-}
-
-.errorText {
-  margin: 0 0 14px;
-  color: #b91c1c;
-}
-
-.errorActions {
-  display: flex;
-  gap: 10px;
-}
-
 
 @keyframes slideInLeft {
   from { opacity: 0; transform: translateX(32px); }

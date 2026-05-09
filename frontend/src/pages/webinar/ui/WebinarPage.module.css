@@ -13,10 +13,12 @@
 }
 
 .stateCenter {
+  flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100%;
+  min-height: 0;
   width: 100%;
 }
 
@@ -41,26 +43,6 @@
   flex-direction: column;
   border-left: 1px solid var(--border);
   background: var(--card);
-}
-
-.errorBox {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  max-width: 420px;
-  padding: 32px;
-  text-align: center;
-}
-
-.errorText {
-  font-size: 1rem;
-  color: var(--muted-foreground);
-}
-
-.errorActions {
-  display: flex;
-  gap: 12px;
 }
 
 .exitDialogOverlay {

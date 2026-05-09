@@ -110,7 +110,7 @@ class HomeworkFullFlowE2ETests(TestCase):
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_fill_submit_review_triggers_notification_pipeline(self):
         self._auth(self.student)
-        base = f"/api/courses/{self.course.slug}/homeworks/{self.homework.slug}"
+        base = f"/api/v1/courses/{self.course.slug}/homeworks/{self.homework.slug}"
 
         draft = self.client.get(f"{base}/attempt/")
         self.assertEqual(draft.status_code, status.HTTP_200_OK)
@@ -168,7 +168,7 @@ class HomeworkFullFlowE2ETests(TestCase):
         with patch("apps.notifications.tasks.publish_event", side_effect=capture_publish):
             with self.captureOnCommitCallbacks(execute=True):
                 reviewed = self.client.post(
-                    f"/api/courses/{self.course.slug}/attempts/{attempt_id}/review/",
+                    f"/api/v1/courses/{self.course.slug}/attempts/{attempt_id}/review/",
                     review_payload,
                     format="json",
                 )

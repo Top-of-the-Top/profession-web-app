@@ -32,7 +32,7 @@ class TeacherRegistrationViaInviteHttpTests(BaseTestCase):
 
         self._auth_moderator()
         send_r = self.client.post(
-            "/api/admin-panel/invites/send/",
+            "/api/v1/admin-panel/invites/send/",
             {"email": invite_email},
             format="json",
         )
@@ -43,13 +43,13 @@ class TeacherRegistrationViaInviteHttpTests(BaseTestCase):
         invite = Invitation.objects.get(email=invite_email)
         self.assertIsNone(invite.used_at)
 
-        val_r = self.client.get("/api/admin-panel/invites/validate/", {"token": invite.token})
+        val_r = self.client.get("/api/v1/admin-panel/invites/validate/", {"token": invite.token})
         self.assertEqual(val_r.status_code, status.HTTP_200_OK)
         self.assertEqual(val_r.data["email"], invite_email)
 
         self.client.credentials()
         reg_r = self.client.post(
-            "/api/admin-panel/invites/register/",
+            "/api/v1/admin-panel/invites/register/",
             {
                 "token": invite.token,
                 "password": "longpassword1",

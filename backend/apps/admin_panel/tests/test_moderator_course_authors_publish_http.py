@@ -24,7 +24,7 @@ class ModeratorCourseAuthorsPublishHttpTests(BaseTestCase):
     def test_add_course_author_requires_user_id_query_param(self, mock_inv):
         course = create_test_course(title="ADM Course", sub_title="s", description="d", price=0)
         self._auth(self.moderator)
-        url = f"/api/admin-panel/courses/{course.slug}/add-author/"
+        url = f"/api/v1/admin-panel/courses/{course.slug}/add-author/"
         r = self.client.post(url)
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         mock_inv.assert_not_called()
@@ -33,7 +33,7 @@ class ModeratorCourseAuthorsPublishHttpTests(BaseTestCase):
     def test_add_course_author_updates_m2m_and_invalidates_course_cache(self, mock_inv):
         course = create_test_course(title="ADM Course Add", sub_title="s", description="d", price=0)
         self._auth(self.moderator)
-        url = f"/api/admin-panel/courses/{course.slug}/add-author/?user_id={self.teacher.pk}"
+        url = f"/api/v1/admin-panel/courses/{course.slug}/add-author/?user_id={self.teacher.pk}"
         r = self.client.post(url)
         self.assertEqual(r.status_code, status.HTTP_200_OK)
         self.assertTrue(course.authors.filter(pk=self.teacher.pk).exists())
@@ -46,7 +46,7 @@ class ModeratorCourseAuthorsPublishHttpTests(BaseTestCase):
         self.client.credentials(
             HTTP_AUTHORIZATION=f"Bearer {get_tokens_for_user(self.moderator)['access_token']}"
         )
-        url = f"/api/admin-panel/courses/{course.slug}/publish/"
+        url = f"/api/v1/admin-panel/courses/{course.slug}/publish/"
         r = self.client.post(url)
         self.assertEqual(r.status_code, status.HTTP_200_OK)
 

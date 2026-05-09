@@ -26,7 +26,6 @@ class CartModelUnitTests(SimpleTestCase):
         self.mock_course.title = "Тестовый курс"
 
     def test_cart_creation_with_mock(self):
-        """Тест создания корзины через мок"""
         mock_cart = MagicMock(spec=Cart)
         mock_cart.cart_id = 1
         mock_cart.user = self.mock_user
@@ -35,7 +34,6 @@ class CartModelUnitTests(SimpleTestCase):
         self.assertEqual(mock_cart.user, self.mock_user)
 
     def test_cart_str_method(self):
-        """Тест строкового представления корзины"""
         mock_cart = MagicMock(spec=Cart)
         mock_cart.cart_id = 1
         mock_cart.user = self.mock_user
@@ -61,7 +59,6 @@ class CartItemModelUnitTests(SimpleTestCase):
         self.mock_cart_item.course_id = self.mock_course
 
     def test_cart_item_creation_with_mock(self):
-        """Тест создания элемента корзины через мок"""
         mock_item = MagicMock(spec=CartItem)
         mock_item.cart_id = self.mock_cart
         mock_item.course_id = self.mock_course
@@ -70,7 +67,6 @@ class CartItemModelUnitTests(SimpleTestCase):
         self.assertEqual(mock_item.course_id, self.mock_course)
 
     def test_cart_item_foreign_keys(self):
-        """Тест внешних ключей"""
         mock_item = MagicMock(spec=CartItem)
         mock_item.cart_id = self.mock_cart
         mock_item.course_id = self.mock_course
@@ -81,8 +77,6 @@ class CartItemModelUnitTests(SimpleTestCase):
         self.assertEqual(mock_item.course_id.course_id, 1)
 
     def test_cart_item_unique_together(self):
-        """Тест уникальности пары cart-course"""
-
         self.assertTrue(hasattr(CartItem._meta, "unique_together"))
         self.assertIn(("cart_id", "course_id"), CartItem._meta.unique_together)
 
@@ -108,7 +102,6 @@ class CartIntegrationUnitTests(SimpleTestCase):
         self.mock_course2.title = "Курс 2"
 
     def test_cart_items_relationship(self):
-        """Тест связи корзины с элементами"""
         mock_items = MagicMock()
         mock_items.all.return_value = [
             MagicMock(course_id=self.mock_course1),
@@ -122,8 +115,6 @@ class CartIntegrationUnitTests(SimpleTestCase):
         self.assertEqual(items[1].course_id.title, "Курс 2")
 
     def test_cart_total_price_calculation(self):
-        """Тест расчета общей суммы корзины"""
-        # Добавляем цену к курсам
         self.mock_course1.price = 5000
         self.mock_course2.price = 3000
 
@@ -142,7 +133,6 @@ class CartIntegrationUnitTests(SimpleTestCase):
         self.assertEqual(total, 8000)
 
     def test_add_course_to_cart(self):
-        """Тест добавления курса в корзину"""
         self.mock_cart.courses.add = MagicMock()
 
         self.mock_cart.courses.add(self.mock_course1)
@@ -150,7 +140,6 @@ class CartIntegrationUnitTests(SimpleTestCase):
         self.mock_cart.courses.add.assert_called_once_with(self.mock_course1)
 
     def test_remove_course_from_cart(self):
-        """Тест удаления курса из корзины"""
         self.mock_cart.courses.remove = MagicMock()
 
         self.mock_cart.courses.remove(self.mock_course1)
@@ -158,7 +147,6 @@ class CartIntegrationUnitTests(SimpleTestCase):
         self.mock_cart.courses.remove.assert_called_once_with(self.mock_course1)
 
     def test_clear_cart(self):
-        """Тест очистки корзины"""
         self.mock_cart.courses.clear = MagicMock()
 
         self.mock_cart.courses.clear()
@@ -166,7 +154,6 @@ class CartIntegrationUnitTests(SimpleTestCase):
         self.mock_cart.courses.clear.assert_called_once()
 
     def test_course_uniqueness_in_cart(self):
-        """Тест что курс не может быть добавлен дважды"""
         self.assertIn(("cart_id", "course_id"), CartItem._meta.unique_together)
 
         mock_item = MagicMock(spec=CartItem)
@@ -183,14 +170,10 @@ class CartAuthUnitTests(SimpleTestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
 
-        # Создаем авторизованного пользователя
-
         self.auth_user = SimpleNamespace(id=1, pk=1, is_authenticated=True)
 
-        # Создаем неавторизованного пользователя
         self.anon_user = SimpleNamespace(is_authenticated=False)
 
-        # Моки для Cart и Course
         self.mock_cart = MagicMock()
         self.mock_cart.cart_id = 1
         self.mock_cart.user = self.auth_user
@@ -201,18 +184,15 @@ class CartAuthUnitTests(SimpleTestCase):
         self.mock_course.slug = "test-course"
         self.mock_course.title = "Тестовый курс"
 
-    # Тесты для CartView (GET /api/cart/)
 
     def test_cart_view_without_auth(self):
-        """Тест что CartView возвращает 401 для неавторизованного"""
-        request = self.factory.get("/api/v1/cart/")
+        request = self.factory.get("/api/v1/carts/")
         response = CartView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_cart_view_with_auth(self):
-        """Тест что CartView работает для авторизованного"""
-        request = self.factory.get("/api/v1/cart/")
+        request = self.factory.get("/api/v1/carts/")
         force_authenticate(request, user=self.auth_user)
 
         with (
@@ -227,18 +207,15 @@ class CartAuthUnitTests(SimpleTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             mock_get_or_create.assert_called_once_with(user=self.auth_user)
 
-    # Тесты для AddToCartView (POST /api/cart/add/<slug>/)
 
     def test_add_to_cart_view_without_auth(self):
-        """Тест что AddToCartView возвращает 401 для неавторизованного"""
-        request = self.factory.post("/api/v1/cart/add/test-course/")
+        request = self.factory.post("/api/v1/carts/add/test-course/")
         response = AddToCartView.as_view()(request, slug="test-course")
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_add_to_cart_view_with_auth_course_not_found(self):
-        """Тест AddToCartView с авторизацией но курс не найден"""
-        request = self.factory.post("/api/v1/cart/add/non-existent/")
+        request = self.factory.post("/api/v1/carts/add/non-existent/")
         force_authenticate(request, user=self.auth_user)
 
         with (
@@ -254,8 +231,7 @@ class CartAuthUnitTests(SimpleTestCase):
             self.assertIn("detail", response.data)
 
     def test_add_to_cart_view_with_auth_success(self):
-        """Тест успешного добавления курса авторизованным пользователем"""
-        request = self.factory.post("/api/v1/cart/add/test-course/")
+        request = self.factory.post("/api/v1/carts/add/test-course/")
         force_authenticate(request, user=self.auth_user)
 
         mock_cart_item = MagicMock()
@@ -286,8 +262,7 @@ class CartAuthUnitTests(SimpleTestCase):
             )
 
     def test_add_to_cart_view_course_already_in_cart(self):
-        """Тест добавления курса который уже в корзине"""
-        request = self.factory.post("/api/v1/cart/add/test-course/")
+        request = self.factory.post("/api/v1/carts/add/test-course/")
         force_authenticate(request, user=self.auth_user)
 
         with (
@@ -306,15 +281,13 @@ class CartAuthUnitTests(SimpleTestCase):
             self.assertEqual(response.data["error"], "Курс уже в корзине")
 
     def test_cart_item_view_without_auth(self):
-        """Тест что CartItemView возвращает 401 для неавторизованного"""
-        request = self.factory.delete("/api/v1/cart/remove/test-course/")
+        request = self.factory.delete("/api/v1/carts/remove/test-course/")
         response = CartItemView.as_view()(request, slug="test-course")
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_cart_item_view_with_auth_course_not_found(self):
-        """Тест CartItemView с авторизацией но курс не найден в корзине"""
-        request = self.factory.delete("/api/v1/cart/remove/test-course/")
+        request = self.factory.delete("/api/v1/carts/remove/test-course/")
         force_authenticate(request, user=self.auth_user)
 
         with (
@@ -332,7 +305,6 @@ class CartAuthUnitTests(SimpleTestCase):
             self.assertIn("detail", response.data)
 
     def test_cart_item_view_with_auth_success(self):
-        """Тест успешного удаления курса из корзины авторизованным пользователем"""
         request = self.factory.delete("/api/v1/carts/remove/test-course/")
         force_authenticate(request, user=self.auth_user)
 
@@ -350,17 +322,15 @@ class CartAuthUnitTests(SimpleTestCase):
 
             mock_cartitem_filter.return_value.first.return_value = mock_cart_item
 
-            response = CartItemView.as_view()(request, "test-course")
+            response = CartItemView.as_view()(request, slug="test-course")
 
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             mock_cart_item.delete.assert_called_once()
 
 
 class CartPermissionsUnitTests(SimpleTestCase):
-    """Тесты permission_classes для Cart views"""
 
     def test_cart_view_permission_classes(self):
-        """Тест что CartView требует IsAuthenticated"""
         view = CartView()
         permissions = view.get_permissions()
 
@@ -368,7 +338,6 @@ class CartPermissionsUnitTests(SimpleTestCase):
         self.assertEqual(permissions[0].__class__.__name__, "IsAuthenticated")
 
     def test_add_to_cart_view_permission_classes(self):
-        """Тест что AddToCartView требует IsAuthenticated"""
         view = AddToCartView()
         permissions = view.get_permissions()
 
@@ -376,7 +345,6 @@ class CartPermissionsUnitTests(SimpleTestCase):
         self.assertEqual(permissions[0].__class__.__name__, "IsAuthenticated")
 
     def test_cart_item_view_permission_classes(self):
-        """Тест что CartItemView требует IsAuthenticated"""
         view = CartItemView()
         permissions = view.get_permissions()
 
@@ -392,8 +360,7 @@ class CartViewUnitTests(SimpleTestCase):
         self.mock_cart.cart_id = 1
 
     def test_cart_view_get_or_create_called(self):
-        """Тест что get_or_create вызывается с правильным пользователем"""
-        request = self.factory.get("/api/v1/cart/")
+        request = self.factory.get("/api/v1/carts/")
         force_authenticate(request, user=self.auth_user)
 
         mock_hot_cache = MagicMock()
@@ -412,8 +379,7 @@ class CartViewUnitTests(SimpleTestCase):
             mock_get_or_create.assert_called_once_with(user=self.auth_user)
 
     def test_cart_view_returns_serialized_data(self):
-        """Тест что CartView возвращает сериализованные данные"""
-        request = self.factory.get("/api/v1/cart/")
+        request = self.factory.get("/api/v1/carts/")
         force_authenticate(request, user=self.auth_user)
 
         expected_data = {

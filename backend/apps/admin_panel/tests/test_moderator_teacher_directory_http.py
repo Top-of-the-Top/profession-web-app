@@ -19,12 +19,12 @@ class ModeratorTeacherDirectoryHttpTests(BaseTestCase):
 
     def test_list_teachers_requires_moderator_role(self):
         self._auth(self.student)
-        r = self.client.get("/api/admin-panel/teachers/")
+        r = self.client.get("/api/v1/admin-panel/teachers/")
         self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_list_teachers_returns_payload_for_moderator(self):
         create_test_user(email="adm_tc@test.local", role="teacher")
         self._auth(self.moderator)
-        r = self.client.get("/api/admin-panel/teachers/")
+        r = self.client.get("/api/v1/admin-panel/teachers/")
         self.assertEqual(r.status_code, status.HTTP_200_OK)
         self.assertIsInstance(r.data, list)

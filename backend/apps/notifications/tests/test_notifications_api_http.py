@@ -38,7 +38,7 @@ class NotificationsApiHttpTests(TestCase):
             message="Текст курса",
         )
         self._auth(self.student)
-        resp = self.client.get("/api/notifications/")
+        resp = self.client.get("/api/v1/notifications/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertTrue(resp.data["has_more"] is False)
         ids = [row["id"] for row in resp.data["results"]]
@@ -54,15 +54,15 @@ class NotificationsApiHttpTests(TestCase):
             message="—",
         )
         self._auth(self.student)
-        resp_post = self.client.post("/api/notifications/read-all/")
+        resp_post = self.client.post("/api/v1/notifications/read-all/")
         self.assertEqual(resp_post.status_code, status.HTTP_200_OK)
         self.assertEqual(resp_post.data["marked"], 1)
 
-        resp = self.client.get("/api/notifications/")
+        resp = self.client.get("/api/v1/notifications/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         row = next(r for r in resp.data["results"] if r["id"] == n.id)
         self.assertTrue(row["is_read"])
 
     def test_sse_requires_query_token(self):
-        resp = self.client.get("/api/notifications/sse/")
+        resp = self.client.get("/api/v1/notifications/sse/")
         self.assertEqual(resp.status_code, 401)

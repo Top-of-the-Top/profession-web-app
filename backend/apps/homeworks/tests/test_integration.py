@@ -72,7 +72,7 @@ class HomeworkApiIntegrationTests(BaseTestCase):
         m_binding.return_value.sync_many = MagicMock()
 
         self._auth(self.student)
-        base = f"/api/courses/{self.course.slug}/homeworks/{self.homework.slug}"
+        base = f"/api/v1/courses/{self.course.slug}/homeworks/{self.homework.slug}"
         draft = self.client.get(f"{base}/attempt/")
         self.assertEqual(draft.status_code, status.HTTP_200_OK)
         attempt_id = draft.data["attempt_id"]
@@ -117,7 +117,7 @@ class HomeworkApiIntegrationTests(BaseTestCase):
 
         self._auth(self.teacher)
         reviewed = self.client.post(
-            f"/api/courses/{self.course.slug}/attempts/{attempt_id}/review/",
+            f"/api/v1/courses/{self.course.slug}/attempts/{attempt_id}/review/",
             review_payload,
             format="json",
         )
@@ -136,6 +136,6 @@ class HomeworkApiIntegrationTests(BaseTestCase):
     def test_student_without_enrollment_gets_forbidden_on_attempt(self):
         outsider = create_test_user(email="hw_int_outsider@test.com", role="student")
         self._auth(outsider)
-        url = f"/api/courses/{self.course.slug}/homeworks/{self.homework.slug}/attempt/"
+        url = f"/api/v1/courses/{self.course.slug}/homeworks/{self.homework.slug}/attempt/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

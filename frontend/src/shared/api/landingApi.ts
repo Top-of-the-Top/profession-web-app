@@ -171,7 +171,7 @@ function getFallbackCourses() {
 
 export const landingApi = {
   getCourses() {
-    return apiClient.request<ApiLandingResponse>('/api/landing/courses/', {
+    return apiClient.request<ApiLandingResponse>('/api/v1/landing/courses/', {
       method: 'GET',
       skipAuth: true,
     });

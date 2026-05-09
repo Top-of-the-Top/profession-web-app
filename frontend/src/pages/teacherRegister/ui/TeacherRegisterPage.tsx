@@ -45,7 +45,7 @@ export default function TeacherRegisterPage() {
       return;
     }
     apiClient
-      .request<{ email: string }>(`/api/admin-panel/invites/validate/?token=${encodeURIComponent(token)}`)
+      .request<{ email: string }>(`/api/v1/admin-panel/invites/validate/?token=${encodeURIComponent(token)}`)
       .then((data) => setValidate({ status: 'ok', email: data.email }))
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
@@ -78,7 +78,7 @@ export default function TeacherRegisterPage() {
         refresh_token: string;
         refresh_expires_at: string;
         role: string;
-      }>('/api/admin-panel/invites/register/', {
+      }>('/api/v1/admin-panel/invites/register/', {
         method: 'POST',
         body: JSON.stringify({
           token,

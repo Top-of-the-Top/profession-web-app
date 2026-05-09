@@ -37,11 +37,11 @@ export interface WebinarFinalPdfResponse extends WebinarRecordingResponse {
 }
 
 function webinarBase(courseSlug: string, lessonSlug: string) {
-  return `/api/courses/${courseSlug}/lessons/${lessonSlug}/webinar`;
+  return `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/webinar`;
 }
 
 function lessonBase(courseSlug: string, lessonSlug: string) {
-  return `/api/courses/${courseSlug}/lessons/${lessonSlug}`;
+  return `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}`;
 }
 
 export const webinarApi = {

@@ -17,7 +17,7 @@ export const scheduleApi = {
     if (params?.start_date) query.set('start_date', params.start_date);
     if (params?.end_date) query.set('end_date', params.end_date);
     const qs = query.toString();
-    return apiClient.request<ScheduleResponse>(`/api/my-schedule/${qs ? `?${qs}` : ''}`, {
+    return apiClient.request<ScheduleResponse>(`/api/v1/my-schedule/${qs ? `?${qs}` : ''}`, {
       method: 'GET',
     });
   },

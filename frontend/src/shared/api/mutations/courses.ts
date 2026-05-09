@@ -462,7 +462,7 @@ export function useScheduleWebinar(courseSlug: string, lessonSlug: string) {
   return useMutation({
     mutationFn: (scheduledAt: string | null) =>
       apiClient.request<{ webinar_id: string; scheduled_at: string | null }>(
-        `/api/courses/${courseSlug}/lessons/${lessonSlug}/webinar/schedule/`,
+        `/api/v1/courses/${courseSlug}/lessons/${lessonSlug}/webinar/schedule/`,
         {
           method: 'PATCH',
           body: JSON.stringify({ scheduled_at: scheduledAt }),

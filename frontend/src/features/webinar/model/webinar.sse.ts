@@ -92,7 +92,7 @@ function buildSseUrl(webinarId?: string | null): string | null {
   if (webinarId) {
     params.set('webinar_id', webinarId);
   }
-  return `${API_URL}/api/notifications/sse/?${params.toString()}`;
+  return `${API_URL}/api/v1/notifications/sse/?${params.toString()}`;
 }
 
 function parseWebinarEvent(raw: string): WebinarSseEvent | null {

@@ -37,20 +37,20 @@ export interface AdminCourse {
 export function useAdminTeachers() {
   return useQuery({
     queryKey: adminKeys.teachers(),
-    queryFn: () => apiClient.request<AdminTeacher[]>('/api/admin-panel/teachers/'),
+    queryFn: () => apiClient.request<AdminTeacher[]>('/api/v1/admin-panel/teachers/'),
   });
 }
 
 export function useAdminInvites() {
   return useQuery({
     queryKey: adminKeys.invites(),
-    queryFn: () => apiClient.request<AdminTeacherInvite[]>('/api/admin-panel/invites/'),
+    queryFn: () => apiClient.request<AdminTeacherInvite[]>('/api/v1/admin-panel/invites/'),
   });
 }
 
 export function useAdminCourses() {
   return useQuery({
     queryKey: adminKeys.courses(),
-    queryFn: () => apiClient.request<AdminCourse[]>('/api/courses/'),
+    queryFn: () => apiClient.request<AdminCourse[]>('/api/v1/courses/'),
   });
 }

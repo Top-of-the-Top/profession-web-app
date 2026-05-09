@@ -28,7 +28,7 @@ export function useRecordingHeartbeat({
 
     const sendHeartbeat = (currentTime: number) => {
       apiClient
-        .request<void>(`/api/statistics/recordings/${recordingId}/view/heartbeat/`, {
+        .request<void>(`/api/v1/statistics/recordings/${recordingId}/view/heartbeat/`, {
           method: 'POST',
           body: JSON.stringify({ current_position: Math.floor(currentTime) }),
         })

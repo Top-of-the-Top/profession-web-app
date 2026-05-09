@@ -98,7 +98,7 @@ export class ApiClient {
 
     let response: Response;
     try {
-      response = await fetch(`${API_URL}/api/auth/token/refresh/`, {
+      response = await fetch(`${API_URL}/api/v1/auth/token/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),

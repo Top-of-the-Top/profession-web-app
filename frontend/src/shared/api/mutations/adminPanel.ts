@@ -20,7 +20,7 @@ export function useCreateCourse() {
       duration_weeks?: number | null;
       min_age?: number | null;
     }) =>
-      apiClient.request<AdminCourse>('/api/courses/', {
+      apiClient.request<AdminCourse>('/api/v1/courses/', {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
@@ -38,7 +38,7 @@ export function usePatchAdminCourse(slug: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: Partial<{ title: string; sub_title: string; description: string; price: number }>) =>
-      apiClient.request<AdminCourse>(`/api/courses/${slug}/`, {
+      apiClient.request<AdminCourse>(`/api/v1/courses/${slug}/`, {
         method: 'PATCH',
         body: JSON.stringify(payload),
       }),
@@ -56,7 +56,7 @@ export function useDeleteAdminCourse() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (slug: string) =>
-      apiClient.request<void>(`/api/courses/${slug}/`, { method: 'DELETE' }),
+      apiClient.request<void>(`/api/v1/courses/${slug}/`, { method: 'DELETE' }),
     onSuccess: () => {
       notifySuccess({ title: 'Курс удалён' });
       void qc.invalidateQueries({ queryKey: adminKeys.courses() });
@@ -71,7 +71,7 @@ export function usePublishCourse() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (slug: string) =>
-      apiClient.request<{ status: string }>(`/api/admin-panel/courses/${slug}/publish/`, {
+      apiClient.request<{ status: string }>(`/api/v1/admin-panel/courses/${slug}/publish/`, {
         method: 'POST',
       }),
     onSuccess: () => {
@@ -88,7 +88,7 @@ export function useUnpublishCourse() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (slug: string) =>
-      apiClient.request<{ status: string }>(`/api/admin-panel/courses/${slug}/unpublish/`, {
+      apiClient.request<{ status: string }>(`/api/v1/admin-panel/courses/${slug}/unpublish/`, {
         method: 'POST',
       }),
     onSuccess: () => {
@@ -106,7 +106,7 @@ export function useAddCourseAuthor(courseSlug: string) {
   return useMutation({
     mutationFn: (userId: number) =>
       apiClient.request<AdminTeacher[]>(
-        `/api/admin-panel/courses/${courseSlug}/add-author/?user_id=${userId}`,
+        `/api/v1/admin-panel/courses/${courseSlug}/add-author/?user_id=${userId}`,
         { method: 'POST' },
       ),
     onSuccess: () => {
@@ -124,7 +124,7 @@ export function useRemoveCourseAuthor(courseSlug: string) {
   return useMutation({
     mutationFn: (userId: number) =>
       apiClient.request<AdminTeacher[]>(
-        `/api/admin-panel/courses/${courseSlug}/remove-author/?user_id=${userId}`,
+        `/api/v1/admin-panel/courses/${courseSlug}/remove-author/?user_id=${userId}`,
         { method: 'POST' },
       ),
     onSuccess: () => {
@@ -141,7 +141,7 @@ export function useSendInvite() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (email: string) =>
-      apiClient.request<AdminTeacherInvite>('/api/admin-panel/invites/send/', {
+      apiClient.request<AdminTeacherInvite>('/api/v1/admin-panel/invites/send/', {
         method: 'POST',
         body: JSON.stringify({ email }),
       }),

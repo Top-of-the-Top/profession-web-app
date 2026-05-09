@@ -205,14 +205,14 @@ class CartAuthUnitTests(SimpleTestCase):
 
     def test_cart_view_without_auth(self):
         """Тест что CartView возвращает 401 для неавторизованного"""
-        request = self.factory.get("/api/cart/")
+        request = self.factory.get("/api/v1/cart/")
         response = CartView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_cart_view_with_auth(self):
         """Тест что CartView работает для авторизованного"""
-        request = self.factory.get("/api/cart/")
+        request = self.factory.get("/api/v1/cart/")
         force_authenticate(request, user=self.auth_user)
 
         with (
@@ -231,14 +231,14 @@ class CartAuthUnitTests(SimpleTestCase):
 
     def test_add_to_cart_view_without_auth(self):
         """Тест что AddToCartView возвращает 401 для неавторизованного"""
-        request = self.factory.post("/api/cart/add/test-course/")
+        request = self.factory.post("/api/v1/cart/add/test-course/")
         response = AddToCartView.as_view()(request, slug="test-course")
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_add_to_cart_view_with_auth_course_not_found(self):
         """Тест AddToCartView с авторизацией но курс не найден"""
-        request = self.factory.post("/api/cart/add/non-existent/")
+        request = self.factory.post("/api/v1/cart/add/non-existent/")
         force_authenticate(request, user=self.auth_user)
 
         with (
@@ -255,7 +255,7 @@ class CartAuthUnitTests(SimpleTestCase):
 
     def test_add_to_cart_view_with_auth_success(self):
         """Тест успешного добавления курса авторизованным пользователем"""
-        request = self.factory.post("/api/cart/add/test-course/")
+        request = self.factory.post("/api/v1/cart/add/test-course/")
         force_authenticate(request, user=self.auth_user)
 
         mock_cart_item = MagicMock()
@@ -287,7 +287,7 @@ class CartAuthUnitTests(SimpleTestCase):
 
     def test_add_to_cart_view_course_already_in_cart(self):
         """Тест добавления курса который уже в корзине"""
-        request = self.factory.post("/api/cart/add/test-course/")
+        request = self.factory.post("/api/v1/cart/add/test-course/")
         force_authenticate(request, user=self.auth_user)
 
         with (
@@ -307,14 +307,14 @@ class CartAuthUnitTests(SimpleTestCase):
 
     def test_cart_item_view_without_auth(self):
         """Тест что CartItemView возвращает 401 для неавторизованного"""
-        request = self.factory.delete("/api/cart/remove/test-course/")
+        request = self.factory.delete("/api/v1/cart/remove/test-course/")
         response = CartItemView.as_view()(request, slug="test-course")
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_cart_item_view_with_auth_course_not_found(self):
         """Тест CartItemView с авторизацией но курс не найден в корзине"""
-        request = self.factory.delete("/api/cart/remove/test-course/")
+        request = self.factory.delete("/api/v1/cart/remove/test-course/")
         force_authenticate(request, user=self.auth_user)
 
         with (
@@ -333,7 +333,7 @@ class CartAuthUnitTests(SimpleTestCase):
 
     def test_cart_item_view_with_auth_success(self):
         """Тест успешного удаления курса из корзины авторизованным пользователем"""
-        request = self.factory.delete("/api/carts/remove/test-course/")
+        request = self.factory.delete("/api/v1/carts/remove/test-course/")
         force_authenticate(request, user=self.auth_user)
 
         mock_cart_item = MagicMock()
@@ -393,7 +393,7 @@ class CartViewUnitTests(SimpleTestCase):
 
     def test_cart_view_get_or_create_called(self):
         """Тест что get_or_create вызывается с правильным пользователем"""
-        request = self.factory.get("/api/cart/")
+        request = self.factory.get("/api/v1/cart/")
         force_authenticate(request, user=self.auth_user)
 
         mock_hot_cache = MagicMock()
@@ -413,7 +413,7 @@ class CartViewUnitTests(SimpleTestCase):
 
     def test_cart_view_returns_serialized_data(self):
         """Тест что CartView возвращает сериализованные данные"""
-        request = self.factory.get("/api/cart/")
+        request = self.factory.get("/api/v1/cart/")
         force_authenticate(request, user=self.auth_user)
 
         expected_data = {

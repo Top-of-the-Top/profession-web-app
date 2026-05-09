@@ -12,7 +12,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--url",
             required=True,
-            help="Полный URL callback-эндпоинта (например: https://professionkid.ru/api/kinescope/drm-auth/)",
+            help="Полный URL callback-эндпоинта (например: https://professionkid.ru/api/v1/kinescope/drm-auth/)",
         )
         parser.add_argument(
             "--username",

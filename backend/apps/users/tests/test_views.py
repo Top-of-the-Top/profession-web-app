@@ -35,7 +35,7 @@ class RegisterViewUnitTest(SimpleTestCase):
 
     def test_register_email_success_mocked(self):
         request = self.factory.post(
-            "/api/auth/register/",
+            "/api/v1/auth/register/",
             {"email": "student@example.com", "password": "StrongPass123!"},
             format="json",
         )
@@ -62,7 +62,7 @@ class RegisterViewUnitTest(SimpleTestCase):
 
     def test_register_phone_success_mocked(self):
         request = self.factory.post(
-            "/api/auth/register/",
+            "/api/v1/auth/register/",
             {"phone_number": "+79991234567", "password": "StrongPass123!"},
             format="json",
         )
@@ -88,7 +88,7 @@ class RegisterViewUnitTest(SimpleTestCase):
         send_mock.assert_called_once_with("+79991234567", "654321")
 
     def test_register_invalid_payload(self):
-        request = self.factory.post("/api/auth/register/", {}, format="json")
+        request = self.factory.post("/api/v1/auth/register/", {}, format="json")
         view = RegisterView.as_view()
         response = view(request)
 
@@ -97,7 +97,7 @@ class RegisterViewUnitTest(SimpleTestCase):
 
     def test_register_with_short_password(self):
         request = self.factory.post(
-            "/api/auth/register/",
+            "/api/v1/auth/register/",
             {"email": "test@example.com", "password": "short"},
             format="json",
         )
@@ -114,7 +114,7 @@ class RegisterViewUnitTest(SimpleTestCase):
 
     def test_register_rate_limited(self):
         request = self.factory.post(
-            "/api/auth/register/",
+            "/api/v1/auth/register/",
             {"email": "test@example.com", "password": "StrongPass123!"},
             format="json",
         )
@@ -146,7 +146,7 @@ class VerifyRegisterViewUnitTest(SimpleTestCase):
 
     def test_verify_register_success_mocked(self):
         request = self.factory.post(
-            "/api/auth/register/verify/",
+            "/api/v1/auth/register/verify/",
             {"phone_number": "+79991234567", "code": "123456"},
             format="json",
         )
@@ -173,7 +173,7 @@ class VerifyRegisterViewUnitTest(SimpleTestCase):
 
     def test_verify_register_invalid_code(self):
         request = self.factory.post(
-            "/api/auth/register/verify/",
+            "/api/v1/auth/register/verify/",
             {"phone_number": "+79991234567", "code": "000000"},
             format="json",
         )
@@ -190,7 +190,7 @@ class VerifyRegisterViewUnitTest(SimpleTestCase):
 
     def test_verify_register_invalid_payload(self):
         request = self.factory.post(
-            "/api/auth/register/verify/",
+            "/api/v1/auth/register/verify/",
             {},
             format="json",
         )
@@ -206,7 +206,7 @@ class LoginViewUnitTest(SimpleTestCase):
 
     def test_login_success_mocked(self):
         request = self.factory.post(
-            "/api/auth/login/",
+            "/api/v1/auth/login/",
             {"email": "student@example.com", "password": "StrongPass123!"},
             format="json",
         )
@@ -228,7 +228,7 @@ class LoginViewUnitTest(SimpleTestCase):
 
     def test_login_with_wrong_password(self):
         request = self.factory.post(
-            "/api/auth/login/",
+            "/api/v1/auth/login/",
             {"email": "test@example.com", "password": "wrongpassword"},
             format="json",
         )
@@ -245,7 +245,7 @@ class LoginViewUnitTest(SimpleTestCase):
 
     def test_login_without_contact(self):
         request = self.factory.post(
-            "/api/auth/login/",
+            "/api/v1/auth/login/",
             {"password": "testpass123"},
             format="json",
         )
@@ -266,7 +266,7 @@ class RefreshTokenViewUnitTest(SimpleTestCase):
         self.factory = APIRequestFactory()
 
     def test_refresh_requires_token(self):
-        request = self.factory.post("/api/auth/token/refresh/", {}, format="json")
+        request = self.factory.post("/api/v1/auth/token/refresh/", {}, format="json")
         response = RefreshTokenView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -274,7 +274,7 @@ class RefreshTokenViewUnitTest(SimpleTestCase):
 
     def test_refresh_invalid_token(self):
         request = self.factory.post(
-            "/api/auth/token/refresh/",
+            "/api/v1/auth/token/refresh/",
             {"refresh_token": "bad_token"},
             format="json",
         )
@@ -292,7 +292,7 @@ class ResetPasswordViewUnitTest(SimpleTestCase):
         os.environ["FRONTEND_HOST"] = "http://localhost:3000"
 
     def test_reset_requires_email_or_phone(self):
-        request = self.factory.post("/api/auth/reset/", {}, format="json")
+        request = self.factory.post("/api/v1/auth/reset/", {}, format="json")
         response = ResetPasswordView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -300,7 +300,7 @@ class ResetPasswordViewUnitTest(SimpleTestCase):
 
     def test_reset_user_not_found(self):
         request = self.factory.post(
-            "/api/auth/reset/",
+            "/api/v1/auth/reset/",
             {"email": "missing@example.com"},
             format="json",
         )
@@ -314,7 +314,7 @@ class ResetPasswordViewUnitTest(SimpleTestCase):
 
     def test_reset_success_mocked(self):
         request = self.factory.post(
-            "/api/auth/reset/",
+            "/api/v1/auth/reset/",
             {"email": "student@example.com"},
             format="json",
         )
@@ -340,7 +340,7 @@ class RecoverPasswordViewUnitTest(SimpleTestCase):
         self.factory = APIRequestFactory()
 
     def test_recover_requires_token_and_password(self):
-        request = self.factory.patch("/api/auth/recover/set/", {}, format="json")
+        request = self.factory.patch("/api/v1/auth/recover/set/", {}, format="json")
         response = RecoverPasswordView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -348,7 +348,7 @@ class RecoverPasswordViewUnitTest(SimpleTestCase):
 
     def test_recover_invalid_token(self):
         request = self.factory.patch(
-            "/api/auth/recover/set/",
+            "/api/v1/auth/recover/set/",
             {"token": "invalid", "password": "NewStrongPass123!"},
             format="json",
         )
@@ -362,7 +362,7 @@ class RecoverPasswordViewUnitTest(SimpleTestCase):
 
     def test_recover_success_mocked(self):
         request = self.factory.patch(
-            "/api/auth/recover/set/",
+            "/api/v1/auth/recover/set/",
             {"token": "valid-token", "password": "NewStrongPass123!"},
             format="json",
         )
@@ -388,14 +388,14 @@ class ProfileViewUnitTest(SimpleTestCase):
         self.factory = APIRequestFactory()
 
     def test_profile_requires_auth(self):
-        request = self.factory.get("/api/profile/")
+        request = self.factory.get("/api/v1/profile/")
         response = ProfileView.as_view()(request)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_profile_get_success_mocked(self):
         """Test successful profile retrieval"""
-        request = self.factory.get("/api/profile/")
+        request = self.factory.get("/api/v1/profile/")
         auth_user = SimpleNamespace(is_authenticated=True)
         force_authenticate(request, user=auth_user)
 
@@ -419,7 +419,7 @@ class ProfileViewUnitTest(SimpleTestCase):
         self.assertEqual(response.data["email"], "student@example.com")
 
     def test_profile_patch_validation_error(self):
-        request = self.factory.patch("/api/profile/", {"gender": "X"}, format="json")
+        request = self.factory.patch("/api/v1/profile/", {"gender": "X"}, format="json")
         auth_user = MagicMock(is_authenticated=True)
         force_authenticate(request, user=auth_user)
 
@@ -435,7 +435,7 @@ class ProfileViewUnitTest(SimpleTestCase):
 
     def test_profile_patch_success_mocked(self):
         request = self.factory.patch(
-            "/api/profile/",
+            "/api/v1/profile/",
             {"first_name": "Иван", "last_name": "Петров"},
             format="json",
         )
@@ -637,7 +637,7 @@ class RecoverPasswordPhoneViewUnitTest(SimpleTestCase):
 
     def test_recover_phone_invalid_payload(self):
         request = self.factory.post(
-            "/api/auth/recover/phone/",
+            "/api/v1/auth/recover/phone/",
             {},
             format="json",
         )
@@ -647,7 +647,7 @@ class RecoverPasswordPhoneViewUnitTest(SimpleTestCase):
 
     def test_recover_phone_non_digit_code(self):
         request = self.factory.post(
-            "/api/auth/recover/phone/",
+            "/api/v1/auth/recover/phone/",
             {"phone_number": "+79991234567", "code": "abcdef"},
             format="json",
         )
@@ -657,7 +657,7 @@ class RecoverPasswordPhoneViewUnitTest(SimpleTestCase):
 
     def test_recover_phone_user_not_found(self):
         request = self.factory.post(
-            "/api/auth/recover/phone/",
+            "/api/v1/auth/recover/phone/",
             {"phone_number": "+79991234567", "code": "123456"},
             format="json",
         )
@@ -671,7 +671,7 @@ class RecoverPasswordPhoneViewUnitTest(SimpleTestCase):
 
     def test_recover_phone_invalid_code(self):
         request = self.factory.post(
-            "/api/auth/recover/phone/",
+            "/api/v1/auth/recover/phone/",
             {"phone_number": "+79991234567", "code": "000000"},
             format="json",
         )
@@ -693,7 +693,7 @@ class RecoverPasswordPhoneViewUnitTest(SimpleTestCase):
 
     def test_recover_phone_success_mocked(self):
         request = self.factory.post(
-            "/api/auth/recover/phone/",
+            "/api/v1/auth/recover/phone/",
             {"phone_number": "+79991234567", "code": "123456"},
             format="json",
         )
@@ -719,7 +719,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_requires_auth(self):
         request = self.factory.post(
-            "/api/profile/verify_email/",
+            "/api/v1/profile/verify_email/",
             {"code": "123456"},
             format="json",
         )
@@ -729,7 +729,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_invalid_code_format(self):
         request = self.factory.post(
-            "/api/profile/verify_email/",
+            "/api/v1/profile/verify_email/",
             {"code": "short"},
             format="json",
         )
@@ -742,7 +742,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_verification_error(self):
         request = self.factory.post(
-            "/api/profile/verify_email/",
+            "/api/v1/profile/verify_email/",
             {"code": "000000"},
             format="json",
         )
@@ -760,7 +760,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_success_mocked(self):
         request = self.factory.post(
-            "/api/profile/verify_email/",
+            "/api/v1/profile/verify_email/",
             {"code": "123456"},
             format="json",
         )
@@ -782,7 +782,7 @@ class VerifyEmailChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_email_duplicate_blocked(self):
         request = self.factory.post(
-            "/api/profile/verify_email/",
+            "/api/v1/profile/verify_email/",
             {"code": "123456"},
             format="json",
         )
@@ -807,7 +807,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_requires_auth(self):
         request = self.factory.post(
-            "/api/profile/verify_phone/",
+            "/api/v1/profile/verify_phone/",
             {"code": "123456"},
             format="json",
         )
@@ -817,7 +817,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_verification_error(self):
         request = self.factory.post(
-            "/api/profile/verify_phone/",
+            "/api/v1/profile/verify_phone/",
             {"code": "000000"},
             format="json",
         )
@@ -835,7 +835,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_success_mocked(self):
         request = self.factory.post(
-            "/api/profile/verify_phone/",
+            "/api/v1/profile/verify_phone/",
             {"code": "123456"},
             format="json",
         )
@@ -857,7 +857,7 @@ class VerifyPhoneChangeViewUnitTest(SimpleTestCase):
 
     def test_verify_phone_duplicate_blocked(self):
         request = self.factory.post(
-            "/api/profile/verify_phone/",
+            "/api/v1/profile/verify_phone/",
             {"code": "123456"},
             format="json",
         )
@@ -900,7 +900,7 @@ class LoginViewLockoutUnitTest(SimpleTestCase):
                     attempt - 1,  # attempts_key check
                 ]
                 request = self.factory.post(
-                    "/api/auth/login/",
+                    "/api/v1/auth/login/",
                     {"email": "user@example.com", "password": "wrong"},
                     format="json",
                 )
@@ -913,7 +913,7 @@ class LoginViewLockoutUnitTest(SimpleTestCase):
 
     def test_login_returns_429_when_locked(self):
         request = self.factory.post(
-            "/api/auth/login/",
+            "/api/v1/auth/login/",
             {"email": "user@example.com", "password": "wrong"},
             format="json",
         )
@@ -933,7 +933,7 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
 
     def test_reset_phone_success_mocked(self):
         request = self.factory.post(
-            "/api/auth/reset/",
+            "/api/v1/auth/reset/",
             {"phone_number": "+79991234567"},
             format="json",
         )
@@ -961,7 +961,7 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
 
     def test_reset_phone_rate_limited(self):
         request = self.factory.post(
-            "/api/auth/reset/",
+            "/api/v1/auth/reset/",
             {"phone_number": "+79991234567"},
             format="json",
         )
@@ -983,7 +983,7 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
 
     def test_reset_phone_sms_failure(self):
         request = self.factory.post(
-            "/api/auth/reset/",
+            "/api/v1/auth/reset/",
             {"phone_number": "+79991234567"},
             format="json",
         )
@@ -1010,7 +1010,7 @@ class ResetPasswordViewPhoneUnitTest(SimpleTestCase):
     def test_reset_email_send_failure(self):
         os.environ["FRONTEND_HOST"] = "http://localhost:3000"
         request = self.factory.post(
-            "/api/auth/reset/",
+            "/api/v1/auth/reset/",
             {"email": "user@example.com"},
             format="json",
         )
@@ -1037,7 +1037,7 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
 
     def test_profile_patch_email_triggers_verification(self):
         request = self.factory.patch(
-            "/api/profile/",
+            "/api/v1/profile/",
             {"email": "new@example.com"},
             format="json",
         )
@@ -1073,7 +1073,7 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
 
     def test_profile_patch_phone_triggers_verification(self):
         request = self.factory.patch(
-            "/api/profile/",
+            "/api/v1/profile/",
             {"phone_number": "+79990001122"},
             format="json",
         )
@@ -1110,7 +1110,7 @@ class ProfileEmailPhoneChangeUnitTest(SimpleTestCase):
 
     def test_profile_patch_phone_rate_limited(self):
         request = self.factory.patch(
-            "/api/profile/",
+            "/api/v1/profile/",
             {"phone_number": "+79990001122"},
             format="json",
         )
@@ -1145,7 +1145,7 @@ class VerifyRegisterViewEmailUnitTest(SimpleTestCase):
 
     def test_verify_register_email_success_mocked(self):
         request = self.factory.post(
-            "/api/auth/register/verify/",
+            "/api/v1/auth/register/verify/",
             {"email": "new@example.com", "code": "123456"},
             format="json",
         )
@@ -1172,7 +1172,7 @@ class VerifyRegisterViewEmailUnitTest(SimpleTestCase):
 
     def test_verify_register_expired_code(self):
         request = self.factory.post(
-            "/api/auth/register/verify/",
+            "/api/v1/auth/register/verify/",
             {"email": "new@example.com", "code": "123456"},
             format="json",
         )

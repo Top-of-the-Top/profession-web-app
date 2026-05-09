@@ -49,7 +49,7 @@ class CourseDTOListUnitTest(SimpleTestCase):
         self.factory = APIRequestFactory()
 
     def test_list_returns_correct_structure(self):
-        request = self.factory.get("/api/landing/courses/")
+        request = self.factory.get("/api/v1/landing/courses/")
         view = CourseDTOList.as_view()
 
         mock_user = MagicMock()
@@ -72,14 +72,14 @@ class CourseViewSetUnitTest(SimpleTestCase):
         self.factory = APIRequestFactory()
 
     def test_list_requires_authentication(self):
-        request = self.factory.get("/api/courses/")
+        request = self.factory.get("/api/v1/courses/")
         view = CourseListView.as_view()
 
         response = view(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_requires_moderator_role(self):
-        request = self.factory.post("/api/courses/", {})
+        request = self.factory.post("/api/v1/courses/", {})
         mock_user = MagicMock()
         mock_user.is_authenticated = True
         mock_user.is_moderator.return_value = False
@@ -112,7 +112,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         create_test_course(title="Course 2", sub_title="Sub 2", price=2000)
 
         self.authenticate_user(self.student)
-        response = self.client.get("/api/courses/")
+        response = self.client.get("/api/v1/courses/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
@@ -122,7 +122,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         publish_course_tree(course)
 
         self.authenticate_user(self.student)
-        response = self.client.get(f"/api/courses/{course.slug}/")
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Test Course")
@@ -131,7 +131,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         course = create_test_course(title="Draft Course", sub_title="Sub", price=5000)
 
         self.authenticate_user(self.student)
-        response = self.client.get(f"/api/courses/{course.slug}/")
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -140,7 +140,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         student = self.create_enrolled_student(course)
 
         self.authenticate_user(student)
-        response = self.client.get(f"/api/courses/{course.slug}/")
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Draft Course")
@@ -155,7 +155,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
             "price": 10000,
         }
 
-        response = self.client.post("/api/courses/", data, format="json")
+        response = self.client.post("/api/v1/courses/", data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["title"], "New Course")
@@ -170,7 +170,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
             "price": 10000,
         }
 
-        response = self.client.post("/api/courses/", data, format="json")
+        response = self.client.post("/api/v1/courses/", data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_update_course_as_moderator(self):
@@ -179,7 +179,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         self.authenticate_user(self.moderator)
 
         data = {"title": "Updated Title"}
-        response = self.client.patch(f"/api/courses/{course.slug}/", data, format="json")
+        response = self.client.patch(f"/api/v1/courses/{course.slug}/", data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Updated Title")
@@ -191,7 +191,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         self.authenticate_user(self.teacher)
 
         data = {"title": "Updated Title"}
-        response = self.client.patch(f"/api/courses/{course.slug}/", data, format="json")
+        response = self.client.patch(f"/api/v1/courses/{course.slug}/", data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -199,7 +199,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         course = create_test_course()
 
         self.authenticate_user(self.moderator)
-        response = self.client.delete(f"/api/courses/{course.slug}/")
+        response = self.client.delete(f"/api/v1/courses/{course.slug}/")
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         course.refresh_from_db()
@@ -232,7 +232,7 @@ class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
         )
 
         self.authenticate_user(self.user)
-        response = self.client.get("/api/my-courses/")
+        response = self.client.get("/api/v1/my-courses/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
@@ -255,7 +255,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
         self.student = self.create_enrolled_student(self.course)
 
     def test_requires_auth(self):
-        response = self.client.get("/api/my-schedule/")
+        response = self.client.get("/api/v1/my-schedule/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_student_sees_webinar_for_enrolled_course(self):
@@ -267,7 +267,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
             ended_at=timezone.now() - timedelta(hours=1),
         )
         self.authenticate_user(self.student)
-        response = self.client.get("/api/my-schedule/")
+        response = self.client.get("/api/v1/my-schedule/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         items = response.data["items"]
         self.assertEqual(len(items), 1)
@@ -286,7 +286,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
             started_at=timezone.now() - timedelta(hours=1),
         )
         self.authenticate_user(self.student)
-        response = self.client.get("/api/my-schedule/")
+        response = self.client.get("/api/v1/my-schedule/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["items"]), 0)
 
@@ -299,7 +299,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
         solo_teacher = create_test_user(email="solo_teacher@test.com", role="teacher")
         self.course.authors.add(solo_teacher)
         self.authenticate_user(solo_teacher)
-        response = self.client.get("/api/my-schedule/")
+        response = self.client.get("/api/v1/my-schedule/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         items = response.data["items"]
         self.assertEqual(len(items), 1)
@@ -331,7 +331,9 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
     def test_lesson_retrieve(self):
         self.authenticate_user(self.student)
-        response = self.client.get(f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/")
+        response = self.client.get(
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Lesson 1")
         self.assertEqual(str(response.data["lesson_id"]), str(self.lesson.lesson_id))
@@ -346,7 +348,9 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.course.save(update_fields=["type"])
 
         self.authenticate_user(self.student)
-        response = self.client.get(f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/")
+        response = self.client.get(
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Lesson 1")
 
@@ -355,7 +359,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.course.save(update_fields=["type"])
 
         self.authenticate_user(self.student)
-        response = self.client.get(f"/api/courses/{self.course.slug}/home/")
+        response = self.client.get(f"/api/v1/courses/{self.course.slug}/home/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         content = response.data.get("content", [])
         self.assertGreaterEqual(len(content), 1)
@@ -370,7 +374,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
             "type": "draft",
         }
         response = self.client.post(
-            f"/api/courses/{self.course.slug}/lessons/", data, format="json"
+            f"/api/v1/courses/{self.course.slug}/lessons/", data, format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["title"], "New Lesson")
@@ -384,7 +388,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
     def test_lesson_create_post_rejects_content_use_put(self):
         self.authenticate_user(self.teacher)
         response = self.client.post(
-            f"/api/courses/{self.course.slug}/lessons/",
+            f"/api/v1/courses/{self.course.slug}/lessons/",
             {
                 "section": str(self.section.section_id),
                 "title": "With content",
@@ -407,7 +411,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
             "type": "draft",
         }
         response = self.client.post(
-            f"/api/courses/{self.course.slug}/lessons/",
+            f"/api/v1/courses/{self.course.slug}/lessons/",
             data,
             format="json",
         )
@@ -418,7 +422,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.authenticate_user(self.teacher)
         update_data = {"title": "Updated Lesson"}
         response = self.client.put(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/",
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/",
             update_data,
             format="json",
         )
@@ -433,7 +437,9 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         initial_count = Lesson.objects.filter(section=self.section).count()
 
         self.authenticate_user(self.teacher)
-        response = self.client.delete(f"/api/courses/{self.course.slug}/lessons/{new_lesson.slug}/")
+        response = self.client.delete(
+            f"/api/v1/courses/{self.course.slug}/lessons/{new_lesson.slug}/"
+        )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         self.assertEqual(Lesson.objects.filter(section=self.section).count(), initial_count - 1)
@@ -441,7 +447,9 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
     def test_lesson_includes_homework_briefs(self):
         self.authenticate_user(self.student)
-        response = self.client.get(f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/")
+        response = self.client.get(
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["content"]["homeworks"]), 1)
         hw = response.data["content"]["homeworks"][0]
@@ -453,7 +461,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
     def test_homework_list_get_not_allowed(self):
         self.authenticate_user(self.student)
         response = self.client.get(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/"
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/"
         )
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -468,7 +476,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.authenticate_user(self.student)
         response = self.client.get(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/"
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/"
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "HW 1")
@@ -481,7 +489,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
     def test_homework_create_then_tasks_and_questions_via_separate_endpoints(self):
         self.authenticate_user(self.teacher)
-        base = f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/"
+        base = f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/"
         create_data = {
             "title": "New Homework",
             "deadline": (timezone.now() + timedelta(days=14)).isoformat(),
@@ -521,7 +529,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.authenticate_user(self.teacher)
         response = self.client.patch(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/",
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/",
             {"title": "Updated Homework"},
             format="json",
         )
@@ -529,14 +537,14 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.data["title"], "Updated Homework")
 
         r_patch_task = self.client.patch(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/{old_task.task_id}/",
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/{old_task.task_id}/",
             {"text": "Updated Old Task", "max_points": 15},
             format="json",
         )
         self.assertEqual(r_patch_task.status_code, status.HTTP_200_OK)
 
         r_new_task = self.client.post(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/",
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/",
             {"text": "New Task", "max_points": 20},
             format="json",
         )
@@ -560,7 +568,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.authenticate_user(self.teacher)
         response = self.client.delete(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/{task2.task_id}/",
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/tasks/{task2.task_id}/",
         )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
@@ -574,7 +582,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.authenticate_user(self.teacher)
         response = self.client.delete(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{new_homework.slug}/"
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{new_homework.slug}/"
         )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
@@ -593,7 +601,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.authenticate_user(self.student)
         response = self.client.get(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/"
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/"
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["items"]), 3)
@@ -611,11 +619,13 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         self.authenticate_user(other_student)
 
-        response = self.client.get(f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/")
+        response = self.client.get(
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/"
+        )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
         response = self.client.get(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/"
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/"
         )
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -626,7 +636,7 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
 
         data = {"title": "Updated Lesson Title"}
         response = self.client.put(
-            f"/api/courses/{self.course.slug}/lessons/{self.lesson.slug}/",
+            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/",
             data,
             format="json",
         )
@@ -655,7 +665,7 @@ class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
         self.authenticate_user(self.teacher)
 
         create_response = self.client.post(
-            f"/api/courses/{self.course.slug}/lessons/",
+            f"/api/v1/courses/{self.course.slug}/lessons/",
             {
                 "section": str(self.section.section_id),
                 "title": "Lesson local placeholder",
@@ -683,7 +693,7 @@ class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
         }
         png = SimpleUploadedFile("x.png", b"\x89PNG\r\n\x1a\n", content_type="image/png")
         response = self.client.put(
-            f"/api/courses/{self.course.slug}/lessons/{lesson_slug}/",
+            f"/api/v1/courses/{self.course.slug}/lessons/{lesson_slug}/",
             {
                 "title": "Lesson local placeholder",
                 "type": "draft",
@@ -725,7 +735,7 @@ class RBACIntegrationTest(BaseTestCase, ViewTestMixin):
             "description": "Desc",
             "price": 1000,
         }
-        response = self.client.post("/api/courses/", data, format="json")
+        response = self.client.post("/api/v1/courses/", data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_teacher_cannot_modify_others_course(self):
@@ -733,21 +743,21 @@ class RBACIntegrationTest(BaseTestCase, ViewTestMixin):
         self.authenticate_user(other_teacher)
 
         data = {"title": "Hacked"}
-        response = self.client.patch(f"/api/courses/{self.course.slug}/", data, format="json")
+        response = self.client.patch(f"/api/v1/courses/{self.course.slug}/", data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_moderator_can_modify_any_course(self):
         self.authenticate_user(self.moderator)
 
         data = {"title": "Moderated"}
-        response = self.client.patch(f"/api/courses/{self.course.slug}/", data, format="json")
+        response = self.client.patch(f"/api/v1/courses/{self.course.slug}/", data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_unauthenticated_cannot_access_protected_endpoints(self):
-        response = self.client.get("/api/courses/")
+        response = self.client.get("/api/v1/courses/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        response = self.client.get("/api/my-courses/")
+        response = self.client.get("/api/v1/my-courses/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
@@ -771,7 +781,7 @@ class LandingCoursesIntegrationTest(BaseTestCase):
             title="Course 2", sub_title="Sub 2", price=2000, type=Course.PUBLISHED_STATUS
         )
 
-        response = self.client.get("/api/landing/courses/")
+        response = self.client.get("/api/v1/landing/courses/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("number_of_courses", response.data)

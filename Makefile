@@ -5,6 +5,15 @@ CELERY_SVC = celery_worker
 APP        ?=
 DIR        ?= apps
 ARGS       ?=
+VERBOSITY  ?=
+
+ifneq ($(APP),)
+ifeq ($(filter apps.%,$(APP)),$(APP))
+DJANGO_TEST_LABEL := $(APP)
+else
+DJANGO_TEST_LABEL := apps.$(APP)
+endif
+endif
 
 .PHONY: help
 help: ## Показать список доступных команд
@@ -77,13 +86,27 @@ shell: ## Django shell
 	$(MANAGE) shell
 
 .PHONY: test
-test: ## Запустить тесты
-	$(MANAGE) test
+test: ## Тесты: make test; APP=apps.notifications; ARGS — ARGS='-v 2'; см. test-notifications-pipeline, test-homework-review-notifications
+	$(MANAGE) test $(APP) $(ARGS)
 
 .PHONY: test-app
-test-app: ## Запустить тесты по app (APP=homeworks)
-	@if [ -z "$(APP)" ]; then echo "Usage: make test-app APP=<app_label>"; exit 1; fi
-	$(MANAGE) test $(APP)
+test-app: ## То же, что make test APP=… (оставлено для привычки)
+	@if [ -z "$(APP)" ]; then echo "Usage: make test APP=apps.<имя>   или   make test-app APP=apps.<имя>"; exit 1; fi
+	$(MANAGE) test $(APP) $(ARGS)
+
+.PHONY: test-homework-review-notifications test-homeworks-e2e
+test-homework-review-notifications: ## ДЗ: ревью → почта + payload для SSE + Notification в БД
+	$(MANAGE) test apps.homeworks.tests.test_homework_review_student_notification_pipeline.HomeworkReviewStudentNotificationPipelineTests.test_review_triggers_student_notifications \
+		$(if $(strip $(VERBOSITY)),-v $(VERBOSITY)) $(ARGS)
+
+test-homeworks-e2e: ## Алиас make test-homework-review-notifications
+	$(MANAGE) test apps.homeworks.tests.test_homework_review_student_notification_pipeline.HomeworkReviewStudentNotificationPipelineTests.test_review_triggers_student_notifications \
+		$(if $(strip $(VERBOSITY)),-v $(VERBOSITY)) $(ARGS)
+
+.PHONY: test-notifications-pipeline
+test-notifications-pipeline: ## Уведомления: событие проверки ДЗ → БД + почта + перехват publish_event (сквозной)
+	$(MANAGE) test apps.notifications.tests.test_homework_reviewed_dispatch_pipeline.HomeworkReviewedDispatchPipelineTests.test_dispatch_homework_reviewed_personal_mail_and_publish_payload \
+		$(if $(strip $(VERBOSITY)),-v $(VERBOSITY)) $(ARGS)
 
 .PHONY: bash
 bash: ## Bash внутри контейнера backend

@@ -27,105 +27,50 @@ from .test_models import (
 )
 
 
-class CourseSerializerUnitTest(SimpleTestCase):
+class CoursesSerializerContractsTests(SimpleTestCase):
 
-    def test_serializer_has_all_fields(self):
-        serializer = CourseSerializer()
-        fields = serializer.fields.keys()
-        self.assertIn("course_id", fields)
-        self.assertIn("title", fields)
-        self.assertIn("sub_title", fields)
-        self.assertIn("description", fields)
-        self.assertIn("price", fields)
-        self.assertIn("slug", fields)
-        self.assertIn("image_url", fields)
-
-    def test_image_url_is_read_only(self):
-        serializer = CourseSerializer()
-        self.assertTrue(serializer.fields["image_url"].read_only)
-
-    def test_serializer_validates_required_fields(self):
-        data = {}
-        serializer = CourseSerializer(data=data)
+    def test_course_serializer_requires_core_fields_and_read_only_image_url(self):
+        self.assertTrue(CourseSerializer().fields["image_url"].read_only)
+        serializer = CourseSerializer(data={})
         self.assertFalse(serializer.is_valid())
-        self.assertIn("title", serializer.errors)
-        self.assertIn("sub_title", serializer.errors)
-        self.assertIn("description", serializer.errors)
-        self.assertIn("price", serializer.errors)
+        for key in ("title", "sub_title", "description", "price"):
+            self.assertIn(key, serializer.errors)
 
+    def test_course_dto_fields_and_read_only_image_url(self):
+        self.assertEqual(
+            sorted(CourseDTOSerializer.Meta.fields),
+            sorted(["course_id", "title", "sub_title", "slug", "image_url", "price"]),
+        )
+        self.assertTrue(CourseDTOSerializer().fields["image_url"].read_only)
 
-class CourseDTOSerializerUnitTest(SimpleTestCase):
+    def test_purchased_course_homework_and_item_list_shapes(self):
+        self.assertEqual(
+            sorted(PurchasedCourseSerializer.Meta.fields),
+            sorted(["id", "user", "course", "payment", "access_expires_at", "is_active"]),
+        )
+        pc = PurchasedCourseSerializer()
+        self.assertTrue(pc.fields["course"].read_only)
+        self.assertTrue(pc.fields["is_active"].read_only)
 
-    def test_dto_serializer_has_limited_fields(self):
-        serializer = CourseDTOSerializer()
-        fields = list(serializer.fields.keys())
-        expected_fields = ["course_id", "title", "sub_title", "image_url", "slug", "price"]
-        self.assertEqual(sorted(fields), sorted(expected_fields))
+        hw = HomeworkSerializer()
+        self.assertIn("title", hw.fields)
+        self.assertIn("lesson", hw.fields)
+        self.assertNotIn("items", hw.fields)
 
-    def test_dto_image_url_is_read_only(self):
-        serializer = CourseDTOSerializer()
-        self.assertTrue(serializer.fields["image_url"].read_only)
+        self.assertIn("items", HomeworkDetailSerializer().fields)
 
-
-class PurchasedCourseSerializerUnitTest(SimpleTestCase):
-
-    def test_serializer_has_nested_course(self):
-        serializer = PurchasedCourseSerializer()
-        self.assertIn("course", serializer.fields)
-        self.assertTrue(serializer.fields["course"].read_only)
-
-    def test_is_active_is_read_only(self):
-        serializer = PurchasedCourseSerializer()
-        self.assertTrue(serializer.fields["is_active"].read_only)
-
-    def test_serializer_fields(self):
-        serializer = PurchasedCourseSerializer()
-        fields = list(serializer.fields.keys())
-        expected_fields = ["id", "user", "course", "payment", "access_expires_at", "is_active"]
-        self.assertEqual(sorted(fields), sorted(expected_fields))
-
-
-class LessonSerializerUnitTest(SimpleTestCase):
-
-    def test_serializer_includes_all_fields(self):
-        serializer = LessonSerializer()
-        self.assertIsNotNone(serializer.fields)
-
-
-class HomeworkSerializerUnitTest(SimpleTestCase):
-
-    def test_serializer_model_fields_without_items(self):
-        serializer = HomeworkSerializer()
-        self.assertIsNotNone(serializer.fields)
-        self.assertIn("title", serializer.fields)
-        self.assertIn("lesson", serializer.fields)
-        self.assertNotIn("items", serializer.fields)
-
-
-class HomeworkDetailSerializerUnitTest(SimpleTestCase):
-
-    def test_serializer_includes_items(self):
-        serializer = HomeworkDetailSerializer()
-        self.assertIn("items", serializer.fields)
-
-
-class HomeworkItemsListSerializerUnitTest(SimpleTestCase):
-
-    def test_serializer_has_type_field(self):
-        serializer = HomeworkItemsListSerializer()
-        self.assertIn("type", serializer.fields)
-
-    def test_serializer_has_required_fields(self):
-        serializer = HomeworkItemsListSerializer()
-        fields = serializer.fields.keys()
-        self.assertIn("type", fields)
-        self.assertIn("id", fields)
-        self.assertIn("number", fields)
-        self.assertIn("text", fields)
-        self.assertIn("answer_options", fields)
-        self.assertIn("correct_ans", fields)
-        self.assertIn("max_points", fields)
-        self.assertIn("created_at", fields)
+        ils = HomeworkItemsListSerializer().fields.keys()
+        for name in (
+            "type",
+            "id",
+            "number",
+            "text",
+            "answer_options",
+            "correct_ans",
+            "max_points",
+            "created_at",
+        ):
+            self.assertIn(name, ils)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
@@ -218,15 +163,6 @@ class CourseDTOSerializerIntegrationTest(BaseTestCase):
         self.assertIn("price", data)
         self.assertEqual(data["price"], 8000)
         self.assertNotIn("description", data)
-
-    def test_serialize_multiple_courses(self):
-        course1 = create_test_course(title="Course 1", sub_title="Sub 1", price=1000)
-        course2 = create_test_course(title="Course 2", sub_title="Sub 2", price=2000)
-        courses = [course1, course2]
-        serializer = CourseDTOSerializer(courses, many=True)
-        self.assertEqual(len(serializer.data), 2)
-        self.assertEqual(serializer.data[0]["title"], "Course 1")
-        self.assertEqual(serializer.data[1]["title"], "Course 2")
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

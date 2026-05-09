@@ -63,6 +63,7 @@ class WebinarTokenSerializerTest(BaseWebinarTestCase):
             "whiteboard_room_token": "wbtok",
             "whiteboard_region": "eu",
             "role": "teacher",
+            "started_at": None,
         }
         serializer = WebinarTokenSerializer(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
@@ -87,6 +88,7 @@ class WebinarTokenSerializerTest(BaseWebinarTestCase):
                 "whiteboard_room_token": "wbtok",
                 "whiteboard_region": "eu",
                 "role": "teacher",
+                "started_at": None,
             }
         )
         self.assertFalse(serializer.is_valid())

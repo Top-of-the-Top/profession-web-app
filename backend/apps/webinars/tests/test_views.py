@@ -882,8 +882,9 @@ class WebinarStartIdempotencyTest(WebinarEndpointsBase):
         self.assertEqual(Webinar.objects.filter(lesson=self.lesson).count(), 1)
 
 
-@patch("apps.notifications.tasks.send_course_notification.delay")
-@patch("apps.webinars.api.views.invalidate_lesson_detail_cache")
+@patch("apps.notifications.tasks.send_course_notification")
+@patch("apps.notifications.tasks.send_webinar_scheduled_notification")
+@patch("apps.webinars.signals.invalidate_lesson_detail_cache")
 class WebinarScheduleViewTest(WebinarEndpointsBase):
     SCHEDULE_PAYLOAD = {"scheduled_at": "2026-06-01T18:00:00Z"}
 
@@ -901,7 +902,9 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
         response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_author_creates_webinar_and_sets_scheduled_at(self, mock_invalidate, mock_notify, *_):
+    def test_author_creates_webinar_and_sets_scheduled_at(
+        self, mock_invalidate, mock_webinar_notify, mock_course_notify, *_
+    ):
         self.authenticate(self.teacher)
         response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -909,18 +912,20 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
         self.assertIsNotNone(webinar.scheduled_at)
         self.assertEqual(response.data["webinar_id"], str(webinar.webinar_id))
         self.assertEqual(webinar.status, Webinar.PENDING_STATUS)
-        mock_invalidate.assert_called_once_with(self.course.slug, self.lesson.slug)
-        mock_notify.assert_called_once()
-        title = mock_notify.call_args.args[1]
+        mock_invalidate.assert_called_with(self.course.slug, self.lesson.slug)
+        self.assertEqual(mock_invalidate.call_count, 2)
+        mock_webinar_notify.delay.assert_called_once()
+        mock_course_notify.delay.assert_not_called()
+        title = mock_webinar_notify.delay.call_args.kwargs["title"]
         self.assertIn("Назначен вебинар", title)
 
-    def test_moderator_can_schedule(self, mock_invalidate, mock_notify, *_):
+    def test_moderator_can_schedule(self, *_):
         self.authenticate(self.moderator)
         response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_existing_pending_update_sends_change_notification(
-        self, mock_invalidate, mock_notify, *_
+        self, mock_invalidate, mock_webinar_notify, mock_course_notify, *_
     ):
         Webinar.objects.create(
             lesson=self.lesson, scheduled_at=timezone.now(), status=Webinar.PENDING_STATUS
@@ -928,10 +933,14 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
         self.authenticate(self.teacher)
         response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        title = mock_notify.call_args.args[1]
+        mock_webinar_notify.delay.assert_called_once()
+        mock_course_notify.delay.assert_not_called()
+        title = mock_webinar_notify.delay.call_args.kwargs["title"]
         self.assertIn("Время вебинара изменено", title)
 
-    def test_clearing_schedule_sends_cancel_notification(self, mock_invalidate, mock_notify, *_):
+    def test_clearing_schedule_sends_cancel_notification(
+        self, mock_invalidate, mock_webinar_notify, mock_course_notify, *_
+    ):
         Webinar.objects.create(
             lesson=self.lesson, scheduled_at=timezone.now(), status=Webinar.PENDING_STATUS
         )
@@ -940,7 +949,9 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         webinar = Webinar.objects.get(lesson=self.lesson)
         self.assertIsNone(webinar.scheduled_at)
-        title = mock_notify.call_args.args[1]
+        mock_course_notify.delay.assert_called_once()
+        mock_webinar_notify.delay.assert_not_called()
+        title = mock_course_notify.delay.call_args.args[1]
         self.assertIn("Вебинар отменён", title)
 
     def test_live_webinar_returns_409(self, *_):

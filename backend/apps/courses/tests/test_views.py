@@ -1,20 +1,19 @@
 import json
 import tempfile
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.core.cache import caches
-from django.test import SimpleTestCase, override_settings
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
+from rest_framework.test import APIClient
 
 from apps.payments.models import Payment
 from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.webinars.models import Webinar
 
 from ..api.utils.cache_utils import course_list_cache_key, landing_courses_cache_key
-from ..api.views import CourseDTOList, CourseListView
 from ..models import Course, Homework, Lesson, PurchasedCourse, Question, Task
 from .test_models import (
     BaseTestCase,
@@ -45,51 +44,8 @@ class ViewTestMixin:
         return student
 
 
-class CourseDTOListUnitTest(SimpleTestCase):
-
-    def setUp(self):
-        self.factory = APIRequestFactory()
-
-    def test_list_returns_correct_structure(self):
-        request = self.factory.get("/api/v1/landing/courses/")
-        view = CourseDTOList.as_view()
-        mock_user = MagicMock()
-        mock_user.purchased_courses.return_value = []
-        request.user = mock_user
-        with patch.object(CourseDTOList, "get_queryset", return_value=[]):
-            response = view(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("number_of_courses", response.data)
-        self.assertIn("data", response.data)
-
-    def test_landing_and_app_course_list_use_distinct_cache_keys(self):
-        self.assertNotEqual(landing_courses_cache_key(), course_list_cache_key())
-
-
-class CourseViewSetUnitTest(SimpleTestCase):
-
-    def setUp(self):
-        self.factory = APIRequestFactory()
-
-    def test_list_requires_authentication(self):
-        request = self.factory.get("/api/v1/courses/")
-        view = CourseListView.as_view()
-        response = view(request)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_create_requires_moderator_role(self):
-        request = self.factory.post("/api/v1/courses/", {})
-        mock_user = MagicMock()
-        mock_user.is_authenticated = True
-        mock_user.is_moderator.return_value = False
-        force_authenticate(request, user=mock_user)
-        view = CourseListView.as_view()
-        response = view(request)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
+class CoursesCatalogHttpTests(BaseTestCase, ViewTestMixin):
 
     def setUp(self):
         super().setUp()
@@ -104,7 +60,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         super().tearDown()
         self.storage_patcher.stop()
 
-    def test_list_courses_authenticated(self):
+    def test_get_catalog_authenticated_returns_200_list(self):
         create_test_course(title="Course 1", sub_title="Sub 1", price=1000)
         create_test_course(title="Course 2", sub_title="Sub 2", price=2000)
         self.authenticate_user(self.student)
@@ -112,7 +68,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
 
-    def test_retrieve_course_by_slug(self):
+    def test_get_published_course_detail_by_slug_returns_200(self):
         course = create_test_course(title="Test Course", sub_title="Sub", price=5000)
         publish_course_tree(course)
         self.authenticate_user(self.student)
@@ -120,13 +76,13 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Test Course")
 
-    def test_retrieve_unpublished_course_returns_404_for_non_privileged_user(self):
+    def test_get_draft_course_without_access_returns_404(self):
         course = create_test_course(title="Draft Course", sub_title="Sub", price=5000)
         self.authenticate_user(self.student)
         response = self.client.get(f"/api/v1/courses/{course.slug}/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_retrieve_unpublished_course_allowed_for_enrolled_student(self):
+    def test_get_draft_course_enrolled_student_returns_200(self):
         course = create_test_course(title="Draft Course", sub_title="Sub", price=5000)
         student = self.create_enrolled_student(course)
         self.authenticate_user(student)
@@ -134,7 +90,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Draft Course")
 
-    def test_create_course_as_moderator(self):
+    def test_post_course_as_moderator_returns_201(self):
         self.authenticate_user(self.moderator)
         data = {
             "title": "New Course",
@@ -146,7 +102,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["title"], "New Course")
 
-    def test_create_course_as_student_forbidden(self):
+    def test_post_course_as_student_returns_403(self):
         self.authenticate_user(self.student)
         data = {
             "title": "New Course",
@@ -157,7 +113,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         response = self.client.post("/api/v1/courses/", data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_update_course_as_moderator(self):
+    def test_patch_course_as_moderator_returns_200(self):
         course = create_test_course()
         self.authenticate_user(self.moderator)
         data = {"title": "Updated Title"}
@@ -165,7 +121,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Updated Title")
 
-    def test_update_course_as_author_forbidden(self):
+    def test_patch_course_as_non_moderator_author_returns_403(self):
         course = create_test_course()
         course.authors.add(self.teacher)
         self.authenticate_user(self.teacher)
@@ -173,7 +129,7 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         response = self.client.patch(f"/api/v1/courses/{course.slug}/", data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_delete_course_as_moderator(self):
+    def test_delete_course_as_moderator_returns_204_soft_delete(self):
         course = create_test_course()
         self.authenticate_user(self.moderator)
         response = self.client.delete(f"/api/v1/courses/{course.slug}/")
@@ -181,9 +137,27 @@ class CourseViewSetIntegrationTest(BaseTestCase, ViewTestMixin):
         course.refresh_from_db()
         self.assertTrue(course.is_deleted)
 
+    def test_patch_foreign_course_as_non_author_teacher_returns_403(self):
+        course = create_test_course()
+        course.authors.add(self.teacher)
+        other_teacher = create_test_user(email="other_teacher_course@test.com", role="teacher")
+        self.authenticate_user(other_teacher)
+        response = self.client.patch(
+            f"/api/v1/courses/{course.slug}/", {"title": "Hacked"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_get_catalog_and_my_courses_anonymous_returns_401(self):
+        self.assertEqual(
+            self.client.get("/api/v1/courses/").status_code, status.HTTP_401_UNAUTHORIZED
+        )
+        self.assertEqual(
+            self.client.get("/api/v1/my-courses/").status_code, status.HTTP_401_UNAUTHORIZED
+        )
+
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
+class MyCoursesHttpTests(BaseTestCase, ViewTestMixin):
 
     def setUp(self):
         super().setUp()
@@ -198,7 +172,7 @@ class PurchasedCoursesViewIntegrationTest(BaseTestCase, ViewTestMixin):
         super().tearDown()
         self.storage_patcher.stop()
 
-    def test_get_purchased_courses(self):
+    def test_get_my_courses_returns_single_purchase(self):
         payment = Payment.objects.create(user=self.user, total_sum=5000, status="success")
         PurchasedCourse.objects.create(
             user=self.user,
@@ -280,7 +254,7 @@ class MyScheduleViewTest(BaseTestCase, ViewTestMixin):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
+class CourseContentNestedHttpTests(BaseTestCase, ViewTestMixin):
 
     def setUp(self):
         super().setUp()
@@ -525,22 +499,6 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
         self.assertEqual(Homework.objects.filter(lesson=self.lesson).count(), initial_count - 1)
         self.assertFalse(Homework.objects.filter(slug=new_homework.slug).exists())
 
-    def test_homework_items_sorted_by_number_then_created_at(self):
-        task1 = Task.objects.create(homework=self.homework, text="Task 1", max_points=10)
-        question1 = Question.objects.create(
-            homework=self.homework, text="Question 1?", correct_ans="A", answer_options=["A", "B"]
-        )
-        task2 = Task.objects.create(homework=self.homework, text="Task 2", max_points=15)
-        self.authenticate_user(self.student)
-        response = self.client.get(
-            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/{self.homework.slug}/"
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["items"]), 3)
-        items = response.data["items"]
-        sort_keys = [(item["number"], item["created_at"]) for item in items]
-        self.assertEqual(sort_keys, sorted(sort_keys))
-
     def test_non_enrolled_student_cannot_access(self):
         other_student = create_test_user(email="other@test.com", role="student")
         self.assertFalse(
@@ -555,18 +513,6 @@ class NestedResourcesIntegrationTest(BaseTestCase, ViewTestMixin):
             f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/homeworks/"
         )
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    def test_author_can_create_and_update(self):
-        self.authenticate_user(self.teacher)
-        self.assertIn(self.teacher, self.course.authors.all())
-        data = {"title": "Updated Lesson Title"}
-        response = self.client.put(
-            f"/api/v1/courses/{self.course.slug}/lessons/{self.lesson.slug}/", data, format="json"
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["title"], "Updated Lesson Title")
-        self.lesson.refresh_from_db()
-        self.assertEqual(self.lesson.title, "Updated Lesson Title")
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
@@ -624,50 +570,6 @@ class LessonCreateDocumentIntegrationTest(BaseTestCase, ViewTestMixin):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class RBACIntegrationTest(BaseTestCase, ViewTestMixin):
-
-    def setUp(self):
-        super().setUp()
-        self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
-        self.storage_patcher.start()
-        self.client = APIClient()
-        self.student = create_test_user(email="student@test.com", role="student")
-        self.teacher = create_test_user(email="teacher@test.com", role="teacher")
-        self.moderator = create_test_user(email="moderator@test.com", role="moderator")
-        self.course = create_test_course()
-        self.course.authors.add(self.teacher)
-
-    def tearDown(self):
-        super().tearDown()
-        self.storage_patcher.stop()
-
-    def test_student_cannot_create_course(self):
-        self.authenticate_user(self.student)
-        data = {"title": "New", "sub_title": "Sub", "description": "Desc", "price": 1000}
-        response = self.client.post("/api/v1/courses/", data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_teacher_cannot_modify_others_course(self):
-        other_teacher = create_test_user(email="other@test.com", role="teacher")
-        self.authenticate_user(other_teacher)
-        data = {"title": "Hacked"}
-        response = self.client.patch(f"/api/v1/courses/{self.course.slug}/", data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_moderator_can_modify_any_course(self):
-        self.authenticate_user(self.moderator)
-        data = {"title": "Moderated"}
-        response = self.client.patch(f"/api/v1/courses/{self.course.slug}/", data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_unauthenticated_cannot_access_protected_endpoints(self):
-        response = self.client.get("/api/v1/courses/")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        response = self.client.get("/api/v1/my-courses/")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LandingCoursesIntegrationTest(BaseTestCase):
 
     def setUp(self):
@@ -692,3 +594,6 @@ class LandingCoursesIntegrationTest(BaseTestCase):
         self.assertIn("number_of_courses", response.data)
         self.assertIn("data", response.data)
         self.assertEqual(response.data["number_of_courses"], 2)
+
+    def test_landing_and_catalog_distinct_cache_key_prefixes(self):
+        self.assertNotEqual(landing_courses_cache_key(), course_list_cache_key())

@@ -15,7 +15,7 @@ ASGI_APPLICATION = "project.asgi.application"
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-ci-secret-key-for-tests-only")
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost","127.0.0.1").split(",")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(

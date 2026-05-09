@@ -2,7 +2,7 @@ import json
 
 from django.db.models import Prefetch
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema_field
 from rest_framework import serializers
 
 from apps.core.meta_management.errors import AssetError
@@ -733,18 +733,60 @@ class UserWebinarListItemSerializer(serializers.Serializer):
     ended_at = serializers.DateTimeField(allow_null=True)
 
 
+class WebinarScheduleItemSerializer(serializers.Serializer):
+    type = serializers.CharField(default="webinar")
+    datetime = serializers.DateTimeField()
+    course_title = serializers.CharField()
+    course_slug = serializers.CharField()
+    title = serializers.CharField()
+    webinar_id = serializers.UUIDField()
+    lesson_slug = serializers.SlugField()
+    webinar_status = serializers.ChoiceField(choices=["pending", "live", "ended"])
+    scheduled_at = serializers.DateTimeField(allow_null=True)
+
+
+class HomeworkScheduleItemSerializer(serializers.Serializer):
+    type = serializers.CharField(default="homework")
+    datetime = serializers.DateTimeField()
+    course_title = serializers.CharField()
+    course_slug = serializers.CharField()
+    title = serializers.CharField()
+    homework_id = serializers.UUIDField()
+    homework_slug = serializers.SlugField()
+    homework_lesson_slug = serializers.SlugField()
+    deadline = serializers.DateTimeField()
+    attempt_status = serializers.CharField(allow_null=True)
+
+
 class ScheduleItemSerializer(serializers.Serializer):
     TYPE_WEBINAR = "webinar"
     TYPE_HOMEWORK = "homework"
 
-    type = serializers.ChoiceField(choices=[TYPE_WEBINAR, TYPE_HOMEWORK])
-    datetime = serializers.DateTimeField()
-    course_title = serializers.CharField()
-    title = serializers.CharField()
+    def to_representation(self, instance):
+        if instance["type"] == self.TYPE_WEBINAR:
+            return WebinarScheduleItemSerializer(instance).data
+        elif instance["type"] == self.TYPE_HOMEWORK:
+            return HomeworkScheduleItemSerializer(instance).data
+        return instance
+
+
+_ScheduleItemPolymorphic = PolymorphicProxySerializer(
+    component_name="ScheduleItem",
+    resource_type_field_name="type",
+    serializers={
+        "webinar": WebinarScheduleItemSerializer,
+        "homework": HomeworkScheduleItemSerializer,
+    },
+    many=True,
+)
 
 
 class ScheduleResponseSerializer(serializers.Serializer):
-    items = ScheduleItemSerializer(many=True)
+    items = serializers.SerializerMethodField()
+
+    @extend_schema_field(_ScheduleItemPolymorphic)
+    def get_items(self, obj):
+        return obj.get("items", [])
 
 
 class MyContentLessonSerializer(serializers.ModelSerializer):

@@ -354,33 +354,66 @@ class MyScheduleView(APIView):
                 homework_q |= Q(lesson__section__course_id__in=only_enrolled) & published_chain
             homework_qs = homework_qs.filter(homework_q)
 
-        webinar_qs = webinar_qs.exclude(started_at=None)
+        webinar_qs = webinar_qs.exclude(scheduled_at=None, started_at=None)
         homework_qs = homework_qs.exclude(deadline=None)
 
         if start_date:
-            webinar_qs = webinar_qs.filter(started_at__gte=start_date)
+            webinar_qs = webinar_qs.filter(
+                Q(scheduled_at__gte=start_date) | Q(scheduled_at=None, started_at__gte=start_date)
+            )
             homework_qs = homework_qs.filter(deadline__gte=start_date)
         if end_date:
-            webinar_qs = webinar_qs.filter(started_at__lte=end_date)
+            webinar_qs = webinar_qs.filter(
+                Q(scheduled_at__lte=end_date) | Q(scheduled_at=None, started_at__lte=end_date)
+            )
             homework_qs = homework_qs.filter(deadline__lte=end_date)
+
+        attempt_map = {}
+        if user.is_student():
+            from apps.homeworks.models import Attempt
+
+            homework_ids = list(homework_qs.values_list("homework_id", flat=True))
+            attempts = Attempt.objects.filter(user=user, homework_id__in=homework_ids).values(
+                "homework_id", "status"
+            )
+            attempt_map = {str(a["homework_id"]): a["status"] for a in attempts}
 
         items = []
         for webinar in webinar_qs:
+            course = webinar.lesson.section.course
+            effective_dt = webinar.scheduled_at or webinar.started_at
             items.append(
                 {
                     "type": ScheduleItemSerializer.TYPE_WEBINAR,
-                    "datetime": webinar.started_at,
-                    "course_title": webinar.lesson.section.course.title,
+                    "datetime": effective_dt,
+                    "course_title": course.title,
+                    "course_slug": course.slug,
                     "title": webinar.lesson.title,
+                    "webinar_id": webinar.webinar_id,
+                    "lesson_slug": webinar.lesson.slug,
+                    "webinar_status": webinar.status,
+                    "scheduled_at": webinar.scheduled_at,
                 }
             )
         for homework in homework_qs:
+            course = homework.lesson.section.course
+            attempt_status = (
+                attempt_map.get(str(homework.homework_id), "not_started")
+                if user.is_student()
+                else None
+            )
             items.append(
                 {
                     "type": ScheduleItemSerializer.TYPE_HOMEWORK,
                     "datetime": homework.deadline,
-                    "course_title": homework.lesson.section.course.title,
+                    "course_title": course.title,
+                    "course_slug": course.slug,
                     "title": homework.title,
+                    "homework_id": homework.homework_id,
+                    "homework_slug": homework.slug,
+                    "homework_lesson_slug": homework.lesson.slug,
+                    "deadline": homework.deadline,
+                    "attempt_status": attempt_status,
                 }
             )
 

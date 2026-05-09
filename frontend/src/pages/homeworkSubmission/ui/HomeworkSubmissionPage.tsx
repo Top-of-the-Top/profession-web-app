@@ -191,7 +191,7 @@ export default function HomeworkSubmissionPage() {
     if (attempt.status === 'draft' && homeworkSlug) {
       const draft = readDraft(homeworkSlug);
       if (draft) {
-        setAnswers({ ...serverAnswers, ...draft.answers });
+        setAnswers({ ...serverAnswers, ...(draft.answers ?? {}) });
         setAttachments({ ...serverAttachments, ...fromAttachmentMeta(draft.attachments) });
         setCurrentItemIndex(0);
         return;

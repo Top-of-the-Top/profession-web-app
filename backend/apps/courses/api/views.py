@@ -1,42 +1,46 @@
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-from django.utils.dateparse import parse_datetime
-from apps.webinars.models import Webinar
-from ..models import (
-    Course,
-    Section,
-    Task,
-    Question,
-    Homework,
-)
-from .serializers import (
-    CourseDTOSerializer,
-    CourseSerializer,
-    CourseListResponseSerializer,
-    LessonSerializer,
-    LessonSimpleCreateSerializer,
-    LessonCreateSerializer,
-    LessonDetailReadSerializer,
-    HomeworkSerializer,
-    HomeworkDetailSerializer,
-    CourseHomeSerializer,
-    SectionSerializer,
-    TaskSerializer,
-    QuestionSerializer,
-    MyContentCourseSerializer,
-    ScheduleItemSerializer,
-    ScheduleResponseSerializer,
-)
-from rest_framework import generics
-from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
-from apps.core.api.permissions import require_moderator
+import logging
+
 from django.core.cache import caches
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from django.utils.dateparse import parse_datetime
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
+from rest_framework import generics, status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.core.api.permissions import require_moderator
+from apps.webinars.models import Webinar
+
+from ..models import Course, Homework, Question, Section, Task
+from .permissions import (
+    course_content_visibility,
+    get_courses_for_user,
+    published_lesson_hierarchy_q,
+    require_course_author,
+    require_course_enrollment,
+)
 from .schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
+from .serializers import (
+    CourseDTOSerializer,
+    CourseHomeSerializer,
+    CourseListResponseSerializer,
+    CourseSerializer,
+    HomeworkDetailSerializer,
+    HomeworkSerializer,
+    LessonCreateSerializer,
+    LessonDetailReadSerializer,
+    LessonSerializer,
+    LessonSimpleCreateSerializer,
+    MyContentCourseSerializer,
+    QuestionSerializer,
+    ScheduleItemSerializer,
+    ScheduleResponseSerializer,
+    SectionSerializer,
+    TaskSerializer,
+)
 from .utils.cache_utils import (
     cached_detail_response,
     course_detail_cache_key,
@@ -48,14 +52,6 @@ from .utils.cache_utils import (
     purchased_courses_cache_key,
 )
 from .utils.queryset_utils import get_homework_or_404, get_lesson_or_404
-from .permissions import (
-    course_content_visibility,
-    get_courses_for_user,
-    published_lesson_hierarchy_q,
-    require_course_author,
-    require_course_enrollment,
-)
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -75,11 +71,11 @@ class CourseDTOList(generics.ListAPIView):
     serializer_class = CourseDTOSerializer
 
     def get_queryset(self):
-        return Course.objects.all()
+        return Course.objects.filter(is_deleted=False, type=Course.PUBLISHED_STATUS)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context['request'] = self.request
+        context["request"] = self.request
         return context
 
     def list(self, request, *args, **kwargs):
@@ -90,7 +86,7 @@ class CourseDTOList(generics.ListAPIView):
             return Response(cached)
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
-        data = {'number_of_courses': len(serializer.data), 'data': serializer.data}
+        data = {"number_of_courses": len(serializer.data), "data": serializer.data}
         cache.set(key, data)
         return Response(data)
 
@@ -106,7 +102,7 @@ class CourseListView(APIView):
             200: CourseSerializer(many=True),
             401: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     def get(self, request):
         cache = caches["default"]
@@ -117,15 +113,19 @@ class CourseListView(APIView):
 
         user = request.user
         if user.is_moderator():
-            qs = Course.objects.all()
+            qs = Course.objects.filter(is_deleted=False)
         elif user.is_teacher():
-            qs = Course.objects.filter(
-                Q(type=Course.PUBLISHED_STATUS) | Q(authors=user)
-            ).distinct()
+            qs = (
+                Course.objects.filter(
+                    is_deleted=False,
+                )
+                .filter(Q(type=Course.PUBLISHED_STATUS) | Q(authors=user))
+                .distinct()
+            )
         else:
-            qs = Course.objects.filter(type=Course.PUBLISHED_STATUS)
+            qs = Course.objects.filter(is_deleted=False, type=Course.PUBLISHED_STATUS)
 
-        serializer = CourseSerializer(qs, many=True, context={'request': request})
+        serializer = CourseSerializer(qs, many=True, context={"request": request})
         cache.set(key, serializer.data)
         return Response(serializer.data)
 
@@ -139,13 +139,13 @@ class CourseListView(APIView):
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_moderator
     def post(self, request):
         serializer = CourseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(last_modified_by=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -154,11 +154,11 @@ class CourseDetailView(APIView):
     serializer_class = CourseSerializer
 
     @extend_schema(
-        summary="Курс по slug",
+        summary="Превью курса в магазине.",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name='slug',
+                name="slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -168,17 +168,30 @@ class CourseDetailView(APIView):
             401: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     def get(self, request, slug):
+        course = get_object_or_404(Course, slug=slug, is_deleted=False)
+        user = request.user
+        can_see_unpublished = user.is_authenticated and (
+            user.is_moderator() or user.is_course_author(course) or user.is_enrolled(course)
+        )
+        if course.type != Course.PUBLISHED_STATUS and not can_see_unpublished:
+            return Response(
+                {"detail": "Курс не найден"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         cache = caches["default"]
         key = course_detail_cache_key(slug)
-        cached = cache.get(key)
-        if cached is not None:
-            return Response(cached)
-        course = get_object_or_404(Course, slug=slug)
+        if course.type == Course.PUBLISHED_STATUS:
+            cached = cache.get(key)
+            if cached is not None:
+                return Response(cached)
+
         data = CourseSerializer(course).data
-        cache.set(key, data)
+        if course.type == Course.PUBLISHED_STATUS:
+            cache.set(key, data)
         return Response(data)
 
     @extend_schema(
@@ -186,7 +199,7 @@ class CourseDetailView(APIView):
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name='slug',
+                name="slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -199,14 +212,14 @@ class CourseDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
-    @require_course_author
+    @require_moderator
     def patch(self, request, slug):
-        course = get_object_or_404(Course, slug=slug)
+        course = get_object_or_404(Course, slug=slug, is_deleted=False)
         serializer = CourseSerializer(course, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(last_modified_by=request.user)
         return Response(serializer.data)
 
     @extend_schema(
@@ -214,7 +227,7 @@ class CourseDetailView(APIView):
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name='slug',
+                name="slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -225,12 +238,13 @@ class CourseDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
-    @require_course_author
+    @require_moderator
     def delete(self, request, slug):
-        course = get_object_or_404(Course, slug=slug)
-        course.delete()
+        course = get_object_or_404(Course, slug=slug, is_deleted=False)
+        course.is_deleted = True
+        course.save(update_fields=["is_deleted"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -238,7 +252,7 @@ class MyCourses(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Мои курсы",
+        summary="Список моих курсов",
         tags=["Home"],
         responses={
             200: CourseDTOSerializer(many=True),
@@ -261,29 +275,23 @@ class MyScheduleView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Расписание по моим курсам",
-        description=(
-            'Возвращает список объектов расписания (вебинары и дедлайны домашних заданий) '
-            'в заданном диапазоне дат. '
-            'Студент видит объекты своих купленных курсов. '
-            'Преподаватель видит объекты своих курсов (в том числе черновики). '
-            'Модератор видит всё.'
-        ),
+        summary="Мое расписание",
+        description=("Возвращает список объектов расписания - вебинаров и домашних заданий"),
         tags=["Home"],
         parameters=[
             OpenApiParameter(
-                name='start_date',
+                name="start_date",
                 type=OpenApiTypes.DATETIME,
                 location=OpenApiParameter.QUERY,
                 required=False,
-                description='Начало диапазона (ISO 8601)',
+                description="Начало диапазона (ISO 8601)",
             ),
             OpenApiParameter(
-                name='end_date',
+                name="end_date",
                 type=OpenApiTypes.DATETIME,
                 location=OpenApiParameter.QUERY,
                 required=False,
-                description='Конец диапазона (ISO 8601)',
+                description="Конец диапазона (ISO 8601)",
             ),
         ],
         responses={
@@ -296,18 +304,24 @@ class MyScheduleView(APIView):
     def get(self, request):
         start_date = None
         end_date = None
-        raw_start = request.query_params.get('start_date')
-        raw_end = request.query_params.get('end_date')
+        raw_start = request.query_params.get("start_date")
+        raw_end = request.query_params.get("end_date")
         if raw_start:
             start_date = parse_datetime(raw_start)
             if start_date is None:
-                return Response({'detail': 'Неверный формат start_date'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "Неверный формат start_date"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         if raw_end:
             end_date = parse_datetime(raw_end)
             if end_date is None:
-                return Response({'detail': 'Неверный формат end_date'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "Неверный формат end_date"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        cache = caches['default']
+        cache = caches["default"]
         key = my_schedule_cache_key(request.user.id, start_date, end_date)
         cached = cache.get(key)
         if cached is not None:
@@ -319,12 +333,12 @@ class MyScheduleView(APIView):
 
         if not user.is_moderator():
             authored_ids = set(
-                Course.objects.filter(authors=user).values_list('course_id', flat=True)
+                Course.objects.filter(authors=user).values_list("course_id", flat=True)
             )
             enrolled_ids = set(user.get_purchased_courses_ids())
 
-        webinar_qs = Webinar.objects.select_related('lesson__section__course')
-        homework_qs = Homework.objects.select_related('lesson__section__course')
+        webinar_qs = Webinar.objects.select_related("lesson__section__course")
+        homework_qs = Homework.objects.select_related("lesson__section__course")
 
         if not user.is_moderator():
             only_enrolled = enrolled_ids - authored_ids
@@ -352,22 +366,26 @@ class MyScheduleView(APIView):
 
         items = []
         for webinar in webinar_qs:
-            items.append({
-                'type': ScheduleItemSerializer.TYPE_WEBINAR,
-                'datetime': webinar.started_at,
-                'course_title': webinar.lesson.section.course.title,
-                'title': webinar.lesson.title,
-            })
+            items.append(
+                {
+                    "type": ScheduleItemSerializer.TYPE_WEBINAR,
+                    "datetime": webinar.started_at,
+                    "course_title": webinar.lesson.section.course.title,
+                    "title": webinar.lesson.title,
+                }
+            )
         for homework in homework_qs:
-            items.append({
-                'type': ScheduleItemSerializer.TYPE_HOMEWORK,
-                'datetime': homework.deadline,
-                'course_title': homework.lesson.section.course.title,
-                'title': homework.title,
-            })
+            items.append(
+                {
+                    "type": ScheduleItemSerializer.TYPE_HOMEWORK,
+                    "datetime": homework.deadline,
+                    "course_title": homework.lesson.section.course.title,
+                    "title": homework.title,
+                }
+            )
 
-        items.sort(key=lambda x: x['datetime'])
-        data = {'items': items}
+        items.sort(key=lambda x: x["datetime"])
+        data = {"items": items}
         cache.set(key, data)
         return Response(data)
 
@@ -376,11 +394,11 @@ class CourseHomePageView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Главная курса",
+        summary="Главная страничка курса",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name='course_slug',
+                name="course_slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -391,7 +409,7 @@ class CourseHomePageView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     def get(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug)
@@ -400,13 +418,13 @@ class CourseHomePageView(APIView):
 
         if not vis.has_course_home_access():
             return Response(
-                {'detail': 'Вы не записаны на этот курс'},
-                status=status.HTTP_403_FORBIDDEN
+                {"detail": "Вы не записаны на этот курс"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         serializer = CourseHomeSerializer(
             course,
-            context={'is_author': vis.show_types_in_tree},
+            context={"is_author": vis.show_types_in_tree, "request": request},
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -450,13 +468,13 @@ class SectionCreateView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def post(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug)
-        payload = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-        payload['course'] = course.course_id
+        payload = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+        payload["course"] = course.course_id
         serializer = SectionSerializer(data=payload)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -472,7 +490,7 @@ class SectionDetailView(APIView):
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name='section_slug',
+                name="section_slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -485,7 +503,7 @@ class SectionDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def patch(self, request, course_slug, section_slug):
@@ -500,7 +518,7 @@ class SectionDetailView(APIView):
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name='section_slug',
+                name="section_slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -511,7 +529,7 @@ class SectionDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def delete(self, request, course_slug, section_slug):
@@ -520,29 +538,23 @@ class SectionDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-
 class LessonCreateView(APIView):
     permission_classes = (IsAuthenticated,)
     parser_classes = (JSONParser, MultiPartParser, FormParser)
 
-
     @extend_schema(
-        methods=['POST'],
-        summary='Создать урок',
-        description=(
-            'Тело: `section`, `title`, `type` (по умолчанию draft). '
-            'Поле `content` в POST не допускается — контент и вложения задаются PUT '
-            'на `/api/courses/{slug}/lessons/{lesson_slug}/`.'
-        ),
-        tags=['Course'],
+        methods=["POST"],
+        summary="Создать урок",
+        description=("Создать новый урок в курсе"),
+        tags=["Course"],
         request=LessonSimpleCreateSerializer,
         responses={
             201: LessonSerializer,
-            400: {'schema': SCHEMA_VALIDATION},
-            401: {'schema': SCHEMA_DETAIL},
-            403: {'schema': SCHEMA_DETAIL},
-            404: {'schema': SCHEMA_DETAIL},
-            500: {'schema': SCHEMA_DETAIL},
+            400: {"schema": SCHEMA_VALIDATION},
+            401: {"schema": SCHEMA_DETAIL},
+            403: {"schema": SCHEMA_DETAIL},
+            404: {"schema": SCHEMA_DETAIL},
+            500: {"schema": SCHEMA_DETAIL},
         },
     )
     @require_course_author
@@ -550,7 +562,7 @@ class LessonCreateView(APIView):
         course = get_object_or_404(Course, slug=course_slug)
         serializer = LessonSimpleCreateSerializer(
             data=request.data,
-            context={'request': request, 'course': course},
+            context={"request": request, "course": course},
         )
         serializer.is_valid(raise_exception=True)
         lesson = serializer.save()
@@ -570,7 +582,7 @@ class LessonDetailView(APIView):
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name='lesson_slug',
+                name="lesson_slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -581,29 +593,33 @@ class LessonDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_enrollment
     def get(self, request, course_slug, lesson_slug):
         course = get_object_or_404(Course, slug=course_slug)
         vis = course_content_visibility(request.user, course)
-        key = lesson_detail_cache_key(course_slug, lesson_slug, vis.cache_scope)
+        key = lesson_detail_cache_key(
+            course_slug,
+            lesson_slug,
+            vis.cache_scope,
+            user_id=request.user.pk,
+        )
         return cached_detail_response(
             key,
             lambda: LessonDetailReadSerializer(
-                get_lesson_or_404(
-                    course_slug, lesson_slug, include_drafts=vis.include_drafts
-                ),
-                context={'include_drafts': vis.include_drafts},
+                get_lesson_or_404(course_slug, lesson_slug, include_drafts=vis.include_drafts),
+                context={"include_drafts": vis.include_drafts, "request": request},
             ).data,
         )
 
     @extend_schema(
-        summary="Обновить урок (PUT)",
+        summary="Обновить урок",
+        description="Обновить содержимое урока. ",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name='lesson_slug',
+                name="lesson_slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -616,7 +632,7 @@ class LessonDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def put(self, request, course_slug, lesson_slug):
@@ -626,7 +642,7 @@ class LessonDetailView(APIView):
             lesson,
             data=request.data,
             partial=True,
-            context={'request': request, 'course': course},
+            context={"request": request, "course": course},
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -637,7 +653,7 @@ class LessonDetailView(APIView):
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name='lesson_slug',
+                name="lesson_slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -648,7 +664,7 @@ class LessonDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def delete(self, request, course_slug, lesson_slug):
@@ -671,7 +687,7 @@ class HomeworkCreateView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def post(self, request, course_slug, lesson_slug):
@@ -687,11 +703,11 @@ class HomeworkDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Домашка",
+        summary="Домашнее задание",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name='homework_slug',
+                name="homework_slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -702,15 +718,13 @@ class HomeworkDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_enrollment
     def get(self, request, course_slug, lesson_slug, homework_slug):
         course = get_object_or_404(Course, slug=course_slug)
         vis = course_content_visibility(request.user, course)
-        key = homework_detail_cache_key(
-            course_slug, lesson_slug, homework_slug, vis.cache_scope
-        )
+        key = homework_detail_cache_key(course_slug, lesson_slug, homework_slug, vis.cache_scope)
         return cached_detail_response(
             key,
             lambda: HomeworkDetailSerializer(
@@ -724,11 +738,11 @@ class HomeworkDetailView(APIView):
         )
 
     @extend_schema(
-        summary="Обновить домашку",
+        summary="Обновить домашнее задание",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name='homework_slug',
+                name="homework_slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -741,13 +755,11 @@ class HomeworkDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def patch(self, request, course_slug, lesson_slug, homework_slug):
-        homework = get_homework_or_404(
-            course_slug, lesson_slug, homework_slug, include_drafts=True
-        )
+        homework = get_homework_or_404(course_slug, lesson_slug, homework_slug, include_drafts=True)
         serializer = HomeworkSerializer(homework, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         homework = serializer.save()
@@ -755,11 +767,11 @@ class HomeworkDetailView(APIView):
         return Response(response_serializer.data)
 
     @extend_schema(
-        summary="Удалить домашку",
+        summary="Удалить домашенее задание",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name='homework_slug',
+                name="homework_slug",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
@@ -770,13 +782,11 @@ class HomeworkDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def delete(self, request, course_slug, lesson_slug, homework_slug):
-        homework = get_homework_or_404(
-            course_slug, lesson_slug, homework_slug, include_drafts=True
-        )
+        homework = get_homework_or_404(course_slug, lesson_slug, homework_slug, include_drafts=True)
         homework.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -786,7 +796,7 @@ class TaskCreateView(APIView):
     serializer_class = TaskSerializer
 
     @extend_schema(
-        summary="Создать задачу",
+        summary="Создать задачу с развернутым ответом",
         tags=["Homework"],
         request=TaskSerializer,
         responses={
@@ -796,13 +806,11 @@ class TaskCreateView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def post(self, request, course_slug, lesson_slug, homework_slug):
-        homework = get_homework_or_404(
-            course_slug, lesson_slug, homework_slug, include_drafts=True
-        )
+        homework = get_homework_or_404(course_slug, lesson_slug, homework_slug, include_drafts=True)
         serializer = TaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(homework=homework)
@@ -814,11 +822,11 @@ class TaskDetailView(APIView):
     serializer_class = TaskSerializer
 
     @extend_schema(
-        summary="Обновить задачу",
+        summary="Обновить задачу с развернутым ответом",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name='task_id',
+                name="task_id",
                 type=OpenApiTypes.UUID,
                 location=OpenApiParameter.PATH,
             ),
@@ -831,7 +839,7 @@ class TaskDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def patch(self, request, course_slug, lesson_slug, homework_slug, task_id):
@@ -842,11 +850,11 @@ class TaskDetailView(APIView):
         return Response(serializer.data)
 
     @extend_schema(
-        summary="Удалить задачу",
+        summary="Удалить задачу с развернутым ответом",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name='task_id',
+                name="task_id",
                 type=OpenApiTypes.UUID,
                 location=OpenApiParameter.PATH,
             ),
@@ -857,7 +865,7 @@ class TaskDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def delete(self, request, course_slug, lesson_slug, homework_slug, task_id):
@@ -871,7 +879,7 @@ class QuestionCreateView(APIView):
     serializer_class = QuestionSerializer
 
     @extend_schema(
-        summary="Создать вопрос",
+        summary="Создать вопрос с вариантами выбора ответа",
         tags=["Homework"],
         request=QuestionSerializer,
         responses={
@@ -881,13 +889,11 @@ class QuestionCreateView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def post(self, request, course_slug, lesson_slug, homework_slug):
-        homework = get_homework_or_404(
-            course_slug, lesson_slug, homework_slug, include_drafts=True
-        )
+        homework = get_homework_or_404(course_slug, lesson_slug, homework_slug, include_drafts=True)
         serializer = QuestionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(homework=homework)
@@ -898,12 +904,12 @@ class MyContentView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Мои курсы с уроками",
+        summary="Мой контент на платформе",
         description=(
-            'Возвращает курсы пользователя с плоским списком уроков. '
-            'Студент видит купленные курсы и опубликованные уроки. '
-            'Преподаватель видит свои курсы со всеми уроками (включая черновики). '
-            'Модератор видит все курсы со всеми уроками.'
+            "Возвращает курсы пользователя с плоским списком уроков. "
+            "Студент видит купленные курсы и опубликованные уроки. "
+            "Преподаватель видит свои курсы со всеми уроками (включая черновики). "
+            "Модератор видит все курсы со всеми уроками."
         ),
         tags=["Home"],
         responses={
@@ -914,12 +920,11 @@ class MyContentView(APIView):
     )
     def get(self, request):
         user = request.user
-        include_drafts = user.is_moderator() or user.is_teacher()
         courses = get_courses_for_user(user)
         serializer = MyContentCourseSerializer(
             courses,
             many=True,
-            context={'include_drafts': include_drafts},
+            context={"request": request},
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -929,11 +934,11 @@ class QuestionDetailView(APIView):
     serializer_class = QuestionSerializer
 
     @extend_schema(
-        summary="Обновить вопрос",
+        summary="Обновить вопрос с вариантами выбора ответов",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name='question_id',
+                name="question_id",
                 type=OpenApiTypes.UUID,
                 location=OpenApiParameter.PATH,
             ),
@@ -946,7 +951,7 @@ class QuestionDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def patch(self, request, course_slug, lesson_slug, homework_slug, question_id):
@@ -957,11 +962,11 @@ class QuestionDetailView(APIView):
         return Response(serializer.data)
 
     @extend_schema(
-        summary="Удалить вопрос",
+        summary="Удалить вопрос с вариантами выбора ответа",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name='question_id',
+                name="question_id",
                 type=OpenApiTypes.UUID,
                 location=OpenApiParameter.PATH,
             ),
@@ -972,11 +977,10 @@ class QuestionDetailView(APIView):
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
-        }
+        },
     )
     @require_course_author
     def delete(self, request, course_slug, lesson_slug, homework_slug, question_id):
         question = _get_question_or_404(course_slug, lesson_slug, homework_slug, question_id)
         question.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT
-        )
+        return Response(status=status.HTTP_204_NO_CONTENT)

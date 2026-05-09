@@ -3,37 +3,37 @@ from django.urls import path
 from .views import (
     AttemptDetailView,
     AttemptReviewView,
-    HomeworkAttemptView,
     HomeworkAttemptSubmitView,
+    HomeworkAttemptView,
     StudentAttemptsView,
 )
 
-app_name = 'homeworks'
+app_name = "homeworks"
 
 urlpatterns = [
     path(
-        'courses/<slug:course_slug>/homeworks/<slug:homework_slug>/attempt/',
+        "courses/<slug:course_slug>/homeworks/<slug:homework_slug>/attempt/",
         HomeworkAttemptView.as_view(),
-        name='attempt',
+        name="attempt",
     ),
     path(
-        'courses/<slug:course_slug>/homeworks/<slug:homework_slug>/attempt/submit/',
+        "courses/<slug:course_slug>/homeworks/<slug:homework_slug>/attempt/submit/",
         HomeworkAttemptSubmitView.as_view(),
-        name='attempt-submit',
+        name="attempt-submit",
     ),
     path(
-        'courses/<slug:course_slug>/attempts/<uuid:attempt_id>/',
+        "courses/<slug:course_slug>/attempts/<uuid:attempt_id>/",
         AttemptDetailView.as_view(),
-        name='attempt-detail',
+        name="attempt-detail",
     ),
     path(
-        'courses/<slug:course_slug>/attempts/<uuid:attempt_id>/review/',
+        "courses/<slug:course_slug>/attempts/<uuid:attempt_id>/review/",
         AttemptReviewView.as_view(),
-        name='attempt-review',
+        name="attempt-review",
     ),
     path(
-        'my-homeworks/',
+        "my-homeworks/",
         StudentAttemptsView.as_view(),
-        name='my-homeworks',
+        name="my-homeworks",
     ),
 ]

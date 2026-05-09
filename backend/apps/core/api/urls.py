@@ -2,17 +2,17 @@ from django.urls import path
 
 from .views import AssetUploadInitiateView, AssetUploadStatusView
 
-app_name = 'core'
+app_name = "core"
 
 urlpatterns = [
     path(
-        'uploads/initiate/', 
+        "uploads/initiate/",
         AssetUploadInitiateView.as_view(),
-        name='upload-initiate',
+        name="upload-initiate",
     ),
     path(
-        'uploads/<uuid:asset_id>/status/',
+        "uploads/<uuid:asset_id>/status/",
         AssetUploadStatusView.as_view(),
-        name='upload-status',
+        name="upload-status",
     ),
 ]

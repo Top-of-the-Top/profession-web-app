@@ -32,10 +32,7 @@ class AttemptService:
     def get_or_create_draft(self, *, user, homework):
         with transaction.atomic():
             attempt = (
-                Attempt.objects
-                .select_for_update()
-                .filter(user=user, homework=homework)
-                .first()
+                Attempt.objects.select_for_update().filter(user=user, homework=homework).first()
             )
             if attempt is not None:
                 return attempt
@@ -54,7 +51,10 @@ class AttemptService:
 
         if attempt.status != Attempt.DRAFT_STATUS:
             raise AttemptAlreadySubmitted(
-                details={'attempt_id': str(attempt.attempt_id), 'status': attempt.status},
+                details={
+                    "attempt_id": str(attempt.attempt_id),
+                    "status": attempt.status,
+                },
             )
 
         normalized = [self._normalize_item(item) for item in items]
@@ -67,7 +67,7 @@ class AttemptService:
             attempt.status = Attempt.SUBMITTED_STATUS
             attempt.send_at = send_at or timezone.now()
             attempt.grade = self._calculate_grade(attempt)
-            attempt.save(update_fields=['status', 'send_at', 'grade'])
+            attempt.save(update_fields=["status", "send_at", "grade"])
 
         attempt.refresh_from_db()
         return attempt
@@ -78,29 +78,29 @@ class AttemptService:
 
     def _prefill_answers(self, attempt):
         homework = attempt.homework
-        QuestionAnswer.objects.bulk_create([
-            QuestionAnswer(attempt=attempt, question=q, user_answer='')
-            for q in homework.question_set.all()
-        ])
-        TaskAnswer.objects.bulk_create([
-            TaskAnswer(attempt=attempt, task=t, user_answer='')
-            for t in homework.task_set.all()
-        ])
+        QuestionAnswer.objects.bulk_create(
+            [
+                QuestionAnswer(attempt=attempt, question=q, user_answer="")
+                for q in homework.question_set.all()
+            ]
+        )
+        TaskAnswer.objects.bulk_create(
+            [TaskAnswer(attempt=attempt, task=t, user_answer="") for t in homework.task_set.all()]
+        )
 
     def _normalize_item(self, item):
         return SubmitItem(
-            type=item['type'],
-            target_id=str(item['id']),
-            user_answer=item.get('user_answer') or '',
-            asset_ids=[str(x) for x in (item.get('asset_ids') or []) if x],
+            type=item["type"],
+            target_id=str(item["id"]),
+            user_answer=item.get("user_answer") or "",
+            asset_ids=[str(x) for x in (item.get("asset_ids") or []) if x],
         )
 
     def _preflight_assets(self, items, owner):
- 
         asset_service = build_asset_service()
 
         for item in items:
-            if item.type != 'task' or not item.asset_ids:
+            if item.type != "task" or not item.asset_ids:
                 continue
 
             for asset_id in item.asset_ids:
@@ -108,14 +108,14 @@ class AttemptService:
                     asset = asset_service.get_asset(asset_id)
                 except AssetNotFound as e:
                     raise AttemptValidationError(
-                        message='Файл не найден.',
-                        details={'asset_id': asset_id},
+                        message="Файл не найден.",
+                        details={"asset_id": asset_id},
                     ) from e
 
                 if str(asset.owner_id) != str(owner.pk):
                     raise AttemptValidationError(
-                        message='Файл не принадлежит текущему пользователю.',
-                        details={'asset_id': asset_id},
+                        message="Файл не принадлежит текущему пользователю.",
+                        details={"asset_id": asset_id},
                     )
 
                 if asset.status == AssetStatus.PENDING:
@@ -123,14 +123,14 @@ class AttemptService:
                         asset_service.commit_asset(asset.asset_id)
                     except AssetError:
                         raise AttemptValidationError(
-                            message='Файл ещё не загружен. Дождитесь завершения загрузки.',
-                            details={'asset_id': asset_id},
+                            message="Файл ещё не загружен. Дождитесь завершения загрузки.",
+                            details={"asset_id": asset_id},
                         )
 
                 elif asset.status == AssetStatus.DELETED:
                     raise AttemptValidationError(
-                        message='Файл был удалён и недоступен.',
-                        details={'asset_id': asset_id},
+                        message="Файл был удалён и недоступен.",
+                        details={"asset_id": asset_id},
                     )
 
     def _apply_items(self, attempt, items):
@@ -140,19 +140,19 @@ class AttemptService:
         binding = build_binding_api()
 
         for item in items:
-            if item.type == 'question':
+            if item.type == "question":
                 qa = question_by_id.get(item.target_id)
                 if qa is None:
                     raise AttemptItemNotFound(
-                        details={'type': 'question', 'id': item.target_id},
+                        details={"type": "question", "id": item.target_id},
                     )
                 QuestionAnswer.objects.filter(pk=qa.pk).update(user_answer=item.user_answer)
 
-            elif item.type == 'task':
+            elif item.type == "task":
                 ta = task_by_id.get(item.target_id)
                 if ta is None:
                     raise AttemptItemNotFound(
-                        details={'type': 'task', 'id': item.target_id},
+                        details={"type": "task", "id": item.target_id},
                     )
                 TaskAnswer.objects.filter(pk=ta.pk).update(user_answer=item.user_answer)
 
@@ -160,20 +160,20 @@ class AttemptService:
                     try:
                         binding.sync_many(
                             content_object=ta,
-                            role='task_attachment',
+                            role="task_attachment",
                             asset_ids=item.asset_ids,
                             owner=attempt.user,
                         )
                     except AssetError as e:
                         raise AttemptValidationError(
                             message=e.message,
-                            details={'type': 'task', 'id': item.target_id, **e.details},
+                            details={"type": "task", "id": item.target_id, **e.details},
                         ) from e
 
     def _calculate_grade(self, attempt):
         return (
-            attempt.question_answers
-            .filter(is_correct=True)
-            .aggregate(total=Sum('question__max_points'))['total']
+            attempt.question_answers.filter(is_correct=True).aggregate(
+                total=Sum("question__max_points")
+            )["total"]
             or 0
         )

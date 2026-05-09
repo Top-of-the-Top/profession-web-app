@@ -9,3 +9,4 @@ export { useWebinarChat } from './model/useWebinarChat';
 export type { ChatMessage } from './model/useWebinarChat';
 export { connectWebinarSSE } from './model/webinar.sse';
 export type { WebinarSseEvent } from './model/webinar.sse';
+export { useWebinarHeartbeat } from './model/useWebinarHeartbeat';

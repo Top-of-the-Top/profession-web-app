@@ -1,0 +1,139 @@
+.page {
+  display: flex;
+  min-height: 100svh;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  background-color: #f9fafb;
+  box-sizing: border-box;
+  font-family: Onest, sans-serif;
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 40px;
+  }
+}
+
+.wrapper {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.logo {
+  width: 260px;
+  margin: 25px auto;
+  display: block;
+}
+
+.card {
+  border-radius: 0px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 32px;
+}
+
+.cardHeader {
+  padding-bottom: 5px;
+  padding-left: 0 !important;
+}
+
+.cardContent {
+  padding: 0;
+}
+
+.formTitle {
+  font-size: 23px !important;
+  font-weight: 800 !important;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  gap: 5px !important;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.passwordWrap {
+  position: relative;
+}
+
+.eyeBtn {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.eyeBtn:hover:not(:disabled) {
+  color: #374151;
+}
+
+.eyeBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.submitButton {
+  width: 100%;
+  padding: 12px;
+  background-color: #191970 !important;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px !important;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.submitButton:hover:not(:disabled) {
+  background-color: #191970 !important;
+}
+
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.centered {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.copyright {
+  font-size: 15px;
+  color: #62748e;
+  text-align: center;
+  margin-top: 25px;
+}

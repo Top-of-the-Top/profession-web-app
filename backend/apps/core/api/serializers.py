@@ -2,7 +2,6 @@ from rest_framework import serializers
 
 from ..meta_management.policies import INTENT_POLICIES
 
-
 INTENT_CHOICES = tuple(INTENT_POLICIES.keys())
 
 
@@ -43,7 +42,7 @@ class UploadStatusResponseSerializer(serializers.Serializer):
 
 
 class AssetErrorResponseSerializer(serializers.Serializer):
-    status = serializers.CharField(default='error')
+    status = serializers.CharField(default="error")
     code = serializers.CharField()
     message = serializers.CharField()
     details = serializers.DictField(required=False)

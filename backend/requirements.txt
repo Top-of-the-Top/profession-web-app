@@ -35,3 +35,4 @@ django-celery-beat
 channels==4.0.0
 channels-redis==4.2.0
 httpx==0.28.1
+django-unfold==0.92.0

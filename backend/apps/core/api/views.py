@@ -14,9 +14,10 @@ from .serializers import (
     UploadStatusResponseSerializer,
 )
 
+
 class BaseAssetView(APIView):
     permission_classes = (IsAuthenticated,)
-    
+
     @property
     def upload_api(self):
         return build_upload_api()
@@ -24,9 +25,9 @@ class BaseAssetView(APIView):
 
 class AssetUploadInitiateView(BaseAssetView):
     @extend_schema(
-        summary='Инициировать загрузку файла',
-        description='Создает запись об ассете (PENDING) и выдает presigned URL для S3.',
-        tags=['Assets'],
+        summary="Инициировать загрузку файла",
+        description="Создает запись об ассете (PENDING) и выдает presigned URL для S3.",
+        tags=["Assets"],
         request=InitiateUploadRequestSerializer,
         responses={
             201: InitiateUploadResponseSerializer,
@@ -37,15 +38,12 @@ class AssetUploadInitiateView(BaseAssetView):
     def post(self, request):
         serializer = InitiateUploadRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
-            result = self.upload_api.initiate_upload(
-                user=request.user,
-                **serializer.validated_data
-            )
+            result = self.upload_api.initiate_upload(user=request.user, **serializer.validated_data)
             return Response(
-                InitiateUploadResponseSerializer(result).data, 
-                status=status.HTTP_201_CREATED
+                InitiateUploadResponseSerializer(result).data,
+                status=status.HTTP_201_CREATED,
             )
         except AssetError as exc:
             return process_error_response(exc)
@@ -53,9 +51,9 @@ class AssetUploadInitiateView(BaseAssetView):
 
 class AssetUploadStatusView(BaseAssetView):
     @extend_schema(
-        summary='Статус загрузки ассета',
-        description='Проверка состояния ассета (PENDING/READY/ERROR).',
-        tags=['Assets'],
+        summary="Статус загрузки ассета",
+        description="Проверка состояния ассета (PENDING/READY/ERROR).",
+        tags=["Assets"],
         responses={
             200: UploadStatusResponseSerializer,
             403: AssetErrorResponseSerializer,
@@ -69,9 +67,6 @@ class AssetUploadStatusView(BaseAssetView):
                 user=request.user,
                 asset_id=asset_id,
             )
-            return Response(
-                UploadStatusResponseSerializer(asset).data, 
-                status=status.HTTP_200_OK
-            )
+            return Response(UploadStatusResponseSerializer(asset).data, status=status.HTTP_200_OK)
         except AssetError as exc:
             return process_error_response(exc)

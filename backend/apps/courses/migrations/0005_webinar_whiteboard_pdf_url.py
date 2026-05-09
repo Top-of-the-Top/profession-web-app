@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0004_course_kinescope_folder_id_and_more'),
+        ("courses", "0004_course_kinescope_folder_id_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='webinar',
-            name='whiteboard_pdf_url',
-            field=models.URLField(blank=True, verbose_name='Ссылка на pdf доски'),
+            model_name="webinar",
+            name="whiteboard_pdf_url",
+            field=models.URLField(blank=True, verbose_name="Ссылка на pdf доски"),
         ),
     ]

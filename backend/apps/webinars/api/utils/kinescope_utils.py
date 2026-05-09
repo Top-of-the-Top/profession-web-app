@@ -2,12 +2,13 @@
 Обратная совместимость импортов: все вызовы Kinescope идут через
 `apps.core.meta_management` (KinescopeBackend + factory).
 """
+
 from apps.core.meta_management.factory import build_asset_service
 from apps.core.meta_management.storages.kinescope import KinescopeBackend
 
 
 def _backend() -> KinescopeBackend:
-    return build_asset_service().get_backend('kinescope')
+    return build_asset_service().get_backend("kinescope")
 
 
 def create_folder(name, project_id=None):
@@ -16,7 +17,7 @@ def create_folder(name, project_id=None):
 
 def upload_video_by_url(video_url, title, parent_id=None):
     video_id = _backend().upload_by_url(video_url, title, parent_id=parent_id)
-    return {'id': video_id} if video_id else {}
+    return {"id": video_id} if video_id else {}
 
 
 def get_video_status(video_id):

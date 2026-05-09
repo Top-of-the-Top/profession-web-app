@@ -4,30 +4,36 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('users', '0002_alter_user_email_cipher'),
+        ("users", "0002_alter_user_email_cipher"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='profile',
-            name='gender',
-            field=models.CharField(blank=True, choices=[('М', 'Мужской'), ('Ж', 'Женский')], default='', max_length=10),
+            model_name="profile",
+            name="gender",
+            field=models.CharField(
+                blank=True,
+                choices=[("М", "Мужской"), ("Ж", "Женский")],
+                default="",
+                max_length=10,
+            ),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='first_name',
-            field=models.CharField(blank=True, default='', max_length=30),
+            model_name="user",
+            name="first_name",
+            field=models.CharField(blank=True, default="", max_length=30),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='last_name',
-            field=models.CharField(blank=True, default='', max_length=30),
+            model_name="user",
+            name="last_name",
+            field=models.CharField(blank=True, default="", max_length=30),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='reset_token',
-            field=models.CharField(blank=True, db_index=True, default='', max_length=100),
+            model_name="user",
+            name="reset_token",
+            field=models.CharField(
+                blank=True, db_index=True, default="", max_length=100
+            ),
         ),
     ]

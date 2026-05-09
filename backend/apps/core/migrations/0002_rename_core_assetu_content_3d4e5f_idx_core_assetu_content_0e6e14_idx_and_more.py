@@ -4,50 +4,49 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('core', '0001_initial'),
+        ("core", "0001_initial"),
     ]
 
     operations = [
         migrations.RenameIndex(
-            model_name='assetusage',
-            new_name='core_assetu_content_0e6e14_idx',
-            old_name='core_assetu_content_3d4e5f_idx',
+            model_name="assetusage",
+            new_name="core_assetu_content_0e6e14_idx",
+            old_name="core_assetu_content_3d4e5f_idx",
         ),
         migrations.RenameIndex(
-            model_name='assetusage',
-            new_name='core_assetu_asset_i_46ba39_idx',
-            old_name='core_assetu_asset_i_6a7b8c_idx',
+            model_name="assetusage",
+            new_name="core_assetu_asset_i_46ba39_idx",
+            old_name="core_assetu_asset_i_6a7b8c_idx",
         ),
         migrations.RenameIndex(
-            model_name='assetusage',
-            new_name='core_assetu_role_331e76_idx',
-            old_name='core_assetu_role_9d0e1f_idx',
+            model_name="assetusage",
+            new_name="core_assetu_role_331e76_idx",
+            old_name="core_assetu_role_9d0e1f_idx",
         ),
         migrations.RenameIndex(
-            model_name='mediaasset',
-            new_name='core_mediaa_status_ea23ba_idx',
-            old_name='core_mediaa_status_0b5c0e_idx',
+            model_name="mediaasset",
+            new_name="core_mediaa_status_ea23ba_idx",
+            old_name="core_mediaa_status_0b5c0e_idx",
         ),
         migrations.RenameIndex(
-            model_name='mediaasset',
-            new_name='core_mediaa_owner_i_34cb5a_idx',
-            old_name='core_mediaa_owner_i_8f1a2d_idx',
+            model_name="mediaasset",
+            new_name="core_mediaa_owner_i_34cb5a_idx",
+            old_name="core_mediaa_owner_i_8f1a2d_idx",
         ),
         migrations.RenameIndex(
-            model_name='mediaasset',
-            new_name='core_mediaa_ref_cou_a55d04_idx',
-            old_name='core_mediaa_ref_cou_9e3b1a_idx',
+            model_name="mediaasset",
+            new_name="core_mediaa_ref_cou_a55d04_idx",
+            old_name="core_mediaa_ref_cou_9e3b1a_idx",
         ),
         migrations.RenameIndex(
-            model_name='mediaasset',
-            new_name='core_mediaa_storage_0fda6a_idx',
-            old_name='core_mediaa_storage_7c2d4e_idx',
+            model_name="mediaasset",
+            new_name="core_mediaa_storage_0fda6a_idx",
+            old_name="core_mediaa_storage_7c2d4e_idx",
         ),
         migrations.RenameIndex(
-            model_name='mediaasset',
-            new_name='core_mediaa_status_12bf1f_idx',
-            old_name='core_mediaa_status_2a1f8b_idx',
+            model_name="mediaasset",
+            new_name="core_mediaa_status_12bf1f_idx",
+            old_name="core_mediaa_status_2a1f8b_idx",
         ),
     ]

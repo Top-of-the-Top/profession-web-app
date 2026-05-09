@@ -20,6 +20,7 @@ import {
   connectWebinarSSE,
   useMediaControls,
   useWebinarChat,
+  useWebinarHeartbeat,
   buildRtcUidLabelMap,
   type WhiteboardPanelHandle,
 } from '../../../features/webinar';
@@ -31,6 +32,7 @@ export default function WebinarPage() {
     slug: string;
     lessonSlug: string;
   }>();
+	
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -54,8 +56,11 @@ export default function WebinarPage() {
   }, []);
 
   const { micOn, cameraOn, toggleMic, toggleCamera } = useMediaControls();
+  const whiteboardDisplayUid =
+    (session?.user_name ?? rtcUidToLabel?.[session?.uid ?? 0] ?? '').trim() ||
+    String(session?.uid ?? '');
 
-  const { messages: chatMessages, sendMessage } = useWebinarChat({
+  const { messages: chatMessages, sendMessage, broadcastPresence } = useWebinarChat({
     appId: session?.agora_app_id ?? '',
     rtmToken: session?.rtm_token ?? '',
     chatChannelName: session?.chat_channel_name ?? '',
@@ -68,6 +73,7 @@ export default function WebinarPage() {
   const handleToggleChat = useCallback(() => setIsChatOpen((v) => !v), []);
 
   const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null);
+  const [webinarStartedAt, setWebinarStartedAt] = useState<string | null>(null);
   const [recorderBotInChannel, setRecorderBotInChannel] = useState(false);
   const [awaitingRecorderBot, setAwaitingRecorderBot] = useState(false);
   const [awaitingRecordingSessionEnd, setAwaitingRecordingSessionEnd] =
@@ -96,6 +102,10 @@ export default function WebinarPage() {
   const studentRecordingVisible = recordingBroadcastLive;
   const recordingSessionActive =
     !!activeRecordingId || recorderBotInChannel || awaitingRecorderBot;
+
+  useEffect(() => {
+    setWebinarStartedAt(session?.started_at ?? null);
+  }, [session?.started_at]);
 
   useEffect(() => {
     recorderBotInChannelRef.current = recorderBotInChannel;
@@ -246,13 +256,13 @@ export default function WebinarPage() {
     setIsExitWithoutRecordingDialogOpen(false);
   }, [isFinishing]);
 
-  const webinarIdFromMeta =
-    lessonQuery.data?.meta &&
-    typeof lessonQuery.data.meta === 'object' &&
-    typeof lessonQuery.data.meta.webinar_id === 'string'
-      ? lessonQuery.data.meta.webinar_id
-      : null;
+  const webinarIdFromMeta = (() => {
+    const m = lessonQuery.data?.meta as Record<string, unknown> | undefined;
+    return typeof m?.webinar_id === 'string' ? m.webinar_id : null;
+  })();
   const webinarId = session?.webinar_id ?? webinarIdFromMeta;
+  const isStudent = session?.role === 'student';
+  useWebinarHeartbeat(webinarId, !!session && isStudent);
 
   useEffect(() => {
     if (!session) return;
@@ -275,7 +285,7 @@ export default function WebinarPage() {
     const disconnect = connectWebinarSSE({
       webinarId,
       onEvent: (event) => {
-        if (event.type === 'recording_started') {
+        if (event.type === 'recording_started' && 'recording_id' in event) {
           setActiveRecordingId((prev) =>
             prev === event.recording_id ? prev : event.recording_id,
           );
@@ -289,7 +299,14 @@ export default function WebinarPage() {
           }
           return;
         }
-        if (event.type === 'webinar_ended') {
+        if (event.type === 'webinar_started' || event.type === 'webinar_start') {
+          if ('started_at' in event && typeof event.started_at === 'string') {
+            setWebinarStartedAt(event.started_at);
+          }
+          return;
+        }
+        if (event.type === 'webinar_ended' || event.type === 'webinar_end') {
+          setWebinarStartedAt(null);
           navigate(`/app/courses/${courseSlug}/${lessonSlug}`);
         }
       },
@@ -400,8 +417,8 @@ export default function WebinarPage() {
             roomUUID={session.whiteboard_room_uuid}
             roomToken={session.whiteboard_room_token}
             region={session.whiteboard_region}
-            uid={session.user_name?.trim() || String(session.uid)}
-            userName={session.user_name}
+            uid={whiteboardDisplayUid}
+            userName={whiteboardDisplayUid}
             isWritable={true}
           />
         </div>
@@ -414,6 +431,7 @@ export default function WebinarPage() {
             uid={session.uid}
             rtcUidToLabel={rtcUidToLabel}
             onRecorderChannelPresence={handleRecorderChannelPresence}
+            onRemoteUserJoined={broadcastPresence}
             micOn={micOn}
             cameraOn={cameraOn}
           >
@@ -444,6 +462,7 @@ export default function WebinarPage() {
         stopWebinarPending={
           isFinishing || stopWebinar.isPending || uploadFinalPdf.isPending
         }
+        webinarStartedAt={webinarStartedAt}
         onToggleMic={toggleMic}
         onToggleCamera={toggleCamera}
         onToggleChat={handleToggleChat}

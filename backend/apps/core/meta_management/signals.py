@@ -14,7 +14,7 @@ def increment_ref_count(sender, instance, created, **kwargs):
 
     def _apply():
         MediaAsset.objects.filter(pk=instance.asset_id).update(
-            ref_count=F('ref_count') + 1,
+            ref_count=F("ref_count") + 1,
             unreferenced_since=None,
         )
 
@@ -27,7 +27,7 @@ def decrement_ref_count(sender, instance, **kwargs):
 
     def _apply():
         MediaAsset.objects.filter(pk=asset_id, ref_count__gt=0).update(
-            ref_count=F('ref_count') - 1,
+            ref_count=F("ref_count") - 1,
         )
         MediaAsset.objects.filter(pk=asset_id, ref_count=0, unreferenced_since__isnull=True).update(
             unreferenced_since=timezone.now(),

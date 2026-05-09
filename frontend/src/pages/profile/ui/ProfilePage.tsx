@@ -90,6 +90,12 @@ const ProfileField = ({
   </div>
 );
 
+function getUserInitials(firstName?: string | null, lastName?: string | null): string {
+  const first = firstName?.trim().charAt(0) ?? '';
+  const last = lastName?.trim().charAt(0) ?? '';
+  return (first + last).toUpperCase() || 'U';
+}
+
 export default function ProfilePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -320,12 +326,6 @@ export default function ProfilePage() {
     }
   };
 
-  const getInitials = () => {
-    const first = profile.first_name?.[0] || '';
-    const last = profile.last_name?.[0] || '';
-    return (first + last).toUpperCase() || 'U';
-  };
-
   return (
     <>
       <ChangeName
@@ -365,7 +365,7 @@ export default function ProfilePage() {
                     <Avatar className={styles.fieldAvatar}>
                       <AvatarImage src={avatarUrl || ''} />
                       <AvatarFallback className={styles.fieldAvatarFallback}>
-                        {getInitials()}
+                        {getUserInitials(profile.first_name, profile.last_name)}
                       </AvatarFallback>
                     </Avatar>
                   </div>

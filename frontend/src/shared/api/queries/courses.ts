@@ -58,9 +58,9 @@ export function useLessonBySlug(
     queryKey: courseKeys.lesson(courseSlug!, lessonSlug!),
     queryFn: () => courseApi.getLessonBySlug(courseSlug!, lessonSlug!),
     enabled: !!courseSlug && !!lessonSlug,
-    // In editor mode never auto-refetch — would clobber unsaved work
-    staleTime: opts?.editorMode ? Infinity : 30_000,
-    refetchOnWindowFocus: opts?.editorMode ? false : true,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
 
@@ -74,8 +74,8 @@ export function useHomeworkDetail(
     queryKey: courseKeys.homework(courseSlug!, lessonSlug!, homeworkSlug!),
     queryFn: () => courseApi.getHomeworkDetail(courseSlug!, lessonSlug!, homeworkSlug!),
     enabled: !!courseSlug && !!lessonSlug && !!homeworkSlug,
-    staleTime: opts?.editorMode ? Infinity : 30_000,
-    refetchOnWindowFocus: opts?.editorMode ? false : true,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 }
 

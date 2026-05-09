@@ -4,15 +4,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('users', '0001_initial'),
+        ("users", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='user',
-            name='email_cipher',
-            field=models.CharField(blank=True, db_index=True, error_messages={'unique': 'Пользователь с такой почтой уже существует'}, help_text='Введите email', max_length=255, null=True, unique=True),
+            model_name="user",
+            name="email_cipher",
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                error_messages={"unique": "Пользователь с такой почтой уже существует"},
+                help_text="Введите email",
+                max_length=255,
+                null=True,
+                unique=True,
+            ),
         ),
     ]

@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% load i18n unfold %}
+
+{% block title %}{% trans "Dashboard" %} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+
+{% component "unfold/components/flex.html" with col=1 class="gap-8" %}
+    {% component "unfold/components/flex.html" with col=0 class="gap-4 flex-wrap" %}
+        {% for card in kpi %}
+            {% component "unfold/components/card.html" with class="min-w-[200px] flex-1" icon=card.icon %}
+                {% component "unfold/components/text.html" with class="text-gray-400 text-xs uppercase tracking-wide font-medium mb-1" %}
+                    {{ card.title }}
+                {% endcomponent %}
+                {% component "unfold/components/title.html" with class="text-3xl" %}
+                    {{ card.metric }}
+                {% endcomponent %}
+                {% component "unfold/components/text.html" with class="text-gray-400 text-xs mt-1" %}
+                    {{ card.footer }}
+                {% endcomponent %}
+            {% endcomponent %}
+        {% endfor %}
+    {% endcomponent %}
+
+    {% component "unfold/components/flex.html" with col=0 class="gap-6" %}
+        {% component "unfold/components/card.html" with class="flex-1" title="Регистрации за 30 дней" %}
+            {% component "unfold/components/chart/line.html" with data=chart_registrations height=200 %}{% endcomponent %}
+        {% endcomponent %}
+
+        {% component "unfold/components/card.html" with class="flex-1" title="Выручка за 30 дней" %}
+            {% component "unfold/components/chart/line.html" with data=chart_revenue height=200 %}{% endcomponent %}
+        {% endcomponent %}
+    {% endcomponent %}
+{% endcomponent %}
+
+{% endblock %}

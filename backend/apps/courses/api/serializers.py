@@ -1,70 +1,85 @@
-from .permissions import filter_homework_queryset_for_visibility
 import json
 
-from ..models import (
-    Course,
-    PurchasedCourse,
-    Lesson,
-    Homework,
-    Section,
-    Question,
-    Task,
-    PublishableMixin,
-)
-from ..lesson_content import extract_asset_ids, parse_content_value, substitute_asset_uris
 from django.db.models import Prefetch
-from apps.users.models import User
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
+
+from apps.core.meta_management.errors import AssetError
 from apps.core.meta_management.factory import build_access_api
 from apps.core.meta_management.mixins import AssetsSerializerMixin
-from apps.core.meta_management.errors import AssetError
-from rest_framework import serializers
-from drf_spectacular.utils import extend_schema_field
-from drf_spectacular.types import OpenApiTypes
+from apps.users.models import User
+
+from ..lesson_content import extract_asset_ids, parse_content_value, substitute_asset_uris
+from ..models import (
+    Course,
+    Homework,
+    Lesson,
+    PublishableMixin,
+    PurchasedCourse,
+    Question,
+    Section,
+    Task,
+)
+from .permissions import filter_homework_queryset_for_visibility
+
+
+class CourseAuthorSerializer(serializers.ModelSerializer):
+    email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ("id", "first_name", "last_name", "email")
+
+    def get_email(self, obj):
+        from apps.users.api.utils.crypto_utils import decrypt_data
+
+        if obj.email_cipher:
+            return decrypt_data(obj.email_cipher)
+        return None
 
 
 class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
-    asset_roles = ['course_cover']
+    asset_roles = ["course_cover"]
 
     cover_asset_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
-    authors = serializers.PrimaryKeyRelatedField(
-        many=True, read_only=False, required=False, queryset=User.objects.all()
-    )
+    authors = CourseAuthorSerializer(many=True, read_only=True)
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
-        exclude = ('image',)
-        read_only_fields = ('course_id', 'created_at', 'updated_at', 'last_modified_by')
+        exclude = ("image", "is_deleted", "kinescope_folder_id", "yandex_vs_id")
+        read_only_fields = ("course_id", "created_at", "updated_at", "last_modified_by")
 
     def get_image_url(self, obj):
         assets = self.get_assets(obj)
-        covers = assets.get('course_cover', [])
+        covers = assets.get("course_cover", [])
         if covers:
-            return covers[0].get('url')
+            return covers[0].get("url")
         return obj.image_url
 
 
 class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
-    asset_roles = ['course_cover']
+    asset_roles = ["course_cover"]
 
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
         fields = [
-            'course_id',
-            'title',
-            'sub_title',
-            'slug',
-            'image_url',
-            'price',
+            "course_id",
+            "title",
+            "sub_title",
+            "slug",
+            "image_url",
+            "price",
         ]
 
     def get_image_url(self, obj):
         assets = self.get_assets(obj)
-        covers = assets.get('course_cover', [])
+        covers = assets.get("course_cover", [])
         if covers:
-            return covers[0].get('url')
+            return covers[0].get("url")
         return obj.image_url
 
 
@@ -79,47 +94,110 @@ class PurchasedCourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchasedCourse
-        fields = ('id', 'user', 'course', 'payment', 'access_expires_at', 'is_active')
+        fields = ("id", "user", "course", "payment", "access_expires_at", "is_active")
 
 
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
-        fields = '__all__'
+        fields = "__all__"
         read_only_fields = (
-            'section_id',
-            'created_at',
-            'updated_at',
-            'last_modified_by',
+            "section_id",
+            "created_at",
+            "updated_at",
+            "last_modified_by",
         )
 
 
+def _lesson_is_completed_for_request(lesson, request):
+    if request is None or not request.user.is_authenticated:
+        return None
+    if not request.user.is_student():
+        return None
+    from apps.stats.models import LessonProgress
+
+    progress = LessonProgress.objects.filter(user=request.user, lesson=lesson).first()
+    return bool(progress and progress.is_completed)
+
+
 class LessonBriefSerializer(serializers.ModelSerializer):
+    is_completed = serializers.SerializerMethodField()
+
     class Meta:
         model = Lesson
-        fields = ['lesson_id', 'lesson_number', 'title', 'slug']
+        fields = ["lesson_id", "lesson_number", "title", "slug", "is_completed"]
+
+    @extend_schema_field(serializers.BooleanField(allow_null=True))
+    def get_is_completed(self, lesson):
+        return _lesson_is_completed_for_request(lesson, self.context.get("request"))
 
 
 class LessonBriefWithTypeSerializer(serializers.ModelSerializer):
+    is_completed = serializers.SerializerMethodField()
+
     class Meta:
         model = Lesson
-        fields = ['lesson_id', 'lesson_number', 'title', 'slug', 'type']
+        fields = ["lesson_id", "lesson_number", "title", "slug", "type", "is_completed"]
+
+    @extend_schema_field(serializers.BooleanField(allow_null=True))
+    def get_is_completed(self, lesson):
+        return _lesson_is_completed_for_request(lesson, self.context.get("request"))
+
+
+def _section_completed_for_request(section, request):
+    if request is None or not request.user.is_authenticated:
+        return None
+    if not request.user.is_student():
+        return None
+    from apps.stats.models import LessonProgress
+
+    published_lesson_ids = list(
+        Lesson.objects.filter(section=section, type=Lesson.PUBLISHED_STATUS).values_list(
+            "pk", flat=True
+        )
+    )
+    if not published_lesson_ids:
+        return False
+    completed = LessonProgress.objects.filter(
+        user=request.user,
+        lesson_id__in=published_lesson_ids,
+        is_completed=True,
+    ).count()
+    return completed == len(published_lesson_ids)
 
 
 class SectionWithLessonsSerializer(serializers.ModelSerializer):
-    lessons = LessonBriefSerializer(many=True, read_only=True, source='lesson_set')
+    lessons = LessonBriefSerializer(many=True, read_only=True, source="lesson_set")
+    section_completed = serializers.SerializerMethodField()
 
     class Meta:
         model = Section
-        fields = ['section_id', 'section_number', 'title', 'lessons', 'slug']
+        fields = ["section_id", "section_number", "title", "section_completed", "lessons", "slug"]
+
+    @extend_schema_field(serializers.BooleanField(allow_null=True))
+    def get_section_completed(self, section):
+        return _section_completed_for_request(section, self.context.get("request"))
 
 
 class SectionWithLessonsAndTypeSerializer(serializers.ModelSerializer):
-    lessons = LessonBriefWithTypeSerializer(many=True, read_only=True, source='lesson_set')
+    lessons = LessonBriefWithTypeSerializer(many=True, read_only=True, source="lesson_set")
+    section_completed = serializers.SerializerMethodField()
 
     class Meta:
         model = Section
-        fields = ['section_id', 'section_number', 'title', 'type', 'lessons', 'slug']
+        fields = [
+            "section_id",
+            "section_number",
+            "title",
+            "type",
+            "section_completed",
+            "lessons",
+            "slug",
+        ]
+
+    @extend_schema_field(serializers.BooleanField(allow_null=True))
+    def get_section_completed(self, section):
+        return _section_completed_for_request(section, self.context.get("request"))
 
 
 class CourseHomeSerializer(serializers.Serializer):
@@ -130,31 +208,36 @@ class CourseHomeSerializer(serializers.Serializer):
 
     @extend_schema_field(SectionWithLessonsAndTypeSerializer(many=True))
     def get_content(self, obj):
-        is_author = self.context.get('is_author', False)
+        is_author = self.context.get("is_author", False)
+        child_context = {"request": self.context.get("request")}
 
         if is_author:
-            lesson_qs = Lesson.objects.order_by('lesson_number')
+            lesson_qs = Lesson.objects.order_by("lesson_number")
             sections = (
                 Section.objects.filter(course=obj)
-                .order_by('section_number')
-                .prefetch_related(Prefetch('lesson_set', queryset=lesson_qs))
+                .order_by("section_number")
+                .prefetch_related(Prefetch("lesson_set", queryset=lesson_qs))
             )
-            return SectionWithLessonsAndTypeSerializer(sections, many=True).data
+            return SectionWithLessonsAndTypeSerializer(
+                sections, many=True, context=child_context
+            ).data
 
-        if obj.type != Course.PUBLISHED_STATUS:
-            return []
-
-        lesson_qs = Lesson.objects.filter(type=Lesson.PUBLISHED_STATUS).order_by('lesson_number')
+        lesson_qs = Lesson.objects.filter(type=Lesson.PUBLISHED_STATUS).order_by("lesson_number")
         sections = (
             Section.objects.filter(course=obj, type=Section.PUBLISHED_STATUS)
-            .order_by('section_number')
-            .prefetch_related(Prefetch('lesson_set', queryset=lesson_qs))
+            .order_by("section_number")
+            .prefetch_related(Prefetch("lesson_set", queryset=lesson_qs))
         )
-        return SectionWithLessonsSerializer(sections, many=True).data
+        return SectionWithLessonsSerializer(sections, many=True, context=child_context).data
 
     @extend_schema_field(OpenApiTypes.OBJECT)
-    def get_meta(self, obj):
-        return {}
+    def get_meta(self, course):
+        from apps.stats.services.progress_service import course_meta_for_user
+
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return {}
+        return course_meta_for_user(user=request.user, course=course)
 
 
 class HomeworkBriefSerializer(serializers.Serializer):
@@ -163,10 +246,59 @@ class HomeworkBriefSerializer(serializers.Serializer):
     homework_slug = serializers.SlugField()
     deadline = serializers.DateTimeField()
     type = serializers.CharField()
+    attempt_status = serializers.CharField(allow_null=True, required=False)
+    attempt_grade = serializers.IntegerField(allow_null=True, required=False)
+    attempt_max_points = serializers.IntegerField(required=False)
+    percentile = serializers.IntegerField(allow_null=True, required=False)
+
+
+def _build_homework_brief(homework, request):
+    """
+    Возвращает данные одного ДЗ для LessonDetailReadSerializer.
+    Поля attempt_* и percentile наполняются только для роли student.
+    """
+    base = {
+        "homework_id": homework.homework_id,
+        "title": homework.title,
+        "homework_slug": homework.slug,
+        "deadline": homework.deadline,
+        "type": homework.type,
+        "attempt_status": None,
+        "attempt_grade": None,
+        "attempt_max_points": _homework_max_points(homework),
+        "percentile": None,
+    }
+    if request is None or not request.user.is_authenticated:
+        return base
+    if not request.user.is_student():
+        return base
+
+    from apps.homeworks.models import Attempt
+    from apps.stats.services.progress_service import compute_homework_percentile
+
+    attempt = Attempt.objects.filter(user=request.user, homework=homework).first()
+    if attempt is None:
+        base["attempt_status"] = "not_started"
+    else:
+        base["attempt_status"] = attempt.status
+        if attempt.status == Attempt.REVIEWED_STATUS:
+            base["attempt_grade"] = attempt.grade
+
+    base["percentile"] = compute_homework_percentile(user=request.user, homework=homework)
+    return base
+
+
+def _homework_max_points(homework):
+    from django.db.models import Sum
+
+    q_total = homework.question_set.aggregate(s=Sum("max_points"))["s"] or 0
+    t_total = homework.task_set.aggregate(s=Sum("max_points"))["s"] or 0
+    return q_total + t_total
 
 
 class LessonContentReadSerializer(serializers.Serializer):
     document = serializers.CharField()
+    scheduled_at = serializers.DateTimeField(required=False, allow_null=True)
     started_at = serializers.DateTimeField(required=False, allow_null=True)
     webinar_status = serializers.CharField(allow_null=True)
     recordings = serializers.ListField(child=serializers.DictField())
@@ -175,11 +307,30 @@ class LessonContentReadSerializer(serializers.Serializer):
 
 class LessonDetailReadSerializer(serializers.ModelSerializer):
     lesson_id = serializers.UUIDField(read_only=True)
+    course_title = serializers.SerializerMethodField()
     content = serializers.SerializerMethodField()
+    meta = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
-        fields = ('lesson_id', 'title', 'content')
+        fields = ("lesson_id", "title", "course_title", "content", "meta")
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_course_title(self, lesson):
+        section = lesson.section
+        if section is None:
+            return None
+        course = section.course
+        return course.title if course else None
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_meta(self, lesson):
+        from apps.stats.services.progress_service import lesson_meta_for_user
+
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return {}
+        return lesson_meta_for_user(user=request.user, lesson=lesson)
 
     @extend_schema_field(LessonContentReadSerializer)
     def get_content(self, obj):
@@ -189,34 +340,35 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
             build_recording_whiteboard_map,
         )
 
-        include_drafts = self.context.get('include_drafts', False)
-        hws = filter_homework_queryset_for_visibility(
-            obj.homework_set.all(), include_drafts
-        )
+        include_drafts = self.context.get("include_drafts", False)
+        hws = filter_homework_queryset_for_visibility(obj.homework_set.all(), include_drafts)
+        request = self.context.get("request")
 
-        webinar = getattr(obj, 'webinar', None)
+        webinar = getattr(obj, "webinar", None)
+        scheduled_at = webinar.scheduled_at if webinar else None
         started_at = webinar.started_at if webinar else None
         webinar_status = webinar.status if webinar else None
 
         if webinar:
             recordings_list = list(
-                webinar.recordings.filter(is_deleted=False).order_by('-started_at')
+                webinar.recordings.filter(is_deleted=False).order_by("-started_at")
             )
             rec_context = dict(self.context)
             rec_context[RECORDING_WHITEBOARD_CONTEXT_KEY] = build_recording_whiteboard_map(
                 recordings_list,
             )
             recordings_data = RecordingListItemSerializer(
-                recordings_list, many=True, context=rec_context,
+                recordings_list,
+                many=True,
+                context=rec_context,
             ).data
         else:
             recordings_data = []
 
-        document = obj.document or ''
+        document = obj.document or ""
         asset_ids = extract_asset_ids(document)
         if asset_ids:
-            request = self.context.get('request')
-            viewer = getattr(request, 'user', None) if request is not None else None
+            viewer = getattr(request, "user", None) if request is not None else None
             access = build_access_api()
             try:
                 uri_to_url = access.resolve_many_for_viewer(asset_ids, viewer=viewer)
@@ -225,20 +377,12 @@ class LessonDetailReadSerializer(serializers.ModelSerializer):
             document = substitute_asset_uris(document, uri_to_url)
 
         return {
-            'document': document,
-            'started_at': started_at,
-            'webinar_status': webinar_status,
-            'recordings': recordings_data,
-            'homeworks': [
-                {
-                    'homework_id': h.homework_id,
-                    'title': h.title,
-                    'homework_slug': h.slug,
-                    'deadline': h.deadline,
-                    'type': h.type,
-                }
-                for h in hws
-            ],
+            "document": document,
+            "scheduled_at": scheduled_at,
+            "started_at": started_at,
+            "webinar_status": webinar_status,
+            "recordings": recordings_data,
+            "homeworks": [_build_homework_brief(h, request) for h in hws],
         }
 
 
@@ -250,34 +394,34 @@ class LessonSimpleCreateSerializer(serializers.ModelSerializer):
     )
     title = serializers.CharField(max_length=120)
     type = serializers.ChoiceField(
-        choices=Lesson._meta.get_field('type').choices,
+        choices=Lesson._meta.get_field("type").choices,
         default=PublishableMixin.DRAFT_STATUS,
         required=False,
     )
 
     class Meta:
         model = Lesson
-        fields = ('section', 'title', 'type')
+        fields = ("section", "title", "type")
 
     def validate(self, attrs):
-        request = self.context.get('request')
+        request = self.context.get("request")
         if request is not None:
-            data = getattr(request, 'data', None)
-            if data is not None and data.get('content') is not None:
+            data = getattr(request, "data", None)
+            if data is not None and data.get("content") is not None:
                 raise serializers.ValidationError(
                     {
-                        'content': 'Создание с контентом и вложениями выполняйте запросом '
-                        'PUT на этот же URL.'
+                        "content": "Создание с контентом и вложениями выполняйте запросом "
+                        "PUT на этот же URL."
                     }
                 )
         return attrs
 
     def validate_section(self, section):
-        course = self.context.get('course')
+        course = self.context.get("course")
         if course is None:
             return section
         if section is not None and section.course_id != course.course_id:
-            raise serializers.ValidationError('Секция не принадлежит этому курсу.')
+            raise serializers.ValidationError("Секция не принадлежит этому курсу.")
         return section
 
 
@@ -287,7 +431,7 @@ class LessonDocumentStrField(serializers.Field):
             return data
         if isinstance(data, dict):
             return json.dumps(data, ensure_ascii=False)
-        raise serializers.ValidationError('document: ожидается JSON-объект или строка JSON.')
+        raise serializers.ValidationError("document: ожидается JSON-объект или строка JSON.")
 
 
 class LessonContentPayloadSerializer(serializers.Serializer):
@@ -302,17 +446,17 @@ class LessonCreateSerializer(serializers.Serializer):
     )
     title = serializers.CharField(max_length=120)
     type = serializers.ChoiceField(
-        choices=Lesson._meta.get_field('type').choices,
+        choices=Lesson._meta.get_field("type").choices,
         default=PublishableMixin.DRAFT_STATUS,
         required=False,
     )
     content = LessonContentPayloadSerializer(required=False, allow_null=True)
 
     def to_internal_value(self, data):
-        if not hasattr(data, 'get'):
+        if not hasattr(data, "get"):
             return super().to_internal_value(data)
 
-        raw_content = data.get('content')
+        raw_content = data.get("content")
         normalized_content = raw_content
 
         if isinstance(raw_content, str):
@@ -324,31 +468,31 @@ class LessonCreateSerializer(serializers.Serializer):
                     normalized_content = json.loads(raw_content)
                 except json.JSONDecodeError as e:
                     raise serializers.ValidationError(
-                        {'content': 'Невалидный JSON в поле content.'}
+                        {"content": "Невалидный JSON в поле content."}
                     ) from e
 
         payload = {
-            'content': normalized_content,
+            "content": normalized_content,
         }
         title_sentinel = object()
-        raw_title = data.get('title', title_sentinel)
+        raw_title = data.get("title", title_sentinel)
         if raw_title is not title_sentinel:
-            payload['title'] = raw_title
-        raw_section = data.get('section')
-        if raw_section not in (None, ''):
-            payload['section'] = raw_section
-        raw_type = data.get('type')
-        if raw_type not in (None, ''):
-            payload['type'] = raw_type
+            payload["title"] = raw_title
+        raw_section = data.get("section")
+        if raw_section not in (None, ""):
+            payload["section"] = raw_section
+        raw_type = data.get("type")
+        if raw_type not in (None, ""):
+            payload["type"] = raw_type
 
         return super().to_internal_value(payload)
 
     def validate_section(self, section):
-        course = self.context.get('course')
+        course = self.context.get("course")
         if course is None:
             return section
         if section is not None and section.course_id != course.course_id:
-            raise serializers.ValidationError('Секция не принадлежит этому курсу.')
+            raise serializers.ValidationError("Секция не принадлежит этому курсу.")
         return section
 
     def _sync_lesson_assets(self, lesson, document_str):
@@ -358,21 +502,21 @@ class LessonCreateSerializer(serializers.Serializer):
         binding = build_binding_api()
         binding.sync_many(
             content_object=lesson,
-            role='lesson_block',
+            role="lesson_block",
             asset_ids=asset_ids,
             owner=None,
         )
 
     def _extract_content_payload(self, validated_data):
-        content_payload = validated_data.pop('content', None)
+        content_payload = validated_data.pop("content", None)
         if content_payload is not None:
             return content_payload
 
-        initial_data = getattr(self, 'initial_data', None)
-        if hasattr(initial_data, 'get'):
-            raw = initial_data.get('content')
+        initial_data = getattr(self, "initial_data", None)
+        if hasattr(initial_data, "get"):
+            raw = initial_data.get("content")
         elif isinstance(initial_data, dict):
-            raw = initial_data.get('content')
+            raw = initial_data.get("content")
         else:
             raw = None
 
@@ -388,14 +532,14 @@ class LessonCreateSerializer(serializers.Serializer):
         content_payload = self._extract_content_payload(validated_data)
         lesson = Lesson.objects.create(**validated_data)
         if content_payload is not None:
-            document_str = content_payload['document']
+            document_str = content_payload["document"]
             lesson.document = document_str
-            lesson.save(update_fields=['document'])
+            lesson.save(update_fields=["document"])
             try:
                 self._sync_lesson_assets(lesson, document_str)
             except AssetError as e:
                 lesson.delete()
-                raise serializers.ValidationError({'content': e.message}) from e
+                raise serializers.ValidationError({"content": e.message}) from e
         return lesson
 
     def update(self, instance, validated_data):
@@ -407,24 +551,24 @@ class LessonCreateSerializer(serializers.Serializer):
         update_fields = list(validated_data.keys())
 
         if content_payload is not None:
-            instance.document = content_payload['document']
-            update_fields.append('document')
+            instance.document = content_payload["document"]
+            update_fields.append("document")
 
         if update_fields:
             instance.save(update_fields=update_fields)
 
         if content_payload is not None:
             try:
-                self._sync_lesson_assets(instance, content_payload['document'])
+                self._sync_lesson_assets(instance, content_payload["document"])
             except AssetError as e:
-                raise serializers.ValidationError({'content': e.message}) from e
+                raise serializers.ValidationError({"content": e.message}) from e
 
         return instance
 
     def to_representation(self, instance):
         data = LessonSerializer(instance).data
-        doc = data.pop('document', '')
-        data['content'] = {'document': doc}
+        doc = data.pop("document", "")
+        data["content"] = {"document": doc}
         return data
 
 
@@ -435,17 +579,17 @@ class LessonSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lesson
-        fields = '__all__'
+        fields = "__all__"
         read_only_fields = (
-            'lesson_id',
-            'created_at',
-            'updated_at',
-            'last_modified_by',
+            "lesson_id",
+            "created_at",
+            "updated_at",
+            "last_modified_by",
         )
 
 
 class HomeworkItemsListSerializer(serializers.Serializer):
-    type = serializers.ChoiceField(choices=['question', 'task'])
+    type = serializers.ChoiceField(choices=["question", "task"])
     id = serializers.UUIDField(required=False, allow_null=True)
     number = serializers.IntegerField(read_only=True)
     text = serializers.CharField(max_length=200)
@@ -460,34 +604,36 @@ class HomeworkItemsListSerializer(serializers.Serializer):
 
 
 class HomeworkDetailSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
-    asset_roles = ['homework_material']
+    asset_roles = ["homework_material"]
 
     material_asset_ids = serializers.ListField(
-        child=serializers.UUIDField(), write_only=True, required=False,
+        child=serializers.UUIDField(),
+        write_only=True,
+        required=False,
     )
     items = serializers.SerializerMethodField()
-    lesson_id = serializers.UUIDField(source='lesson.lesson_id', read_only=True)
+    lesson_id = serializers.UUIDField(source="lesson.lesson_id", read_only=True)
 
     class Meta:
         model = Homework
         fields = [
-            'homework_id',
-            'homework_number',
-            'lesson_id',
-            'title',
-            'slug',
-            'deadline',
-            'type',
-            'created_at',
-            'updated_at',
-            'material_asset_ids',
-            'items',
+            "homework_id",
+            "homework_number",
+            "lesson_id",
+            "title",
+            "slug",
+            "deadline",
+            "type",
+            "created_at",
+            "updated_at",
+            "material_asset_ids",
+            "items",
         ]
         read_only_fields = (
-            'homework_id',
-            'created_at',
-            'updated_at',
-            'last_modified_by',
+            "homework_id",
+            "created_at",
+            "updated_at",
+            "last_modified_by",
         )
 
     @extend_schema_field(HomeworkItemsListSerializer(many=True))
@@ -497,82 +643,84 @@ class HomeworkDetailSerializer(AssetsSerializerMixin, serializers.ModelSerialize
 
         items = []
         for q in questions:
-            items.append({
-                'type': 'question',
-                'id': q.question_id,
-                'number': q.question_number,
-                'text': q.text,
-                'answer_options': q.answer_options,
-                'correct_ans': q.correct_ans,
-                'max_points': q.max_points,
-                'created_at': q.created_at,
-            })
+            items.append(
+                {
+                    "type": "question",
+                    "id": q.question_id,
+                    "number": q.question_number,
+                    "text": q.text,
+                    "answer_options": q.answer_options,
+                    "correct_ans": q.correct_ans,
+                    "max_points": q.max_points,
+                    "created_at": q.created_at,
+                }
+            )
         for t in tasks:
-            items.append({
-                'type': 'task',
-                'id': t.task_id,
-                'number': t.task_number,
-                'text': t.text,
-                'answer_options': None,
-                'correct_ans': None,
-                'max_points': t.max_points,
-                'created_at': t.created_at,
-            })
+            items.append(
+                {
+                    "type": "task",
+                    "id": t.task_id,
+                    "number": t.task_number,
+                    "text": t.text,
+                    "answer_options": None,
+                    "correct_ans": None,
+                    "max_points": t.max_points,
+                    "created_at": t.created_at,
+                }
+            )
 
-        items.sort(key=lambda x: (x['number'], x['created_at']))
+        items.sort(key=lambda x: (x["number"], x["created_at"]))
         return items
 
 
 class HomeworkSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
-    asset_roles = ['homework_material']
+    asset_roles = ["homework_material"]
 
     material_asset_ids = serializers.ListField(
-        child=serializers.UUIDField(), write_only=True, required=False,
+        child=serializers.UUIDField(),
+        write_only=True,
+        required=False,
     )
 
     class Meta:
         model = Homework
-        fields = '__all__'
+        fields = "__all__"
         extra_kwargs = {
-            'lesson': {'required': False},
+            "lesson": {"required": False},
         }
         read_only_fields = (
-            'homework_id',
-            'created_at',
-            'updated_at',
-            'last_modified_by',
+            "homework_id",
+            "created_at",
+            "updated_at",
+            "last_modified_by",
         )
 
 
 class TaskSerializer(serializers.ModelSerializer):
-    homework = serializers.PrimaryKeyRelatedField(
-        queryset=Homework.objects.all(), required=False
-    )
+    homework = serializers.PrimaryKeyRelatedField(queryset=Homework.objects.all(), required=False)
 
     class Meta:
         model = Task
-        fields = '__all__'
+        fields = "__all__"
         read_only_fields = (
-            'task_id',
-            'created_at',
-            'updated_at',
-            'last_modified_by',
+            "task_id",
+            "created_at",
+            "updated_at",
+            "last_modified_by",
         )
 
 
 class QuestionSerializer(serializers.ModelSerializer):
-    homework = serializers.PrimaryKeyRelatedField(
-        queryset=Homework.objects.all(), required=False
-    )
+    homework = serializers.PrimaryKeyRelatedField(queryset=Homework.objects.all(), required=False)
 
     class Meta:
         model = Question
-        fields = '__all__'
+        fields = "__all__"
         read_only_fields = (
-            'question_id',
-            'created_at',
-            'updated_at',
-            'last_modified_by',
+            "question_id",
+            "created_at",
+            "updated_at",
+            "last_modified_by",
         )
 
 
@@ -586,8 +734,8 @@ class UserWebinarListItemSerializer(serializers.Serializer):
 
 
 class ScheduleItemSerializer(serializers.Serializer):
-    TYPE_WEBINAR = 'webinar'
-    TYPE_HOMEWORK = 'homework'
+    TYPE_WEBINAR = "webinar"
+    TYPE_HOMEWORK = "homework"
 
     type = serializers.ChoiceField(choices=[TYPE_WEBINAR, TYPE_HOMEWORK])
     datetime = serializers.DateTimeField()
@@ -602,7 +750,7 @@ class ScheduleResponseSerializer(serializers.Serializer):
 class MyContentLessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
-        fields = ['lesson_id', 'slug', 'title']
+        fields = ["lesson_id", "slug", "title"]
 
 
 class MyContentCourseSerializer(serializers.ModelSerializer):
@@ -610,19 +758,25 @@ class MyContentCourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Course
-        fields = ['course_id', 'slug', 'title', 'lessons']
+        fields = ["course_id", "slug", "title", "lessons"]
 
     @extend_schema_field(MyContentLessonSerializer(many=True))
     def get_lessons(self, obj):
-        include_drafts = self.context.get('include_drafts', False)
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request is not None else None
+        include_drafts = bool(
+            user is not None
+            and user.is_authenticated
+            and (user.is_moderator() or user.is_course_author(obj))
+        )
         if include_drafts:
             lesson_qs = Lesson.objects.filter(section__course=obj).order_by(
-                'section__section_number', 'lesson_number'
+                "section__section_number", "lesson_number"
             )
         else:
             lesson_qs = Lesson.objects.filter(
                 section__course=obj,
                 type=Lesson.PUBLISHED_STATUS,
                 section__type=Section.PUBLISHED_STATUS,
-            ).order_by('section__section_number', 'lesson_number')
+            ).order_by("section__section_number", "lesson_number")
         return MyContentLessonSerializer(lesson_qs, many=True).data

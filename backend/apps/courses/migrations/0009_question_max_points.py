@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0008_merge_20260419_2308'),
+        ("courses", "0008_merge_20260419_2308"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='question',
-            name='max_points',
-            field=models.PositiveIntegerField(default=1, verbose_name='Максимальное количество баллов за вопрос'),
+            model_name="question",
+            name="max_points",
+            field=models.PositiveIntegerField(
+                default=1, verbose_name="Максимальное количество баллов за вопрос"
+            ),
         ),
     ]

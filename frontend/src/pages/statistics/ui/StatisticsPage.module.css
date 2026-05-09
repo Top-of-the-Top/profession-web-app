@@ -1,0 +1,416 @@
+.page {
+  min-height: 100%;
+}
+
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pageTitle {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1d2939;
+  margin: 0;
+}
+
+/* ── Tab bar ── */
+.tabBar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #e4e7ec;
+  padding-bottom: 0;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #667085;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  border-radius: 8px 8px 0 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.tabBtn:hover {
+  color: #1d2939;
+  /* background: #c7d5e4; */
+	background-color: #d2dff0;
+}
+
+.tabBtnActive {
+  color: #211c84;
+  border-bottom-color: #211c84;
+  background: transparent;
+}
+
+/* ── Tab content ── */
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Filter row ── */
+.filterRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filterInput {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: #1d2939;
+  background: #fff;
+  min-width: 200px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.filterInput:focus {
+  border-color: #211c84;
+}
+
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  color: #98a2b3;
+  pointer-events: none;
+}
+
+.searchInput {
+  height: 38px;
+  padding: 0 12px 0 34px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: #1d2939;
+  background: #fff;
+  min-width: 300px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.searchInput:focus {
+  border-color: #211c84;
+}
+
+/* ── Table ── */
+.tableWrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #e4e7ec;
+  background: #fff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #667085;
+  background: #f9fafb;
+  border-bottom: 1px solid #e4e7ec;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.thSortable {
+  cursor: pointer;
+  transition: color 0.13s;
+}
+
+.thSortable:hover {
+  color: #211c84;
+}
+
+.thActive {
+  color: #211c84;
+}
+
+.sortArrow {
+  font-size: 0.75rem;
+  color: inherit;
+}
+
+.tr {}
+
+.td {
+  padding: 12px 16px;
+  color: #1d2939;
+  border-bottom: 1px solid #f2f4f7;
+  vertical-align: middle;
+}
+
+.tdMono {
+  padding: 12px 16px;
+  color: #667085;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #f2f4f7;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.tdNum {
+  padding: 12px 16px;
+  color: #1d2939;
+  font-weight: 500;
+  border-bottom: 1px solid #f2f4f7;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.dateCell {
+  position: relative;
+  /* top: -3px; */
+}
+
+.fractionSlash {
+  position: relative;
+  top: -1px;
+}
+
+.thCenter {
+  text-align: center;
+}
+
+.thRight {
+  text-align: right;
+}
+
+.tdCenter {
+  text-align: center;
+}
+
+.tdRight {
+  text-align: right;
+}
+
+.subPct {
+  color: #98a2b3;
+  font-weight: 400;
+  font-size: 0.8125rem;
+}
+
+.numCell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  cursor: default;
+}
+
+.numCellCount {
+  font-weight: 500;
+  color: #1d2939;
+  /* text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 4px; */
+}
+
+.numPopup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.13);
+  padding: 8px 0;
+  min-width: 180px;
+  max-height: 260px;
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.numPopupItem {
+  padding: 5px 14px;
+  font-size: 0.875rem;
+  color: #1d2939;
+  white-space: nowrap;
+}
+
+.numPopupRight {
+  left: auto;
+  right: 0;
+}
+
+.emptyCell {
+  padding: 32px 16px;
+  text-align: center;
+  color: #98a2b3;
+  font-size: 0.9375rem;
+}
+
+/* ── Progress bar (in table cells) ── */
+.progressCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 120px;
+}
+
+.progressBarTrack {
+  flex: 1;
+  height: 8px;
+  background: #e4e7ec;
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: #211c84;
+  border-radius: 100px;
+  transition: width 0.3s ease;
+}
+
+.progressLabel {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #667085;
+  min-width: 34px;
+  text-align: right;
+}
+
+/* ── Students grid ── */
+.studentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.studentCard {
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow 0.15s;
+}
+
+.studentCard:hover {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+
+.studentCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.studentAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #eef1fa;
+  color: #211c84;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.studentCardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.studentName {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1d2939;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studentContact {
+  font-size: 0.8125rem;
+  color: #667085;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studentCourses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.coursePill {
+  padding: 4px 12px;
+  border-radius: 100px;
+  border: 1px solid #d0d5dd;
+  background: #f9fafb;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #344054;
+  cursor: pointer;
+  transition: background 0.13s, border-color 0.13s, color 0.13s;
+  white-space: nowrap;
+}
+
+.coursePill:hover {
+  background: #eef1fa;
+  border-color: #211c84;
+  color: #211c84;
+}
+
+/* ── Utils ── */
+.centered {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.errorMsg {
+  padding: 20px;
+  color: #d92d20;
+  background: #fff4f2;
+  border: 1px solid #fecdca;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+}
+
+.emptyMsg {
+  color: #98a2b3;
+  font-size: 0.9375rem;
+  text-align: center;
+  padding: 40px 0;
+}

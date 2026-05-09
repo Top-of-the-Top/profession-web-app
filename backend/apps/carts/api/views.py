@@ -1,12 +1,14 @@
+from django.core.cache import caches
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema
+
 from ...courses.models import Course
 from ..models import Cart, CartItem
 from .serializers import CartItemSerializer, CartSerializer
-from django.core.cache import caches
+
 
 def cart_hot_cache_key(user_id):
     return f"hot:carts:cart:{int(user_id)}"
@@ -59,7 +61,10 @@ class CartView(APIView):
         tags=["Carts"],
         responses={
             200: CartSerializer,
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
         },
     )
     def get(self, request):
@@ -71,7 +76,7 @@ class CartView(APIView):
             return Response(cached, status=status.HTTP_200_OK)
 
         cart, _ = Cart.objects.get_or_create(user=request.user)
-        serializer = CartSerializer(cart, context={'request': request})
+        serializer = CartSerializer(cart, context={"request": request})
         data = serializer.data
         hot_cache.set(cache_key, data)
         return Response(data, status=status.HTTP_200_OK)
@@ -94,25 +99,35 @@ class AddToCartView(APIView):
         tags=["Carts"],
         responses={
             201: CartItemSerializer,
-            400: {"description": "Тело: { error: 'Курс уже в корзине' }.", "schema": SCHEMA_400_ERROR},
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
-            404: {"description": "Тело: { detail: 'Курс с таким slug не найден в списке курсов.' }.", "schema": SCHEMA_404},
+            400: {
+                "description": "Тело: { error: 'Курс уже в корзине' }.",
+                "schema": SCHEMA_400_ERROR,
+            },
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
+            404: {
+                "description": "Тело: { detail: 'Курс с таким slug не найден в списке курсов.' }.",
+                "schema": SCHEMA_404,
+            },
         },
     )
     def post(self, request, slug):
         cart, _ = Cart.objects.get_or_create(user=request.user)
-        course = Course.objects.filter(slug=slug).first()
+        course = Course.objects.filter(
+            slug=slug, is_deleted=False, type=Course.PUBLISHED_STATUS
+        ).first()
 
         if course is None:
             return Response(
-                {'detail': 'Курс с таким slug не найден в списке курсов.'},
+                {"detail": "Курс с таким slug не найден в списке курсов."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if CartItem.objects.filter(cart_id=cart.cart_id,
-                                   course_id=course.course_id).exists():
+        if CartItem.objects.filter(cart_id=cart.cart_id, course_id=course.course_id).exists():
             return Response(
-                {'error': 'Курс уже в корзине'},
+                {"error": "Курс уже в корзине"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -141,8 +156,14 @@ class CartItemView(APIView):
         tags=["Carts"],
         responses={
             204: {"description": "Курс удалён из корзины, тело ответа пустое."},
-            401: {"description": "Токен отсутствует или недействителен.", "schema": SCHEMA_401},
-            404: {"description": "Тело: { detail }. «Курс с таким slug не найден в списке курсов.» или «Курс с таким slug не найден в корзине.»", "schema": SCHEMA_404},
+            401: {
+                "description": "Токен отсутствует или недействителен.",
+                "schema": SCHEMA_401,
+            },
+            404: {
+                "description": "Тело: { detail }. «Курс с таким slug не найден в списке курсов.» или «Курс с таким slug не найден в корзине.»",
+                "schema": SCHEMA_404,
+            },
         },
     )
     def delete(self, request, slug):
@@ -150,7 +171,7 @@ class CartItemView(APIView):
         course = Course.objects.filter(slug=slug).first()
         if course is None:
             return Response(
-                {'detail': 'Курс с таким slug не найден в списке курсов.'},
+                {"detail": "Курс с таким slug не найден в списке курсов."},
                 status=status.HTTP_404_NOT_FOUND,
             )
         cart_item = CartItem.objects.filter(
@@ -159,7 +180,7 @@ class CartItemView(APIView):
         ).first()
         if cart_item is None:
             return Response(
-                {'detail': 'Курс с таким slug не найден в корзине.'},
+                {"detail": "Курс с таким slug не найден в корзине."},
                 status=status.HTTP_404_NOT_FOUND,
             )
         cart_item.delete()

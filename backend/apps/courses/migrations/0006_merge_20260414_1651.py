@@ -4,11 +4,9 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0004_remove_lesson_date_time'),
-        ('courses', '0005_lesson_document'),
+        ("courses", "0004_remove_lesson_date_time"),
+        ("courses", "0005_lesson_document"),
     ]
 
-    operations = [
-    ]
+    operations = []

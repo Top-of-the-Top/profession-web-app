@@ -2,8 +2,7 @@ from abc import ABC, abstractmethod
 
 
 class StorageBackend(ABC):
-
-    name = ''
+    name = ""
 
     @abstractmethod
     def build_storage_key(self, hint):
@@ -26,5 +25,5 @@ class StorageBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def put_object(self, storage_key, body, mime_type=''):
+    def put_object(self, storage_key, body, mime_type=""):
         raise NotImplementedError

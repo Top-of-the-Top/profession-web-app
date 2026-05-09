@@ -18,12 +18,13 @@ class ObjectMeta:
     size_bytes: int
     etag: str
     last_modified: datetime
-    mime_type: str = ''
+    mime_type: str = ""
 
 
 @dataclass(frozen=True)
 class BuildStorageKeyResult:
     """Результат резервирования ключа: ключ + мета для сохранения в MediaAsset.storage_meta."""
+
     storage_key: str
     meta: dict = field(default_factory=dict)
 
@@ -32,8 +33,8 @@ class BuildStorageKeyResult:
 class StorageKeyHint:
     backend: str
     intent: str
-    owner_id: str = ''
-    filename: str = ''
+    owner_id: str = ""
+    filename: str = ""
 
 
 @dataclass(frozen=True)

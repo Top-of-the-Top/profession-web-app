@@ -4,15 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0009_question_max_points'),
+        ("courses", "0009_question_max_points"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='course',
-            name='yandex_vs_id',
-            field=models.CharField(blank=True, max_length=255, null=True, verbose_name='Yandex Vector Store ID'),
+            model_name="course",
+            name="yandex_vs_id",
+            field=models.CharField(
+                blank=True,
+                max_length=255,
+                null=True,
+                verbose_name="Yandex Vector Store ID",
+            ),
         ),
     ]

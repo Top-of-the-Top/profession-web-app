@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 def send_verification_email(email, code):
     try:
         send_mail(
-            subject='Подтверждение email',
-            message=f'Ваш код подтверждения: {code}.',
+            subject="Подтверждение email",
+            message=f"Ваш код подтверждения: {code}.",
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[email],
             fail_silently=False,
@@ -26,7 +26,7 @@ def send_verification_email(email, code):
 def send_verification_sms(phone_number, code):
     try:
         send_sms(
-            body=f'Ваш код подтверждения Профессия: {code}',
+            body=f"Ваш код подтверждения Профессия: {code}",
             originator=settings.DEFAULT_FROM_SMS,
             recipients=[phone_number],
             fail_silently=False,
@@ -41,8 +41,8 @@ def send_verification_sms(phone_number, code):
 def send_reset_password_email(email, recover_url):
     try:
         send_mail(
-            subject='Сброс пароля',
-            message=f'Перейдите по ссылке для сброса пароля: {recover_url}',
+            subject="Сброс пароля",
+            message=f"Перейдите по ссылке для сброса пароля: {recover_url}",
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[email],
             fail_silently=False,
@@ -54,10 +54,29 @@ def send_reset_password_email(email, recover_url):
         return False, f"Ошибка отправки: {str(e)}"
 
 
+def send_teacher_invite_email(email, invite_url):
+    try:
+        send_mail(
+            subject="Приглашение преподавателя",
+            message=(
+                f"Вас пригласили в качестве преподавателя на платформу Профессия.\n\n"
+                f"Зарегистрируйтесь по ссылке (действует 3 дней):\n{invite_url}"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        return True, "Письмо отправлено"
+
+    except Exception as e:
+        logger.exception("Не удалось отправить инвайт на %s", email)
+        return False, f"Ошибка отправки: {str(e)}"
+
+
 def send_reset_password_sms(phone_number, reset_code):
     try:
         send_sms(
-            body=f'Код для сброса пароля Профессия: {reset_code}',
+            body=f"Код для сброса пароля Профессия: {reset_code}",
             originator=settings.DEFAULT_FROM_SMS,
             recipients=[phone_number],
             fail_silently=False,

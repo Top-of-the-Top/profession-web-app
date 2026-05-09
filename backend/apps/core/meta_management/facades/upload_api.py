@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 class UploadApi:
-
     def __init__(self, asset_service):
         self._service = asset_service
 
@@ -41,11 +40,12 @@ class UploadApi:
             meta = backend.head(asset.storage_key)
             if meta is not None:
                 from ..tasks import commit_pending_asset
+
                 # Фиксированный task_id гарантирует что Celery не запустит
                 # дублирующую задачу если фронт поллит часто
                 commit_pending_asset.apply_async(
                     args=[str(asset.asset_id)],
-                    task_id=f'commit-{asset.asset_id}',
+                    task_id=f"commit-{asset.asset_id}",
                 )
         except Exception:
             logger.exception(
@@ -73,12 +73,12 @@ class UploadApi:
         asset = self._service.get_asset(asset_id)
 
         if user is None:
-            raise AssetPermissionDenied(details={'asset_id': str(asset_id)})
+            raise AssetPermissionDenied(details={"asset_id": str(asset_id)})
 
-        is_owner = asset.owner_id == getattr(user, 'pk', None)
-        is_staff = getattr(user, 'is_staff', False)
+        is_owner = asset.owner_id == getattr(user, "pk", None)
+        is_staff = getattr(user, "is_staff", False)
 
         if not is_owner and not is_staff:
-            raise AssetPermissionDenied(details={'asset_id': str(asset_id)})
+            raise AssetPermissionDenied(details={"asset_id": str(asset_id)})
 
         return asset

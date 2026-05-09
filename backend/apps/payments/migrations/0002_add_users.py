@@ -6,33 +6,42 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('courses', '0002_add_authors'),
-        ('payments', '0001_initial'),
+        ("courses", "0002_add_authors"),
+        ("payments", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='payment',
-            name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='payments', to=settings.AUTH_USER_MODEL),
+            model_name="payment",
+            name="user",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="payments",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='paymentitem',
-            name='course',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='courses.course'),
+            model_name="paymentitem",
+            name="course",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="courses.course"
+            ),
         ),
         migrations.AddField(
-            model_name='paymentitem',
-            name='payment',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='items', to='payments.payment'),
+            model_name="paymentitem",
+            name="payment",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="items",
+                to="payments.payment",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='paymentitem',
-            unique_together={('payment', 'course')},
+            name="paymentitem",
+            unique_together={("payment", "course")},
         ),
     ]

@@ -1,11 +1,31 @@
 import { apiClient } from './interceptor';
 
-export interface ScheduleItem {
-  type: 'webinar' | 'homework';
+export interface WebinarScheduleItem {
+  type: 'webinar';
   datetime: string;
   course_title: string;
+  course_slug: string;
   title: string;
+  webinar_id: string;
+  lesson_slug: string;
+  webinar_status: 'pending' | 'live' | 'ended';
+  scheduled_at: string | null;
 }
+
+export interface HomeworkScheduleItem {
+  type: 'homework';
+  datetime: string;
+  course_title: string;
+  course_slug: string;
+  title: string;
+  homework_id: string;
+  homework_slug: string;
+  homework_lesson_slug: string;
+  deadline: string;
+  attempt_status: 'not_started' | 'draft' | 'submitted' | 'reviewed' | null;
+}
+
+export type ScheduleItem = WebinarScheduleItem | HomeworkScheduleItem;
 
 export interface ScheduleResponse {
   items: ScheduleItem[];

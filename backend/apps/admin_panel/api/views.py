@@ -216,7 +216,7 @@ class InviteTeacherview(APIView):
 
         from django.conf import settings
 
-        invite_url = f"{settings.FRONTEND_URL}/register?invite={invite.token}"
+        invite_url = f"{settings.FRONTEND_HOST}/register?invite={invite.token}"
         ok, _ = send_teacher_invite_email(invite.email, invite_url)
         if not ok:
             invite.delete()

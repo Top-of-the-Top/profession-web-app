@@ -221,7 +221,7 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL", "webmaster@localhost")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_HOST = os.getenv("FRONTEND_HOST", "http://localhost:3000")
 
 
 SMS_BACKEND = os.getenv("SMS_BACKEND", "sms.backends.console.SmsBackend")

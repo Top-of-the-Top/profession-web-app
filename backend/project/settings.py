@@ -82,7 +82,7 @@ if DEBUG:
         "SLOW_QUERY_THRESHOLD_MS": 200,
         "STORAGE_LIMIT": 2000,
         "AUTH_CHECK": lambda request: True,
-        "IGNORE_PATHS": ["/orbit/", "/static/", "/media/", "/api/v1/schema/"],
+        "IGNORE_PATHS": ["/orbit/", "/static/", "/media/", "/api/schema/"],
         "WATCHER_FAIL_SILENTLY": True,
     }
 

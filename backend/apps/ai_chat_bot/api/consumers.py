@@ -72,6 +72,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             chats = await self.chat_service.get_chats()
             await self._send_ws_message(ConnectedMessage(chats=chats))
+        except Course.DoesNotExist:
+            logger.warning(
+                "WS connect rejected (4500): course_slug=%s error=course not found",
+                self.course_slug,
+            )
+            await self.close(code=4500)
         except Exception as e:
             logger.exception(
                 "WS connect rejected (4500): course_slug=%s error=%s",

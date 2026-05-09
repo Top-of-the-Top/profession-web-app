@@ -28,6 +28,7 @@ from .serializers import (
     CourseHomeSerializer,
     CourseListResponseSerializer,
     CourseSerializer,
+    CourseStoreDTOSerializer,
     HomeworkDetailSerializer,
     HomeworkSerializer,
     LessonCreateSerializer,
@@ -95,13 +96,13 @@ class CourseDTOList(generics.ListAPIView):
 
 class CourseListView(APIView):
     permission_classes = (IsAuthenticated,)
-    serializer_class = CourseSerializer
+    serializer_class = CourseStoreDTOSerializer
 
     @extend_schema(
         summary="Список курсов",
         tags=["Course"],
         responses={
-            200: CourseSerializer(many=True),
+            200: CourseStoreDTOSerializer(many=True),
             401: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         },
@@ -118,9 +119,7 @@ class CourseListView(APIView):
             qs = Course.objects.filter(is_deleted=False)
         elif user.is_teacher():
             qs = (
-                Course.objects.filter(
-                    is_deleted=False,
-                )
+                Course.objects.filter(is_deleted=False)
                 .filter(Q(type=Course.PUBLISHED_STATUS) | Q(authors=user))
                 .distinct()
             )
@@ -129,7 +128,7 @@ class CourseListView(APIView):
                 is_deleted=False, type=Course.PUBLISHED_STATUS, is_special=False
             )
 
-        serializer = CourseSerializer(qs, many=True, context={"request": request})
+        serializer = CourseStoreDTOSerializer(qs, many=True, context={"request": request})
         cache.set(key, serializer.data)
         return Response(serializer.data)
 
@@ -184,10 +183,7 @@ class CourseDetailView(APIView):
         if course.type != Course.PUBLISHED_STATUS and not can_see_unpublished:
             return Response({"detail": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
 
-        if course.is_special and not (
-            user.is_authenticated
-            and (user.is_moderator() or user.is_course_author(course) or user.is_enrolled(course))
-        ):
+        if course.is_special and not user.is_authenticated:
             return Response({"detail": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
 
         cache = caches["default"]

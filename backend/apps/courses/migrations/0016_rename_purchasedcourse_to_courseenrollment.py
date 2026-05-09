@@ -1,6 +1,12 @@
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
+from django.utils import timezone
+
+
+def backfill_created_at(apps, schema_editor):
+    CourseEnrollment = apps.get_model("courses", "CourseEnrollment")
+    CourseEnrollment.objects.filter(created_at__isnull=True).update(created_at=timezone.now())
 
 
 class Migration(migrations.Migration):
@@ -71,10 +77,7 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "Записи на курсы",
             },
         ),
-        migrations.RunSQL(
-            sql="UPDATE course_enrollments SET created_at = NOW() WHERE created_at IS NULL;",
-            reverse_sql=migrations.RunSQL.noop,
-        ),
+        migrations.RunPython(backfill_created_at, reverse_code=migrations.RunPython.noop),
         migrations.AlterField(
             model_name="courseenrollment",
             name="created_at",

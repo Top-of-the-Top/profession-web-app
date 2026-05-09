@@ -83,6 +83,22 @@ class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
         return obj.image_url
 
 
+class CourseStoreDTOSerializer(CourseDTOSerializer):
+    is_enrolled = serializers.SerializerMethodField()
+
+    class Meta(CourseDTOSerializer.Meta):
+        fields = CourseDTOSerializer.Meta.fields + ["is_enrolled"]
+
+    def get_is_enrolled(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        user = request.user
+        if user.is_moderator() or user.is_teacher():
+            return True
+        return user.is_enrolled(obj)
+
+
 class CourseListResponseSerializer(serializers.Serializer):
     number_of_courses = serializers.IntegerField()
     data = CourseDTOSerializer(many=True, read_only=True)

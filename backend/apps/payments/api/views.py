@@ -74,6 +74,16 @@ class CartPayView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        special_course_ids = [item.course_id for item in cart_items if item.course.is_special]
+        if special_course_ids:
+            return Response(
+                {
+                    "error": "Специальные курсы нельзя купить.",
+                    "course_ids": special_course_ids,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         already_enrolled = CourseEnrollment.objects.filter(
             user=request.user,
             course__in=[item.course_id for item in cart_items],

@@ -6,6 +6,7 @@ from apps.courses.tests.test_models import BaseTestCase
 
 
 class PublicTeacherInviteTokenValidateHttpTests(BaseTestCase):
+
     def setUp(self):
         super().setUp()
         self.client = APIClient()

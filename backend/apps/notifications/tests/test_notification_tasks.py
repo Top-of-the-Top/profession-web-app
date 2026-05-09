@@ -14,22 +14,16 @@ from apps.payments.models import Payment
 
 
 class NotificationTasksPublishPayloadTests(TestCase):
+
     def test_send_course_notification_persists_and_publishes_course_route(self):
         course = create_test_course(title="NCourse")
         capture = MagicMock()
-
         with patch("apps.notifications.tasks.publish_event", side_effect=capture):
-            notification_tasks.send_course_notification.run(
-                course.course_id,
-                "Заголовок",
-                "Текст",
-            )
-
+            notification_tasks.send_course_notification.run(course.course_id, "Заголовок", "Текст")
         self.assertEqual(Notification.objects.count(), 1)
         n = Notification.objects.get()
         self.assertEqual(n.course_id, course.course_id)
         self.assertEqual(n.notification_type, Notification.COURSE)
-
         capture.assert_called_once()
         kwargs = capture.call_args.kwargs
         self.assertEqual(kwargs["routing_key"], f"course.{course.course_id}")
@@ -41,10 +35,8 @@ class NotificationTasksPublishPayloadTests(TestCase):
     def test_send_personal_notification_publishes_user_route(self):
         user = create_test_user(email="personal_tasks@test.com", role="student")
         capture = MagicMock()
-
         with patch("apps.notifications.tasks.publish_event", side_effect=capture):
             notification_tasks.send_personal_notification.run(user.pk, "Привет", "Тело")
-
         self.assertTrue(
             Notification.objects.filter(
                 user_id=user.pk, notification_type=Notification.PERSONAL
@@ -58,7 +50,6 @@ class NotificationTasksPublishPayloadTests(TestCase):
         capture = MagicMock()
         with patch("apps.notifications.tasks.publish_event", side_effect=capture):
             notification_tasks.send_system_notification.run("Система", "Работы")
-
         n = Notification.objects.get(notification_type=Notification.SYSTEM)
         self.assertIsNone(n.user_id)
         self.assertIsNone(n.course_id)
@@ -70,21 +61,15 @@ class NotificationTasksPublishPayloadTests(TestCase):
         capture = MagicMock()
         with patch("apps.notifications.tasks.publish_event", side_effect=capture):
             notification_tasks.send_webinar_scheduled_notification.run(
-                course.course_id,
-                "Тема",
-                "Текст",
-                wid,
-                "cslug",
-                "lslug",
-                "2026-06-01T18:00:00",
+                course.course_id, "Тема", "Текст", wid, "cslug", "lslug", "2026-06-01T18:00:00"
             )
-
         payload = capture.call_args.kwargs["payload"]
         self.assertEqual(payload["type"], "webinar_scheduled")
         self.assertEqual(payload["webinar_id"], str(wid))
 
 
 class SendMassCourseEmailTaskTests(TestCase):
+
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_mass_course_email_sends_to_each_buyer(self):
         course = create_test_course(title="MassCourse")
@@ -105,11 +90,9 @@ class SendMassCourseEmailTaskTests(TestCase):
             payment=Payment.objects.create(user=u2, total_sum=1, status="success"),
             access_expires_at=exp,
         )
-
         notification_tasks.send_mass_course_email.run(
             course.course_id, "Тема рассылки", "Общий текст"
         )
-
         self.assertEqual(len(mail.outbox), 2)
         recipients = {tuple(m.to) for m in mail.outbox}
         self.assertIn((plain_a,), recipients)

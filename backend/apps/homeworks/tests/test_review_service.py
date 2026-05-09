@@ -16,6 +16,7 @@ from apps.homeworks.tests.utils import create_homework_bundle, create_student, c
 
 
 class ReviewServiceTests(TestCase):
+
     def setUp(self):
         self.student = create_student()
         self.reviewer = create_teacher()
@@ -42,13 +43,7 @@ class ReviewServiceTests(TestCase):
             self.service.review_attempt(
                 attempt=attempt,
                 reviewer=self.reviewer,
-                items=[
-                    TaskReviewItem(
-                        task_answer_id=str(uuid.uuid4()),
-                        points=0,
-                        comment=None,
-                    )
-                ],
+                items=[TaskReviewItem(task_answer_id=str(uuid.uuid4()), points=0, comment=None)],
             )
 
     def test_review_unknown_task_answer_raises(self):
@@ -57,13 +52,7 @@ class ReviewServiceTests(TestCase):
             self.service.review_attempt(
                 attempt=attempt,
                 reviewer=self.reviewer,
-                items=[
-                    TaskReviewItem(
-                        task_answer_id=str(uuid.uuid4()),
-                        points=1,
-                        comment=None,
-                    )
-                ],
+                items=[TaskReviewItem(task_answer_id=str(uuid.uuid4()), points=1, comment=None)],
             )
 
     def test_review_points_above_task_max_raises(self):
@@ -86,7 +75,6 @@ class ReviewServiceTests(TestCase):
         attempt = self._submit_attempt()
         ta = attempt.task_answers.get(task=self.task)
         auto_grade = attempt.grade
-
         with patch(
             "apps.homeworks.services.review_service.schedule_attempt_reviewed_notification"
         ) as m_note:
@@ -95,14 +83,11 @@ class ReviewServiceTests(TestCase):
                 reviewer=self.reviewer,
                 items=[
                     TaskReviewItem(
-                        task_answer_id=str(ta.answer_id),
-                        points=self.task.max_points,
-                        comment="ok",
+                        task_answer_id=str(ta.answer_id), points=self.task.max_points, comment="ok"
                     )
                 ],
             )
             m_note.assert_called_once_with(attempt.attempt_id)
-
         attempt.refresh_from_db()
         ta.refresh_from_db()
         self.assertEqual(attempt.status, Attempt.REVIEWED_STATUS)
@@ -117,13 +102,7 @@ class ReviewServiceTests(TestCase):
             self.service.review_attempt(
                 attempt=attempt,
                 reviewer=self.reviewer,
-                items=[
-                    TaskReviewItem(
-                        task_answer_id=str(ta.answer_id),
-                        points=2,
-                        comment=None,
-                    )
-                ],
+                items=[TaskReviewItem(task_answer_id=str(ta.answer_id), points=2, comment=None)],
             )
         ta.refresh_from_db()
         self.assertEqual(ta.status, TaskAnswer.PARTIAL_STATUS)

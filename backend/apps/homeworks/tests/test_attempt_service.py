@@ -17,6 +17,7 @@ from apps.homeworks.tests.utils import create_homework_bundle, create_student
 
 
 class AttemptServiceTests(TestCase):
+
     def setUp(self):
         self.user = create_student()
         self.homework, self.question, self.task = create_homework_bundle()
@@ -31,10 +32,7 @@ class AttemptServiceTests(TestCase):
         attempt = self.service.get_or_create_draft(user=self.user, homework=self.homework)
         with self.assertRaises(AttemptPayloadMismatch):
             self.service.submit(
-                attempt,
-                payload_attempt_id=uuid.uuid4(),
-                send_at=timezone.now(),
-                items=[],
+                attempt, payload_attempt_id=uuid.uuid4(), send_at=timezone.now(), items=[]
             )
 
     def test_submit_raises_when_already_submitted(self):
@@ -48,7 +46,6 @@ class AttemptServiceTests(TestCase):
         with patch("apps.homeworks.services.attempt_service.build_binding_api") as m_bind:
             m_bind.return_value.sync_many = MagicMock()
             self.service.submit(attempt, payload_id, send_at, items)
-
         with self.assertRaises(AttemptAlreadySubmitted):
             self.service.submit(attempt, payload_id, send_at, items)
 
@@ -87,10 +84,8 @@ class AttemptServiceTests(TestCase):
         with patch("apps.homeworks.services.attempt_service.build_binding_api") as m_bind:
             m_bind.return_value.sync_many = MagicMock()
             self.service.submit(attempt, attempt.attempt_id, timezone.now(), items)
-
         attempt.refresh_from_db()
         self.assertEqual(attempt.status, Attempt.SUBMITTED_STATUS)
         self.assertEqual(attempt.grade, self.question.max_points)
-
         qa = QuestionAnswer.objects.get(attempt=attempt, question=self.question)
         self.assertTrue(qa.is_correct)

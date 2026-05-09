@@ -12,10 +12,12 @@ from apps.users.api.utils.token_utils import get_tokens_for_user
 
 
 class StubYandexChatAIService:
+
     def __init__(self):
         self.session = None
 
     async def get_or_create_session(self, user, course):
+
         def _go():
             s, _ = Session.objects.get_or_create(user=user, course=course)
             return s
@@ -24,18 +26,21 @@ class StubYandexChatAIService:
         return self.session
 
     async def get_chats(self):
+
         def _list():
             return list(Chat.objects.filter(session=self.session).order_by("-updated_at"))
 
         return await sync_to_async(_list)()
 
     async def create_new_chat(self):
+
         def _mk():
             return Chat.objects.create(session=self.session)
 
         return await sync_to_async(_mk)()
 
     async def delete_chat(self, chat_id):
+
         def _rm():
             Chat.objects.filter(chat_id=chat_id, session=self.session).delete()
 
@@ -50,12 +55,14 @@ class StubYandexChatAIService:
         return await sync_to_async(_msgs)()
 
     async def get_chat_for_current_session(self, chat_id):
+
         def _get():
             return Chat.objects.get(chat_id=chat_id, session=self.session)
 
         return await sync_to_async(_get)()
 
     async def save_message(self, chat, role, content):
+
         def _save():
             return Message.objects.create(chat=chat, role=role, content=content)
 
@@ -65,12 +72,9 @@ class StubYandexChatAIService:
         yield "Ок"
 
 
-@override_settings(
-    CHANNEL_LAYERS={
-        "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
-    },
-)
+@override_settings(CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}})
 class ChatConsumerWebSocketTests(TransactionTestCase):
+
     def setUp(self):
         super().setUp()
         self.user = create_test_user(email="ai_ws_student@test.com", role="student")
@@ -88,6 +92,7 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
         return async_to_sync(async_fn)()
 
     def test_anonymous_connection_rejected(self):
+
         async def _go():
             from project.asgi import application
 
@@ -98,12 +103,12 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
         self._run_async(_go)
 
     def test_unknown_course_closes_before_accept(self):
+
         async def _go():
             from project.asgi import application
 
             comm = WebsocketCommunicator(
-                application,
-                self._path("no-such-course-slug-999", self.access),
+                application, self._path("no-such-course-slug-999", self.access)
             )
             connected, _ = await comm.connect()
             self.assertFalse(connected)
@@ -120,20 +125,14 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
         async def _go():
             from project.asgi import application
 
-            comm = WebsocketCommunicator(
-                application,
-                self._path(self.course.slug, self.access),
-            )
+            comm = WebsocketCommunicator(application, self._path(self.course.slug, self.access))
             self.assertTrue((await comm.connect())[0])
-
             hello = await comm.receive_json_from()
             self.assertEqual(hello["type"], "connected")
-
             await comm.send_json_to({"type": "start new chat"})
             created = await comm.receive_json_from()
             self.assertEqual(created["type"], "chat created")
             captured["chat_id"] = created["chat_id"]
-
             await comm.send_json_to(
                 {
                     "type": "send message",
@@ -141,17 +140,14 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
                     "content": {"text": "Вопрос"},
                 }
             )
-
             self.assertEqual((await comm.receive_json_from())["type"], "starting answer")
             stream = await comm.receive_json_from()
             self.assertEqual(stream["type"], "streaming response")
             self.assertEqual(stream["content"]["chunk"], "Ок")
             self.assertEqual((await comm.receive_json_from())["type"], "finishing answer")
-
             await comm.disconnect()
 
         self._run_async(_go)
-
         uid = UUID(captured["chat_id"])
         msgs = list(Message.objects.filter(chat__chat_id=uid).order_by("created_at"))
         self.assertEqual(len(msgs), 2)
@@ -159,7 +155,6 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
         self.assertEqual(msgs[0].content, "Вопрос")
         self.assertEqual(msgs[1].role, "assistant")
         self.assertEqual(msgs[1].content, "Ок")
-
         self.assertEqual(Session.objects.filter(user=self.user, course=self.course).count(), 1)
 
     @patch(
@@ -167,16 +162,13 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
         side_effect=lambda: StubYandexChatAIService(),
     )
     def test_malformed_client_payload_returns_error_type(self, _mock_cls):
+
         async def _go():
             from project.asgi import application
 
-            comm = WebsocketCommunicator(
-                application,
-                self._path(self.course.slug, self.access),
-            )
+            comm = WebsocketCommunicator(application, self._path(self.course.slug, self.access))
             self.assertTrue((await comm.connect())[0])
             await comm.receive_json_from()
-
             await comm.send_json_to({"type": "totally unknown"})
             err = await comm.receive_json_from()
             self.assertEqual(err["type"], "error")

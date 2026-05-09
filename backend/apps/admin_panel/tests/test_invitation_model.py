@@ -9,6 +9,7 @@ from apps.admin_panel.models import Invitation
 
 
 class InvitationPropertiesTests(SimpleTestCase):
+
     def _invite(self, *, expires_at, used_at=None):
         return Invitation(
             invitation_id=uuid.uuid4(),

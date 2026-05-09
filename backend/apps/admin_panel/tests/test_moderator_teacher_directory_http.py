@@ -6,6 +6,7 @@ from apps.users.api.utils.token_utils import get_tokens_for_user
 
 
 class ModeratorTeacherDirectoryHttpTests(BaseTestCase):
+
     def setUp(self):
         super().setUp()
         self.client = APIClient()

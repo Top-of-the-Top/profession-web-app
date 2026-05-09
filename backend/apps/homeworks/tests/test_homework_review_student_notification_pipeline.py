@@ -26,11 +26,11 @@ from apps.users.api.utils.token_utils import get_tokens_for_user
 
 
 class HomeworkReviewStudentNotificationPipelineTests(TestCase):
+
     def setUp(self):
         super().setUp()
         caches["default"].clear()
         self.client = APIClient()
-
         self._patchers = []
         for path in (
             "apps.notifications.tasks.send_course_notification.delay",
@@ -55,12 +55,10 @@ class HomeworkReviewStudentNotificationPipelineTests(TestCase):
                 p.stop()
 
         self.addCleanup(_stop_patches)
-
         uniq = uuid.uuid4().hex[:10]
         self.student_plain_email = f"hw_e2e_student_{uniq}@test.com"
         self.teacher = create_test_user(email=f"hw_e2e_teacher_{uniq}@test.com", role="teacher")
         self.student = create_test_user(email=self.student_plain_email, role="student")
-
         self.notify_personal_delay.side_effect = (
             lambda uid, title, msg: notification_tasks.send_personal_notification.run(
                 uid, title, msg
@@ -73,11 +71,9 @@ class HomeworkReviewStudentNotificationPipelineTests(TestCase):
             title=f"E2E Course {uniq}", sub_title="s", description="d", price=0
         )
         course.authors.add(self.teacher)
-
         section = create_test_section(course)
         lesson = create_test_lesson(section)
         self.homework = create_test_homework(lesson, title=f"E2E Homework {uniq}")
-
         self.question = Question.objects.create(
             homework=self.homework,
             text="Вопрос",
@@ -85,14 +81,8 @@ class HomeworkReviewStudentNotificationPipelineTests(TestCase):
             answer_options=["да", "нет"],
             max_points=3,
         )
-        self.task = Task.objects.create(
-            homework=self.homework,
-            text="Задача",
-            max_points=5,
-        )
-
+        self.task = Task.objects.create(homework=self.homework, text="Задача", max_points=5)
         publish_course_tree(course)
-
         payment = Payment.objects.create(user=self.student, total_sum=1000, status="success")
         PurchasedCourse.objects.create(
             user=self.student,
@@ -100,7 +90,6 @@ class HomeworkReviewStudentNotificationPipelineTests(TestCase):
             payment=payment,
             access_expires_at=timezone.now() + timedelta(days=30),
         )
-
         self.course = course
 
     def _auth(self, user):
@@ -111,13 +100,11 @@ class HomeworkReviewStudentNotificationPipelineTests(TestCase):
     def test_review_triggers_student_notifications(self):
         self._auth(self.student)
         base = f"/api/v1/courses/{self.course.slug}/homeworks/{self.homework.slug}"
-
         draft = self.client.get(f"{base}/attempt/")
         self.assertEqual(draft.status_code, status.HTTP_200_OK)
         attempt_id = draft.data["attempt_id"]
         items = draft.data.get("items") or []
         self.assertGreater(len(items), 0)
-
         submit_payload = {
             "homework_id": str(draft.data["homework_id"]),
             "attempt_id": str(attempt_id),
@@ -139,11 +126,9 @@ class HomeworkReviewStudentNotificationPipelineTests(TestCase):
         }
         submitted = self.client.post(f"{base}/attempt/submit/", submit_payload, format="json")
         self.assertEqual(submitted.status_code, status.HTTP_201_CREATED)
-
         attempt = Attempt.objects.get(attempt_id=attempt_id)
         task_answer = attempt.task_answers.get(task=self.task)
         expected_final_grade = self.question.max_points + self.task.max_points
-
         review_payload = {
             "attempt_id": str(attempt_id),
             "items": [
@@ -154,11 +139,9 @@ class HomeworkReviewStudentNotificationPipelineTests(TestCase):
                 }
             ],
         }
-
         self.notify_personal_delay.reset_mock()
         self.notify_single_email_delay.reset_mock()
         mail.outbox.clear()
-
         sse_calls = []
 
         def capture_publish(*, routing_key, payload):
@@ -173,22 +156,18 @@ class HomeworkReviewStudentNotificationPipelineTests(TestCase):
                     format="json",
                 )
         self.assertEqual(reviewed.status_code, status.HTTP_200_OK)
-
         attempt.refresh_from_db()
         self.assertEqual(attempt.status, Attempt.REVIEWED_STATUS)
         self.assertEqual(attempt.grade, expected_final_grade)
-
         self.notify_personal_delay.assert_called_once()
         personal_args = self.notify_personal_delay.call_args[0]
         self.assertEqual(personal_args[0], self.student.id)
         self.assertIn(self.homework.title, personal_args[1])
         self.assertIn(str(expected_final_grade), personal_args[2])
         self.assertIn(str(attempt_id), personal_args[2])
-
         self.notify_single_email_delay.assert_called_once()
         email_args = self.notify_single_email_delay.call_args[0]
         self.assertEqual(email_args[0], self.student.id)
-
         user_route = f"user.{self.student.id}"
         user_sse = [x for x in sse_calls if x["routing_key"] == user_route]
         self.assertEqual(len(user_sse), 1)
@@ -196,17 +175,14 @@ class HomeworkReviewStudentNotificationPipelineTests(TestCase):
         self.assertEqual(payload["type"], "personal")
         self.assertEqual(payload["notification_type"], Notification.PERSONAL)
         self.assertIn(self.homework.title, payload["title"])
-
         self.assertEqual(len(mail.outbox), 1)
         sent = mail.outbox[0]
         self.assertEqual(sent.to, [self.student_plain_email])
         self.assertIn(self.homework.title, sent.subject)
         self.assertIn(str(expected_final_grade), sent.body)
         self.assertIn(str(attempt_id), sent.body)
-
         self.assertTrue(
             Notification.objects.filter(
-                user_id=self.student.id,
-                notification_type=Notification.PERSONAL,
+                user_id=self.student.id, notification_type=Notification.PERSONAL
             ).exists()
         )

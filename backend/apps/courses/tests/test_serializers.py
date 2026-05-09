@@ -28,10 +28,10 @@ from .test_models import (
 
 
 class CourseSerializerUnitTest(SimpleTestCase):
+
     def test_serializer_has_all_fields(self):
         serializer = CourseSerializer()
         fields = serializer.fields.keys()
-
         self.assertIn("course_id", fields)
         self.assertIn("title", fields)
         self.assertIn("sub_title", fields)
@@ -48,7 +48,6 @@ class CourseSerializerUnitTest(SimpleTestCase):
         data = {}
         serializer = CourseSerializer(data=data)
         self.assertFalse(serializer.is_valid())
-
         self.assertIn("title", serializer.errors)
         self.assertIn("sub_title", serializer.errors)
         self.assertIn("description", serializer.errors)
@@ -56,10 +55,10 @@ class CourseSerializerUnitTest(SimpleTestCase):
 
 
 class CourseDTOSerializerUnitTest(SimpleTestCase):
+
     def test_dto_serializer_has_limited_fields(self):
         serializer = CourseDTOSerializer()
         fields = list(serializer.fields.keys())
-
         expected_fields = ["course_id", "title", "sub_title", "image_url", "slug", "price"]
         self.assertEqual(sorted(fields), sorted(expected_fields))
 
@@ -69,6 +68,7 @@ class CourseDTOSerializerUnitTest(SimpleTestCase):
 
 
 class PurchasedCourseSerializerUnitTest(SimpleTestCase):
+
     def test_serializer_has_nested_course(self):
         serializer = PurchasedCourseSerializer()
         self.assertIn("course", serializer.fields)
@@ -81,26 +81,18 @@ class PurchasedCourseSerializerUnitTest(SimpleTestCase):
     def test_serializer_fields(self):
         serializer = PurchasedCourseSerializer()
         fields = list(serializer.fields.keys())
-
-        expected_fields = [
-            "id",
-            "user",
-            "course",
-            "payment",
-            "access_expires_at",
-            "is_active",
-        ]
+        expected_fields = ["id", "user", "course", "payment", "access_expires_at", "is_active"]
         self.assertEqual(sorted(fields), sorted(expected_fields))
 
 
 class LessonSerializerUnitTest(SimpleTestCase):
+
     def test_serializer_includes_all_fields(self):
         serializer = LessonSerializer()
         self.assertIsNotNone(serializer.fields)
 
 
 class HomeworkSerializerUnitTest(SimpleTestCase):
-    """POST/PATCH: поля модели, без вложенного items."""
 
     def test_serializer_model_fields_without_items(self):
         serializer = HomeworkSerializer()
@@ -111,7 +103,6 @@ class HomeworkSerializerUnitTest(SimpleTestCase):
 
 
 class HomeworkDetailSerializerUnitTest(SimpleTestCase):
-    """GET: ответ с агрегированным items."""
 
     def test_serializer_includes_items(self):
         serializer = HomeworkDetailSerializer()
@@ -119,6 +110,7 @@ class HomeworkDetailSerializerUnitTest(SimpleTestCase):
 
 
 class HomeworkItemsListSerializerUnitTest(SimpleTestCase):
+
     def test_serializer_has_type_field(self):
         serializer = HomeworkItemsListSerializer()
         self.assertIn("type", serializer.fields)
@@ -138,6 +130,7 @@ class HomeworkItemsListSerializerUnitTest(SimpleTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CourseSerializerIntegrationTest(BaseTestCase):
+
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -154,10 +147,8 @@ class CourseSerializerIntegrationTest(BaseTestCase):
             description="Complete Python course",
             price=5000,
         )
-
         serializer = CourseSerializer(course)
         data = serializer.data
-
         self.assertEqual(data["title"], "Python Course")
         self.assertEqual(data["sub_title"], "Learn Python")
         self.assertEqual(data["description"], "Complete Python course")
@@ -172,10 +163,8 @@ class CourseSerializerIntegrationTest(BaseTestCase):
             "description": "New course description",
             "price": 10000,
         }
-
         serializer = CourseSerializer(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
-
         course = serializer.save()
         self.assertIsNotNone(course.course_id)
         self.assertEqual(course.title, "New Course")
@@ -183,17 +172,14 @@ class CourseSerializerIntegrationTest(BaseTestCase):
 
     def test_update_course_via_serializer(self):
         course = create_test_course()
-
         data = {
             "title": "Updated Title",
             "sub_title": course.sub_title,
             "description": course.description,
             "price": 15000,
         }
-
         serializer = CourseSerializer(course, data=data, partial=True)
         self.assertTrue(serializer.is_valid())
-
         updated_course = serializer.save()
         self.assertEqual(updated_course.title, "Updated Title")
         self.assertEqual(updated_course.price, 15000)
@@ -205,13 +191,13 @@ class CourseSerializerIntegrationTest(BaseTestCase):
             "description": "Test description",
             "price": -1000,
         }
-
         serializer = CourseSerializer(data=data)
         self.assertFalse(serializer.is_valid())
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class CourseDTOSerializerIntegrationTest(BaseTestCase):
+
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -223,10 +209,8 @@ class CourseDTOSerializerIntegrationTest(BaseTestCase):
 
     def test_serialize_course_dto(self):
         course = create_test_course(title="Django Course", sub_title="Learn Django", price=8000)
-
         serializer = CourseDTOSerializer(course)
         data = serializer.data
-
         self.assertEqual(data["title"], "Django Course")
         self.assertEqual(data["sub_title"], "Learn Django")
         self.assertIn("image_url", data)
@@ -238,10 +222,8 @@ class CourseDTOSerializerIntegrationTest(BaseTestCase):
     def test_serialize_multiple_courses(self):
         course1 = create_test_course(title="Course 1", sub_title="Sub 1", price=1000)
         course2 = create_test_course(title="Course 2", sub_title="Sub 2", price=2000)
-
         courses = [course1, course2]
         serializer = CourseDTOSerializer(courses, many=True)
-
         self.assertEqual(len(serializer.data), 2)
         self.assertEqual(serializer.data[0]["title"], "Course 1")
         self.assertEqual(serializer.data[1]["title"], "Course 2")
@@ -249,11 +231,11 @@ class CourseDTOSerializerIntegrationTest(BaseTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
+
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
         self.storage_patcher.start()
-
         self.user = create_test_user(email="student@test.com", role="student")
         self.course = create_test_course()
         self.payment = Payment.objects.create(user=self.user, total_sum=5000, status="success")
@@ -265,15 +247,10 @@ class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
     def test_serialize_purchased_course(self):
         future_date = timezone.now() + timedelta(days=30)
         purchased = PurchasedCourse.objects.create(
-            user=self.user,
-            course=self.course,
-            payment=self.payment,
-            access_expires_at=future_date,
+            user=self.user, course=self.course, payment=self.payment, access_expires_at=future_date
         )
-
         serializer = PurchasedCourseSerializer(purchased)
         data = serializer.data
-
         self.assertIn("course", data)
         self.assertIn("payment", data)
         self.assertIn("access_expires_at", data)
@@ -283,29 +260,19 @@ class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
     def test_serialize_expired_purchased_course(self):
         past_date = timezone.now() - timedelta(days=1)
         purchased = PurchasedCourse.objects.create(
-            user=self.user,
-            course=self.course,
-            payment=self.payment,
-            access_expires_at=past_date,
+            user=self.user, course=self.course, payment=self.payment, access_expires_at=past_date
         )
-
         serializer = PurchasedCourseSerializer(purchased)
         data = serializer.data
-
         self.assertFalse(data["is_active"])
 
     def test_nested_course_dto_in_purchased(self):
         future_date = timezone.now() + timedelta(days=30)
         purchased = PurchasedCourse.objects.create(
-            user=self.user,
-            course=self.course,
-            payment=self.payment,
-            access_expires_at=future_date,
+            user=self.user, course=self.course, payment=self.payment, access_expires_at=future_date
         )
-
         serializer = PurchasedCourseSerializer(purchased)
         data = serializer.data
-
         self.assertIn("title", data["course"])
         self.assertIn("slug", data["course"])
         self.assertIn("price", data["course"])
@@ -314,6 +281,7 @@ class PurchasedCourseSerializerIntegrationTest(BaseTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LessonSerializerIntegrationTest(BaseTestCase):
+
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -327,39 +295,31 @@ class LessonSerializerIntegrationTest(BaseTestCase):
 
     def test_serialize_lesson(self):
         lesson = create_test_lesson(self.section, title="Lesson 1")
-
         serializer = LessonSerializer(lesson)
         data = serializer.data
-
         self.assertEqual(data["title"], "Lesson 1")
         self.assertIn("slug", data)
 
     def test_create_lesson_via_serializer(self):
-        data = {
-            "section": self.section.pk,
-            "title": "New Lesson",
-        }
-
+        data = {"section": self.section.pk, "title": "New Lesson"}
         serializer = LessonSerializer(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
-
         lesson = serializer.save()
         self.assertEqual(lesson.title, "New Lesson")
         self.assertIsNotNone(lesson.slug)
 
     def test_update_lesson_via_serializer(self):
         lesson = create_test_lesson(self.section, title="Original Lesson")
-
         data = {"title": "Updated Lesson"}
         serializer = LessonSerializer(lesson, data=data, partial=True)
         self.assertTrue(serializer.is_valid())
-
         updated = serializer.save()
         self.assertEqual(updated.title, "Updated Lesson")
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class HomeworkDetailSerializerIntegrationTest(BaseTestCase):
+
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -374,10 +334,8 @@ class HomeworkDetailSerializerIntegrationTest(BaseTestCase):
 
     def test_serialize_homework(self):
         homework = create_test_homework(self.lesson, title="Homework 1")
-
         serializer = HomeworkDetailSerializer(homework)
         data = serializer.data
-
         self.assertEqual(data["title"], "Homework 1")
         self.assertIn("slug", data)
         self.assertIn("deadline", data)
@@ -387,15 +345,10 @@ class HomeworkDetailSerializerIntegrationTest(BaseTestCase):
         homework = create_test_homework(self.lesson, title="Homework with items")
         Task.objects.create(homework=homework, text="Task 1", max_points=10)
         Question.objects.create(
-            homework=homework,
-            text="Question 1?",
-            correct_ans="A",
-            answer_options=["A", "B", "C"],
+            homework=homework, text="Question 1?", correct_ans="A", answer_options=["A", "B", "C"]
         )
-
         serializer = HomeworkDetailSerializer(homework)
         data = serializer.data
-
         self.assertEqual(len(data["items"]), 2)
         item_types = [item["type"] for item in data["items"]]
         self.assertIn("task", item_types)
@@ -405,16 +358,11 @@ class HomeworkDetailSerializerIntegrationTest(BaseTestCase):
         homework = create_test_homework(self.lesson, title="Homework sorted")
         task1 = Task.objects.create(homework=homework, text="Task 1", max_points=10)
         question1 = Question.objects.create(
-            homework=homework,
-            text="Question 1?",
-            correct_ans="A",
-            answer_options=["A", "B"],
+            homework=homework, text="Question 1?", correct_ans="A", answer_options=["A", "B"]
         )
         task2 = Task.objects.create(homework=homework, text="Task 2", max_points=15)
-
         serializer = HomeworkDetailSerializer(homework)
         data = serializer.data
-
         items = data["items"]
         sort_keys = [(item["number"], item["created_at"]) for item in items]
         self.assertEqual(sort_keys, sorted(sort_keys))
@@ -422,6 +370,7 @@ class HomeworkDetailSerializerIntegrationTest(BaseTestCase):
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class HomeworkSerializerWriteIntegrationTest(BaseTestCase):
+
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -436,14 +385,9 @@ class HomeworkSerializerWriteIntegrationTest(BaseTestCase):
 
     def test_create_homework_via_serializer(self):
         deadline = timezone.now() + timedelta(days=14)
-        data = {
-            "title": "New Homework",
-            "deadline": deadline.isoformat(),
-        }
-
+        data = {"title": "New Homework", "deadline": deadline.isoformat()}
         serializer = HomeworkSerializer(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
-
         homework = serializer.save(lesson=self.lesson)
         self.assertEqual(homework.title, "New Homework")
         self.assertEqual(homework.lesson_id, self.lesson.lesson_id)
@@ -453,13 +397,10 @@ class HomeworkSerializerWriteIntegrationTest(BaseTestCase):
     def test_update_homework_title_and_deadline(self):
         homework = create_test_homework(self.lesson, title="Original HW")
         Task.objects.create(homework=homework, text="Existing Task", max_points=10)
-
         new_deadline = timezone.now() + timedelta(days=21)
         data = {"title": "Updated Title", "deadline": new_deadline.isoformat()}
-
         serializer = HomeworkSerializer(homework, data=data, partial=True)
         self.assertTrue(serializer.is_valid(), serializer.errors)
-
         updated = serializer.save()
         self.assertEqual(updated.title, "Updated Title")
         self.assertEqual(Task.objects.filter(homework=homework).count(), 1)

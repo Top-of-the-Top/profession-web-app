@@ -14,6 +14,7 @@ from .test_models import (
 
 
 class WebinarSerializerTest(BaseWebinarTestCase):
+
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
@@ -24,7 +25,6 @@ class WebinarSerializerTest(BaseWebinarTestCase):
     def test_serializer_exposes_expected_fields(self):
         webinar = Webinar.objects.create(lesson=self.lesson)
         data = WebinarSerializer(webinar).data
-
         self.assertIn("webinar_id", data)
         self.assertIn("lesson", data)
         self.assertIn("status", data)
@@ -42,12 +42,12 @@ class WebinarSerializerTest(BaseWebinarTestCase):
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
         instance = serializer.save()
-
         self.assertNotEqual(str(instance.webinar_id), "00000000-0000-0000-0000-000000000000")
         self.assertIsNone(instance.started_by)
 
 
 class WebinarTokenSerializerTest(BaseWebinarTestCase):
+
     def test_all_required_fields_present(self):
         data = {
             "webinar_id": "00000000-0000-0000-0000-000000000001",
@@ -94,6 +94,7 @@ class WebinarTokenSerializerTest(BaseWebinarTestCase):
 
 
 class RecordingListItemSerializerTest(BaseWebinarTestCase):
+
     def setUp(self):
         super().setUp()
         self.course = create_test_course()
@@ -113,61 +114,45 @@ class RecordingListItemSerializerTest(BaseWebinarTestCase):
 
     def test_embed_url_empty_when_not_ready(self):
         rec = Recording.objects.create(
-            webinar=self.webinar,
-            kinescope_upload_status="processing",
-            kinescope_video_id="vid123",
+            webinar=self.webinar, kinescope_upload_status="processing", kinescope_video_id="vid123"
         )
         request = self._request_with_user()
         data = RecordingListItemSerializer(rec, context={"request": request}).data
-
         self.assertEqual(data["kinescope_embed_url"], "")
 
     def test_embed_url_empty_when_no_video_id(self):
         rec = Recording.objects.create(
-            webinar=self.webinar,
-            kinescope_upload_status="ready",
-            kinescope_video_id="",
+            webinar=self.webinar, kinescope_upload_status="ready", kinescope_video_id=""
         )
         request = self._request_with_user()
         data = RecordingListItemSerializer(rec, context={"request": request}).data
-
         self.assertEqual(data["kinescope_embed_url"], "")
 
     def test_embed_url_empty_without_request_in_context(self):
         rec = Recording.objects.create(
-            webinar=self.webinar,
-            kinescope_upload_status="ready",
-            kinescope_video_id="vid123",
+            webinar=self.webinar, kinescope_upload_status="ready", kinescope_video_id="vid123"
         )
         data = RecordingListItemSerializer(rec, context={}).data
         self.assertEqual(data["kinescope_embed_url"], "")
 
     def test_embed_url_empty_when_user_not_authenticated(self):
         rec = Recording.objects.create(
-            webinar=self.webinar,
-            kinescope_upload_status="ready",
-            kinescope_video_id="vid123",
+            webinar=self.webinar, kinescope_upload_status="ready", kinescope_video_id="vid123"
         )
         request = self._request_with_user(authenticated=False)
         data = RecordingListItemSerializer(rec, context={"request": request}).data
-
         self.assertEqual(data["kinescope_embed_url"], "")
 
     def test_embed_url_generated_for_ready_recording(self):
         expected_url = "https://kinescope.io/embed/vid123?drmauthtoken=drm-token-123"
         rec = Recording.objects.create(
-            webinar=self.webinar,
-            kinescope_upload_status="ready",
-            kinescope_video_id="vid123",
+            webinar=self.webinar, kinescope_upload_status="ready", kinescope_video_id="vid123"
         )
         request = self._request_with_user()
-
         mock_access = MagicMock()
         mock_access.resolve_bound_url.return_value = expected_url
-
         with patch("apps.webinars.api.serializers.build_access_api", return_value=mock_access):
             data = RecordingListItemSerializer(rec, context={"request": request}).data
-
         self.assertIn("kinescope.io/embed/vid123", data["kinescope_embed_url"])
         self.assertIn("drmauthtoken=drm-token-123", data["kinescope_embed_url"])
         mock_access.resolve_bound_url.assert_any_call(

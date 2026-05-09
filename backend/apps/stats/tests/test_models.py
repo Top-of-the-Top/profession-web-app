@@ -8,6 +8,7 @@ from apps.webinars.models import Recording, Webinar
 
 
 class StatisticsModelsTest(TestCase):
+
     def setUp(self):
         self.user = User.objects.create_user(email_cipher="enc_email", password="pass12345")
         author = User.objects.create_user(email_cipher="enc_author", password="pass12345")
@@ -20,10 +21,7 @@ class StatisticsModelsTest(TestCase):
 
     def test_webinar_attendance_create(self):
         att = WebinarAttendance.objects.create(
-            user=self.user,
-            webinar=self.webinar,
-            joined_at=timezone.now(),
-            watched_seconds=120,
+            user=self.user, webinar=self.webinar, joined_at=timezone.now(), watched_seconds=120
         )
         self.assertEqual(att.watched_seconds, 120)
         self.assertIsNone(att.left_at)

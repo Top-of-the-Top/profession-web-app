@@ -4,6 +4,7 @@ from apps.homeworks.services.errors import RequestValidationError
 
 
 class RequestValidationErrorExtractTests(SimpleTestCase):
+
     def test_scalar_detail(self):
         err = RequestValidationError("Сообщение")
         self.assertEqual(err.message, "Сообщение")

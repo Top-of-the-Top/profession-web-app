@@ -21,6 +21,7 @@ from .test_models import (
 
 
 class ViewTestMixin:
+
     def authenticate(self, user):
         tokens = get_tokens_for_user(user)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access_token']}")
@@ -38,21 +39,18 @@ class ViewTestMixin:
 
 
 class WebinarEndpointsBase(BaseWebinarTestCase, ViewTestMixin):
+
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-
         self.teacher = create_test_user(email="teacher_wv@test.com", role="teacher")
         self.other_teacher = create_test_user(email="other_teacher_wv@test.com", role="teacher")
         self.student = create_test_user(email="student_wv@test.com", role="student")
         self.moderator = create_test_user(email="mod_wv@test.com", role="moderator")
-
         self.course = create_test_course()
         self.course.authors.add(self.teacher)
-
         self.section = create_test_section(self.course)
         self.lesson = create_test_lesson(self.section)
-
         self.enroll(self.student, self.course)
 
     def url_start(self):
@@ -90,6 +88,7 @@ class WebinarEndpointsBase(BaseWebinarTestCase, ViewTestMixin):
 @patch("apps.webinars.api.views.create_whiteboard_room", return_value="room-new")
 @patch("apps.webinars.api.views.ban_whiteboard_room")
 class WebinarStartViewTest(WebinarEndpointsBase):
+
     def test_requires_authentication(self, *_):
         response = self.client.post(self.url_start())
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -107,10 +106,8 @@ class WebinarStartViewTest(WebinarEndpointsBase):
     def test_author_can_start_webinar(self, *_):
         self.authenticate(self.teacher)
         response = self.client.post(self.url_start())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("webinar_id", response.data)
-
         webinar = Webinar.objects.get(lesson=self.lesson)
         self.assertEqual(webinar.status, Webinar.LIVE_STATUS)
         self.assertEqual(webinar.started_by, self.teacher)
@@ -126,14 +123,10 @@ class WebinarStartViewTest(WebinarEndpointsBase):
         self, mock_ban, mock_create, *args
     ):
         existing = Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.LIVE_STATUS,
-            whiteboard_room_uuid="live-room",
+            lesson=self.lesson, status=Webinar.LIVE_STATUS, whiteboard_room_uuid="live-room"
         )
         self.authenticate(self.teacher)
-
         response = self.client.post(self.url_start())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["webinar_id"], str(existing.webinar_id))
         existing.refresh_from_db()
@@ -143,10 +136,8 @@ class WebinarStartViewTest(WebinarEndpointsBase):
 
     def test_whiteboard_creation_failure_returns_502(self, mock_ban, mock_create, *args):
         mock_create.side_effect = Exception("netless down")
-
         self.authenticate(self.teacher)
         response = self.client.post(self.url_start())
-
         self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
         self.assertFalse(
             Webinar.objects.filter(lesson=self.lesson, status=Webinar.LIVE_STATUS).exists()
@@ -154,28 +145,20 @@ class WebinarStartViewTest(WebinarEndpointsBase):
 
     def test_old_whiteboard_banned_on_restart(self, mock_ban, mock_create, *args):
         Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.ENDED_STATUS,
-            whiteboard_room_uuid="old-room",
+            lesson=self.lesson, status=Webinar.ENDED_STATUS, whiteboard_room_uuid="old-room"
         )
-
         self.authenticate(self.teacher)
         response = self.client.post(self.url_start())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_ban.assert_called_once_with("old-room")
 
     def test_ban_old_room_exception_does_not_fail_start(self, mock_ban, mock_create, *args):
         Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.ENDED_STATUS,
-            whiteboard_room_uuid="old-room",
+            lesson=self.lesson, status=Webinar.ENDED_STATUS, whiteboard_room_uuid="old-room"
         )
         mock_ban.side_effect = Exception("netless error")
-
         self.authenticate(self.teacher)
         response = self.client.post(self.url_start())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_404_for_nonexistent_lesson(self, *_):
@@ -188,7 +171,6 @@ class WebinarStartViewTest(WebinarEndpointsBase):
         other_course = create_test_course(title="Другой курс")
         other_section = create_test_section(other_course)
         other_lesson = create_test_lesson(other_section, title="урок")
-
         self.authenticate(self.teacher)
         url = f"/api/v1/courses/{self.course.slug}/lessons/{other_lesson.slug}/webinar/start/"
         response = self.client.post(url)
@@ -197,6 +179,7 @@ class WebinarStartViewTest(WebinarEndpointsBase):
 
 @patch("apps.webinars.api.views.ban_whiteboard_room")
 class WebinarStopViewTest(WebinarEndpointsBase):
+
     def test_requires_authentication(self, *_):
         response = self.client.post(self.url_stop())
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -209,14 +192,10 @@ class WebinarStopViewTest(WebinarEndpointsBase):
 
     def test_stops_live_webinar(self, *_):
         webinar = Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.LIVE_STATUS,
-            whiteboard_room_uuid="room-x",
+            lesson=self.lesson, status=Webinar.LIVE_STATUS, whiteboard_room_uuid="room-x"
         )
-
         self.authenticate(self.teacher)
         response = self.client.post(self.url_stop())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         webinar.refresh_from_db()
         self.assertEqual(webinar.status, Webinar.ENDED_STATUS)
@@ -231,22 +210,17 @@ class WebinarStopViewTest(WebinarEndpointsBase):
     def test_stops_active_recording_if_any(self, mock_stop_rec, *_):
         webinar = Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
         rec = Recording.objects.create(webinar=webinar, status=Recording.RECORDING_STATUS)
-
         self.authenticate(self.teacher)
         response = self.client.post(self.url_stop())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_stop_rec.assert_called_once()
         self.assertEqual(mock_stop_rec.call_args[0][0].pk, rec.pk)
 
     def test_ban_whiteboard_exception_does_not_fail_stop(self, mock_ban, *_):
         Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.LIVE_STATUS,
-            whiteboard_room_uuid="room-x",
+            lesson=self.lesson, status=Webinar.LIVE_STATUS, whiteboard_room_uuid="room-x"
         )
         mock_ban.side_effect = Exception("err")
-
         self.authenticate(self.teacher)
         response = self.client.post(self.url_stop())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -256,6 +230,7 @@ class WebinarStopViewTest(WebinarEndpointsBase):
 @patch("apps.webinars.api.views.generate_whiteboard_room_token", return_value="wb-tok")
 @patch("apps.webinars.api.views.generate_rtc_token", return_value="rtc-tok")
 class WebinarJoinViewTest(WebinarEndpointsBase):
+
     def test_requires_authentication(self, *_):
         response = self.client.get(self.url_join())
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -275,20 +250,15 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
         Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
         other_student = create_test_user(email="outsider@test.com", role="student")
         self.authenticate(other_student)
-
         response = self.client.get(self.url_join())
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_enrolled_student_gets_writer_role(self, *_):
         Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.LIVE_STATUS,
-            whiteboard_room_uuid="room-1",
+            lesson=self.lesson, status=Webinar.LIVE_STATUS, whiteboard_room_uuid="room-1"
         )
-
         self.authenticate(self.student)
         response = self.client.get(self.url_join())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["role"], "student")
         self.assertEqual(response.data["rtc_token"], "rtc-tok")
@@ -299,25 +269,19 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
 
     def test_chat_channel_name_uses_whiteboard_room_uuid(self, *_):
         Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.LIVE_STATUS,
-            whiteboard_room_uuid="abc-xyz-123",
+            lesson=self.lesson, status=Webinar.LIVE_STATUS, whiteboard_room_uuid="abc-xyz-123"
         )
         self.authenticate(self.teacher)
         response = self.client.get(self.url_join())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["chat_channel_name"], "chat-abc-xyz-123")
 
     def test_rtm_token_called_with_uid(self, mock_rtc, mock_wb, mock_rtm):
         Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.LIVE_STATUS,
-            whiteboard_room_uuid="room-x",
+            lesson=self.lesson, status=Webinar.LIVE_STATUS, whiteboard_room_uuid="room-x"
         )
         self.authenticate(self.teacher)
         response = self.client.get(self.url_join())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_rtm.assert_called_once_with(response.data["uid"])
 
@@ -337,18 +301,13 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
 
     def test_whiteboard_role_mapping(self, mock_rtc, mock_wb, mock_rtm):
         Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.LIVE_STATUS,
-            whiteboard_room_uuid="room-1",
+            lesson=self.lesson, status=Webinar.LIVE_STATUS, whiteboard_room_uuid="room-1"
         )
-
         self.authenticate(self.teacher)
         self.client.get(self.url_join())
         _, kwargs = mock_wb.call_args
         self.assertEqual(kwargs.get("role"), "admin")
-
         mock_wb.reset_mock()
-
         self.authenticate(self.student)
         self.client.get(self.url_join())
         _, kwargs = mock_wb.call_args
@@ -359,6 +318,7 @@ class WebinarJoinViewTest(WebinarEndpointsBase):
 @patch("apps.webinars.api.views.generate_whiteboard_room_token", return_value="wb-tok")
 @patch("apps.webinars.api.views.generate_rtc_token", return_value="rtc-tok")
 class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
+
     def test_missing_token_returns_400(self, *_):
         response = self.client.get(self.url_recorder_join())
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -375,13 +335,10 @@ class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
 
     def test_valid_token_returns_recorder_tokens(self, *_):
         webinar = Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.LIVE_STATUS,
-            whiteboard_room_uuid="room-r",
+            lesson=self.lesson, status=Webinar.LIVE_STATUS, whiteboard_room_uuid="room-r"
         )
         token = make_recorder_token(str(webinar.webinar_id))
         response = self.client.get(self.url_recorder_join() + f"?token={token}")
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["role"], "recorder")
         self.assertEqual(response.data["uid"], 999999)
@@ -394,6 +351,7 @@ class WebinarRecorderJoinViewTest(WebinarEndpointsBase):
 @patch("apps.webinars.api.views.recording_start_web", return_value="sid-1")
 @patch("apps.webinars.api.views.recording_acquire", return_value="res-1")
 class WebinarRecordingStartViewTest(WebinarEndpointsBase):
+
     def test_requires_authentication(self, *_):
         response = self.client.post(self.url_rec_start())
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -413,32 +371,28 @@ class WebinarRecordingStartViewTest(WebinarEndpointsBase):
     def test_cannot_start_when_recording_already_in_progress(self, *_):
         webinar = Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
         Recording.objects.create(webinar=webinar, status=Recording.RECORDING_STATUS)
-
         self.authenticate(self.teacher)
         response = self.client.post(self.url_rec_start())
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_starts_recording_and_stores_sid_and_resource(self, mock_acq, mock_start, *_):
         webinar = Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
-
         self.authenticate(self.teacher)
         response = self.client.post(self.url_rec_start())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("recording_id", response.data)
-
         rec = Recording.objects.get(webinar=webinar)
         self.assertEqual(rec.status, Recording.RECORDING_STATUS)
         self.assertEqual(rec.resource_id, "res-1")
         self.assertEqual(rec.sid, "sid-1")
         self.assertEqual(rec.started_by, self.teacher)
         self.assertIsNotNone(rec.started_at)
-
         mock_acq.assert_called_once()
         mock_start.assert_called_once()
 
 
 class WebinarRecordingStopViewTest(WebinarEndpointsBase):
+
     def test_student_cannot_stop_recording(self):
         Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
         self.authenticate(self.student)
@@ -460,22 +414,19 @@ class WebinarRecordingStopViewTest(WebinarEndpointsBase):
     def test_stops_active_recording(self, mock_stop):
         webinar = Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
         rec = Recording.objects.create(webinar=webinar, status=Recording.RECORDING_STATUS)
-
         self.authenticate(self.teacher)
         response = self.client.post(self.url_rec_stop())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(str(response.data["recording_id"]), str(rec.recording_id))
         mock_stop.assert_called_once()
 
 
 class StopRecordingHelperTest(WebinarEndpointsBase):
+
     def setUp(self):
         super().setUp()
         self.webinar = Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.LIVE_STATUS,
-            whiteboard_room_uuid="room-x",
+            lesson=self.lesson, status=Webinar.LIVE_STATUS, whiteboard_room_uuid="room-x"
         )
 
     @patch("apps.webinars.tasks.upload_recording_to_kinescope.delay")
@@ -489,16 +440,11 @@ class StopRecordingHelperTest(WebinarEndpointsBase):
             }
         }
         rec = Recording.objects.create(
-            webinar=self.webinar,
-            status=Recording.RECORDING_STATUS,
-            resource_id="res",
-            sid="sid",
+            webinar=self.webinar, status=Recording.RECORDING_STATUS, resource_id="res", sid="sid"
         )
-
         from ..api.views import _stop_recording
 
         _stop_recording(rec)
-
         rec.refresh_from_db()
         self.assertEqual(rec.status, Recording.PROCESSING_STATUS)
         self.assertEqual(rec.recording_url, "recordings/file.mp4")
@@ -510,16 +456,11 @@ class StopRecordingHelperTest(WebinarEndpointsBase):
     def test_stop_recording_handles_agora_error_gracefully(self, mock_stop, mock_upload):
         mock_stop.side_effect = Exception("agora down")
         rec = Recording.objects.create(
-            webinar=self.webinar,
-            status=Recording.RECORDING_STATUS,
-            resource_id="res",
-            sid="sid",
+            webinar=self.webinar, status=Recording.RECORDING_STATUS, resource_id="res", sid="sid"
         )
-
         from ..api.views import _stop_recording
 
         _stop_recording(rec)
-
         rec.refresh_from_db()
         self.assertEqual(rec.status, Recording.PROCESSING_STATUS)
         self.assertEqual(rec.recording_url, "")
@@ -527,21 +468,17 @@ class StopRecordingHelperTest(WebinarEndpointsBase):
 
     @patch("apps.webinars.tasks.upload_recording_to_kinescope.delay")
     def test_stop_recording_skips_agora_when_no_resource_id(self, mock_upload):
-        rec = Recording.objects.create(
-            webinar=self.webinar,
-            status=Recording.RECORDING_STATUS,
-        )
-
+        rec = Recording.objects.create(webinar=self.webinar, status=Recording.RECORDING_STATUS)
         from ..api.views import _stop_recording
 
         _stop_recording(rec)
-
         rec.refresh_from_db()
         self.assertEqual(rec.status, Recording.PROCESSING_STATUS)
         mock_upload.assert_not_called()
 
 
 class ExtractRecordingUrlTest(BaseWebinarTestCase):
+
     def _extract(self, payload):
         from ..api.views import _extract_recording_url
 
@@ -598,14 +535,8 @@ class ExtractRecordingUrlTest(BaseWebinarTestCase):
                         {
                             "payload": {
                                 "fileList": [
-                                    {
-                                        "filename": "b0c07c_webinar.m3u8",
-                                        "sliceStartTime": 1,
-                                    },
-                                    {
-                                        "filename": "b0c07c_webinar_0.mp4",
-                                        "sliceStartTime": 1,
-                                    },
+                                    {"filename": "b0c07c_webinar.m3u8", "sliceStartTime": 1},
+                                    {"filename": "b0c07c_webinar_0.mp4", "sliceStartTime": 1},
                                 ]
                             },
                             "serviceName": "web_recorder_service",
@@ -642,6 +573,7 @@ class ExtractRecordingUrlTest(BaseWebinarTestCase):
 
 
 class RecordingPdfViewTest(WebinarEndpointsBase):
+
     def setUp(self):
         super().setUp()
         self.webinar = Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
@@ -654,10 +586,7 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
 
     def test_post_without_screenshots_returns_400(self):
         self.authenticate(self.teacher)
-        response = self.client.post(
-            self.url_pdf(self.recording.recording_id),
-            format="multipart",
-        )
+        response = self.client.post(self.url_pdf(self.recording.recording_id), format="multipart")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     @patch("apps.webinars.api.views.img2pdf.convert", return_value=b"%PDF-1.4 fake")
@@ -668,28 +597,20 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
 
         mock_asset = MagicMock()
         mock_asset.asset_id = "fake-asset-id"
-
         mock_upload_api = MagicMock()
         mock_upload_api.upload_server_side.return_value = mock_asset
-
         mock_binding_api = MagicMock()
-
         screenshot = SimpleUploadedFile("a.png", b"\x89PNG\r\n\x1a\n", content_type="image/png")
-
         self.authenticate(self.teacher)
         with (
             patch("apps.webinars.api.views.build_upload_api", return_value=mock_upload_api),
-            patch(
-                "apps.webinars.api.views.build_binding_api",
-                return_value=mock_binding_api,
-            ),
+            patch("apps.webinars.api.views.build_binding_api", return_value=mock_binding_api),
         ):
             response = self.client.post(
                 self.url_pdf(self.recording.recording_id),
                 {"screenshots": [screenshot]},
                 format="multipart",
             )
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_upload_api.upload_server_side.assert_called_once()
         mock_binding_api.sync_single.assert_called_once()
@@ -698,20 +619,15 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
         import uuid
 
         self.authenticate(self.teacher)
-        response = self.client.post(
-            self.url_pdf(uuid.uuid4()),
-            format="multipart",
-        )
+        response = self.client.post(self.url_pdf(uuid.uuid4()), format="multipart")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_post_returns_404_for_soft_deleted_recording(self):
         self.recording.is_deleted = True
         self.recording.save()
-
         from django.core.files.uploadedfile import SimpleUploadedFile
 
         screenshot = SimpleUploadedFile("a.png", b"\x89PNG", content_type="image/png")
-
         self.authenticate(self.teacher)
         response = self.client.post(
             self.url_pdf(self.recording.recording_id),
@@ -725,10 +641,8 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
             "https://storage.yandexcloud.net/bucket/whiteboards/x.pdf"
         )
         self.recording.save()
-
         self.authenticate(self.teacher)
         response = self.client.delete(self.url_pdf(self.recording.recording_id))
-
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.recording.refresh_from_db()
         self.assertEqual(self.recording.whiteboard_pdf_url, "")
@@ -745,6 +659,7 @@ class RecordingPdfViewTest(WebinarEndpointsBase):
 
 
 class RecordingDeleteViewTest(WebinarEndpointsBase):
+
     def setUp(self):
         super().setUp()
         self.webinar = Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
@@ -758,7 +673,6 @@ class RecordingDeleteViewTest(WebinarEndpointsBase):
     def test_teacher_soft_deletes_recording(self):
         self.authenticate(self.teacher)
         response = self.client.delete(self.url_rec_delete(self.recording.recording_id))
-
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.recording.refresh_from_db()
         self.assertTrue(self.recording.is_deleted)
@@ -773,7 +687,6 @@ class RecordingDeleteViewTest(WebinarEndpointsBase):
     def test_cannot_delete_already_deleted_recording(self):
         self.recording.is_deleted = True
         self.recording.save()
-
         self.authenticate(self.teacher)
         response = self.client.delete(self.url_rec_delete(self.recording.recording_id))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -782,7 +695,6 @@ class RecordingDeleteViewTest(WebinarEndpointsBase):
         other_lesson = create_test_lesson(self.section, title="Другой урок")
         other_webinar = Webinar.objects.create(lesson=other_lesson)
         other_rec = Recording.objects.create(webinar=other_webinar)
-
         self.authenticate(self.teacher)
         response = self.client.delete(self.url_rec_delete(other_rec.recording_id))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -794,20 +706,14 @@ class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-
         self.teacher = create_test_user(email="t_drm@test.com", role="teacher")
         self.student = create_test_user(email="s_drm@test.com", role="student")
-
         self.course = create_test_course()
         self.course.authors.add(self.teacher)
         self.section = create_test_section(self.course)
         self.lesson = create_test_lesson(self.section)
         self.webinar = Webinar.objects.create(lesson=self.lesson)
-        self.recording = Recording.objects.create(
-            webinar=self.webinar,
-            kinescope_video_id="vid-42",
-        )
-
+        self.recording = Recording.objects.create(webinar=self.webinar, kinescope_video_id="vid-42")
         self.env_patcher = patch.dict(
             "os.environ",
             {
@@ -864,10 +770,7 @@ class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
 
     def test_missing_video_id_or_token_returns_403(self):
         response = self.client.post(
-            self.URL,
-            {"id": "", "token": ""},
-            HTTP_AUTHORIZATION=self._basic_auth(),
-            format="json",
+            self.URL, {"id": "", "token": ""}, HTTP_AUTHORIZATION=self._basic_auth(), format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -903,7 +806,6 @@ class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
     def test_soft_deleted_recording_returns_403(self):
         self.recording.is_deleted = True
         self.recording.save()
-
         token = self._make_drm_token(self.teacher.pk, "vid-42")
         response = self.client.post(
             self.URL,
@@ -943,7 +845,6 @@ class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
             payment=payment,
             access_expires_at=timezone.now() + timedelta(days=30),
         )
-
         token = self._make_drm_token(self.student.pk, "vid-42")
         response = self.client.post(
             self.URL,
@@ -965,25 +866,18 @@ class KinescopeDRMAuthViewTest(BaseWebinarTestCase):
 
     def test_not_basic_prefix_returns_403(self):
         response = self.client.post(
-            self.URL,
-            {"id": "v", "token": "t"},
-            HTTP_AUTHORIZATION="Bearer abc",
-            format="json",
+            self.URL, {"id": "v", "token": "t"}, HTTP_AUTHORIZATION="Bearer abc", format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 class WebinarStartIdempotencyTest(WebinarEndpointsBase):
+
     @patch("apps.webinars.api.views.create_whiteboard_room", return_value="room")
     def test_get_or_create_does_not_duplicate_webinar(self, _mock_create):
-        Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.ENDED_STATUS,
-        )
-
+        Webinar.objects.create(lesson=self.lesson, status=Webinar.ENDED_STATUS)
         self.authenticate(self.teacher)
         response = self.client.post(self.url_start())
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Webinar.objects.filter(lesson=self.lesson).count(), 1)
 
@@ -1009,9 +903,7 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
 
     def test_author_creates_webinar_and_sets_scheduled_at(self, mock_invalidate, mock_notify, *_):
         self.authenticate(self.teacher)
-
         response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         webinar = Webinar.objects.get(lesson=self.lesson)
         self.assertIsNotNone(webinar.scheduled_at)
@@ -1031,28 +923,20 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
         self, mock_invalidate, mock_notify, *_
     ):
         Webinar.objects.create(
-            lesson=self.lesson,
-            scheduled_at=timezone.now(),
-            status=Webinar.PENDING_STATUS,
+            lesson=self.lesson, scheduled_at=timezone.now(), status=Webinar.PENDING_STATUS
         )
         self.authenticate(self.teacher)
-
         response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         title = mock_notify.call_args.args[1]
         self.assertIn("Время вебинара изменено", title)
 
     def test_clearing_schedule_sends_cancel_notification(self, mock_invalidate, mock_notify, *_):
         Webinar.objects.create(
-            lesson=self.lesson,
-            scheduled_at=timezone.now(),
-            status=Webinar.PENDING_STATUS,
+            lesson=self.lesson, scheduled_at=timezone.now(), status=Webinar.PENDING_STATUS
         )
         self.authenticate(self.teacher)
-
         response = self.client.patch(self.url_schedule(), {"scheduled_at": None}, format="json")
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         webinar = Webinar.objects.get(lesson=self.lesson)
         self.assertIsNone(webinar.scheduled_at)
@@ -1062,21 +946,15 @@ class WebinarScheduleViewTest(WebinarEndpointsBase):
     def test_live_webinar_returns_409(self, *_):
         Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)
         self.authenticate(self.teacher)
-
         response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
-
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
 
     def test_ended_webinar_is_reset_to_pending(self, *_):
         Webinar.objects.create(
-            lesson=self.lesson,
-            status=Webinar.ENDED_STATUS,
-            ended_at=timezone.now(),
+            lesson=self.lesson, status=Webinar.ENDED_STATUS, ended_at=timezone.now()
         )
         self.authenticate(self.teacher)
-
         response = self.client.patch(self.url_schedule(), self.SCHEDULE_PAYLOAD, format="json")
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         webinar = Webinar.objects.get(lesson=self.lesson)
         self.assertEqual(webinar.status, Webinar.PENDING_STATUS)

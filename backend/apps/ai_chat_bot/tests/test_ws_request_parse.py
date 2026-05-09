@@ -8,17 +8,14 @@ from apps.ai_chat_bot.api.dto import ConnectedMessage, parse_ws_request
 
 
 class WsRequestParseTests(SimpleTestCase):
+
     def test_parse_start_new_chat(self):
         req = parse_ws_request({"type": "start new chat"})
         self.assertEqual(req.message_type, "start new chat")
 
     def test_parse_send_message_normalizes_type_case(self):
         req = parse_ws_request(
-            {
-                "type": "SEND MESSAGE",
-                "chat_id": str(uuid.uuid4()),
-                "content": {"text": "  hello  "},
-            }
+            {"type": "SEND MESSAGE", "chat_id": str(uuid.uuid4()), "content": {"text": "  hello  "}}
         )
         self.assertEqual(req.message_type, "send message")
         self.assertEqual(req.text, "hello")
@@ -28,7 +25,6 @@ class WsRequestParseTests(SimpleTestCase):
         d = parse_ws_request({"type": "delete chat", "chat_id": cid})
         self.assertEqual(d.message_type, "delete chat")
         self.assertEqual(d.chat_id, cid)
-
         h = parse_ws_request({"type": "get history", "chat_id": cid})
         self.assertEqual(h.message_type, "get history")
 

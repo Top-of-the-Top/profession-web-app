@@ -9,6 +9,7 @@ from apps.users.api.utils.token_utils import get_tokens_for_user
 
 
 class ModeratorCourseAuthorsPublishHttpTests(BaseTestCase):
+
     def setUp(self):
         super().setUp()
         self.client = APIClient()
@@ -42,13 +43,11 @@ class ModeratorCourseAuthorsPublishHttpTests(BaseTestCase):
     def test_publish_turns_draft_course_into_published(self):
         course = create_test_course(title="Draft ADM", sub_title="s", description="d", price=0)
         self.assertEqual(course.type, Course.DRAFT_STATUS)
-
         self.client.credentials(
             HTTP_AUTHORIZATION=f"Bearer {get_tokens_for_user(self.moderator)['access_token']}"
         )
         url = f"/api/v1/admin-panel/courses/{course.slug}/publish/"
         r = self.client.post(url)
         self.assertEqual(r.status_code, status.HTTP_200_OK)
-
         course.refresh_from_db()
         self.assertEqual(course.type, Course.PUBLISHED_STATUS)

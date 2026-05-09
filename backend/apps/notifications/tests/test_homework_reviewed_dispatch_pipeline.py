@@ -11,6 +11,7 @@ from apps.notifications.models import Notification
 
 
 class HomeworkReviewedDispatchPipelineTests(TestCase):
+
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
         FRONTEND_HOST="https://learn.example",
@@ -20,7 +21,6 @@ class HomeworkReviewedDispatchPipelineTests(TestCase):
         plain = f"dispatch_pipeline_{uniq}@test.com"
         student = create_test_user(email=plain, role="student")
         attempt_id = uuid.uuid4()
-
         sse_calls = []
 
         def capture_publish(*, routing_key, payload):
@@ -37,19 +37,15 @@ class HomeworkReviewedDispatchPipelineTests(TestCase):
                     with_email=True,
                 )
             )
-
         self.assertTrue(
             Notification.objects.filter(
-                user_id=student.pk,
-                notification_type=Notification.PERSONAL,
+                user_id=student.pk, notification_type=Notification.PERSONAL
             ).exists()
         )
-
         user_route = f"user.{student.pk}"
         personal_sse = [x for x in sse_calls if x["routing_key"] == user_route]
         self.assertEqual(len(personal_sse), 1)
         self.assertEqual(personal_sse[0]["payload"]["type"], "personal")
-
         self.assertEqual(len(mail.outbox), 1)
         sent = mail.outbox[0]
         self.assertEqual(sent.to, [plain])

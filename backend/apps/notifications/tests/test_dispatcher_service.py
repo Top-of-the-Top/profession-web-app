@@ -22,6 +22,7 @@ class _UnhandledStubEvent:
 
 
 class DispatcherEnqueueTasksTests(SimpleTestCase):
+
     def _patch_delays(self):
         targets = (
             "apps.notifications.tasks.send_course_notification.delay",
@@ -68,19 +69,14 @@ class DispatcherEnqueueTasksTests(SimpleTestCase):
     def test_author_action_with_email_personal_and_single_email_delays(self):
         mocks = self._patch_delays()
         dispatcher.dispatch(
-            AuthorActionEvent(
-                user_id=42,
-                object_repr="Урок",
-                action="сохранён",
-                with_email=True,
-            )
+            AuthorActionEvent(user_id=42, object_repr="Урок", action="сохранён", with_email=True)
         )
         mocks["send_personal_notification"].assert_called_once()
         mocks["send_single_email"].assert_called_once()
 
     def test_webinar_scheduled_delays_and_optional_mass_email(self):
         mocks = self._patch_delays()
-        cid, wid = uuid4(), uuid4()
+        cid, wid = (uuid4(), uuid4())
         dispatcher.dispatch(
             WebinarScheduledEvent(
                 course_id=cid,
@@ -98,7 +94,7 @@ class DispatcherEnqueueTasksTests(SimpleTestCase):
 
     def test_webinar_started_only_started_notification_delay(self):
         mocks = self._patch_delays()
-        cid, lid, wid = uuid4(), uuid4(), uuid4()
+        cid, lid, wid = (uuid4(), uuid4(), uuid4())
         dispatcher.dispatch(
             WebinarStartedEvent(
                 course_id=cid,
@@ -119,11 +115,7 @@ class DispatcherEnqueueTasksTests(SimpleTestCase):
         aid = uuid4()
         dispatcher.dispatch(
             HomeworkReviewedEvent(
-                user_id=7,
-                homework_title="Лаба",
-                grade=10,
-                attempt_id=aid,
-                with_email=False,
+                user_id=7, homework_title="Лаба", grade=10, attempt_id=aid, with_email=False
             )
         )
         mocks["send_personal_notification"].assert_called_once()

@@ -9,6 +9,7 @@ from apps.courses.tests.test_models import create_test_course, create_test_user
 
 
 class YandexChatAIServiceOrmTests(TestCase):
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

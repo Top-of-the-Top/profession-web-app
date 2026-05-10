@@ -12,7 +12,7 @@
   gap: 20px;
 }
 
-/* ── Header ── */
+
 .header {
   display: flex;
   align-items: center;
@@ -58,7 +58,7 @@
   font-weight: 400;
 }
 
-/* ── Grid ── */
+
 .grid {
   background: var(--background, #fff);
   border: 1px solid var(--border, #e4e7ec);
@@ -70,7 +70,7 @@
   min-height: 560px;
 }
 
-/* Day header row */
+
 .dayHeader {
   display: flex;
   flex-direction: column;
@@ -118,7 +118,7 @@
   border-radius: 50%;
 }
 
-/* Day columns */
+
 .dayCol {
   padding: 10px 8px;
   border-right: 1px solid var(--border, #e4e7ec);
@@ -143,9 +143,9 @@
   padding-top: 24px;
 }
 
-/* ── Event cards ── */
 
-/* Webinar card — yellow */
+
+
 .cardWebinar {
   background: #fffde7;
   border-radius: 10px;
@@ -162,7 +162,7 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.10);
 }
 
-/* Homework card — pink */
+
 .cardHomework {
   background: #fff0f6;
   border-radius: 10px;
@@ -179,7 +179,7 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.10);
 }
 
-/* Icon + time/type row */
+
 .cardHeader {
   display: flex;
   align-items: flex-start;
@@ -198,7 +198,7 @@
   margin-top: 2px;
 }
 
-/* Right side of header: time on top, type below */
+
 .cardHeaderMeta {
   display: flex;
   flex-direction: column;
@@ -239,4 +239,142 @@
 
 .cardWebinar .cardCourse {
   color: #b59a00;
+}
+
+/* ── Popup ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup {
+  background: #fff;
+  border: 1px solid var(--border, #e4e7ec);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  width: 100%;
+  max-width: 400px;
+}
+
+.popupInner {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.popupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.popupMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.popupIconWebinar {
+  color: #b59a00;
+}
+
+.popupIconHomework {
+  color: #e91e7a;
+}
+
+.popupTypeWebinar {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #b59a00;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.popupTypeHomework {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #e91e7a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.popupClose {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #667085;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.popupClose:hover {
+  background: #f2f4f7;
+  color: #1d2939;
+}
+
+.popupTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1d2939;
+  line-height: 1.35;
+}
+
+.popupCourse {
+  font-size: 0.875rem;
+  color: #667085;
+  font-weight: 400;
+}
+
+.popupDateRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: #475467;
+}
+
+.popupDateIcon {
+  color: #98a2b3;
+  flex-shrink: 0;
+}
+
+.popupActions {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+  justify-content: flex-end;
+}
+
+.popupBtnWebinar {
+  background: #f9e04b;
+  color: #7a6200;
+  border: none;
+}
+
+.popupBtnWebinar:hover:not(:disabled) {
+  background: #f0d300;
+  color: #5a4800;
+}
+
+.popupBtnHomework {
+  background: #f868a0;
+  color: #fff;
+  border: none;
+}
+
+.popupBtnHomework:hover:not(:disabled) {
+  background: #e0357e;
+  color: #fff;
 }

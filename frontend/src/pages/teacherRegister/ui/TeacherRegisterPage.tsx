@@ -45,7 +45,7 @@ export default function TeacherRegisterPage() {
       return;
     }
     apiClient
-      .request<{ email: string }>(`/api/admin-panel/invites/validate/?token=${encodeURIComponent(token)}`)
+      .request<{ email: string }>(`/api/v1/admin-panel/invites/validate/?token=${encodeURIComponent(token)}`)
       .then((data) => setValidate({ status: 'ok', email: data.email }))
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
@@ -54,7 +54,7 @@ export default function TeacherRegisterPage() {
             const body = JSON.parse(msg.split('API_ERROR_400: ')[1] ?? '{}');
             if (body?.error === 'used') { setValidate({ status: 'used' }); return; }
             if (body?.error === 'expired') { setValidate({ status: 'expired' }); return; }
-          } catch { /* ignore */ }
+          } catch {}
         }
         setValidate({ status: 'not_found' });
       });
@@ -78,7 +78,7 @@ export default function TeacherRegisterPage() {
         refresh_token: string;
         refresh_expires_at: string;
         role: string;
-      }>('/api/admin-panel/invites/register/', {
+      }>('/api/v1/admin-panel/invites/register/', {
         method: 'POST',
         body: JSON.stringify({
           token,
@@ -111,7 +111,7 @@ export default function TeacherRegisterPage() {
             notifyError({ title: body.detail });
             return;
           }
-        } catch { /* ignore */ }
+        } catch {}
       }
       notifyError({ title: 'Ошибка регистрации', description: 'Попробуйте позже.' });
     } finally {

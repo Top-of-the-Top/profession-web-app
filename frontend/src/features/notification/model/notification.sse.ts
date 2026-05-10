@@ -40,7 +40,7 @@ export function connectNotificationSSE() {
     return;
   }
 
-  const URL = `${API_URL}/api/notifications/sse/?token=${encodeURIComponent(token)}`;
+  const URL = `${API_URL}/api/v1/notifications/sse/?token=${encodeURIComponent(token)}`;
   console.log('[notifications:sse] opening EventSource', { url: URL });
 
   source = new EventSource(URL);

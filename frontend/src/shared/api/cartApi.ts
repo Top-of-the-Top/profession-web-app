@@ -1,4 +1,3 @@
-// shared/api/cartApi.ts
 import { apiClient } from './interceptor';
 import type { CourseDTO } from './courseApi';
 
@@ -18,23 +17,23 @@ export interface CartActionResponse {
 
 export const cartApi = {
   getCart(): Promise<CartResponse> {
-    return apiClient.request<CartResponse>('/api/carts/', { method: 'GET' });
+    return apiClient.request<CartResponse>('/api/v1/carts/', { method: 'GET' });
   },
 
   addCourse(slug: string) {
-    return apiClient.request<CartActionResponse>('/api/carts/add/' + slug + '/', {
+    return apiClient.request<CartActionResponse>('/api/v1/carts/add/' + slug + '/', {
       method: 'POST',
     });
   },
 
   removeCourse(slug: string) {
-    return apiClient.request<CartActionResponse>('/api/carts/remove/' + slug + '/', {
+    return apiClient.request<CartActionResponse>('/api/v1/carts/remove/' + slug + '/', {
       method: 'DELETE',
     });
   },
 
   payCart() {
-    return apiClient.request<CartActionResponse>('/api/carts/pay/', { method: 'POST' });
+    return apiClient.request<CartActionResponse>('/api/v1/carts/pay/', { method: 'POST' });
   },
 };
 

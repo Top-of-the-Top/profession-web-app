@@ -192,7 +192,6 @@ function PublisherInner({
   cameraOn,
   children,
 }: PublisherInnerProps) {
-  // Memoize so useJoin doesn't see a new object every render and re-join.
   const joinOptions = useMemo(
     () => ({ appid: appId, channel, token, uid }),
     [appId, channel, token, uid],
@@ -204,8 +203,6 @@ function PublisherInner({
 
   usePublish([localMicrophoneTrack, localCameraTrack]);
 
-  // Release OS device locks on unmount so re-entering the webinar doesn't get
-  // NOT_READABLE / "Device in use" on the next createCameraVideoTrack call.
   useEffect(() => {
     return () => {
       localMicrophoneTrack?.stop();

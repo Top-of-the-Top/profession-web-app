@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Button, PageFrame, Skeleton } from '@shared/ui';
+import { Button, CenteredMessageBlock, PageFrame, Skeleton } from '@shared/ui';
 import type { CourseDTO } from '@shared/api/courseApi';
 import { useCoursesForHome } from '@shared/api/queries/courses';
 import styles from './AppHomePage.module.css';
@@ -96,12 +96,11 @@ export default function AppHomePage() {
         <div className={styles.headerRow}>
           <h1 className={styles.title}>Курсы</h1>
         </div>
-        <div className={styles.errorBox}>
-          <p className={styles.errorText}>
-            Не удалось загрузить курсы. Пожалуйста, попробуйте позже.
-          </p>
-          <Button onClick={() => void refetch()}>Попробовать снова</Button>
-        </div>
+        <CenteredMessageBlock
+          className={styles.homeMessageBlock}
+          message="Не удалось загрузить курсы. Пожалуйста, попробуйте позже."
+          actions={<Button onClick={() => void refetch()}>Попробовать снова</Button>}
+        />
       </PageFrame>
     );
   }

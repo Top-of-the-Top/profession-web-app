@@ -12,6 +12,7 @@
   overflow: hidden;
   padding: 8px;
 	padding-bottom: 0;
+	background-color: var(--profession-white-bg);
 }
 
 .participantsArea {
@@ -57,7 +58,7 @@
   aspect-ratio: 16 / 9;
   border-radius: var(--radius);
   overflow: hidden;
-  background: var(--muted);
+  background: var(--profession-white-block);
   flex-shrink: 0;
   min-width: 0;
 }
@@ -163,7 +164,7 @@
   min-height: 44px;
   padding: 8px 12px;
   border-radius: var(--radius);
-  background: var(--muted);
+  background: var(--profession-white-block);
   color: var(--foreground);
 }
 

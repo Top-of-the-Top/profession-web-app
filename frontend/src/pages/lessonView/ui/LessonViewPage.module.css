@@ -1,6 +1,6 @@
 
 
-/* ── Breadcrumbs ── */
+
 
 .breadcrumbWrap {
   margin-bottom: 20px;
@@ -12,7 +12,7 @@
   line-height: 1;
 }
 
-/* ── Two-column layout ── */
+
 
 .layout {
   display: flex;
@@ -23,7 +23,7 @@
 .mainColumn {
   flex: 1;
   min-width: 0;
-	/* border-radius: 20px; */
+
 }
 
 .main {
@@ -139,6 +139,7 @@
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
   padding: 14px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.14);
 }
 
 @keyframes recordingCardExitDown {
@@ -270,7 +271,7 @@
   cursor: not-allowed;
 }
 
-/* ── Block grid (same as CourseRenderer) ── */
+
 
 .blockGrid {
   display: grid;
@@ -284,7 +285,7 @@
   overflow: hidden;
 }
 
-/* ── Text block ── */
+
 
 .textBlock {
   line-height: 1.7;
@@ -340,7 +341,7 @@
 	font-weight: 650;
 }
 
-/* ── Photo block ── */
+
 
 .photoBlock {
   display: flex;
@@ -359,7 +360,7 @@
   border-radius: 10px;
 }
 
-/* ── Video block ── */
+
 
 .videoBlock {
   display: flex;
@@ -397,7 +398,7 @@
   font-size: 15px;
 }
 
-/* ── Sidebar cards ── */
+
 
 .sidebarCard {
   background: #fff;
@@ -433,10 +434,10 @@
 
 .sidebarCardTitle {
   font-size: 16px;
-  /* font-weight: 700; */
+
 }
 
-/* ── Timer widget ── */
+
 
 .timerGrid {
   display: grid;
@@ -477,7 +478,7 @@
   text-transform: lowercase;
 }
 
-/* ── Webinar quick links ── */
+
 
 .linksRow {
   justify-content: center;
@@ -516,7 +517,7 @@
   opacity: 0.55;
 }
 
-/* ── Webinar schedule widget ── */
+
 
 .scheduleRow {
   margin-bottom: 10px;
@@ -624,7 +625,7 @@
   justify-content: flex-end;
 }
 
-/* ── Homework widget ── */
+
 
 .deadlineText {
   font-size: 13px;
@@ -738,7 +739,7 @@
   cursor: not-allowed;
 }
 
-/* ── Progress widget ── */
+
 
 .progressRow {
   display: flex;
@@ -763,7 +764,7 @@
 	height: 10px;
 	background-color: #CDE8CB;
 	border-radius: 50%;
-	
+
 }
 
 .progressBarWrap {
@@ -832,35 +833,16 @@
   transition: width 0.3s ease;
 }
 
-/* ── Loading / Error ── */
+
 
 .centered {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 240px;
+  min-height: 0;
+  width: 100%;
 }
-
-.errorBox {
-  padding: 24px;
-  background: #fff;
-  border-radius: 14px;
-  border: 1px solid #fecaca;
-  max-width: 480px;
-}
-
-.errorText {
-  margin: 0 0 16px;
-  color: #991b1b;
-}
-
-.errorActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-/* ── Responsive ── */
 
 @media (max-width: 960px) {
   .layout {

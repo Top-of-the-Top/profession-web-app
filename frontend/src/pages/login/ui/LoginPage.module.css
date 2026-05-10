@@ -30,10 +30,10 @@
   border-radius: 0px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   padding: 32px;
-}	
+}
 
 .cardHeader {
-  /* text-align: left; */
+
   padding-bottom: 5px;
 	padding-left: 0 !important;
 }

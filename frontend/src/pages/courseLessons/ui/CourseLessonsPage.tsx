@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Home } from 'lucide-react';
+import { Home, BookOpen, ClipboardList, Check, X, Copy } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,10 +9,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
+  CenteredMessageBlock,
   PageFrame,
   Spinner,
 } from '@shared/ui';
 import { useCourseHomeBySlug } from '@shared/api/queries/courses';
+import { useApplications } from '@shared/api/queries/applications';
+import { useApproveApplication, useRejectApplication } from '@shared/api/mutations/applications';
 import { useRole } from '@shared/lib/rbac/useRole';
 import { cn } from '@shared/lib/utils';
 import { AiChatPanel } from '../../../features/ai-chat';
@@ -125,7 +128,10 @@ function StaffStatsCard({
   const homeworkPct = Math.round(homeworkRate * 100);
   return (
     <div className={styles.sideCard}>
-      <p className={styles.sideCardTitle}>Статистика</p>
+			 <div className={styles.progressCardHead}>
+        <span className={styles.progressLiveDot} aria-hidden />
+        <p className={styles.progressCardTitle}>Статистика</p>
+      </div>
       <div className={styles.progressBlock}>
         <div className={styles.progressHeader}>
           <span>Посещаемость вебинаров</span>
@@ -148,6 +154,86 @@ function StaffStatsCard({
   );
 }
 
+function ApplicationsPanel({ courseSlug }: { courseSlug: string }) {
+  const { data: applications, isLoading } = useApplications(courseSlug);
+  const approve = useApproveApplication(courseSlug);
+  const reject = useRejectApplication(courseSlug);
+  const [copied, setCopied] = useState(false);
+
+  function copyLink() {
+    void navigator.clipboard.writeText(`${window.location.origin}/app/store/${courseSlug}`).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div className={styles.appsTable}>
+      <div className={styles.appsTableActions}>
+        <button type="button" className={styles.appsCopyBtn} onClick={copyLink}>
+          <Copy size={15} />
+          {copied ? 'Скопировано!' : 'Скопировать ссылку на запись'}
+        </button>
+      </div>
+      {isLoading && <div className={styles.appsPanelEmpty}><Spinner /></div>}
+      {!isLoading && !applications?.length && (
+        <div className={styles.appsPanelEmpty}>Заявок пока нет</div>
+      )}
+      {!isLoading && !!applications?.length && (
+        <>
+          <div className={styles.appsTableHeader}>
+            <span>Студент</span>
+            <span>Email</span>
+            <span>Дата подачи</span>
+            <span>Статус</span>
+            <span />
+          </div>
+          {applications.map((app) => (
+            <div key={app.application_id} className={styles.appsTableRow}>
+              <span className={styles.appsName}>
+                {app.user.first_name} {app.user.last_name}
+              </span>
+              <span className={styles.appsEmail}>{app.user.email}</span>
+              <span className={styles.appsDate}>
+                {new Date(app.created_at).toLocaleDateString('ru-RU')}
+              </span>
+              <span className={cn(styles.appsStatus, styles[`appsStatus_${app.status}`])}>
+                {app.status === 'pending' ? 'На рассмотрении' : app.status === 'approved' ? 'Принята' : 'Отклонена'}
+              </span>
+              <span className={styles.appsActions}>
+                {app.status === 'pending' && (
+                  <>
+                    <button
+                      type="button"
+                      className={cn(styles.appsActionBtn, styles.appsActionApprove)}
+                      disabled={approve.isPending || reject.isPending}
+                      onClick={() => approve.mutate(app.application_id)}
+                      title="Принять"
+                    >
+                      <Check size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(styles.appsActionBtn, styles.appsActionReject)}
+                      disabled={approve.isPending || reject.isPending}
+                      onClick={() => reject.mutate(app.application_id)}
+                      title="Отклонить"
+                    >
+                      <X size={15} />
+                    </button>
+                  </>
+                )}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+type StaffTab = 'structure' | 'applications';
+
 export default function CourseLessonsPage() {
   const { slug } = useParams<{ slug: string }>();
   const { hasAny } = useRole();
@@ -166,6 +252,7 @@ export default function CourseLessonsPage() {
   const [openSections, setOpenSections] = useState<Set<string>>(
     () => new Set()
   );
+  const [staffTab, setStaffTab] = useState<StaffTab>('structure');
 
   const toggleSection = (sectionId: string, open: boolean) => {
     setOpenSections((prev) => {
@@ -180,12 +267,14 @@ export default function CourseLessonsPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>Не указан адрес курса.</p>
-            <Button type="button" variant="outline" asChild>
-              <Link to="/app">На главную</Link>
-            </Button>
-          </div>
+          <CenteredMessageBlock
+            message="Не указан адрес курса."
+            actions={
+              <Button type="button" variant="outline" asChild>
+                <Link to="/app">На главную</Link>
+              </Button>
+            }
+          />
         </div>
       </PageFrame>
     );
@@ -205,15 +294,14 @@ export default function CourseLessonsPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>
-              Не удалось загрузить программу курса. Проверьте, что вы записаны
-              на курс, и попробуйте снова.
-            </p>
-            <Button type="button" onClick={() => void refetch()}>
-              Попробовать снова
-            </Button>
-          </div>
+          <CenteredMessageBlock
+            message="Не удалось загрузить программу курса. Проверьте, что вы записаны на курс, и попробуйте снова."
+            actions={
+              <Button type="button" onClick={() => void refetch()}>
+                Попробовать снова
+              </Button>
+            }
+          />
         </div>
       </PageFrame>
     );
@@ -266,39 +354,55 @@ export default function CourseLessonsPage() {
     </aside>
   );
 
-  if (!content.length) {
-    return (
-      <PageFrame>
-        {breadcrumb}
-        <h1 className={styles.pageTitle}>{title}</h1>
-        <div className={styles.layout}>
-          <div className={styles.mainColumn}>
-            <div className={styles.empty}>В этом курсе пока нет разделов.</div>
-            {isStaff ? <AddSectionRow courseSlug={slug ?? ''} /> : null}
-          </div>
-          {sidebar}
-        </div>
-      </PageFrame>
-    );
-  }
+  const structureContent = (
+    <>
+      {content.length === 0
+        ? <div className={styles.empty}>В этом курсе пока нет разделов.</div>
+        : content.map((section) => (
+          <SectionBlock
+            key={section.section_id}
+            section={section}
+            courseSlug={slug ?? ''}
+            isStaff={isStaff}
+            open={openSections.has(section.section_id)}
+            onOpenChange={(o) => toggleSection(section.section_id, o)}
+          />
+        ))}
+      {isStaff ? <AddSectionRow courseSlug={slug ?? ''} /> : null}
+    </>
+  );
 
   return (
     <PageFrame>
       {breadcrumb}
       <h1 className={styles.pageTitle}>{title}</h1>
+
+      {isStaff && (
+        <div className={styles.tabBar}>
+          <button
+            type="button"
+            className={cn(styles.tabBtn, staffTab === 'structure' && styles.tabBtnActive)}
+            onClick={() => setStaffTab('structure')}
+          >
+            <BookOpen size={16} />
+            Структура
+          </button>
+          <button
+            type="button"
+            className={cn(styles.tabBtn, staffTab === 'applications' && styles.tabBtnActive)}
+            onClick={() => setStaffTab('applications')}
+          >
+            <ClipboardList size={16} />
+            Заявки
+          </button>
+        </div>
+      )}
+
       <div className={styles.layout}>
         <div className={styles.mainColumn}>
-          {content.map((section) => (
-            <SectionBlock
-              key={section.section_id}
-              section={section}
-              courseSlug={slug ?? ''}
-              isStaff={isStaff}
-              open={openSections.has(section.section_id)}
-              onOpenChange={(o) => toggleSection(section.section_id, o)}
-            />
-          ))}
-          {isStaff ? <AddSectionRow courseSlug={slug ?? ''} /> : null}
+          {!isStaff || staffTab === 'structure'
+            ? structureContent
+            : <ApplicationsPanel courseSlug={slug ?? ''} />}
         </div>
         {sidebar}
       </div>

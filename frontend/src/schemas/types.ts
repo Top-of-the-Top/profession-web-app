@@ -1,5 +1,3 @@
-// src/schemas/types.ts
-
 export interface Track {
   id: string;
   title: string;

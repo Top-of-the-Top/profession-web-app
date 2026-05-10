@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
@@ -65,6 +65,14 @@ class WebinarScheduledEvent:
     course_slug: str
     lesson_slug: str
     scheduled_at: str
+    with_email: bool = False
+
+
+@dataclass
+class ApplicationStatusChangedEvent:
+    user_id: int
+    course_title: str
+    new_status: str
     with_email: bool = False
 
 

@@ -9,7 +9,6 @@ const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim() ?? 
 
 export type TokensResponse = Tokens;
 
-/** Параметры fetch: без передачи Bearer (для логина, регистрации, сброса пароля и т.д.). */
 export type ApiRequestInit = RequestInit & { skipAuth?: boolean };
 
 type RefreshTokensResult = {
@@ -98,7 +97,7 @@ export class ApiClient {
 
     let response: Response;
     try {
-      response = await fetch(`${API_URL}/api/auth/token/refresh/`, {
+      response = await fetch(`${API_URL}/api/v1/auth/token/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),

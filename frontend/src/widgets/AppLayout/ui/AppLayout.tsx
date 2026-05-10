@@ -180,51 +180,12 @@ export default function AppLayout() {
               ))}
             </nav>
           )}
-
-          {/* <div className={styles.statsSection}>
-            {status === 'connecting' && (
-              <div className={styles.loading}>Подключение к серверу...</div>
-            )}
-
-            {status === 'connected' && <></>}
-
-            {status === 'disconnected' && (
-              <>
-                <Alert variant="destructive">
-                  <AlertCircle />
-                  <AlertTitle>Соединение потеряно</AlertTitle>
-                  <AlertDescription>
-                    Попытка восстановить соединение...
-                  </AlertDescription>
-                </Alert>
-              </>
-            )}
-
-            {status === 'error' && (
-              <>
-                <Alert variant="destructive">
-                  <AlertCircle />
-                  <AlertTitle>Ошибка подключения</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-                <Button
-                  onClick={() => {
-                    if (hasToken && user) {
-                      connectNotificationSSE();
-                    }
-                  }}
-                >
-                  Переподключиться
-                </Button>
-              </>
-            )}
-          </div> */}
         </div>
 
         <main
           className={cn(
             styles.main,
-            lessonEditorLayout && styles.mainLessonEditor
+            lessonEditorLayout && styles.mainLessonEditor,
           )}
         >
           <div

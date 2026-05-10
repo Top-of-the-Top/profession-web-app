@@ -5,6 +5,8 @@ export interface CourseDTO {
   image_url: string;
   price: number;
   slug: string;
+  is_special?: boolean;
+  is_enrolled?: boolean;
 }
 
 export interface Course extends CourseDTO {
@@ -14,6 +16,12 @@ export interface Course extends CourseDTO {
   image: string;
   last_modified_by: number | null;
   authors: number[];
+  is_special: boolean;
+  is_enrolled: boolean;
+  application_status: 'pending' | 'approved' | 'rejected' | null;
+  starts_at?: string | null;
+  duration_weeks?: number | null;
+  min_age?: number | null;
 }
 
 export interface CourseApiAnswer {
@@ -224,7 +232,6 @@ export interface HomeworkAttemptListItem {
   max_points: number | null;
 }
 
-// GET /api/my-homeworks/ — student view
 export interface MyHomeworkStudentItem {
   attempt_id: string;
   status: HomeworkAttemptStatus;
@@ -241,7 +248,6 @@ export interface MyHomeworkStudentItem {
   send_at: string | null;
 }
 
-// GET /api/my-homeworks/ — teacher view
 export interface MyHomeworkTeacherStudent {
   user_id: string;
   email: string;
@@ -421,7 +427,11 @@ export interface CoursePatchPayload {
   description?: string;
   price?: number;
   type?: CourseContentType;
-  cover_asset_id?: string | null;
+  is_special?: boolean;
+  starts_at?: string | null;
+  duration_weeks?: number | null;
+  min_age?: number | null;
+  course_cover_asset_id?: string | null;
 }
 
 export interface CourseItemWriteResponse {

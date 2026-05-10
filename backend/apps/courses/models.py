@@ -38,7 +38,6 @@ class PublishableMixin(models.Model):
 
 
 class AbstractComponentModel(PublishableMixin, TimestampedMixin):
-    """Абстрактная модель для отслеживания автора изменений"""
 
     last_modified_by = models.ForeignKey(
         User,
@@ -116,6 +115,7 @@ class Course(AbstractComponentModel):
         verbose_name="Yandex Vector Store ID",
     )
     is_deleted = models.BooleanField(default=False, verbose_name="Удалён")
+    is_special = models.BooleanField(default=False, verbose_name="Специальный курс")
     starts_at = models.DateField(null=True, blank=True, verbose_name="Дата старта курса")
     duration_weeks = models.PositiveSmallIntegerField(
         null=True, blank=True, verbose_name="Длительность курса (недели)"
@@ -345,30 +345,44 @@ class Task(AbstractComponentModel, AutoIncrementMixin):
         return self.text
 
 
-class PurchasedCourse(models.Model):
+class CourseEnrollment(models.Model):
+    SOURCE_PAYMENT = "payment"
+    SOURCE_APPLICATION = "application"
+    SOURCE_CHOICES = [
+        (SOURCE_PAYMENT, "Оплата"),
+        (SOURCE_APPLICATION, "Заявка"),
+    ]
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="purchased_courses",
+        related_name="enrollments",
     )
-
     course = models.ForeignKey(
         Course,
         on_delete=models.CASCADE,
-        related_name="purchases",
+        related_name="enrollments",
     )
-
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default=SOURCE_PAYMENT,
+        verbose_name="Источник доступа",
+    )
     payment = models.ForeignKey(
         "payments.Payment",
-        on_delete=models.CASCADE,
-        related_name="purchased_courses",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enrollments",
     )
     access_expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "courses_by_user"
-        verbose_name = "Купленный курс"
-        verbose_name_plural = "Купленные курсы"
+        db_table = "course_enrollments"
+        verbose_name = "Запись на курс"
+        verbose_name_plural = "Записи на курсы"
         unique_together = ("user", "course")
 
     def __str__(self):

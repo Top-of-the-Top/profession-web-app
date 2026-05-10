@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-label="Запись вебинара — Profession">
+  <style>
+    .huge { font-family: 'Golos Text', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; font-weight: 900; letter-spacing: -0.02em; }
+    .accent { fill: #191970; }
+    .ink { fill: #0f1226; }
+    .small { font-family: 'Golos Text', system-ui, -apple-system, Segoe UI, Roboto, sans-serif; font-weight: 800; letter-spacing: -0.01em; fill: #0f1226; }
+  </style>
+
+  <rect width="1280" height="720" fill="#ffffff"/>
+
+  <g class="huge" font-size="240" textLength="900" lengthAdjust="spacingAndGlyphs">
+    <text x="-30" y="210" class="accent">ЗАПИСЬ</text>
+  </g>
+
+  <g class="huge" font-size="320" textLength="1240" lengthAdjust="spacingAndGlyphs">
+    <text x="20" y="490" class="ink">ВЕБИНАРА</text>
+  </g>
+
+  <g class="small" font-size="62">
+    <text x="20" y="585">УРОК</text>
+    <text x="20" y="650">ТЕБЯ</text>
+    <text x="20" y="715">ЖДЁТ</text>
+  </g>
+
+  <g class="small" font-size="62" text-anchor="end">
+    <text x="1260" y="585" fill="#191970">PROFES-</text>
+    <text x="1260" y="650" fill="#191970">SION</text>
+    <text x="1260" y="715">PLATFORM</text>
+  </g>
+</svg>

@@ -101,11 +101,11 @@ def _users_brief(user_ids, users_by_id):
 
 
 def list_students(*, requester, course_title=None, query=None):
-    from apps.courses.models import PurchasedCourse
+    from apps.courses.models import CourseEnrollment
     from apps.users.api.utils.crypto_utils import decrypt_data
     from apps.users.models import User
 
-    purchases = PurchasedCourse.objects.select_related("course", "user").filter(
+    purchases = CourseEnrollment.objects.select_related("course", "user").filter(
         access_expires_at__gt=timezone.now(),
         user__role=User.ROLE_STUDENT,
     )

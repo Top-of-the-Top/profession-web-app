@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { XIcon } from 'lucide-react';
-import { Button, PageFrame, Spinner } from '@shared/ui';
+import { Button, CenteredMessageBlock, PageFrame, Spinner } from '@shared/ui';
 import { useWebinarJoin } from '@shared/api/queries/webinar';
 import { courseKeys, useLessonBySlug } from '@shared/api/queries/courses';
 import {
@@ -79,6 +79,29 @@ export default function WebinarPage() {
   const [awaitingRecordingSessionEnd, setAwaitingRecordingSessionEnd] =
     useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const webinarStartedAtMs = useMemo(() => {
+    if (!webinarStartedAt) return null;
+    const parsed = new Date(webinarStartedAt).getTime();
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [webinarStartedAt]);
+
+  useEffect(() => {
+    if (!webinarStartedAtMs) return;
+    setNowMs(Date.now());
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [webinarStartedAtMs]);
+
+  const webinarDurationLabel = useMemo(() => {
+    if (!webinarStartedAtMs) return null;
+    const elapsed = Math.max(0, Math.floor((nowMs - webinarStartedAtMs) / 1000));
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }, [nowMs, webinarStartedAtMs]);
   const [isExitWithoutRecordingDialogOpen, setIsExitWithoutRecordingDialogOpen] =
     useState(false);
   const hasWarnedAboutMissingWebinarIdRef = useRef(false);
@@ -390,19 +413,19 @@ export default function WebinarPage() {
   if (isError || !session) {
     return (
       <PageFrame className={styles.stateCenter}>
-        <div className={styles.errorBox}>
-          <p className={styles.errorText}>
-            Не удалось подключиться к вебинару. Проверьте, что вебинар запущен, и у вас есть доступ.
-          </p>
-          <div className={styles.errorActions}>
-            <Button variant="outline" onClick={() => navigate(-1)}>
-              Назад
-            </Button>
-            <Button onClick={() => void joinQuery.refetch()}>
-              Попробовать снова
-            </Button>
-          </div>
-        </div>
+        <CenteredMessageBlock
+          message="Не удалось подключиться к вебинару. Проверьте, что вебинар запущен, и у вас есть доступ."
+          actions={
+            <>
+              <Button variant="outline" onClick={() => navigate(-1)}>
+                Назад
+              </Button>
+              <Button onClick={() => void joinQuery.refetch()}>
+                Попробовать снова
+              </Button>
+            </>
+          }
+        />
       </PageFrame>
     );
   }
@@ -411,6 +434,9 @@ export default function WebinarPage() {
     <PageFrame className={styles.shell}>
       <div className={styles.body}>
         <div className={styles.whiteboardArea}>
+          {webinarDurationLabel && (
+            <span className={styles.durationBadge}>В эфире {webinarDurationLabel}</span>
+          )}
           <WhiteboardPanel
             ref={whiteboardRef}
             appIdentifier={session.whiteboard_app_id}
@@ -462,7 +488,6 @@ export default function WebinarPage() {
         stopWebinarPending={
           isFinishing || stopWebinar.isPending || uploadFinalPdf.isPending
         }
-        webinarStartedAt={webinarStartedAt}
         onToggleMic={toggleMic}
         onToggleCamera={toggleCamera}
         onToggleChat={handleToggleChat}

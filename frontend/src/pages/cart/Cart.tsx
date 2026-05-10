@@ -304,18 +304,6 @@ export default function CartPage() {
             </div>
           </div>
 
-          {/* <div className={styles.payDialogMerchant}>
-            <div className={styles.payDialogMerchantIcon} aria-hidden>
-              P
-            </div>
-            <div className={styles.payDialogMerchantText}>
-              <span className={styles.payDialogMerchantName}>Profession</span>
-              <span className={styles.payDialogMerchantMeta}>
-                {formatCourseCountLabel(courses.length)} в заказе
-              </span>
-            </div>
-          </div> */}
-
           <Button
             type="button"
             className={styles.payConfirmButton}

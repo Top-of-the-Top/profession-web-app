@@ -1,4 +1,3 @@
-// src/shared/api/types.ts
 export interface ApiCourse {
 	course_id: string,
   title: string;
@@ -11,7 +10,6 @@ export interface ApiLandingResponse {
   data: ApiCourse[];
 }
 
-// Профиль текущего пользователя, который возвращает бекенд
 export interface ApiUserResponse {
   first_name: string | null;
   last_name: string | null;

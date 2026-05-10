@@ -39,7 +39,7 @@
   margin: 0;
 }
 
-/* ── Table ── */
+
 .tableWrap {
   overflow-x: auto;
   border-radius: 12px;
@@ -94,7 +94,7 @@
   text-align: center;
 }
 
-/* Webinar column */
+
 .webinarNone {
   color: #98a2b3;
   font-size: 0.875rem;
@@ -131,7 +131,7 @@
   color: #1d2939;
 }
 
-/* ── HW cell with tooltip ── */
+
 .hwCell {
   position: relative;
   display: inline-flex;
@@ -201,7 +201,7 @@
   color: #98a2b3;
 }
 
-/* ── HW dots (status colors) ── */
+
 .hwDot {
   display: inline-block;
   width: 10px;
@@ -226,7 +226,7 @@
   background: #22c55e;
 }
 
-/* ── Completed ── */
+
 .completedYes {
   color: #22c55e;
 }
@@ -235,7 +235,7 @@
   color: #d0d5dd;
 }
 
-/* ── Legend ── */
+
 .legend {
   display: flex;
   gap: 20px;
@@ -250,7 +250,7 @@
   color: #667085;
 }
 
-/* ── Utils ── */
+
 .centered {
   display: flex;
   justify-content: center;

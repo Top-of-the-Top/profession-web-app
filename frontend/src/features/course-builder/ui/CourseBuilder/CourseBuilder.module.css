@@ -215,7 +215,7 @@
 .buttonSecondary {
   background-color: #d4d4d4;
   color: black;
-  
+
 }
 
 .buttonSecondary:hover {
@@ -323,7 +323,7 @@
   border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   background-color: #ffffff;
-  /* box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); */
+
   box-sizing: border-box;
   overflow: visible;
   display: flex;
@@ -582,7 +582,7 @@
   background-position: 0 0;
 }
 
-/* Цвет области, куда встанет блок при перетаскивании (плейсхолдер RGL) */
+
 :global(.react-grid-item.react-grid-placeholder) {
   background: #19197064 !important;
   opacity: 0.22;
@@ -928,7 +928,7 @@
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* Загрузка файла: надпись + иконка */
+
 .uploadLabel {
   display: block;
   font-size: 13px;
@@ -986,7 +986,7 @@
   background: #000;
 }
 
-/* Стили для изображений в блоках */
+
 .blockImage {
   width: 100%;
   height: 100%;
@@ -995,10 +995,10 @@
   margin-bottom: 0;
 }
 
-/* Стили для видео */
+
 .videoWrapper {
   position: relative;
-  padding-bottom: 56.25%; /* 16:9 */
+  padding-bottom: 56.25%;
   height: 0;
   overflow: hidden;
   margin-bottom: 12px;
@@ -1014,7 +1014,7 @@
   border: none;
 }
 
-/* Статус сохранения */
+
 .statusDot.saving {
   background-color: #f59e0b;
   animation: pulse 1.5s infinite;
@@ -1030,7 +1030,7 @@
   }
 }
 
-/* Блок при перетаскивании */
+
 .gridBlockToolbarAbove {
   z-index: 200;
 }
@@ -1041,7 +1041,7 @@
   z-index: 500;
 }
 
-/* Убедимся, что все текстове элементы имеют правильное направление */
+
 .gridBlock,
 .blockBody,
 .textEditorContent,

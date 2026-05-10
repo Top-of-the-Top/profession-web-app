@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "apps.ai_chat_bot.apps.AiChatBotConfig",
     "apps.admin_panel.apps.AdminPanelConfig",
     "apps.stats",
+    "apps.applications.apps.ApplicationsConfig",
 ]
 
 USE_S3 = os.environ.get("USE_S3", "False") == "True"
@@ -91,6 +92,9 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
 }
 
 SIMPLE_JWT = {
@@ -153,45 +157,115 @@ else:
     }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "My Profession Web App API",
-    "DESCRIPTION": "API для вашего проекта",
+    "TITLE": "Профессия — API",
+    "DESCRIPTION": (
+        "«Профессия» — образовательная онлайн-платформа для проведения структурированных курсов "
+        "с видеосвязью, интерактивной доской и встроенным ИИ-помощником.\n\n"
+        "Платформа объединяет каталог платных курсов, онлайн-вебинары, просмотр записей, "
+        "домашние задания с автоматической и ручной проверкой, а также специальные курсы "
+        "по приглашению преподавателя — без оплаты и без отображения в общем каталоге.\n\n"
+        "**Аутентификация**\n\n"
+        "Все защищённые эндпоинты принимают JWT-токен в заголовке:\n\n"
+        "```\nAuthorization: Bearer <access_token>\n```\n\n"
+        "Токены выдаются при входе, регистрации и OAuth-авторизации. "
+        "Обновление — через `POST /api/v1/refresh/`.\n\n"
+        "**Роли пользователей**\n\n"
+        "| Роль | Описание |\n"
+        "|------|----------|\n"
+        "| `student` | Покупает курсы, выполняет задания, смотрит вебинары |\n"
+        "| `teacher` | Ведёт курсы, проводит вебинары, проверяет задания |\n"
+        "| `moderator` | Полный доступ ко всем операциям платформы |\n\n"
+        "**Формат ошибок**\n\n"
+        "Все бизнес-ошибки возвращаются в едином формате:\n\n"
+        "```json\n"
+        "{\n"
+        '  "status": "error",\n'
+        '  "code": "КОД_ОШИБКИ",\n'
+        '  "message": "Сообщение ошибки.",\n'
+        '  "details": {}\n'
+        "}\n"
+        "```"
+    ),
     "VERSION": "1.0.0",
     "TAGS": [
         {
             "name": "Landing",
-            "description": "Публичный лендинг: превью списка курсов.",
-        },
-        {
-            "name": "Home",
-            "description": "Домашний экран приложения: купленные курсы пользователя.",
-        },
-        {
-            "name": "Course",
-            "description": "Каталог и карточка курса, главная курса, секции и уроки.",
-        },
-        {
-            "name": "Homework",
-            "description": "Домашние задания, задачи и вопросы (вложенные в урок).",
+            "description": "Публичные эндпоинты для лендинга. Не требуют авторизации.",
         },
         {
             "name": "Users",
-            "description": "Пользователи, регистрация, профиль и роли.",
+            "description": (
+                "Регистрация, вход, сброс пароля, управление профилем. "
+                "Поддерживается авторизация через email, телефон, Яндекс и ВКонтакте."
+            ),
+        },
+        {
+            "name": "Home",
+            "description": ("Домашняя страница приложения."),
+        },
+        {
+            "name": "Course",
+            "description": (
+                "Каталог курсов, карточка курса, структура (секции и уроки). "
+                "Редактирование доступно автору курса и модератору."
+            ),
+        },
+        {
+            "name": "Homework",
+            "description": (
+                "Домашние задания, задачи с развёрнутым ответом и вопросы с вариантами. "
+                "Студент сдаёт попытку, преподаватель проверяет и выставляет баллы."
+            ),
+        },
+        {
+            "name": "Webinar",
+            "description": (
+                "Управление вебинарами: запуск, остановка, расписание, подключение участников. "
+                "Запись через Agora Cloud Recording с последующей загрузкой в Kinescope."
+            ),
         },
         {
             "name": "Carts",
-            "description": "Корзина и связанные с ней операции.",
+            "description": "Корзина покупок: добавление и удаление курсов, оплата.",
         },
         {
             "name": "Payments",
-            "description": "Оплата и платёжные сценарии.",
+            "description": "История платежей и детали конкретного платежа.",
+        },
+        {
+            "name": "Applications",
+            "description": (
+                "Заявки на специальные курсы. Студент подаёт заявку, "
+                "преподаватель или модератор одобряет или отклоняет её."
+            ),
         },
         {
             "name": "Notifications",
-            "description": "Уведомления пользователя: список и поток SSE.",
+            "description": (
+                "Уведомления пользователя: постраничный список и real-time поток "
+                "через Server-Sent Events."
+            ),
+        },
+        {
+            "name": "Statistics",
+            "description": (
+                "Аналитика для преподавателей и модераторов: посещаемость вебинаров, "
+                "прогресс студентов, сводные таблицы по курсам и преподавателям."
+            ),
         },
         {
             "name": "Admin Panel",
-            "description": "Панель модератор",
+            "description": (
+                "Инструменты модератора: управление преподавателями на курсах, "
+                "публикация курсов, приглашения для регистрации новых преподавателей."
+            ),
+        },
+        {
+            "name": "Assets",
+            "description": (
+                "Загрузка медиафайлов в S3: инициация загрузки, получение presigned URL "
+                "и проверка статуса ассета."
+            ),
         },
     ],
     "POSTPROCESSING_HOOKS": [
@@ -221,7 +295,7 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL", "webmaster@localhost")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_HOST = os.getenv("FRONTEND_HOST", "http://localhost:3000")
 
 
 SMS_BACKEND = os.getenv("SMS_BACKEND", "sms.backends.console.SmsBackend")

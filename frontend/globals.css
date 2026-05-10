@@ -6,11 +6,11 @@
 	--profession-white-block: #EEEEF0;
 	--profession-white-block-hover: #DBDBE0;
 	--profession-blue-bg: #E6ECF4;
-	/* --profession-blue-bg: #F8F8F6; */
+
 	--profession-grey-secondary: #D4D4D4;
 	--profession-grey-primary: #7B7974;
 	--profession-black-primary: #373734;
-	
+
 
 
 
@@ -948,4 +948,42 @@ table {
 
 html {
   scroll-behavior: smooth;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #f0f4f8 var(--profession-blue-bg);
+}
+
+*::-webkit-scrollbar {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--profession-blue-bg);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #f0f4f8;
+  background-color: #f0f4f8;
+  border-radius: 8px;
+  border: 2px solid var(--profession-blue-bg);
+  background-clip: padding-box;
+  min-height: 32px;
+}
+
+*::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:active {
+  background: #f0f4f8;
+  background-color: #f0f4f8;
+  border-radius: 8px;
+  border: 2px solid var(--profession-blue-bg);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--profession-blue-bg);
 }

@@ -41,8 +41,11 @@ class UploadStatusResponseSerializer(serializers.Serializer):
     committed_at = serializers.DateTimeField(allow_null=True)
 
 
-class AssetErrorResponseSerializer(serializers.Serializer):
+class ServiceErrorResponseSerializer(serializers.Serializer):
     status = serializers.CharField(default="error")
     code = serializers.CharField()
     message = serializers.CharField()
     details = serializers.DictField(required=False)
+
+
+AssetErrorResponseSerializer = ServiceErrorResponseSerializer

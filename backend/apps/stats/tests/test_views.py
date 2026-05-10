@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.courses.models import Course, Lesson, PublishableMixin, PurchasedCourse, Section
+from apps.courses.models import Course, CourseEnrollment, Lesson, PublishableMixin, Section
 from apps.payments.models import Payment
 from apps.stats.models import RecordingView, WebinarAttendance
 from apps.users.models import User
@@ -13,6 +13,7 @@ from apps.webinars.models import Recording, Webinar
 
 
 class HeartbeatViewsTest(APITestCase):
+
     def setUp(self):
         self.user = User.objects.create_user(email_cipher="s@x", password="p")
         self.author = User.objects.create_user(
@@ -43,9 +44,9 @@ class HeartbeatViewsTest(APITestCase):
 
 
 class CourseHomeMetaTest(APITestCase):
+
     def setUp(self):
         pub = PublishableMixin.PUBLISHED_STATUS
-
         self.author = User.objects.create_user(
             email_cipher="t1", password="p", role=User.ROLE_TEACHER
         )
@@ -55,21 +56,14 @@ class CourseHomeMetaTest(APITestCase):
         self.student = User.objects.create_user(
             email_cipher="s1", password="p", role=User.ROLE_STUDENT
         )
-
         self.course = Course.objects.create(
-            title="Курс",
-            sub_title="s",
-            description="d",
-            price=0,
-            type=pub,
+            title="Курс", sub_title="s", description="d", price=0, type=pub
         )
         self.course.authors.add(self.author)
-
         section = Section.objects.create(course=self.course, title="С1", type=pub)
         self.lesson = Lesson.objects.create(section=section, title="У1", type=pub)
-
         payment = Payment.objects.create(user=self.student, total_sum=0, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.student,
             course=self.course,
             payment=payment,
@@ -122,9 +116,9 @@ class CourseHomeMetaTest(APITestCase):
 
 
 class LessonDetailMetaTest(APITestCase):
+
     def setUp(self):
         pub = PublishableMixin.PUBLISHED_STATUS
-
         self.author = User.objects.create_user(
             email_cipher="t2", password="p", role=User.ROLE_TEACHER
         )
@@ -132,18 +126,13 @@ class LessonDetailMetaTest(APITestCase):
             email_cipher="s2", password="p", role=User.ROLE_STUDENT
         )
         self.course = Course.objects.create(
-            title="Курс2",
-            sub_title="s",
-            description="d",
-            price=0,
-            type=pub,
+            title="Курс2", sub_title="s", description="d", price=0, type=pub
         )
         self.course.authors.add(self.author)
         section = Section.objects.create(course=self.course, title="С", type=pub)
         self.lesson = Lesson.objects.create(section=section, title="У", type=pub)
-
         payment = Payment.objects.create(user=self.student, total_sum=0, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.student,
             course=self.course,
             payment=payment,
@@ -179,34 +168,21 @@ class LessonDetailMetaTest(APITestCase):
 
 
 class StatsRoutesAccessTest(APITestCase):
+
     def setUp(self):
         self.student = User.objects.create_user(
-            email_cipher="acc_s",
-            password="p",
-            role=User.ROLE_STUDENT,
+            email_cipher="acc_s", password="p", role=User.ROLE_STUDENT
         )
         self.teacher_with_course = User.objects.create_user(
-            email_cipher="acc_t1",
-            password="p",
-            role=User.ROLE_TEACHER,
+            email_cipher="acc_t1", password="p", role=User.ROLE_TEACHER
         )
         self.teacher_no_course = User.objects.create_user(
-            email_cipher="acc_t2",
-            password="p",
-            role=User.ROLE_TEACHER,
+            email_cipher="acc_t2", password="p", role=User.ROLE_TEACHER
         )
         self.moderator = User.objects.create_user(
-            email_cipher="acc_m",
-            password="p",
-            role=User.ROLE_MODERATOR,
+            email_cipher="acc_m", password="p", role=User.ROLE_MODERATOR
         )
-
-        self.course = Course.objects.create(
-            title="Курс",
-            sub_title="s",
-            description="d",
-            price=0,
-        )
+        self.course = Course.objects.create(title="Курс", sub_title="s", description="d", price=0)
         self.course.authors.add(self.teacher_with_course)
 
     def _get(self, user, name, **kwargs):

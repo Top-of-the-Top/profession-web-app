@@ -101,7 +101,7 @@ export function useStatWebinars(courseTitle?: string, from?: string, to?: string
   return useQuery({
     queryKey: statsKeys.webinars(courseTitle, from, to),
     queryFn: () =>
-      apiClient.request<StatWebinar[]>(`/api/statistics/webinars/${qs ? `?${qs}` : ''}`),
+      apiClient.request<StatWebinar[]>(`/api/v1/statistics/webinars/${qs ? `?${qs}` : ''}`),
   });
 }
 
@@ -113,7 +113,7 @@ export function useStatStudents(courseTitle?: string, q?: string) {
   return useQuery({
     queryKey: statsKeys.students(courseTitle, q),
     queryFn: () =>
-      apiClient.request<StatStudent[]>(`/api/statistics/students/${qs ? `?${qs}` : ''}`),
+      apiClient.request<StatStudent[]>(`/api/v1/statistics/students/${qs ? `?${qs}` : ''}`),
   });
 }
 
@@ -122,7 +122,7 @@ export function useStatStudentCard(userId: number | string | undefined, courseId
     queryKey: statsKeys.studentCard(userId!, courseId!),
     queryFn: () =>
       apiClient.request<StatStudentCard>(
-        `/api/statistics/students/${userId}/courses/${courseId}/`,
+        `/api/v1/statistics/students/${userId}/courses/${courseId}/`,
       ),
     enabled: !!userId && !!courseId,
   });
@@ -131,13 +131,13 @@ export function useStatStudentCard(userId: number | string | undefined, courseId
 export function useStatSchoolCourses() {
   return useQuery({
     queryKey: statsKeys.schoolCourses(),
-    queryFn: () => apiClient.request<StatSchoolCourse[]>('/api/statistics/school/courses/'),
+    queryFn: () => apiClient.request<StatSchoolCourse[]>('/api/v1/statistics/school/courses/'),
   });
 }
 
 export function useStatSchoolTeachers() {
   return useQuery({
     queryKey: statsKeys.schoolTeachers(),
-    queryFn: () => apiClient.request<StatSchoolTeacher[]>('/api/statistics/school/teachers/'),
+    queryFn: () => apiClient.request<StatSchoolTeacher[]>('/api/v1/statistics/school/teachers/'),
   });
 }

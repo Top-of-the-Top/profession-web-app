@@ -1,4 +1,4 @@
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -26,7 +26,10 @@ class BaseAssetView(APIView):
 class AssetUploadInitiateView(BaseAssetView):
     @extend_schema(
         summary="Инициировать загрузку файла",
-        description="Создает запись об ассете (PENDING) и выдает presigned URL для S3.",
+        description=(
+            "Создаёт запись об ассете в статусе PENDING и возвращает presigned URL для загрузки в S3. "
+            "После загрузки файла на S3 статус ассета обновляется автоматически."
+        ),
         tags=["Assets"],
         request=InitiateUploadRequestSerializer,
         responses={
@@ -52,8 +55,19 @@ class AssetUploadInitiateView(BaseAssetView):
 class AssetUploadStatusView(BaseAssetView):
     @extend_schema(
         summary="Статус загрузки ассета",
-        description="Проверка состояния ассета (PENDING/READY/ERROR).",
+        description=(
+            "Возвращает текущее состояние ассета: PENDING, READY или ERROR. "
+            "Используйте для polling после загрузки файла на S3."
+        ),
         tags=["Assets"],
+        parameters=[
+            OpenApiParameter(
+                "asset_id",
+                OpenApiTypes.UUID,
+                OpenApiParameter.PATH,
+                description="UUID ассета",
+            ),
+        ],
         responses={
             200: UploadStatusResponseSerializer,
             403: AssetErrorResponseSerializer,
@@ -62,7 +76,6 @@ class AssetUploadStatusView(BaseAssetView):
     )
     def get(self, request, asset_id):
         try:
-            # Здесь происходит проверка прав внутри фасада
             asset = self.upload_api.get_upload_status(
                 user=request.user,
                 asset_id=asset_id,

@@ -32,7 +32,7 @@ export interface UpdateProfilePayload {
 export const profileApi = {
   getProfile(): Promise<ProfileData> {
     return apiClient
-      .request<ApiUserResponse>('/api/profile/', { method: 'GET' })
+      .request<ApiUserResponse>('/api/v1/profile/', { method: 'GET' })
       .then(normalizeProfileData);
   },
 
@@ -42,21 +42,21 @@ export const profileApi = {
       if (value === undefined) continue;
       body[key] = value;
     }
-    return apiClient.request<{ status: 'success' }>('/api/profile/', {
+    return apiClient.request<{ status: 'success' }>('/api/v1/profile/', {
       method: 'PATCH',
       body: JSON.stringify(body),
     });
   },
 
   verifyEmailChange(code: string): Promise<{ status: 'success' }> {
-    return apiClient.request<{ status: 'success' }>('/api/profile/verify-email/', {
+    return apiClient.request<{ status: 'success' }>('/api/v1/profile/verify-email/', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });
   },
 
   verifyPhoneChange(code: string): Promise<{ status: 'success' }> {
-    return apiClient.request<{ status: 'success' }>('/api/profile/verify-phone/', {
+    return apiClient.request<{ status: 'success' }>('/api/v1/profile/verify-phone/', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });

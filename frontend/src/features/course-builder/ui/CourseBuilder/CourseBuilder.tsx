@@ -156,7 +156,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   const [confirmedNavigationAction, setConfirmedNavigationAction] = useState<null | (() => void)>(
     null,
   );
-  // Separate baselines for lesson and homework so saves are tracked independently
   const [lessonBaseline, setLessonBaseline] = useState<string | null>(
     initialLessonSignature ?? null,
   );
@@ -178,15 +177,10 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
   useEffect(() => { lessonSignatureRef.current = lessonSignature; }, [lessonSignature]);
   useEffect(() => { homeworkSignatureRef.current = homeworkSignature; }, [homeworkSignature]);
 
-  // Set lesson baseline once on mount
   useEffect(() => {
     setLessonBaseline((prev) => prev === null ? lessonSignatureRef.current : prev);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // homeworkBaseline is set via onInitialized callback after the store is first loaded
-
-  // When lesson is saved (savedRevision bumps), reset lesson baseline
   useEffect(() => {
     if (savedRevision === 0) return;
     setLessonBaseline(lessonSignatureRef.current);
@@ -229,7 +223,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     [hasUnsavedChanges],
   );
 
-  // Tab switch: warn only if the *current* tab has unsaved changes
   const requestTabSwitch = useCallback(
     (tab: 'layout' | 'homework') => {
       if (tab === activeTab) return;
@@ -311,8 +304,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
     draggableHandle: '.block-drag-handle',
   } as const;
 
-  // GridLayout fires onLayoutChange immediately on mount with compacted positions.
-  // We skip that first call so it doesn't dirty the baseline.
   const layoutChangeCountRef = useRef(0);
 
   const onLayoutChange = useCallback(
@@ -349,7 +340,6 @@ export const CourseBuilder: React.FC<CourseBuilderProps> = ({
         const raw = ev.dataTransfer?.getData('application/x-block-type');
         if (raw) type = JSON.parse(raw) as BlockType;
       } catch {
-        // ignore
       }
       addBlockAt(type, layoutItem.x, layoutItem.y, layoutItem.w, layoutItem.h);
     },

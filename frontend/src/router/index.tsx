@@ -5,7 +5,7 @@ import { PublicRoute } from './PublicRoute';
 import { RoleGuard } from '@shared/lib/rbac/RoleGuard';
 import { routes } from './routes';
 import { NotFoundPage } from './lazyPages';
-import { Spinner } from '@shared/ui';
+import { RouterErrorFallback, Spinner } from '@shared/ui';
 import type { AppRoute } from './types';
 import type { RouteObject } from 'react-router-dom';
 
@@ -39,10 +39,13 @@ const mapRoutes = (appRoutes: AppRoute[]): RouteObject[] =>
   );
 
 const router = createBrowserRouter([
-  ...mapRoutes(routes),
   {
-    path: '*',
-    element: <NotFoundPage />,
+    path: '/',
+    errorElement: <RouterErrorFallback />,
+    children: [
+      ...mapRoutes(routes),
+      { path: '*', element: <NotFoundPage /> },
+    ],
   },
 ]);
 

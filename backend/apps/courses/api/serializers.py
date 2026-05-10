@@ -2,7 +2,7 @@ import json
 
 from django.db.models import Prefetch
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema_field
 from rest_framework import serializers
 
 from apps.core.meta_management.errors import AssetError
@@ -13,10 +13,10 @@ from apps.users.models import User
 from ..lesson_content import extract_asset_ids, parse_content_value, substitute_asset_uris
 from ..models import (
     Course,
+    CourseEnrollment,
     Homework,
     Lesson,
     PublishableMixin,
-    PurchasedCourse,
     Question,
     Section,
     Task,
@@ -45,6 +45,7 @@ class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
     cover_asset_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     authors = CourseAuthorSerializer(many=True, read_only=True)
     image_url = serializers.SerializerMethodField()
+    is_enrolled = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -57,6 +58,15 @@ class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
         if covers:
             return covers[0].get("url")
         return obj.image_url
+
+    def get_is_enrolled(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        user = request.user
+        if user.is_moderator() or user.is_teacher():
+            return True
+        return user.is_enrolled(obj)
 
 
 class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
@@ -83,18 +93,34 @@ class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
         return obj.image_url
 
 
+class CourseStoreDTOSerializer(CourseDTOSerializer):
+    is_enrolled = serializers.SerializerMethodField()
+
+    class Meta(CourseDTOSerializer.Meta):
+        fields = CourseDTOSerializer.Meta.fields + ["is_enrolled"]
+
+    def get_is_enrolled(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        user = request.user
+        if user.is_moderator() or user.is_teacher():
+            return True
+        return user.is_enrolled(obj)
+
+
 class CourseListResponseSerializer(serializers.Serializer):
     number_of_courses = serializers.IntegerField()
     data = CourseDTOSerializer(many=True, read_only=True)
 
 
-class PurchasedCourseSerializer(serializers.ModelSerializer):
+class CourseEnrollmentSerializer(serializers.ModelSerializer):
     course = CourseDTOSerializer(read_only=True)
     is_active = serializers.BooleanField(read_only=True)
 
     class Meta:
-        model = PurchasedCourse
-        fields = ("id", "user", "course", "payment", "access_expires_at", "is_active")
+        model = CourseEnrollment
+        fields = ("id", "user", "course", "payment", "source", "access_expires_at", "is_active")
 
 
 class SectionSerializer(serializers.ModelSerializer):
@@ -253,10 +279,6 @@ class HomeworkBriefSerializer(serializers.Serializer):
 
 
 def _build_homework_brief(homework, request):
-    """
-    Возвращает данные одного ДЗ для LessonDetailReadSerializer.
-    Поля attempt_* и percentile наполняются только для роли student.
-    """
     base = {
         "homework_id": homework.homework_id,
         "title": homework.title,
@@ -733,18 +755,60 @@ class UserWebinarListItemSerializer(serializers.Serializer):
     ended_at = serializers.DateTimeField(allow_null=True)
 
 
+class WebinarScheduleItemSerializer(serializers.Serializer):
+    type = serializers.CharField(default="webinar")
+    datetime = serializers.DateTimeField()
+    course_title = serializers.CharField()
+    course_slug = serializers.CharField()
+    title = serializers.CharField()
+    webinar_id = serializers.UUIDField()
+    lesson_slug = serializers.SlugField()
+    webinar_status = serializers.ChoiceField(choices=["pending", "live", "ended"])
+    scheduled_at = serializers.DateTimeField(allow_null=True)
+
+
+class HomeworkScheduleItemSerializer(serializers.Serializer):
+    type = serializers.CharField(default="homework")
+    datetime = serializers.DateTimeField()
+    course_title = serializers.CharField()
+    course_slug = serializers.CharField()
+    title = serializers.CharField()
+    homework_id = serializers.UUIDField()
+    homework_slug = serializers.SlugField()
+    homework_lesson_slug = serializers.SlugField()
+    deadline = serializers.DateTimeField()
+    attempt_status = serializers.CharField(allow_null=True)
+
+
 class ScheduleItemSerializer(serializers.Serializer):
     TYPE_WEBINAR = "webinar"
     TYPE_HOMEWORK = "homework"
 
-    type = serializers.ChoiceField(choices=[TYPE_WEBINAR, TYPE_HOMEWORK])
-    datetime = serializers.DateTimeField()
-    course_title = serializers.CharField()
-    title = serializers.CharField()
+    def to_representation(self, instance):
+        if instance["type"] == self.TYPE_WEBINAR:
+            return WebinarScheduleItemSerializer(instance).data
+        elif instance["type"] == self.TYPE_HOMEWORK:
+            return HomeworkScheduleItemSerializer(instance).data
+        return instance
+
+
+_ScheduleItemPolymorphic = PolymorphicProxySerializer(
+    component_name="ScheduleItem",
+    resource_type_field_name="type",
+    serializers={
+        "webinar": WebinarScheduleItemSerializer,
+        "homework": HomeworkScheduleItemSerializer,
+    },
+    many=True,
+)
 
 
 class ScheduleResponseSerializer(serializers.Serializer):
-    items = ScheduleItemSerializer(many=True)
+    items = serializers.SerializerMethodField()
+
+    @extend_schema_field(_ScheduleItemPolymorphic)
+    def get_items(self, obj):
+        return obj.get("items", [])
 
 
 class MyContentLessonSerializer(serializers.ModelSerializer):

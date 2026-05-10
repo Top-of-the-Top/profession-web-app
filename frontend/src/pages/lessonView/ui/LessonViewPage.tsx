@@ -24,6 +24,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
+  CenteredMessageBlock,
   PageFrame,
   SafeHtml,
   Spinner,
@@ -108,8 +109,6 @@ function renderBlock(block: Block) {
   }
 }
 
-/* ── Content grid ── */
-
 const LessonContent: React.FC<{ layout: LessonLayout }> = ({ layout }) => {
   const maxRow = layout.blocks.reduce((acc, b) => Math.max(acc, b.y + b.h), 0);
 
@@ -137,8 +136,6 @@ const LessonContent: React.FC<{ layout: LessonLayout }> = ({ layout }) => {
     </div>
   );
 };
-
-/* ── Sidebar widgets ── */
 
 function formatDeadline(iso: string): string {
   try {
@@ -596,7 +593,7 @@ const WebinarScheduleWidget: React.FC<{
         </div>
         <div className={styles.scheduleActions}>
           <button type="button" className={styles.scheduleBtn} onClick={openModal}>
-            {scheduledAt ? 'Изменить время' : 'Назначить вебинар'}
+            {scheduledAt ? 'Изменить' : 'Назначить вебинар'}
           </button>
           {scheduledAt && (
             <button
@@ -711,6 +708,9 @@ const LessonRecordingCard: React.FC<{
   const pdfLink = recording.whiteboard_pdf_url?.trim();
   const hasPdf = !!pdfLink && /^https?:\/\//i.test(pdfLink);
   const isWhiteboardOnly = recording.kind === 'whiteboard_only';
+
+  if (isWhiteboardOnly && !hasPdf) return null;
+
   const dateLabel = recording.started_at
     ? new Intl.DateTimeFormat('ru-RU', {
         day: 'numeric',
@@ -813,8 +813,6 @@ const LessonRecordingCard: React.FC<{
 
 const TITLE_CENTER_MIN_WIDTH = 130;
 const TITLE_CENTER_MAX_WIDTH = 560;
-
-/* ── Page ── */
 
 export default function LessonViewPage() {
   const { slug: courseSlug, lessonSlug } = useParams<{
@@ -943,23 +941,23 @@ export default function LessonViewPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>
-              Не удалось загрузить урок. Проверьте доступ и попробуйте снова.
-            </p>
-            <div className={styles.errorActions}>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate(-1)}
-              >
-                Назад
-              </Button>
-              <Button type="button" onClick={() => void lessonQuery.refetch()}>
-                Попробовать снова
-              </Button>
-            </div>
-          </div>
+          <CenteredMessageBlock
+            message="Не удалось загрузить урок. Проверьте доступ и попробуйте снова."
+            actions={
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(-1)}
+                >
+                  Назад
+                </Button>
+                <Button type="button" onClick={() => void lessonQuery.refetch()}>
+                  Попробовать снова
+                </Button>
+              </>
+            }
+          />
         </div>
       </PageFrame>
     );

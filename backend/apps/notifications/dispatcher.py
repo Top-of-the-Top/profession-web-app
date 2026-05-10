@@ -3,6 +3,7 @@ from typing import Callable
 from django.conf import settings
 
 from .events import (
+    ApplicationStatusChangedEvent,
     AuthorActionEvent,
     CourseUpdatedEvent,
     DeadlineChangedEvent,
@@ -20,6 +21,16 @@ from .tasks import (
     send_webinar_scheduled_notification,
     send_webinar_started_notification,
 )
+
+_APPLICATION_STATUS_TITLES = {
+    "approved": "Заявка на курс одобрена",
+    "rejected": "Заявка на курс отклонена",
+}
+
+_APPLICATION_STATUS_MESSAGES = {
+    "approved": 'Ваша заявка на курс "{course_title}" одобрена. Курс доступен на главной странице.',
+    "rejected": 'Ваша заявка на курс "{course_title}" отклонена.',
+}
 
 
 class NotificationDispatcher:
@@ -110,7 +121,7 @@ def _(event: HomeworkReviewedEvent) -> None:
         f"Ваше домашнее задание «{event.homework_title}» проверено.\n\n"
         f"Оценка: {grade_text}\n\n"
         f"Комментарии к заданиям смотрите в личном кабинете.\n"
-        f"{settings.FRONTEND_URL.rstrip('/')}/homeworks/{event.attempt_id}"
+        f"{settings.FRONTEND_HOST.rstrip('/')}/homeworks/{event.attempt_id}"
     )
     send_personal_notification.delay(event.user_id, title, message)
     if event.with_email:
@@ -143,3 +154,14 @@ def _(event: WebinarStartedEvent) -> None:
         event.lesson_title,
         event.webinar_id,
     )
+
+
+@dispatcher.register(ApplicationStatusChangedEvent)
+def _(event: ApplicationStatusChangedEvent) -> None:
+    title = _APPLICATION_STATUS_TITLES.get(event.new_status, "Статус заявки изменён")
+    message = _APPLICATION_STATUS_MESSAGES.get(
+        event.new_status, f'Статус вашей заявки на курс "{event.course_title}" изменён.'
+    ).format(course_title=event.course_title)
+    send_personal_notification.delay(event.user_id, title, message)
+    if event.with_email:
+        send_single_email.delay(event.user_id, title, message)

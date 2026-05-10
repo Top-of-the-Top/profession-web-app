@@ -199,10 +199,10 @@ def _webinar_duration_seconds(webinar):
 
 
 def _active_purchaser_ids(course):
-    from apps.courses.models import PurchasedCourse
+    from apps.courses.models import CourseEnrollment
 
     return list(
-        PurchasedCourse.objects.filter(
+        CourseEnrollment.objects.filter(
             course=course, access_expires_at__gt=timezone.now()
         ).values_list("user_id", flat=True)
     )

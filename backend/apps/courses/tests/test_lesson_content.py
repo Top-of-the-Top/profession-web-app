@@ -10,6 +10,7 @@ from apps.courses.lesson_content import (
 
 
 class ExtractAssetIdsTest(SimpleTestCase):
+
     def test_extracts_single_uuid(self):
         uid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         doc = json.dumps({"url": f"asset://{uid}"})
@@ -28,6 +29,7 @@ class ExtractAssetIdsTest(SimpleTestCase):
 
 
 class SubstituteAssetUrisTest(SimpleTestCase):
+
     def test_replaces_asset_uri(self):
         uid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         doc = f"asset://{uid}"
@@ -45,6 +47,7 @@ class SubstituteAssetUrisTest(SimpleTestCase):
 
 
 class ParseContentValueTest(SimpleTestCase):
+
     def test_none_returns_none(self):
         self.assertIsNone(parse_content_value(None))
 

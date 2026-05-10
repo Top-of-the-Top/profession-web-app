@@ -12,9 +12,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.api.permissions import require_moderator
+from apps.core.api.serializers import ServiceErrorResponseSerializer
+from apps.core.processors.error_processor import process_error_response
 from apps.webinars.models import Webinar
 
 from ..models import Course, Homework, Question, Section, Task
+from .errors import CourseNotPublished, NotEnrolled, ScheduleDateInvalid
 from .permissions import (
     course_content_visibility,
     get_courses_for_user,
@@ -28,6 +31,7 @@ from .serializers import (
     CourseHomeSerializer,
     CourseListResponseSerializer,
     CourseSerializer,
+    CourseStoreDTOSerializer,
     HomeworkDetailSerializer,
     HomeworkSerializer,
     LessonCreateSerializer,
@@ -56,9 +60,18 @@ from .utils.queryset_utils import get_homework_or_404, get_lesson_or_404
 logger = logging.getLogger(__name__)
 
 
+def _get_is_enrolled(user, course):
+    if not user.is_authenticated:
+        return False
+    if user.is_moderator() or user.is_teacher():
+        return True
+    return user.is_enrolled(course)
+
+
 @extend_schema_view(
     list=extend_schema(
-        summary="Лендинг: список курсов",
+        summary="Список курсов на лендинге",
+        description="Публичный список опубликованных курсов. Используется на главной странице сайта.",
         tags=["Landing"],
         responses={
             200: CourseListResponseSerializer,
@@ -71,7 +84,9 @@ class CourseDTOList(generics.ListAPIView):
     serializer_class = CourseDTOSerializer
 
     def get_queryset(self):
-        return Course.objects.filter(is_deleted=False, type=Course.PUBLISHED_STATUS)
+        return Course.objects.filter(
+            is_deleted=False, type=Course.PUBLISHED_STATUS, is_special=False
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -93,13 +108,18 @@ class CourseDTOList(generics.ListAPIView):
 
 class CourseListView(APIView):
     permission_classes = (IsAuthenticated,)
-    serializer_class = CourseSerializer
+    serializer_class = CourseStoreDTOSerializer
 
     @extend_schema(
-        summary="Список курсов",
+        summary="Список курсов в магазине",
+        description=(
+            "Возвращает список курсов с учётом роли пользователя. "
+            "Модератор видит все курсы. Преподаватель — опубликованные и собственные. "
+            "Студент — только опубликованные публичные."
+        ),
         tags=["Course"],
         responses={
-            200: CourseSerializer(many=True),
+            200: CourseStoreDTOSerializer(many=True),
             401: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         },
@@ -116,21 +136,22 @@ class CourseListView(APIView):
             qs = Course.objects.filter(is_deleted=False)
         elif user.is_teacher():
             qs = (
-                Course.objects.filter(
-                    is_deleted=False,
-                )
+                Course.objects.filter(is_deleted=False)
                 .filter(Q(type=Course.PUBLISHED_STATUS) | Q(authors=user))
                 .distinct()
             )
         else:
-            qs = Course.objects.filter(is_deleted=False, type=Course.PUBLISHED_STATUS)
+            qs = Course.objects.filter(
+                is_deleted=False, type=Course.PUBLISHED_STATUS, is_special=False
+            )
 
-        serializer = CourseSerializer(qs, many=True, context={"request": request})
+        serializer = CourseStoreDTOSerializer(qs, many=True, context={"request": request})
         cache.set(key, serializer.data)
         return Response(serializer.data)
 
     @extend_schema(
         summary="Создать курс",
+        description="Создаёт новый курс. Доступно только модератору.",
         tags=["Course"],
         request=CourseSerializer,
         responses={
@@ -154,54 +175,56 @@ class CourseDetailView(APIView):
     serializer_class = CourseSerializer
 
     @extend_schema(
-        summary="Превью курса в магазине.",
+        summary="Карточка курса",
+        description=(
+            "Возвращает полную информацию о курсе по slug. "
+            "Неопубликованный курс видят только модератор, автор и записавшийся студент."
+        ),
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name="slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
             ),
         ],
         responses={
             200: CourseSerializer,
             401: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
+            404: ServiceErrorResponseSerializer,
             500: {"schema": SCHEMA_DETAIL},
         },
     )
     def get(self, request, slug):
         course = get_object_or_404(Course, slug=slug, is_deleted=False)
         user = request.user
+
         can_see_unpublished = user.is_authenticated and (
             user.is_moderator() or user.is_course_author(course) or user.is_enrolled(course)
         )
         if course.type != Course.PUBLISHED_STATUS and not can_see_unpublished:
-            return Response(
-                {"detail": "Курс не найден"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return process_error_response(CourseNotPublished())
 
         cache = caches["default"]
         key = course_detail_cache_key(slug)
-        if course.type == Course.PUBLISHED_STATUS:
+        cacheable = course.type == Course.PUBLISHED_STATUS and not course.is_special
+
+        if cacheable:
             cached = cache.get(key)
             if cached is not None:
+                cached["is_enrolled"] = _get_is_enrolled(request.user, course)
                 return Response(cached)
 
-        data = CourseSerializer(course).data
-        if course.type == Course.PUBLISHED_STATUS:
-            cache.set(key, data)
+        data = CourseSerializer(course, context={"request": request}).data
+        if cacheable:
+            cache.set(key, {k: v for k, v in data.items() if k != "is_enrolled"})
         return Response(data)
 
     @extend_schema(
         summary="Обновить курс",
+        description="Частичное обновление курса по slug. Доступно только модератору.",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name="slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
             ),
         ],
         request=CourseSerializer,
@@ -224,12 +247,11 @@ class CourseDetailView(APIView):
 
     @extend_schema(
         summary="Удалить курс",
+        description="Мягкое удаление курса (is_deleted=true). Доступно только модератору.",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name="slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
             ),
         ],
         responses={
@@ -252,7 +274,8 @@ class MyCourses(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Список моих курсов",
+        summary="Мои курсы",
+        description="Список курсов, на которые записан текущий пользователь.",
         tags=["Home"],
         responses={
             200: CourseDTOSerializer(many=True),
@@ -275,28 +298,32 @@ class MyScheduleView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Мое расписание",
-        description=("Возвращает список объектов расписания - вебинаров и домашних заданий"),
+        summary="Моё расписание",
+        description=(
+            "Список ближайших событий: вебинаров и дедлайнов домашних заданий. "
+            "Без фильтров возвращает все предстоящие события. "
+            "Для студента в объектах типа homework указывается статус попытки."
+        ),
         tags=["Home"],
         parameters=[
             OpenApiParameter(
-                name="start_date",
-                type=OpenApiTypes.DATETIME,
-                location=OpenApiParameter.QUERY,
+                "start_date",
+                OpenApiTypes.DATETIME,
+                OpenApiParameter.QUERY,
                 required=False,
-                description="Начало диапазона (ISO 8601)",
+                description="Начало диапазона в формате ISO 8601, например 2024-09-01T00:00:00Z",
             ),
             OpenApiParameter(
-                name="end_date",
-                type=OpenApiTypes.DATETIME,
-                location=OpenApiParameter.QUERY,
+                "end_date",
+                OpenApiTypes.DATETIME,
+                OpenApiParameter.QUERY,
                 required=False,
-                description="Конец диапазона (ISO 8601)",
+                description="Конец диапазона в формате ISO 8601",
             ),
         ],
         responses={
             200: ScheduleResponseSerializer,
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         },
@@ -309,17 +336,11 @@ class MyScheduleView(APIView):
         if raw_start:
             start_date = parse_datetime(raw_start)
             if start_date is None:
-                return Response(
-                    {"detail": "Неверный формат start_date"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return process_error_response(ScheduleDateInvalid(details={"field": "start_date"}))
         if raw_end:
             end_date = parse_datetime(raw_end)
             if end_date is None:
-                return Response(
-                    {"detail": "Неверный формат end_date"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return process_error_response(ScheduleDateInvalid(details={"field": "end_date"}))
 
         cache = caches["default"]
         key = my_schedule_cache_key(request.user.id, start_date, end_date)
@@ -354,33 +375,66 @@ class MyScheduleView(APIView):
                 homework_q |= Q(lesson__section__course_id__in=only_enrolled) & published_chain
             homework_qs = homework_qs.filter(homework_q)
 
-        webinar_qs = webinar_qs.exclude(started_at=None)
+        webinar_qs = webinar_qs.exclude(scheduled_at=None, started_at=None)
         homework_qs = homework_qs.exclude(deadline=None)
 
         if start_date:
-            webinar_qs = webinar_qs.filter(started_at__gte=start_date)
+            webinar_qs = webinar_qs.filter(
+                Q(scheduled_at__gte=start_date) | Q(scheduled_at=None, started_at__gte=start_date)
+            )
             homework_qs = homework_qs.filter(deadline__gte=start_date)
         if end_date:
-            webinar_qs = webinar_qs.filter(started_at__lte=end_date)
+            webinar_qs = webinar_qs.filter(
+                Q(scheduled_at__lte=end_date) | Q(scheduled_at=None, started_at__lte=end_date)
+            )
             homework_qs = homework_qs.filter(deadline__lte=end_date)
+
+        attempt_map = {}
+        if user.is_student():
+            from apps.homeworks.models import Attempt
+
+            homework_ids = list(homework_qs.values_list("homework_id", flat=True))
+            attempts = Attempt.objects.filter(user=user, homework_id__in=homework_ids).values(
+                "homework_id", "status"
+            )
+            attempt_map = {str(a["homework_id"]): a["status"] for a in attempts}
 
         items = []
         for webinar in webinar_qs:
+            course = webinar.lesson.section.course
+            effective_dt = webinar.scheduled_at or webinar.started_at
             items.append(
                 {
                     "type": ScheduleItemSerializer.TYPE_WEBINAR,
-                    "datetime": webinar.started_at,
-                    "course_title": webinar.lesson.section.course.title,
+                    "datetime": effective_dt,
+                    "course_title": course.title,
+                    "course_slug": course.slug,
                     "title": webinar.lesson.title,
+                    "webinar_id": webinar.webinar_id,
+                    "lesson_slug": webinar.lesson.slug,
+                    "webinar_status": webinar.status,
+                    "scheduled_at": webinar.scheduled_at,
                 }
             )
         for homework in homework_qs:
+            course = homework.lesson.section.course
+            attempt_status = (
+                attempt_map.get(str(homework.homework_id), "not_started")
+                if user.is_student()
+                else None
+            )
             items.append(
                 {
                     "type": ScheduleItemSerializer.TYPE_HOMEWORK,
                     "datetime": homework.deadline,
-                    "course_title": homework.lesson.section.course.title,
+                    "course_title": course.title,
+                    "course_slug": course.slug,
                     "title": homework.title,
+                    "homework_id": homework.homework_id,
+                    "homework_slug": homework.slug,
+                    "homework_lesson_slug": homework.lesson.slug,
+                    "deadline": homework.deadline,
+                    "attempt_status": attempt_status,
                 }
             )
 
@@ -394,19 +448,21 @@ class CourseHomePageView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Главная страничка курса",
+        summary="Главная страница курса",
+        description=(
+            "Структура курса с секциями и уроками. "
+            "Требует записи на курс. Преподаватель и модератор видят черновики."
+        ),
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
             ),
         ],
         responses={
             200: CourseHomeSerializer,
             401: {"schema": SCHEMA_DETAIL},
-            403: {"schema": SCHEMA_DETAIL},
+            403: ServiceErrorResponseSerializer,
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         },
@@ -417,10 +473,7 @@ class CourseHomePageView(APIView):
         vis = course_content_visibility(user, course)
 
         if not vis.has_course_home_access():
-            return Response(
-                {"detail": "Вы не записаны на этот курс"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            return process_error_response(NotEnrolled())
 
         serializer = CourseHomeSerializer(
             course,
@@ -459,7 +512,13 @@ class SectionCreateView(APIView):
 
     @extend_schema(
         summary="Создать секцию",
+        description="Добавляет секцию в курс. Доступно автору курса и модератору.",
         tags=["Course"],
+        parameters=[
+            OpenApiParameter(
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+        ],
         request=SectionSerializer,
         responses={
             201: SectionSerializer,
@@ -487,12 +546,14 @@ class SectionDetailView(APIView):
 
     @extend_schema(
         summary="Обновить секцию",
+        description="Частичное обновление секции. Доступно автору курса и модератору.",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name="section_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "section_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug секции"
             ),
         ],
         request=SectionSerializer,
@@ -515,12 +576,14 @@ class SectionDetailView(APIView):
 
     @extend_schema(
         summary="Удалить секцию",
+        description="Удаляет секцию вместе со всеми уроками. Доступно автору курса и модератору.",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name="section_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "section_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug секции"
             ),
         ],
         responses={
@@ -545,8 +608,16 @@ class LessonCreateView(APIView):
     @extend_schema(
         methods=["POST"],
         summary="Создать урок",
-        description=("Создать новый урок в курсе"),
+        description=(
+            "Создаёт урок в указанном курсе. "
+            "Передавать контент (поле content) здесь нельзя — используйте PUT для обновления урока с контентом."
+        ),
         tags=["Course"],
+        parameters=[
+            OpenApiParameter(
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+        ],
         request=LessonSimpleCreateSerializer,
         responses={
             201: LessonSerializer,
@@ -578,13 +649,18 @@ class LessonDetailView(APIView):
     serializer_class = LessonSerializer
 
     @extend_schema(
-        summary="Урок",
+        summary="Получить урок",
+        description=(
+            "Возвращает полное содержимое урока: текст, вебинар, записи и домашние задания. "
+            "Требует записи на курс."
+        ),
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
             ),
         ],
         responses={
@@ -615,13 +691,17 @@ class LessonDetailView(APIView):
 
     @extend_schema(
         summary="Обновить урок",
-        description="Обновить содержимое урока. ",
+        description=(
+            "Полное обновление урока: заголовок, тип, секция и контент. "
+            "Поле content принимает JSON-документ редактора."
+        ),
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
             ),
         ],
         request=LessonCreateSerializer,
@@ -650,12 +730,14 @@ class LessonDetailView(APIView):
 
     @extend_schema(
         summary="Удалить урок",
+        description="Удаляет урок вместе с домашними заданиями. Доступно автору курса и модератору.",
         tags=["Course"],
         parameters=[
             OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
             ),
         ],
         responses={
@@ -677,8 +759,17 @@ class HomeworkCreateView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Создать домашку",
+        summary="Создать домашнее задание",
+        description="Создаёт домашнее задание к уроку. Доступно автору курса и модератору.",
         tags=["Homework"],
+        parameters=[
+            OpenApiParameter(
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+            ),
+        ],
         request=HomeworkSerializer,
         responses={
             201: HomeworkDetailSerializer,
@@ -703,13 +794,23 @@ class HomeworkDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Домашнее задание",
+        summary="Получить домашнее задание",
+        description=(
+            "Возвращает домашнее задание с вопросами и задачами. " "Требует записи на курс."
+        ),
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name="homework_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+            ),
+            OpenApiParameter(
+                "homework_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Slug домашнего задания",
             ),
         ],
         responses={
@@ -739,12 +840,20 @@ class HomeworkDetailView(APIView):
 
     @extend_schema(
         summary="Обновить домашнее задание",
+        description="Частичное обновление домашнего задания. Доступно автору курса и модератору.",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name="homework_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+            ),
+            OpenApiParameter(
+                "homework_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Slug домашнего задания",
             ),
         ],
         request=HomeworkSerializer,
@@ -767,13 +876,21 @@ class HomeworkDetailView(APIView):
         return Response(response_serializer.data)
 
     @extend_schema(
-        summary="Удалить домашенее задание",
+        summary="Удалить домашнее задание",
+        description="Удаляет домашнее задание вместе с вопросами и задачами. Доступно автору курса и модератору.",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name="homework_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+            ),
+            OpenApiParameter(
+                "homework_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Slug домашнего задания",
             ),
         ],
         responses={
@@ -796,8 +913,23 @@ class TaskCreateView(APIView):
     serializer_class = TaskSerializer
 
     @extend_schema(
-        summary="Создать задачу с развернутым ответом",
+        summary="Создать задачу с развёрнутым ответом",
+        description="Добавляет задачу к домашнему заданию. Доступно автору курса и модератору.",
         tags=["Homework"],
+        parameters=[
+            OpenApiParameter(
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+            ),
+            OpenApiParameter(
+                "homework_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Slug домашнего задания",
+            ),
+        ],
         request=TaskSerializer,
         responses={
             201: TaskSerializer,
@@ -822,13 +954,24 @@ class TaskDetailView(APIView):
     serializer_class = TaskSerializer
 
     @extend_schema(
-        summary="Обновить задачу с развернутым ответом",
+        summary="Обновить задачу с развёрнутым ответом",
+        description="Частичное обновление задачи. Доступно автору курса и модератору.",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name="task_id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+            ),
+            OpenApiParameter(
+                "homework_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Slug домашнего задания",
+            ),
+            OpenApiParameter(
+                "task_id", OpenApiTypes.UUID, OpenApiParameter.PATH, description="UUID задачи"
             ),
         ],
         request=TaskSerializer,
@@ -850,13 +993,24 @@ class TaskDetailView(APIView):
         return Response(serializer.data)
 
     @extend_schema(
-        summary="Удалить задачу с развернутым ответом",
+        summary="Удалить задачу с развёрнутым ответом",
+        description="Удаляет задачу из домашнего задания. Доступно автору курса и модератору.",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name="task_id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+            ),
+            OpenApiParameter(
+                "homework_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Slug домашнего задания",
+            ),
+            OpenApiParameter(
+                "task_id", OpenApiTypes.UUID, OpenApiParameter.PATH, description="UUID задачи"
             ),
         ],
         responses={
@@ -879,8 +1033,23 @@ class QuestionCreateView(APIView):
     serializer_class = QuestionSerializer
 
     @extend_schema(
-        summary="Создать вопрос с вариантами выбора ответа",
+        summary="Создать вопрос с вариантами ответа",
+        description="Добавляет вопрос с вариантами к домашнему заданию. Доступно автору курса и модератору.",
         tags=["Homework"],
+        parameters=[
+            OpenApiParameter(
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+            ),
+            OpenApiParameter(
+                "homework_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Slug домашнего задания",
+            ),
+        ],
         request=QuestionSerializer,
         responses={
             201: QuestionSerializer,
@@ -904,12 +1073,12 @@ class MyContentView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Мой контент на платформе",
+        summary="Мой контент",
         description=(
-            "Возвращает курсы пользователя с плоским списком уроков. "
-            "Студент видит купленные курсы и опубликованные уроки. "
-            "Преподаватель видит свои курсы со всеми уроками (включая черновики). "
-            "Модератор видит все курсы со всеми уроками."
+            "Список курсов с уроками, доступными текущему пользователю. "
+            "Студент видит опубликованные уроки купленных курсов. "
+            "Преподаватель — свои курсы со всеми уроками, включая черновики. "
+            "Модератор — все курсы без ограничений."
         ),
         tags=["Home"],
         responses={
@@ -934,13 +1103,24 @@ class QuestionDetailView(APIView):
     serializer_class = QuestionSerializer
 
     @extend_schema(
-        summary="Обновить вопрос с вариантами выбора ответов",
+        summary="Обновить вопрос с вариантами ответа",
+        description="Частичное обновление вопроса. Доступно автору курса и модератору.",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name="question_id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+            ),
+            OpenApiParameter(
+                "homework_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Slug домашнего задания",
+            ),
+            OpenApiParameter(
+                "question_id", OpenApiTypes.UUID, OpenApiParameter.PATH, description="UUID вопроса"
             ),
         ],
         request=QuestionSerializer,
@@ -962,13 +1142,24 @@ class QuestionDetailView(APIView):
         return Response(serializer.data)
 
     @extend_schema(
-        summary="Удалить вопрос с вариантами выбора ответа",
+        summary="Удалить вопрос с вариантами ответа",
+        description="Удаляет вопрос из домашнего задания. Доступно автору курса и модератору.",
         tags=["Homework"],
         parameters=[
             OpenApiParameter(
-                name="question_id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
+                "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+            ),
+            OpenApiParameter(
+                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+            ),
+            OpenApiParameter(
+                "homework_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.PATH,
+                description="Slug домашнего задания",
+            ),
+            OpenApiParameter(
+                "question_id", OpenApiTypes.UUID, OpenApiParameter.PATH, description="UUID вопроса"
             ),
         ],
         responses={

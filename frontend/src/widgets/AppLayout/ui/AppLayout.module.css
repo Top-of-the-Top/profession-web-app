@@ -215,7 +215,7 @@
   transform: translateY(-50%) translateX(4px);
   padding: 8px 12px;
   border-radius: 7px;
-  /* background: rgb(152, 166, 184); */
+
 	background: rgb(160, 177, 198);
   color: #f8fafc;
   font-size: 13px;
@@ -277,7 +277,7 @@
   border: 2px solid rgb(209, 0, 0) !important;
   color: rgb(209, 0, 0);
   margin-top: 50px;
-  
+
   &:hover {
     background-color: rgb(209, 0, 0) !important;
     color: white;
@@ -292,8 +292,8 @@
   flex-shrink: 0;
   padding-top: 20px;
   border-top: 1px solid #E6E6E6;
-  max-height: 40%; /* Ограничиваем высоту секции статистики */
-  overflow-y: auto; /* Если статистика не помещается */
+  max-height: 40%;
+  overflow-y: auto;
 }
 
 .loading {

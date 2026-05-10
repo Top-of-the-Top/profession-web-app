@@ -41,7 +41,7 @@
       transition-duration: var(--default-transition-duration);
       transition-timing-function: var(--default-transition-timing-function);
 
-      /* Hover */
+
       &:hover {
         background-color: color-mix(
           in oklch,
@@ -50,7 +50,7 @@
         );
       }
 
-      /* State */
+
       &[data-state="selected"] {
         background-color: var(--color-muted);
       }
@@ -79,7 +79,7 @@
       vertical-align: middle;
       white-space: nowrap;
 
-      /* Has (checkbox) */
+
       &:has([role="checkbox"]) {
         padding-inline-end: 0;
 

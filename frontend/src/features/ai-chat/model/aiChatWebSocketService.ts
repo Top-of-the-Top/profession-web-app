@@ -23,7 +23,7 @@ function buildWebSocketUrl(courseSlug: string, token: string): string {
   const protocol = baseUrl.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = new URL(baseUrl.origin);
   wsUrl.protocol = protocol;
-  wsUrl.pathname = `/api/courses/${encodeURIComponent(courseSlug)}/ai/chat/`;
+  wsUrl.pathname = `/api/v1/courses/${encodeURIComponent(courseSlug)}/ai/chat/`;
   wsUrl.searchParams.set('token', token);
   return wsUrl.toString();
 }

@@ -9,6 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
+  CenteredMessageBlock,
   PageFrame,
   RichTextEditor,
   SafeHtml,
@@ -111,7 +112,6 @@ function statusBadgeClass(s: ItemStatus): string {
   return '';
 }
 
-/* Donut chart for side card */
 function DonutScore({ score, max }: { score: number; max: number }) {
   const r = 44;
   const cx = 56;
@@ -191,8 +191,21 @@ export default function HomeworkSubmissionPage() {
     if (attempt.status === 'draft' && homeworkSlug) {
       const draft = readDraft(homeworkSlug);
       if (draft) {
-        setAnswers({ ...serverAnswers, ...draft.answers });
-        setAttachments({ ...serverAttachments, ...fromAttachmentMeta(draft.attachments) });
+        const mergedAnswers = { ...serverAnswers, ...draft.answers };
+        const mergedAttachments = { ...serverAttachments, ...fromAttachmentMeta(draft.attachments) };
+        setAnswers(mergedAnswers);
+        setAttachments(mergedAttachments);
+        const restoredAnswered = new Set<string>(
+          attempt.items
+            .map((ai) => (ai.type === 'question' ? ai.question_id : ai.task_id))
+            .filter((id) => {
+              if (!id) return false;
+              const hasAnswer = !!(mergedAnswers[id] ?? '').trim();
+              const hasAttachment = (mergedAttachments[id] ?? []).length > 0;
+              return hasAnswer || hasAttachment;
+            }),
+        );
+        setAnswered(restoredAnswered);
         setCurrentItemIndex(0);
         return;
       }
@@ -337,23 +350,21 @@ export default function HomeworkSubmissionPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>Некорректный адрес задания.</p>
-            <Button type="button" onClick={() => navigate(-1)}>Назад</Button>
-          </div>
+          <CenteredMessageBlock
+            message="Некорректный адрес задания."
+            actions={<Button type="button" onClick={() => navigate(-1)}>Назад</Button>}
+          />
         </div>
       </PageFrame>
     );
   }
 
-  // Derive these before any conditional returns so hooks are always called in the same order
   const attempt = attemptQuery.data ?? null;
   const detail = detailQuery.data ?? null;
   const items = detail?.items ?? [];
   const isDraft = attempt?.status === 'draft';
   const isReviewed = attempt?.status === 'reviewed';
 
-  // Map detail item id → attempt item status (for bubble coloring in reviewed mode)
   const itemStatusMap = useMemo<Map<string, ItemStatus>>(() => {
     if (!isReviewed || !attempt) return new Map();
     const map = new Map<string, ItemStatus>();
@@ -376,13 +387,15 @@ export default function HomeworkSubmissionPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>Не удалось загрузить попытку для домашнего задания.</p>
-            <div className={styles.errorActions}>
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>Назад</Button>
-              <Button type="button" onClick={() => void attemptQuery.refetch()}>Обновить</Button>
-            </div>
-          </div>
+          <CenteredMessageBlock
+            message="Не удалось загрузить попытку для домашнего задания."
+            actions={
+              <>
+                <Button type="button" variant="outline" onClick={() => navigate(-1)}>Назад</Button>
+                <Button type="button" onClick={() => void attemptQuery.refetch()}>Обновить</Button>
+              </>
+            }
+          />
         </div>
       </PageFrame>
     );
@@ -392,29 +405,30 @@ export default function HomeworkSubmissionPage() {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>Не удалось загрузить задания.</p>
-            <div className={styles.errorActions}>
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>Назад</Button>
-              <Button type="button" onClick={() => void detailQuery.refetch()}>Обновить</Button>
-            </div>
-          </div>
+          <CenteredMessageBlock
+            message="Не удалось загрузить задания."
+            actions={
+              <>
+                <Button type="button" variant="outline" onClick={() => navigate(-1)}>Назад</Button>
+                <Button type="button" onClick={() => void detailQuery.refetch()}>Обновить</Button>
+              </>
+            }
+          />
         </div>
       </PageFrame>
     );
   }
 
-  // After guards, attempt is guaranteed non-null
   const safeAttempt = attemptQuery.data!;
 
   if (items.length === 0) {
     return (
       <PageFrame>
         <div className={styles.centered}>
-          <div className={styles.errorBox}>
-            <p className={styles.errorText}>В этом домашнем задании пока нет вопросов.</p>
-            <Button type="button" onClick={() => navigate(-1)}>Назад</Button>
-          </div>
+          <CenteredMessageBlock
+            message="В этом домашнем задании пока нет вопросов."
+            actions={<Button type="button" onClick={() => navigate(-1)}>Назад</Button>}
+          />
         </div>
       </PageFrame>
     );
@@ -429,7 +443,6 @@ export default function HomeworkSubmissionPage() {
     currentItem.type === 'task' && isHomeworkFileTask(currentItem);
   const currentItemPoints = currentItem.max_points ?? 0;
 
-  // Find attempt item for current detail item (for status/review)
   const currentAttemptItem: HomeworkAttemptItem | undefined = safeAttempt.items.find((ai) =>
     ai.type === 'question'
       ? ai.question_id === currentItem.id
@@ -437,7 +450,6 @@ export default function HomeworkSubmissionPage() {
   );
   const currentStatus: ItemStatus = currentAttemptItem?.status ?? '';
 
-  // Per-item result points (for reviewed state)
   function itemResultPoints(attemptItem: HomeworkAttemptItem): number | null {
     if (!isReviewed) return null;
     if (attemptItem.type === 'question') {
@@ -576,7 +588,6 @@ export default function HomeworkSubmissionPage() {
                 slideClass,
               ].join(' ')}
             >
-              {/* Header row: "Задание N: X баллов" + status badge */}
               <div className={styles.itemMetaRow}>
                 <p className={styles.itemMeta}>
                   Задание {currentItemIndex + 1}: {formatPointsLabel(currentItemPoints)}
@@ -696,7 +707,6 @@ export default function HomeworkSubmissionPage() {
                     </ul>
                   </div>
 
-                  {/* Teacher comment for file task in reviewed state */}
                   {isReviewed && currentAttemptItem?.type === 'task' && currentAttemptItem.review?.comment && (
                     <div className={styles.reviewComment}>
                       <div className={styles.reviewCommentHeader}>
@@ -744,7 +754,6 @@ export default function HomeworkSubmissionPage() {
                     />
                   )}
 
-                  {/* Teacher comment for text task in reviewed state */}
                   {isReviewed && currentAttemptItem?.type === 'task' && currentAttemptItem.review?.comment && (
                     <div className={styles.reviewComment}>
                       <div className={styles.reviewCommentHeader}>
@@ -764,7 +773,6 @@ export default function HomeworkSubmissionPage() {
                 </div>
               )}
 
-              {/* Result row at bottom */}
               {isReviewed && currentResultPoints !== null && (
                 <div className={styles.resultRow}>
                   <span className={styles.resultLabel}>Результат:</span>
@@ -807,7 +815,6 @@ export default function HomeworkSubmissionPage() {
               </button>
               <div className={styles.sideCardTitle}>{homeworkTitle}</div>
 
-              {/* Donut score for reviewed */}
               {isReviewed && safeAttempt.score != null && safeAttempt.max_points != null && (
                 <DonutScore score={safeAttempt.score} max={safeAttempt.max_points} />
               )}

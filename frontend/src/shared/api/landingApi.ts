@@ -1,4 +1,3 @@
-// shared/api/landingApi.ts
 import { apiClient } from './interceptor';
 import { type ApiLandingResponse } from './types';
 import { type Track } from '@schemas/types';
@@ -171,7 +170,7 @@ function getFallbackCourses() {
 
 export const landingApi = {
   getCourses() {
-    return apiClient.request<ApiLandingResponse>('/api/landing/courses/', {
+    return apiClient.request<ApiLandingResponse>('/api/v1/landing/courses/', {
       method: 'GET',
       skipAuth: true,
     });

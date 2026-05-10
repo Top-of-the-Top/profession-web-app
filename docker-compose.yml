@@ -6,7 +6,8 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - app_network
 
@@ -17,6 +18,21 @@ services:
       - ./backend/.env
     command: daphne -b 0.0.0.0 -p 9000 project.asgi:application
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:9000/health/ready/', timeout=5)",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     volumes:
       - ./backend:/app
       - static_volume:/app/static
@@ -30,6 +46,12 @@ services:
     image: redis:alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     volumes:
       - redis_data:/data
     networks:
@@ -59,9 +81,12 @@ services:
       - ./backend:/app
     command: celery -A project worker --loglevel=info --concurrency=3
     depends_on:
-      - rabbitmq
-      - redis
-      - backend
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     environment:
       - PYTHONPATH=/app
       - RABBITMQ_HOST=rabbitmq

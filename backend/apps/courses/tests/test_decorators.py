@@ -12,7 +12,7 @@ from apps.core.api.permissions import require_moderator
 from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from apps.payments.models import Payment
 
-from ..models import Course, PurchasedCourse
+from ..models import Course, CourseEnrollment
 from .test_models import BaseTestCase, create_test_course, create_test_user
 
 
@@ -47,6 +47,7 @@ def create_authenticated_request(factory, method="get", path="/test/", user=None
 
 
 class DecoratorIntegrationTestMixin:
+
     def setUp(self):
         super().setUp()
         self.storage_patcher = patch("django.core.files.storage.default_storage._wrapped")
@@ -59,7 +60,6 @@ class DecoratorIntegrationTestMixin:
         self.storage_patcher.stop()
 
     def _setup_users(self):
-        """Хук для подклассов: по умолчанию ничего не делает, переопределяется в наследниках для создания тестовых пользователей"""
         pass
 
     def assert_decorator_allows_access(self, decorator, user, **kwargs):
@@ -78,6 +78,7 @@ class DecoratorIntegrationTestMixin:
 
 
 class RequireModeratorUnitTest(SimpleTestCase):
+
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -85,7 +86,6 @@ class RequireModeratorUnitTest(SimpleTestCase):
         test_view = create_test_view_with_decorator(require_moderator)
         mock_user = create_mock_user(is_moderator=True)
         request = create_authenticated_request(self.factory, user=mock_user)
-
         response = test_view(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -93,7 +93,6 @@ class RequireModeratorUnitTest(SimpleTestCase):
         test_view = create_test_view_with_decorator(require_moderator)
         mock_user = create_mock_user(is_moderator=False)
         request = create_authenticated_request(self.factory, user=mock_user)
-
         response = test_view(request)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertIn("detail", response.data)
@@ -101,7 +100,6 @@ class RequireModeratorUnitTest(SimpleTestCase):
     def test_decorator_blocks_unauthenticated(self):
         test_view = create_test_view_with_decorator(require_moderator)
         request = create_authenticated_request(self.factory, user=None)
-
         response = test_view(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -110,12 +108,12 @@ class RequireModeratorUnitTest(SimpleTestCase):
         mock_user = create_mock_user(is_authenticated=False)
         request = self.factory.get("/test/")
         request.user = mock_user
-
         response = test_view(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class RequireCourseAuthorUnitTest(BaseTestCase):
+
     def setUp(self):
         super().setUp()
         self.factory = APIRequestFactory()
@@ -124,7 +122,6 @@ class RequireCourseAuthorUnitTest(BaseTestCase):
         test_view = create_test_view_with_decorator(require_course_author)
         mock_user = create_mock_user(is_moderator=True)
         request = create_authenticated_request(self.factory, user=mock_user)
-
         response = test_view(request, course_id=1)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -134,7 +131,6 @@ class RequireCourseAuthorUnitTest(BaseTestCase):
         mock_user = create_mock_user(is_moderator=False, is_teacher=False)
         mock_user.is_course_author = MagicMock(return_value=False)
         request = create_authenticated_request(self.factory, user=mock_user)
-
         response = test_view(request, course_id=course.course_id)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -142,7 +138,6 @@ class RequireCourseAuthorUnitTest(BaseTestCase):
         test_view = create_test_view_with_decorator(require_course_author)
         mock_user = create_mock_user(is_moderator=False, is_teacher=True)
         request = create_authenticated_request(self.factory, user=mock_user)
-
         response = test_view(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -150,24 +145,21 @@ class RequireCourseAuthorUnitTest(BaseTestCase):
         test_view = create_test_view_with_decorator(require_course_author)
         mock_user = create_mock_user(is_moderator=False, is_teacher=True)
         request = create_authenticated_request(self.factory, user=mock_user)
-
         with patch(
-            "apps.courses.api.permissions.Course.objects.get",
-            side_effect=Course.DoesNotExist,
+            "apps.courses.api.permissions.Course.objects.get", side_effect=Course.DoesNotExist
         ):
             response = test_view(request, course_id=999)
-
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_decorator_blocks_unauthenticated(self):
         test_view = create_test_view_with_decorator(require_course_author)
         request = create_authenticated_request(self.factory, user=None)
-
         response = test_view(request, course_id=1)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class RequireCourseEnrollmentUnitTest(SimpleTestCase):
+
     def setUp(self):
         self.factory = APIRequestFactory()
 
@@ -175,7 +167,6 @@ class RequireCourseEnrollmentUnitTest(SimpleTestCase):
         test_view = create_test_view_with_decorator(require_course_enrollment)
         mock_user = create_mock_user(is_moderator=True)
         request = create_authenticated_request(self.factory, user=mock_user)
-
         response = test_view(request, course_slug="test-slug")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -183,7 +174,6 @@ class RequireCourseEnrollmentUnitTest(SimpleTestCase):
         test_view = create_test_view_with_decorator(require_course_enrollment)
         mock_user = create_mock_user(is_moderator=False)
         request = create_authenticated_request(self.factory, user=mock_user)
-
         response = test_view(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -191,25 +181,22 @@ class RequireCourseEnrollmentUnitTest(SimpleTestCase):
         test_view = create_test_view_with_decorator(require_course_enrollment)
         mock_user = create_mock_user(is_moderator=False)
         request = create_authenticated_request(self.factory, user=mock_user)
-
         with patch(
-            "apps.courses.api.permissions.Course.objects.get",
-            side_effect=Course.DoesNotExist,
+            "apps.courses.api.permissions.Course.objects.get", side_effect=Course.DoesNotExist
         ):
             response = test_view(request, course_slug="nonexistent")
-
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_decorator_blocks_unauthenticated(self):
         test_view = create_test_view_with_decorator(require_course_enrollment)
         request = create_authenticated_request(self.factory, user=None)
-
         response = test_view(request, course_slug="test-slug")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class RequireModeratorIntegrationTest(DecoratorIntegrationTestMixin, BaseTestCase):
+
     def _setup_users(self):
         self.student = create_test_user(email="student@test.com", role="student")
         self.teacher = create_test_user(email="teacher@test.com", role="teacher")
@@ -227,12 +214,12 @@ class RequireModeratorIntegrationTest(DecoratorIntegrationTestMixin, BaseTestCas
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class RequireCourseAuthorIntegrationTest(DecoratorIntegrationTestMixin, BaseTestCase):
+
     def _setup_users(self):
         self.student = create_test_user(email="student@test.com", role="student")
         self.teacher = create_test_user(email="teacher@test.com", role="teacher")
         self.other_teacher = create_test_user(email="other@test.com", role="teacher")
         self.moderator = create_test_user(email="moderator@test.com", role="moderator")
-
         self.course = create_test_course()
         self.course.authors.add(self.teacher)
 
@@ -267,17 +254,16 @@ class RequireCourseAuthorIntegrationTest(DecoratorIntegrationTestMixin, BaseTest
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class RequireCourseEnrollmentIntegrationTest(DecoratorIntegrationTestMixin, BaseTestCase):
+
     def _setup_users(self):
         self.student = create_test_user(email="student@test.com", role="student")
         self.other_student = create_test_user(email="other@test.com", role="student")
         self.teacher = create_test_user(email="teacher@test.com", role="teacher")
         self.moderator = create_test_user(email="moderator@test.com", role="moderator")
-
         self.course = create_test_course()
         self.course.authors.add(self.teacher)
-
         self.payment = Payment.objects.create(user=self.student, total_sum=5000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.student,
             course=self.course,
             payment=self.payment,
@@ -315,26 +301,23 @@ class RequireCourseEnrollmentIntegrationTest(DecoratorIntegrationTestMixin, Base
     def test_expired_enrollment_blocks_access(self):
         expired_course = create_test_course(title="Expired Course", sub_title="Sub", price=1000)
         payment = Payment.objects.create(user=self.other_student, total_sum=1000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.other_student,
             course=expired_course,
             payment=payment,
             access_expires_at=timezone.now() - timedelta(days=1),
         )
-
         self.assert_decorator_blocks_access(
-            require_course_enrollment,
-            self.other_student,
-            course_slug=expired_course.slug,
+            require_course_enrollment, self.other_student, course_slug=expired_course.slug
         )
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class DecoratorEdgeCasesTest(DecoratorIntegrationTestMixin, BaseTestCase):
+
     def test_require_moderator_with_none_user(self):
         test_view = create_test_view_with_decorator(require_moderator)
         request = create_authenticated_request(self.factory, user=None)
-
         response = test_view(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -342,28 +325,23 @@ class DecoratorEdgeCasesTest(DecoratorIntegrationTestMixin, BaseTestCase):
         teacher = create_test_user(email="teacher@test.com", role="teacher")
         course = create_test_course()
         course.authors.add(teacher)
-
         test_view = create_test_view_with_decorator(require_course_author)
         request = create_authenticated_request(self.factory, user=teacher)
-
         response = test_view(request, course_slug=course.slug)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_require_course_enrollment_with_slug_kwarg(self):
         student = create_test_user(email="student@test.com", role="student")
         course = create_test_course()
-
         payment = Payment.objects.create(user=student, total_sum=5000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=student,
             course=course,
             payment=payment,
             access_expires_at=timezone.now() + timedelta(days=30),
         )
-
         test_view = create_test_view_with_decorator(require_course_enrollment)
         request = create_authenticated_request(self.factory, user=student)
-
         response = test_view(request, slug=course.slug)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -371,12 +349,12 @@ class DecoratorEdgeCasesTest(DecoratorIntegrationTestMixin, BaseTestCase):
         moderator = create_test_user(email="moderator@test.com", role="moderator")
 
         class MockViewSet:
+
             @require_moderator
             def create(self, request):
                 return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
         viewset = MockViewSet()
         request = create_authenticated_request(self.factory, method="post", user=moderator)
-
         response = viewset.create(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

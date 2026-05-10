@@ -6,8 +6,7 @@ export default function Footer() {
       <div className={styles.content}>
         <div className={styles.header}>
 					<img src="profession-logo-white.svg" alt="" />
-					<div></div> 
-					{/* Для грида */}
+					<div></div>
 					<div className={styles.linkContainer}>
 						<a href="#intro">О нас</a>
 						<a href="#tracks">Направления</a>

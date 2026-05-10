@@ -64,8 +64,6 @@ export const serializeHomeworkLayout = (
   return HomeworkLayoutSchema.parse(layout);
 };
 
-// ── Reactive validation ───────────────────────────────────────────────────────
-
 export interface HomeworkErrors {
   title: boolean;
   deadline: boolean;
@@ -97,8 +95,7 @@ export function validateHomeworkLayout(layout: HomeworkLayout): HomeworkErrors {
       qErr.tooFewOptions = q.options.length < 2;
       qErr.noCorrect = !q.options.some((o) => o.isCorrect);
 
-      // find duplicate option texts (case-insensitive, trimmed)
-      const seen = new Map<string, string>(); // normalised text → first option id
+      const seen = new Map<string, string>();
       for (const opt of q.options) {
         const key = opt.text.trim().toLowerCase();
         if (!key) continue;

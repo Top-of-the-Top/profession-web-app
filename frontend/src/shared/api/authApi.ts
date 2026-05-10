@@ -1,4 +1,3 @@
-// shared/api/authApi.ts
 import { apiClient } from './interceptor';
 
 export interface AuthTokenBundleResponse {
@@ -49,7 +48,7 @@ const publicAuth = { skipAuth: true as const };
 
 export const authApi = {
   login(data: { email: string | null; phone_number: string | null; password: string; date_time: string }) {
-    return apiClient.request<AuthTokenBundleResponse>('/api/auth/login/', {
+    return apiClient.request<AuthTokenBundleResponse>('/api/v1/auth/login/', {
       method: 'POST',
       body: JSON.stringify(data),
       ...publicAuth,
@@ -57,7 +56,7 @@ export const authApi = {
   },
 
   register(data: RegisterBody) {
-    return apiClient.request<AuthTokenBundleResponse | RegisterCodeSentResponse>('/api/auth/register/', {
+    return apiClient.request<AuthTokenBundleResponse | RegisterCodeSentResponse>('/api/v1/auth/register/', {
       method: 'POST',
       body: JSON.stringify(data),
       ...publicAuth,
@@ -65,7 +64,7 @@ export const authApi = {
   },
 
   registerVerify(data: RegisterVerifyBody) {
-    return apiClient.request<AuthTokenBundleResponse>('/api/auth/register/verify/', {
+    return apiClient.request<AuthTokenBundleResponse>('/api/v1/auth/register/verify/', {
       method: 'POST',
       body: JSON.stringify(data),
       ...publicAuth,
@@ -73,7 +72,7 @@ export const authApi = {
   },
 
   resetRequest(data: ResetBody) {
-    return apiClient.request<ResetRequestResponse>('/api/auth/reset/', {
+    return apiClient.request<ResetRequestResponse>('/api/v1/auth/reset/', {
       method: 'POST',
       body: JSON.stringify(data),
       ...publicAuth,
@@ -81,7 +80,7 @@ export const authApi = {
   },
 
   recoverPhone(data: { phone_number: string; code: string }) {
-    return apiClient.request<RecoverPhoneResponse>('/api/auth/recover/phone/', {
+    return apiClient.request<RecoverPhoneResponse>('/api/v1/auth/recover/phone/', {
       method: 'POST',
       body: JSON.stringify(data),
       ...publicAuth,
@@ -89,7 +88,7 @@ export const authApi = {
   },
 
   recoverEmail(data: { token: string; password: string }) {
-    return apiClient.request<AuthTokenBundleResponse>('/api/auth/recover/set/', {
+    return apiClient.request<AuthTokenBundleResponse>('/api/v1/auth/recover/set/', {
       method: 'PATCH',
       body: JSON.stringify(data),
       ...publicAuth,
@@ -97,7 +96,7 @@ export const authApi = {
   },
 
   recoverSet(data: { token: string; password: string }) {
-    return apiClient.request<AuthTokenBundleResponse>('/api/auth/recover/set/', {
+    return apiClient.request<AuthTokenBundleResponse>('/api/v1/auth/recover/set/', {
       method: 'PATCH',
       body: JSON.stringify(data),
       ...publicAuth,
@@ -105,7 +104,7 @@ export const authApi = {
   },
 
   yandexExchange(data: YandexExchangeBody) {
-    return apiClient.request<AuthTokenBundleResponse>('/api/auth/yandex/exchange/', {
+    return apiClient.request<AuthTokenBundleResponse>('/api/v1/auth/yandex/exchange/', {
       method: 'POST',
       body: JSON.stringify(data),
       ...publicAuth,
@@ -113,7 +112,7 @@ export const authApi = {
   },
 
   vkExchange(data: VkExchangeBody) {
-    return apiClient.request<AuthTokenBundleResponse>('/api/auth/vk/exchange/', {
+    return apiClient.request<AuthTokenBundleResponse>('/api/v1/auth/vk/exchange/', {
       method: 'POST',
       body: JSON.stringify(data),
       ...publicAuth,

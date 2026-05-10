@@ -11,6 +11,7 @@ from ..models import User
 
 
 class EncryptionUnitTest(SimpleTestCase):
+
     def test_correct_encoding(self):
         email = "test@example.com"
         encoded_email = encrypt_data(email)
@@ -55,6 +56,7 @@ class EncryptionUnitTest(SimpleTestCase):
 
 
 class ResetTokenUnitTest(SimpleTestCase):
+
     def test_generate_reset_token(self):
         token = generate_reset_token()
         self.assertIsNotNone(token)
@@ -68,13 +70,12 @@ class ResetTokenUnitTest(SimpleTestCase):
 
 
 class JWTTokenUnitTest(SimpleTestCase):
+
     def test_get_tokens_for_user_structure(self):
         mock_user = MagicMock()
         mock_user.id = 1
         mock_user.role = "student"
-
         tokens = get_tokens_for_user(mock_user)
-
         self.assertIn("access_token", tokens)
         self.assertIn("access_expires_at", tokens)
         self.assertIn("refresh_token", tokens)
@@ -85,9 +86,7 @@ class JWTTokenUnitTest(SimpleTestCase):
         mock_user = MagicMock()
         mock_user.id = 1
         mock_user.role = "student"
-
         tokens = get_tokens_for_user(mock_user)
-
         self.assertEqual(tokens["role"], "student")
         self.assertIsNotNone(tokens["access_token"])
         self.assertIsNotNone(tokens["refresh_token"])
@@ -96,30 +95,23 @@ class JWTTokenUnitTest(SimpleTestCase):
         mock_user = MagicMock()
         mock_user.id = 2
         mock_user.role = "teacher"
-
         tokens = get_tokens_for_user(mock_user)
-
         self.assertEqual(tokens["role"], "teacher")
 
     def test_get_tokens_for_moderator(self):
         mock_user = MagicMock()
         mock_user.id = 3
         mock_user.role = "moderator"
-
         tokens = get_tokens_for_user(mock_user)
-
         self.assertEqual(tokens["role"], "moderator")
 
     def test_jwt_contains_role_claim(self):
         mock_user = MagicMock()
         mock_user.id = 1
         mock_user.role = "student"
-
         tokens = get_tokens_for_user(mock_user)
         access_token = tokens["access_token"]
-
         decoded = jwt.decode(access_token, options={"verify_signature": False})
-
         self.assertIn("role", decoded)
         self.assertEqual(decoded["role"], "student")
 
@@ -127,12 +119,9 @@ class JWTTokenUnitTest(SimpleTestCase):
         mock_user = MagicMock()
         mock_user.id = 2
         mock_user.role = "teacher"
-
         tokens = get_tokens_for_user(mock_user)
         refresh_token = tokens["refresh_token"]
-
         decoded = jwt.decode(refresh_token, options={"verify_signature": False})
-
         self.assertIn("role", decoded)
         self.assertEqual(decoded["role"], "teacher")
 
@@ -140,26 +129,22 @@ class JWTTokenUnitTest(SimpleTestCase):
         mock_user = MagicMock()
         mock_user.id = 1
         mock_user.role = "student"
-
         tokens = get_tokens_for_user(mock_user)
-
         access_expires = datetime.fromisoformat(tokens["access_expires_at"])
         refresh_expires = datetime.fromisoformat(tokens["refresh_expires_at"])
-
         self.assertGreater(refresh_expires, access_expires)
 
     def test_token_user_id_matches(self):
         mock_user = MagicMock()
         mock_user.id = 42
         mock_user.role = "student"
-
         tokens = get_tokens_for_user(mock_user)
         decoded = jwt.decode(tokens["access_token"], options={"verify_signature": False})
-
         self.assertEqual(int(decoded["user_id"]), 42)
 
 
 class ResetTokenIntegrationTest(TestCase):
+
     def setUp(self):
         self.user = User.objects.create_user(
             email_cipher=encrypt_data("test@example.com"), password="testpass123"
@@ -167,7 +152,6 @@ class ResetTokenIntegrationTest(TestCase):
 
     def test_set_reset_token(self):
         token = set_reset_token(self.user)
-
         self.user.refresh_from_db()
         self.assertEqual(self.user.reset_token, token)
         self.assertIsNotNone(self.user.reset_token_expires)
@@ -176,31 +160,27 @@ class ResetTokenIntegrationTest(TestCase):
     def test_set_reset_token_custom_validity(self):
         valid_hours = 48
         token = set_reset_token(self.user, valid_hours=valid_hours)
-
         self.user.refresh_from_db()
         expected_expiry = timezone.now() + timedelta(hours=valid_hours)
-
         time_diff = abs((self.user.reset_token_expires - expected_expiry).total_seconds())
         self.assertLess(time_diff, 60)
 
     def test_reset_token_expiry_default(self):
         set_reset_token(self.user)
-
         self.user.refresh_from_db()
         expected_expiry = timezone.now() + timedelta(hours=24)
-
         time_diff = abs((self.user.reset_token_expires - expected_expiry).total_seconds())
         self.assertLess(time_diff, 60)
 
 
 class JWTTokenIntegrationTest(TestCase):
+
     def setUp(self):
         self.student_user = User.objects.create_user(
             email_cipher=encrypt_data("student@example.com"),
             password="testpass123",
             role=User.ROLE_STUDENT,
         )
-
         self.teacher_user = User.objects.create_user(
             email_cipher=encrypt_data("teacher@example.com"),
             password="testpass123",
@@ -211,9 +191,7 @@ class JWTTokenIntegrationTest(TestCase):
         new_user = User.objects.create_user(
             email_cipher=encrypt_data("newuser@example.com"), password="testpass123"
         )
-
         self.assertEqual(new_user.role, User.ROLE_STUDENT)
-
         tokens = get_tokens_for_user(new_user)
         self.assertEqual(tokens["role"], User.ROLE_STUDENT)
 
@@ -221,8 +199,6 @@ class JWTTokenIntegrationTest(TestCase):
         user = User.objects.create_user(
             email_cipher=encrypt_data("default@example.com"), password="testpass123"
         )
-
         tokens = get_tokens_for_user(user)
         decoded = jwt.decode(tokens["access_token"], options={"verify_signature": False})
-
         self.assertEqual(decoded["role"], "student")

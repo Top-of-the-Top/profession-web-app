@@ -116,7 +116,6 @@ export default function LandingPage() {
     </Card>
   ));
 
-  // Скролл по якорям
   useEffect(() => {
     const links = document.querySelectorAll('a[href^="#"]');
     links.forEach((link) => {
@@ -270,7 +269,6 @@ export default function LandingPage() {
                 </Button>
               </div>
             </div>
-            {/* <div className={styles.children}></div> */}
           </section>
 
           <section className={styles.section}>

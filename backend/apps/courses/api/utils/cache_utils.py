@@ -29,8 +29,12 @@ def course_detail_cache_key(slug):
     return f"default:courses:detail:{slug}"
 
 
+def enrolled_courses_cache_key(user_id):
+    return f"default:courses:enrolled:{int(user_id)}"
+
+
 def purchased_courses_cache_key(user_id):
-    return f"default:courses:purchased:{int(user_id)}"
+    return enrolled_courses_cache_key(user_id)
 
 
 def section_list_cache_key(course_slug):
@@ -63,14 +67,24 @@ def homework_detail_cache_key(course_slug, lesson_slug, slug, scope="pub"):
     return f"default:homeworks:detail:{course_slug}:{lesson_slug}:{slug}:{scope}"
 
 
+def _delete_pattern_or_keys(cache, pattern, *fallback_keys):
+    if hasattr(cache, "delete_pattern"):
+        cache.delete_pattern(pattern)
+    else:
+        for key in fallback_keys:
+            cache.delete(key)
+
+
 def invalidate_lesson_detail_cache(course_slug, lesson_slug):
     c = default_cache()
-    pattern = f"default:lessons:detail:{course_slug}:{lesson_slug}:*"
-    if hasattr(c, "delete_pattern"):
-        c.delete_pattern(pattern)
-        return
-    for scope in DETAIL_CACHE_SCOPES:
-        c.delete(lesson_detail_cache_key(course_slug, lesson_slug, scope))
+    _delete_pattern_or_keys(
+        c,
+        f"default:lessons:detail:{course_slug}:{lesson_slug}:*",
+        *(
+            lesson_detail_cache_key(course_slug, lesson_slug, scope)
+            for scope in DETAIL_CACHE_SCOPES
+        ),
+    )
 
 
 def invalidate_homework_detail_cache(course_slug, lesson_slug, homework_slug):
@@ -80,15 +94,14 @@ def invalidate_homework_detail_cache(course_slug, lesson_slug, homework_slug):
 
 
 def invalidate_on_course_model_change(slug):
-    delete_cache_keys(
-        DEFAULT_CACHE_ALIAS,
-        landing_courses_cache_key(),
-        course_detail_cache_key(slug),
+    cache = caches[DEFAULT_CACHE_ALIAS]
+    cache.delete(landing_courses_cache_key())
+    cache.delete(course_detail_cache_key(slug))
+    _delete_pattern_or_keys(
+        cache,
+        "default:app:courses:list:*",
         course_list_cache_key(),
     )
-    cache = caches[DEFAULT_CACHE_ALIAS]
-    if hasattr(cache, "delete_pattern"):
-        cache.delete_pattern("default:app:courses:list:*")
 
 
 def invalidate_on_section_model_change(course_slug, section_slug):
@@ -130,7 +143,16 @@ def invalidate_user_role_cache(user_id):
     cache = default_cache()
     cache.delete(course_list_cache_key(uid))
     cache.delete(purchased_courses_cache_key(uid))
-    cache.delete(my_schedule_cache_key(uid))
+    _delete_pattern_or_keys(cache, f"default:schedule:list:{uid}:*", my_schedule_cache_key(uid))
+
+
+def invalidate_schedule_cache(user_id=None):
+    cache = default_cache()
+    if user_id is not None:
+        uid = int(user_id)
+        _delete_pattern_or_keys(cache, f"default:schedule:list:{uid}:*", my_schedule_cache_key(uid))
+    else:
+        _delete_pattern_or_keys(cache, "default:schedule:list:*")
 
 
 def attempt_draft_cache_key(user_id, homework_slug):
@@ -158,13 +180,6 @@ def _delete(cache, *keys):
         cache.delete(key)
 
 
-def _delete_pattern_or_key(cache, pattern, fallback_key):
-    if hasattr(cache, "delete_pattern"):
-        cache.delete_pattern(pattern)
-    else:
-        cache.delete(fallback_key)
-
-
 def invalidate_attempt_cache(user_id, homework_slug, attempt_id, lesson_slug, course_slug):
     cache = default_cache()
     uid = int(user_id)
@@ -175,41 +190,41 @@ def invalidate_attempt_cache(user_id, homework_slug, attempt_id, lesson_slug, co
         attempt_detail_cache_key(attempt_id),
     )
 
-    _delete_pattern_or_key(
+    _delete_pattern_or_keys(
         cache,
         f"default:attempt:list:{lesson_slug}:*",
         attempt_list_cache_key(lesson_slug, uid),
+        attempt_list_cache_key(lesson_slug),
     )
-    cache.delete(attempt_list_cache_key(lesson_slug))
 
-    _delete_pattern_or_key(
+    _delete_pattern_or_keys(
         cache,
         f"default:attempt:list:course:{course_slug}:*",
         attempt_list_by_course_cache_key(course_slug, uid),
+        attempt_list_by_course_cache_key(course_slug),
     )
-    cache.delete(attempt_list_by_course_cache_key(course_slug))
 
-    _delete_pattern_or_key(
+    _delete_pattern_or_keys(
         cache,
         "default:attempt:list:all:*",
         f"default:attempt:list:all:{uid}",
+        "default:attempt:list:all",
     )
-    cache.delete("default:attempt:list:all")
 
 
 def invalidate_student_homework_list_cache(lesson_slug, course_slug):
     cache = default_cache()
-    _delete_pattern_or_key(
+    _delete_pattern_or_keys(
         cache,
         f"default:attempt:list:{lesson_slug}:*",
         attempt_list_cache_key(lesson_slug),
     )
-    _delete_pattern_or_key(
+    _delete_pattern_or_keys(
         cache,
         f"default:attempt:list:course:{course_slug}:*",
         attempt_list_by_course_cache_key(course_slug),
     )
-    _delete_pattern_or_key(
+    _delete_pattern_or_keys(
         cache,
         "default:attempt:list:all:*",
         "default:attempt:list:all",

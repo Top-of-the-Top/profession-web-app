@@ -12,7 +12,7 @@
   line-height: var(--text-xs--line-height);
   text-wrap: balance;
 
-  /* Side */
+
   &[data-side="top"] {
     animation-name: var(--animate-slide-top);
   }

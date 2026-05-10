@@ -1,12 +1,12 @@
-/* Базовые сбросы */
+
 * {
   padding: 0;
   margin: 0;
-  box-sizing: border-box; /* добавил для удобства */
+  box-sizing: border-box;
 }
 
 html {
-  font-size: 16px; /* база для rem */
+  font-size: 16px;
 }
 
 .page {
@@ -17,7 +17,7 @@ html {
 }
 
 #tracks {
-  scroll-margin-top: 100px; /* уменьшил для мобильных, можно подстроить */
+  scroll-margin-top: 100px;
 }
 
 .container {
@@ -28,7 +28,7 @@ html {
   box-sizing: content-box;
 }
 
-/* Шапка */
+
 .header {
   display: flex;
   align-items: center;
@@ -46,7 +46,7 @@ html {
     #ffffff08
   );
   width: 100%;
-  height: 100px; /* можно оставить, но на мобиле адаптируем содержимое */
+  height: 100px;
   z-index: 10;
   box-sizing: border-box;
 }
@@ -90,7 +90,7 @@ html {
   flex-shrink: 0;
 }
 
-/* Хиро-секция */
+
 .hero {
   position: relative;
 	justify-content: flex-start;
@@ -98,8 +98,8 @@ html {
   flex-direction: row;
   gap: 40px;
   padding-top: 30px;
-  margin-top: 120px; /* уменьшил с 220px, так как шапка фиксированная, но на мобиле добавим адаптацию */
-  padding-bottom: 80px; /* убрал огромный запас, фон будет адаптирован */
+  margin-top: 120px;
+  padding-bottom: 80px;
   background-image: url('landing-circles.svg');
   background-repeat: no-repeat;
   background-position: 20% -30px;
@@ -127,7 +127,7 @@ html {
 
 .heroText {
   max-width: 500px;
-  margin: 0 0 40px 0; /* убрал 200px */
+  margin: 0 0 40px 0;
   font-size: 16px;
   line-height: 1.6;
   color: #4b5563;
@@ -138,7 +138,7 @@ html {
   color: #191970;
 }
 
-/* Секции */
+
 .section {
   margin-top: 90px;
 }
@@ -172,7 +172,7 @@ html {
   padding: 5px;
   border-radius: 8px;
   font-weight: 700;
-  margin-right: 50px; /* возможно, лишнее – уберём на мобиле */
+  margin-right: 50px;
 }
 
 .sectionDescription {
@@ -182,7 +182,7 @@ html {
   color: #000000;
 }
 
-/* Сетка треков */
+
 .tracksGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(240px, 1fr));
@@ -210,7 +210,7 @@ html {
   cursor: pointer;
 }
 
-/* Ряд: слева текст (верх/низ), справа картинка к низу */
+
 .trackCardLayout {
   display: flex;
   flex-direction: row;
@@ -322,7 +322,7 @@ html {
   transform: scale(1.05);
 }
 
-/* Аккордеон */
+
 .learningSection {
   padding: 80px 0;
   height: fit-content;
@@ -450,7 +450,7 @@ html {
   font-size: 18px;
 }
 
-/* Иконка плюс-минус */
+
 .plusMinusIcon {
   position: relative;
   width: 24px;
@@ -497,7 +497,7 @@ html {
   transform: translateX(-50%) scale(0);
 }
 
-/* ========== МЕДИАЗАПРОСЫ ========== */
+
 
 @media (max-width: 768px) {
   .container {
@@ -569,7 +569,7 @@ html {
   }
 
   .tracksGrid {
-    grid-template-columns: 1fr; /* одна колонка */
+    grid-template-columns: 1fr;
     gap: 20px;
   }
 
@@ -581,7 +581,7 @@ html {
     flex: 0 0 min(108px, 34%);
   }
 
-  /* Аккордеон */
+
   .collapsibleNumber {
     font-size: 30px;
     min-width: 35px;
@@ -612,20 +612,20 @@ html {
   .imagePlaceholder {
     width: 100%;
     height: auto;
-    aspect-ratio: 3/2; /* сохраняем пропорции */
+    aspect-ratio: 3/2;
   }
 }
 
-/* Телефоны (до 480px) */
+
 @media (max-width: 480px) {
   .header {
-    /* height: auto; */
+
     padding: 10px 16px;
   }
 
   .headerWrapper {
     flex-direction: column;
-    /* height: auto; */
+
     gap: 10px;
   }
 
@@ -704,7 +704,7 @@ html {
     gap: 10px;
   }
 
-  /* Аккордеон */
+
   .collapsibleNumber {
     font-size: 24px;
     min-width: 30px;
@@ -729,7 +729,7 @@ html {
   }
 }
 
-/* ===== Бургер-кнопка ===== */
+
 .burgerButton {
   display: none;
   flex-direction: column;
@@ -819,7 +819,7 @@ html {
   text-align: center;
 }
 
-/* ===== Адаптация для мобильных ===== */
+
 @media (max-width: 768px) {
   .desktopNav,
   .desktopAuth {
@@ -837,7 +837,7 @@ html {
   }
 }
 
-/* Для очень маленьких экранов можно уменьшить отступы */
+
 @media (max-width: 480px) {
   .headerWrapper {
     height: auto;

@@ -28,7 +28,7 @@ export function useRecordingHeartbeat({
 
     const sendHeartbeat = (currentTime: number) => {
       apiClient
-        .request<void>(`/api/statistics/recordings/${recordingId}/view/heartbeat/`, {
+        .request<void>(`/api/v1/statistics/recordings/${recordingId}/view/heartbeat/`, {
           method: 'POST',
           body: JSON.stringify({ current_position: Math.floor(currentTime) }),
         })
@@ -54,7 +54,11 @@ export function useRecordingHeartbeat({
     load()
       .then((factory) => {
         if (destroyed) return;
-        return factory.create(container, { url: embedUrl });
+        return factory.create(container, {
+          url: embedUrl,
+          size: { width: '100%', height: '100%' },
+          playlist: [{ poster: `${window.location.origin}/video-poster.svg` }],
+        });
       })
       .then((player) => {
         if (!player || destroyed) {

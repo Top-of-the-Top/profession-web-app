@@ -23,6 +23,7 @@ from ..api.utils.agora_utils import (
 
 
 class UserUidFromUuidTest(SimpleTestCase):
+
     def test_returns_integer(self):
         uid = user_uid_from_uuid("some-uuid")
         self.assertIsInstance(uid, int)
@@ -33,16 +34,10 @@ class UserUidFromUuidTest(SimpleTestCase):
         self.assertLessEqual(uid, 2**31)
 
     def test_uid_stable_for_same_input(self):
-        self.assertEqual(
-            user_uid_from_uuid("aaa-bbb"),
-            user_uid_from_uuid("aaa-bbb"),
-        )
+        self.assertEqual(user_uid_from_uuid("aaa-bbb"), user_uid_from_uuid("aaa-bbb"))
 
     def test_uid_differs_for_different_inputs(self):
-        self.assertNotEqual(
-            user_uid_from_uuid("aaa"),
-            user_uid_from_uuid("bbb"),
-        )
+        self.assertNotEqual(user_uid_from_uuid("aaa"), user_uid_from_uuid("bbb"))
 
     def test_role_constants_are_distinct(self):
         self.assertNotEqual(ROLE_PUBLISHER, ROLE_SUBSCRIBER)
@@ -50,6 +45,7 @@ class UserUidFromUuidTest(SimpleTestCase):
 
 @override_settings(SECRET_KEY="test-secret-key")
 class RecorderTokenTest(SimpleTestCase):
+
     def test_make_and_verify_round_trip(self):
         token = make_recorder_token("webinar-123")
         self.assertEqual(verify_recorder_token(token), "webinar-123")
@@ -71,11 +67,7 @@ class RecorderTokenTest(SimpleTestCase):
 
         from django.conf import settings
 
-        sig = hmac.new(
-            settings.SECRET_KEY.encode(),
-            msg.encode(),
-            hashlib.sha256,
-        ).hexdigest()
+        sig = hmac.new(settings.SECRET_KEY.encode(), msg.encode(), hashlib.sha256).hexdigest()
         token = f"{msg}:{sig}"
         self.assertIsNone(verify_recorder_token(token))
 
@@ -102,6 +94,7 @@ class RecorderTokenTest(SimpleTestCase):
 
 
 class GetChannelUserCountTest(SimpleTestCase):
+
     def _mock_response(self, payload):
         resp = MagicMock()
         resp.json.return_value = payload
@@ -116,34 +109,20 @@ class GetChannelUserCountTest(SimpleTestCase):
     @patch("apps.webinars.api.utils.agora_utils.requests.get")
     def test_returns_user_count_excluding_recorder(self, mock_get):
         mock_get.return_value = self._mock_response(
-            {
-                "data": {
-                    "channel_exist": True,
-                    "users": [1, 2, 3, 999999],
-                },
-            }
+            {"data": {"channel_exist": True, "users": [1, 2, 3, 999999]}}
         )
         self.assertEqual(get_channel_user_count("ch"), 3)
 
     @patch("apps.webinars.api.utils.agora_utils.requests.get")
     def test_returns_zero_for_channel_with_only_recorder(self, mock_get):
         mock_get.return_value = self._mock_response(
-            {
-                "data": {
-                    "channel_exist": True,
-                    "users": [999999],
-                },
-            }
+            {"data": {"channel_exist": True, "users": [999999]}}
         )
         self.assertEqual(get_channel_user_count("ch"), 0)
 
     @patch("apps.webinars.api.utils.agora_utils.requests.get")
     def test_returns_zero_for_channel_with_no_users(self, mock_get):
-        mock_get.return_value = self._mock_response(
-            {
-                "data": {"channel_exist": True, "users": []},
-            }
-        )
+        mock_get.return_value = self._mock_response({"data": {"channel_exist": True, "users": []}})
         self.assertEqual(get_channel_user_count("ch"), 0)
 
     @patch("apps.webinars.api.utils.agora_utils.requests.get")
@@ -151,12 +130,12 @@ class GetChannelUserCountTest(SimpleTestCase):
         resp = MagicMock()
         resp.raise_for_status.side_effect = Exception("500")
         mock_get.return_value = resp
-
         with self.assertRaises(Exception):
             get_channel_user_count("ch")
 
 
 class WhiteboardApiTest(SimpleTestCase):
+
     def _token_response(self, text='"sdk-token"'):
         resp = MagicMock()
         resp.text = text
@@ -170,9 +149,7 @@ class WhiteboardApiTest(SimpleTestCase):
         room_resp.json.return_value = {"uuid": "room-uuid-xyz"}
         room_resp.raise_for_status.return_value = None
         mock_post.side_effect = [token_resp, room_resp]
-
         result = create_whiteboard_room()
-
         self.assertEqual(result, "room-uuid-xyz")
         self.assertEqual(mock_post.call_count, 2)
 
@@ -183,7 +160,6 @@ class WhiteboardApiTest(SimpleTestCase):
         room_token_resp.text = '"wb-room-token"'
         room_token_resp.raise_for_status.return_value = None
         mock_post.side_effect = [token_resp, room_token_resp]
-
         result = generate_whiteboard_room_token("room", role="writer")
         self.assertEqual(result, "wb-room-token")
 
@@ -194,9 +170,7 @@ class WhiteboardApiTest(SimpleTestCase):
         patch_resp = MagicMock()
         patch_resp.raise_for_status.return_value = None
         mock_patch.return_value = patch_resp
-
         ban_whiteboard_room("room-1")
-
         mock_patch.assert_called_once()
         args, kwargs = mock_patch.call_args
         self.assertIn("room-1", args[0])
@@ -204,6 +178,7 @@ class WhiteboardApiTest(SimpleTestCase):
 
 
 class RecordingApiTest(SimpleTestCase):
+
     def _resp(self, payload):
         resp = MagicMock()
         resp.json.return_value = payload
@@ -223,10 +198,7 @@ class RecordingApiTest(SimpleTestCase):
     @patch("apps.webinars.api.utils.agora_utils.requests.post")
     def test_recording_start_web_returns_sid(self, mock_post):
         mock_post.return_value = self._resp({"sid": "web-sid"})
-        self.assertEqual(
-            recording_start_web("ch", "1", "res", "http://rec"),
-            "web-sid",
-        )
+        self.assertEqual(recording_start_web("ch", "1", "res", "http://rec"), "web-sid")
 
     @patch("apps.webinars.api.utils.agora_utils.requests.post")
     def test_recording_stop_returns_json(self, mock_post):
@@ -241,24 +213,17 @@ class RecordingApiTest(SimpleTestCase):
         self.assertEqual(recording_stop_web("ch", "1", "res", "sid"), payload)
 
 
-@patch.dict(
-    "os.environ",
-    {
-        "AGORA_APP_ID": "app-id-test",
-        "AGORA_APP_CERTIFICATE": "app-cert-test",
-    },
-)
+@patch.dict("os.environ", {"AGORA_APP_ID": "app-id-test", "AGORA_APP_CERTIFICATE": "app-cert-test"})
 class GenerateRtmTokenTest(SimpleTestCase):
+
     @patch(
-        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken",
-        return_value="rtm-token",
+        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken", return_value="rtm-token"
     )
     def test_returns_token_from_builder(self, mock_build):
         self.assertEqual(generate_rtm_token(12345), "rtm-token")
 
     @patch(
-        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken",
-        return_value="rtm-token",
+        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken", return_value="rtm-token"
     )
     def test_passes_app_id_and_certificate(self, mock_build):
         generate_rtm_token(12345)
@@ -267,8 +232,7 @@ class GenerateRtmTokenTest(SimpleTestCase):
         self.assertEqual(args[1], "app-cert-test")
 
     @patch(
-        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken",
-        return_value="rtm-token",
+        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken", return_value="rtm-token"
     )
     def test_passes_user_account_as_string(self, mock_build):
         generate_rtm_token(12345)
@@ -276,8 +240,7 @@ class GenerateRtmTokenTest(SimpleTestCase):
         self.assertEqual(args[2], "12345")
 
     @patch(
-        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken",
-        return_value="rtm-token",
+        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken", return_value="rtm-token"
     )
     def test_passes_role_rtm_user(self, mock_build):
         generate_rtm_token(12345)
@@ -285,8 +248,7 @@ class GenerateRtmTokenTest(SimpleTestCase):
         self.assertEqual(args[3], 1)
 
     @patch(
-        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken",
-        return_value="rtm-token",
+        "apps.webinars.api.utils.agora_utils.RtmTokenBuilder.buildToken", return_value="rtm-token"
     )
     def test_expiration_in_future(self, mock_build):
         generate_rtm_token(12345)

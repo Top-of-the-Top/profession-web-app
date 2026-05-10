@@ -7,12 +7,8 @@ from rest_framework.views import APIView
 
 from ...courses.models import Course
 from ..models import Cart, CartItem
+from .cache_utils import cart_hot_cache_key
 from .serializers import CartItemSerializer, CartSerializer
-
-
-def cart_hot_cache_key(user_id):
-    return f"hot:carts:cart:{int(user_id)}"
-
 
 SCHEMA_401 = {
     "type": "object",

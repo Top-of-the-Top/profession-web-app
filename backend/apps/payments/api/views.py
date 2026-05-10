@@ -142,9 +142,11 @@ class CartPayView(APIView):
 
         from django.core.cache import caches
 
+        from ...carts.api.cache_utils import cart_hot_cache_key
+
         cache = caches["default"]
         cache.delete(purchased_courses_cache_key(request.user.id))
-        caches["hot"].delete(f"hot:carts:cart:{request.user.id}")
+        caches["hot"].delete(cart_hot_cache_key(request.user.id))
 
         yookassa_response = MockYooKassaService.create_payment(
             amount=payment.total_sum,

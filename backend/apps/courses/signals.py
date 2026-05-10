@@ -25,6 +25,7 @@ from .api.utils.cache_utils import (
     invalidate_on_homework_tree_change,
     invalidate_on_lesson_model_change,
     invalidate_on_section_model_change,
+    invalidate_schedule_cache,
     invalidate_student_homework_list_cache,
     invalidate_user_role_cache,
     purchased_courses_cache_key,
@@ -268,6 +269,7 @@ def invalidate_cold_homework_cache(sender, instance, **kwargs):
         return
     course_slug = section.course.slug
     invalidate_on_homework_tree_change(course_slug, lesson.slug, instance.slug)
+    invalidate_schedule_cache()
 
 
 @receiver((pre_save, pre_delete), sender=Task)
@@ -317,6 +319,7 @@ def invalidate_default_enrolled_cache(sender, instance, **kwargs):
     cache = caches["default"]
     cache.delete(purchased_courses_cache_key(instance.user_id))
     cache.delete(course_list_cache_key(instance.user_id))
+    invalidate_schedule_cache(instance.user_id)
 
 
 @receiver(pre_save, sender="users.User")

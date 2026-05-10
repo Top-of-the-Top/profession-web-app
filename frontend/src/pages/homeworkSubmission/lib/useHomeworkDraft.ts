@@ -54,8 +54,9 @@ export function toAttachmentMeta(
 }
 
 export function fromAttachmentMeta(
-  meta: Record<string, DraftAttachmentMeta[]>,
+  meta: Record<string, DraftAttachmentMeta[]> | null | undefined,
 ): Record<string, HomeworkAttemptAttachment[]> {
+  if (!meta) return {};
   const result: Record<string, HomeworkAttemptAttachment[]> = {};
   for (const [id, list] of Object.entries(meta)) {
     result[id] = list.map((m) => ({ ...m, file_url: '' }));

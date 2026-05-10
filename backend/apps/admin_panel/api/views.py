@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -20,12 +20,17 @@ from .serializers import InvitationCreateSerializer, InvitationSerializer, Teach
 SCHEMA_DETAIL = {"type": "object", "properties": {"detail": {"type": "string"}}}
 SCHEMA_VALIDATION = {"type": "object", "description": "Объект с ошибками валидации по полям."}
 
+_PATH_COURSE = OpenApiParameter(
+    "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+)
+
 
 class TeacherListView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Список всех преподавателей платформы",
+        summary="Список преподавателей",
+        description="Возвращает всех пользователей с ролью teacher. Доступно только модератору.",
         tags=["Admin Panel"],
         responses={
             200: TeacherSerializer(many=True),
@@ -44,7 +49,21 @@ class CourseAddAuthorView(APIView):
 
     @extend_schema(
         summary="Добавить преподавателя на курс",
+        description=(
+            "Назначает преподавателя автором курса. "
+            "Query-параметр user_id обязателен. Доступно только модератору."
+        ),
         tags=["Admin Panel"],
+        parameters=[
+            _PATH_COURSE,
+            OpenApiParameter(
+                "user_id",
+                OpenApiTypes.INT,
+                OpenApiParameter.QUERY,
+                required=True,
+                description="ID пользователя с ролью teacher",
+            ),
+        ],
         request=None,
         responses={
             200: TeacherSerializer(many=True),
@@ -83,7 +102,21 @@ class CourseRemoveAuthorView(APIView):
 
     @extend_schema(
         summary="Снять преподавателя с курса",
+        description=(
+            "Убирает преподавателя из авторов курса. "
+            "Query-параметр user_id обязателен. Доступно только модератору."
+        ),
         tags=["Admin Panel"],
+        parameters=[
+            _PATH_COURSE,
+            OpenApiParameter(
+                "user_id",
+                OpenApiTypes.INT,
+                OpenApiParameter.QUERY,
+                required=True,
+                description="ID пользователя",
+            ),
+        ],
         request=None,
         responses={
             200: TeacherSerializer(many=True),
@@ -117,7 +150,9 @@ class CoursePublishView(APIView):
 
     @extend_schema(
         summary="Опубликовать курс",
+        description="Переводит курс в статус published. Доступно только модератору.",
         tags=["Admin Panel"],
+        parameters=[_PATH_COURSE],
         request=None,
         responses={
             200: {"type": "object", "properties": {"status": {"type": "string"}}},
@@ -146,7 +181,9 @@ class CourseUnpublishView(APIView):
 
     @extend_schema(
         summary="Снять курс с публикации",
+        description="Переводит курс обратно в статус draft. Доступно только модератору.",
         tags=["Admin Panel"],
+        parameters=[_PATH_COURSE],
         request=None,
         responses={
             200: {"type": "object", "properties": {"status": {"type": "string"}}},
@@ -174,7 +211,8 @@ class InvitationListView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Список инвайтов",
+        summary="Список приглашений",
+        description="Возвращает все активные и использованные приглашения. Доступно только модератору.",
         tags=["Admin Panel"],
         responses={
             200: InvitationSerializer(many=True),
@@ -193,7 +231,11 @@ class InviteTeacherview(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Создать инвайт и отправить письмо",
+        summary="Пригласить преподавателя",
+        description=(
+            "Создаёт инвайт-ссылку и отправляет письмо на указанный email. "
+            "Если письмо не доставлено — инвайт удаляется. Доступно только модератору."
+        ),
         tags=["Admin Panel"],
         request=InvitationCreateSerializer,
         responses={
@@ -233,7 +275,20 @@ class InviteValidateView(APIView):
 
     @extend_schema(
         summary="Проверить инвайт-токен",
+        description=(
+            "Проверяет валидность токена из ссылки-приглашения. "
+            "Возвращает email, на который выдан инвайт."
+        ),
         tags=["Admin Panel"],
+        parameters=[
+            OpenApiParameter(
+                "token",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                required=True,
+                description="Токен из ссылки-приглашения",
+            ),
+        ],
         responses={
             200: {"type": "object", "properties": {"email": {"type": "string"}}},
             400: {"schema": SCHEMA_DETAIL},
@@ -262,13 +317,17 @@ class RegisterByInviteView(APIView):
     permission_classes = (AllowAny,)
 
     @extend_schema(
-        summary="Регистрация преподавателя по инвайту",
+        summary="Регистрация преподавателя по приглашению",
+        description=(
+            "Создаёт аккаунт преподавателя по одноразовому инвайт-токену. "
+            "После успешной регистрации возвращаются JWT-токены."
+        ),
         tags=["Admin Panel"],
         request={
             "type": "object",
             "properties": {
-                "token": {"type": "string"},
-                "password": {"type": "string"},
+                "token": {"type": "string", "description": "Токен из ссылки-приглашения"},
+                "password": {"type": "string", "description": "Пароль (минимум 8 символов)"},
                 "first_name": {"type": "string"},
                 "last_name": {"type": "string"},
             },

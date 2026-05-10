@@ -37,6 +37,23 @@ HOMEWORK_SLUG_PARAM = OpenApiParameter(
     type=OpenApiTypes.STR,
     location=OpenApiParameter.PATH,
     required=True,
+    description="Slug домашнего задания",
+)
+
+COURSE_SLUG_PARAM = OpenApiParameter(
+    name="course_slug",
+    type=OpenApiTypes.STR,
+    location=OpenApiParameter.PATH,
+    required=True,
+    description="Slug курса",
+)
+
+ATTEMPT_ID_PARAM = OpenApiParameter(
+    name="attempt_id",
+    type=OpenApiTypes.UUID,
+    location=OpenApiParameter.PATH,
+    required=True,
+    description="UUID попытки",
 )
 
 
@@ -55,13 +72,14 @@ class HomeworkAttemptView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Получить текущую попытку по домашке",
-        description="Возвращает черновик попытки, создаёт если не существует. Требует записи на курс.",
+        summary="Текущая попытка по домашнему заданию",
+        description=(
+            "Возвращает черновик попытки студента. "
+            "Если попытки ещё нет — создаёт её автоматически. "
+            "Требует записи на курс."
+        ),
         tags=["Homework"],
-        parameters=[
-            OpenApiParameter("course_slug", OpenApiTypes.STR, OpenApiParameter.PATH),
-            HOMEWORK_SLUG_PARAM,
-        ],
+        parameters=[COURSE_SLUG_PARAM, HOMEWORK_SLUG_PARAM],
         responses={
             200: AttemptSerializer,
             400: ErrorResponseSerializer,
@@ -143,15 +161,28 @@ class StudentAttemptsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Мои домашние задания.",
-        description=("Все попытки пользователей по "),
+        summary="Домашние задания и попытки",
+        description=(
+            "Для студента — список его попыток по купленным курсам. "
+            "Для преподавателя — попытки студентов по своим курсам. "
+            "Для модератора — все попытки на платформе. "
+            "Можно сузить выборку параметрами course_slug и lesson_slug."
+        ),
         tags=["Home"],
         parameters=[
             OpenApiParameter(
-                "course_slug", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False
+                "course_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                required=False,
+                description="Фильтр по slug курса",
             ),
             OpenApiParameter(
-                "lesson_slug", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False
+                "lesson_slug",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                required=False,
+                description="Фильтр по slug урока (требует course_slug)",
             ),
         ],
         responses={
@@ -259,21 +290,16 @@ class AttemptDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Получить попытку студента по выполнению домашнего задания",
+        summary="Попытка студента",
         description=(
             "Возвращает попытку с ответами на все вопросы и задания. "
-            "Вопросы (type=question) содержат статус автопроверки. "
-            "Задания (type=task) содержат поле **review** — объект с баллами, комментарием "
-            "и данными проверяющего, либо **null** если задание ещё не проверено. "
-            "Поле **reviewer** внутри review может быть **null** только если учётная "
-            "запись проверяющего была удалена из системы. "
-            "Доступно только автору курса или модератору."
+            "Вопросы (type=question) содержат результат автопроверки. "
+            "Задания (type=task) содержат поле review — оценку преподавателя или null, "
+            "если задание ещё не проверено. "
+            "Доступно автору курса и модератору."
         ),
         tags=["Homework"],
-        parameters=[
-            OpenApiParameter("course_slug", OpenApiTypes.STR, OpenApiParameter.PATH),
-            OpenApiParameter("attempt_id", OpenApiTypes.UUID, OpenApiParameter.PATH),
-        ],
+        parameters=[COURSE_SLUG_PARAM, ATTEMPT_ID_PARAM],
         responses={
             200: AttemptSerializer,
             400: ErrorResponseSerializer,
@@ -309,18 +335,15 @@ class AttemptReviewView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Выставить ревью попытки (преподаватель)",
+        summary="Проверить попытку (преподаватель)",
         description=(
-            "Принимает баллы и комментарий по каждому заданию (Task). "
+            "Выставляет баллы и комментарий по каждому заданию (Task). "
             "Попытка должна быть в статусе submitted. "
-            "Можно перепроверять — update_or_create на каждый TaskReview. "
-            "reviewer в ответе равен null только если аккаунт проверяющего удалён."
+            "Повторный вызов обновляет ранее выставленную оценку. "
+            "Поле reviewer в ответе равно null только если аккаунт проверяющего удалён."
         ),
         tags=["Homework"],
-        parameters=[
-            OpenApiParameter("course_slug", OpenApiTypes.STR, OpenApiParameter.PATH),
-            OpenApiParameter("attempt_id", OpenApiTypes.UUID, OpenApiParameter.PATH),
-        ],
+        parameters=[COURSE_SLUG_PARAM, ATTEMPT_ID_PARAM],
         request=AttemptReviewSerializer,
         responses={
             200: AttemptSerializer,
@@ -386,13 +409,14 @@ class HomeworkAttemptSubmitView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Отправить домашку на проверку",
-        description="Сохраняет ответы и переводит попытку в статус submitted. Запускает автопроверку вопросов.",
+        summary="Сдать домашнее задание на проверку",
+        description=(
+            "Сохраняет ответы студента и переводит попытку в статус submitted. "
+            "Автоматически запускает проверку вопросов с вариантами ответа. "
+            "Требует записи на курс."
+        ),
         tags=["Homework"],
-        parameters=[
-            OpenApiParameter("course_slug", OpenApiTypes.STR, OpenApiParameter.PATH),
-            HOMEWORK_SLUG_PARAM,
-        ],
+        parameters=[COURSE_SLUG_PARAM, HOMEWORK_SLUG_PARAM],
         request=AttemptSubmitSerializer,
         responses={
             201: AttemptSerializer,

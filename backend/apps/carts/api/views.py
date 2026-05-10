@@ -1,5 +1,5 @@
 from django.core.cache import caches
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -41,19 +41,18 @@ SCHEMA_400_ERROR = {
     },
 }
 
+_PATH_SLUG = OpenApiParameter(
+    "slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+)
+
 
 class CartView(APIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = CartSerializer
 
     @extend_schema(
-        summary="Получить корзину пользователя",
-        description=(
-            "Возвращает корзину текущего пользователя со списком добавленных курсов. "
-            "Требуется заголовок Authorization: Bearer <access_token>. "
-            "В ответе: cart_id, user, courses (массив объектов курса с course_id, title, sub_title, image_url, price, slug). "
-            "При отсутствии или невалидности токена — 401 с полем detail."
-        ),
+        summary="Корзина пользователя",
+        description="Возвращает корзину текущего пользователя с добавленными курсами.",
         tags=["Carts"],
         responses={
             200: CartSerializer,
@@ -85,18 +84,15 @@ class AddToCartView(APIView):
     @extend_schema(
         summary="Добавить курс в корзину",
         description=(
-            "Добавляет курс в корзину текущего пользователя по slug курса (в пути URL). "
-            "Требуется Authorization: Bearer <access_token>. "
-            "При успехе возвращается созданная позиция корзины (cart_id, course_id, вложенный объект course). "
-            "Если курс с таким slug не существует в каталоге — 404 с полем detail. "
-            "Если курс уже добавлен в корзину — 400 с полем error: «Курс уже в корзине». "
-            "При невалидном токене — 401."
+            "Добавляет опубликованный публичный курс в корзину по его slug. "
+            "Специальные (is_special) курсы добавить нельзя."
         ),
         tags=["Carts"],
+        parameters=[_PATH_SLUG],
         responses={
             201: CartItemSerializer,
             400: {
-                "description": "Тело: { error: 'Курс уже в корзине' }.",
+                "description": "Курс уже в корзине — { error: 'Курс уже в корзине' }.",
                 "schema": SCHEMA_400_ERROR,
             },
             401: {
@@ -104,7 +100,7 @@ class AddToCartView(APIView):
                 "schema": SCHEMA_401,
             },
             404: {
-                "description": "Тело: { detail: 'Курс с таким slug не найден в списке курсов.' }.",
+                "description": "Курс не найден в каталоге.",
                 "schema": SCHEMA_404,
             },
         },
@@ -142,22 +138,17 @@ class CartItemView(APIView):
 
     @extend_schema(
         summary="Удалить курс из корзины",
-        description=(
-            "Удаляет курс из корзины текущего пользователя по slug (в пути URL). "
-            "Требуется Authorization: Bearer <access_token>. "
-            "При успехе возвращается 204 без тела. "
-            "404 возвращается в двух случаях: курс с таким slug не найден в каталоге (detail: «Курс с таким slug не найден в списке курсов.») или курс не в корзине (detail: «Курс с таким slug не найден в корзине.»). "
-            "При невалидном токене — 401."
-        ),
+        description="Удаляет курс из корзины текущего пользователя по slug.",
         tags=["Carts"],
+        parameters=[_PATH_SLUG],
         responses={
-            204: {"description": "Курс удалён из корзины, тело ответа пустое."},
+            204: None,
             401: {
                 "description": "Токен отсутствует или недействителен.",
                 "schema": SCHEMA_401,
             },
             404: {
-                "description": "Тело: { detail }. «Курс с таким slug не найден в списке курсов.» или «Курс с таким slug не найден в корзине.»",
+                "description": "Курс не найден в каталоге или не добавлен в корзину.",
                 "schema": SCHEMA_404,
             },
         },

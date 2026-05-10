@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.db import transaction
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -34,7 +34,7 @@ SCHEMA_400 = {
         "course_ids": {
             "type": "array",
             "items": {"type": "integer"},
-            "description": "Опционально при уже купленных курсах.",
+            "description": "Присутствует при ошибке с конкретными курсами.",
         },
     },
 }
@@ -46,14 +46,14 @@ class CartPayView(APIView):
     @extend_schema(
         summary="Оплатить корзину",
         description=(
-            "Создаёт платёж на основе текущей корзины пользователя."
-            "Корзина должна быть непустой; все курсы в корзине не должны быть уже куплены. "
+            "Создаёт платёж на основе текущей корзины пользователя и зачисляет курсы. "
+            "Корзина должна быть непустой; все курсы в ней не должны быть уже куплены."
         ),
         tags=["Carts"],
         responses={
             204: None,
             400: {
-                "description": "Тело: { error } или { error, course_ids }. Корзина пуста или курсы уже куплены.",
+                "description": "Корзина пуста, курсы уже куплены или являются специальными — { error } или { error, course_ids }.",
                 "schema": SCHEMA_400,
             },
             401: {
@@ -169,8 +169,8 @@ class PaymentListView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Список платежей",
-        description=("Возвращает список всех платежей текущего пользователя."),
+        summary="История платежей",
+        description="Список всех платежей текущего пользователя.",
         tags=["Payments"],
         responses={
             200: PaymentShortSerializer(many=True),
@@ -191,8 +191,18 @@ class PaymentDetailView(APIView):
 
     @extend_schema(
         summary="Детали платежа",
-        description=("Возвращает полную информацию о платеже по payment_id.",),
+        description=(
+            "Возвращает полную информацию о платеже по payment_id. " "Чужие платежи возвращают 404."
+        ),
         tags=["Payments"],
+        parameters=[
+            OpenApiParameter(
+                "payment_id",
+                OpenApiTypes.UUID,
+                OpenApiParameter.PATH,
+                description="UUID платежа",
+            ),
+        ],
         responses={
             200: PaymentSerializer,
             401: {
@@ -200,7 +210,7 @@ class PaymentDetailView(APIView):
                 "schema": SCHEMA_401,
             },
             404: {
-                "description": "Тело: { detail: 'Платёж не найден.' }. Чужие платежи тоже 404.",
+                "description": "Платёж не найден или принадлежит другому пользователю.",
                 "schema": SCHEMA_404,
             },
         },

@@ -37,10 +37,18 @@ class WebinarHeartbeatView(APIView):
 
     @extend_schema(
         summary="Heartbeat присутствия на вебинаре",
+        description=(
+            "Фиксирует факт присутствия пользователя на вебинаре. "
+            "Вызывать периодически во время просмотра. "
+            "Возвращает суммарное время присутствия в секундах."
+        ),
         tags=["Statistics"],
         parameters=[
             OpenApiParameter(
-                name="webinar_id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH
+                "webinar_id",
+                OpenApiTypes.UUID,
+                OpenApiParameter.PATH,
+                description="UUID вебинара",
             ),
         ],
         request=None,
@@ -71,10 +79,17 @@ class RecordingHeartbeatView(APIView):
 
     @extend_schema(
         summary="Heartbeat просмотра записи",
+        description=(
+            "Фиксирует текущую позицию просмотра записи. "
+            "Вызывать периодически. Возвращает суммарное время просмотра и последнюю позицию."
+        ),
         tags=["Statistics"],
         parameters=[
             OpenApiParameter(
-                name="recording_id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH
+                "recording_id",
+                OpenApiTypes.UUID,
+                OpenApiParameter.PATH,
+                description="UUID записи",
             ),
         ],
         request=RecordingViewHeartbeatRequestSerializer,
@@ -114,28 +129,32 @@ class StatsWebinarsView(APIView):
 
     @extend_schema(
         summary="Таблица вебинаров",
+        description=(
+            "Список проведённых вебинаров с посещаемостью. "
+            "Преподаватель видит только свои курсы, модератор — все."
+        ),
         tags=["Statistics"],
         parameters=[
             OpenApiParameter(
-                name="course_title",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
+                "course_title",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 required=False,
                 description="Фильтр по названию курса (частичное совпадение)",
             ),
             OpenApiParameter(
-                name="from",
-                type=OpenApiTypes.DATETIME,
-                location=OpenApiParameter.QUERY,
+                "from",
+                OpenApiTypes.DATETIME,
+                OpenApiParameter.QUERY,
                 required=False,
-                description="Нижняя граница периода (по ended_at)",
+                description="Нижняя граница периода по ended_at (ISO 8601)",
             ),
             OpenApiParameter(
-                name="to",
-                type=OpenApiTypes.DATETIME,
-                location=OpenApiParameter.QUERY,
+                "to",
+                OpenApiTypes.DATETIME,
+                OpenApiParameter.QUERY,
                 required=False,
-                description="Верхняя граница периода (по ended_at)",
+                description="Верхняя граница периода по ended_at (ISO 8601)",
             ),
         ],
         responses={200: WebinarTableRowSerializer(many=True)},
@@ -155,21 +174,25 @@ class StatsStudentsView(APIView):
 
     @extend_schema(
         summary="Список учеников",
+        description=(
+            "Список студентов с прогрессом по курсам. "
+            "Преподаватель видит только студентов своих курсов."
+        ),
         tags=["Statistics"],
         parameters=[
             OpenApiParameter(
-                name="course_title",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
+                "course_title",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 required=False,
                 description="Фильтр по названию курса (частичное совпадение)",
             ),
             OpenApiParameter(
-                name="q",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
+                "q",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 required=False,
-                description="Поиск по ФИО / email / телефону",
+                description="Поиск по ФИО, email или телефону",
             ),
         ],
         responses={200: StudentRowSerializer(many=True)},
@@ -188,14 +211,29 @@ class StatsStudentCardView(APIView):
 
     @extend_schema(
         summary="Карточка ученика по курсу",
+        description=(
+            "Детальная статистика конкретного студента в конкретном курсе: "
+            "прогресс по урокам, домашние задания, посещаемость вебинаров."
+        ),
         tags=["Statistics"],
         parameters=[
-            OpenApiParameter(name="user_id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
             OpenApiParameter(
-                name="course_id", type=OpenApiTypes.UUID, location=OpenApiParameter.PATH
+                "user_id",
+                OpenApiTypes.INT,
+                OpenApiParameter.PATH,
+                description="ID студента",
+            ),
+            OpenApiParameter(
+                "course_id",
+                OpenApiTypes.UUID,
+                OpenApiParameter.PATH,
+                description="UUID курса",
             ),
         ],
-        responses={200: StudentCardSerializer},
+        responses={
+            200: StudentCardSerializer,
+            403: {"type": "object", "properties": {"detail": {"type": "string"}}},
+        },
     )
     def get(self, request, user_id, course_id):
         from apps.courses.models import Course
@@ -218,9 +256,16 @@ class StatsSchoolCoursesView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Сравнение курсов (модератор)",
+        summary="Сводная таблица курсов",
+        description=(
+            "Сравнительная таблица всех курсов платформы: студенты, прогресс, выручка. "
+            "Доступно только модератору."
+        ),
         tags=["Statistics"],
-        responses={200: SchoolCourseRowSerializer(many=True)},
+        responses={
+            200: SchoolCourseRowSerializer(many=True),
+            403: {"type": "object", "properties": {"detail": {"type": "string"}}},
+        },
     )
     def get(self, request):
         if not request.user.is_moderator():
@@ -236,9 +281,16 @@ class StatsSchoolTeachersView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Активность преподавателей (модератор)",
+        summary="Активность преподавателей",
+        description=(
+            "Статистика по преподавателям: количество курсов, вебинаров, проверенных работ. "
+            "Доступно только модератору."
+        ),
         tags=["Statistics"],
-        responses={200: SchoolTeacherRowSerializer(many=True)},
+        responses={
+            200: SchoolTeacherRowSerializer(many=True),
+            403: {"type": "object", "properties": {"detail": {"type": "string"}}},
+        },
     )
     def get(self, request):
         if not request.user.is_moderator():

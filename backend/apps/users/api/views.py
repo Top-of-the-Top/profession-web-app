@@ -102,9 +102,11 @@ class RegisterView(APIView):
     permission_classes = []
 
     @extend_schema(
-        summary="Регистрация пользователя",
+        summary="Регистрация",
         description=(
-            "Двухэтапная регистрация пользователя с подтверждением почты и номера телефона."
+            "Первый шаг двухэтапной регистрации. "
+            "Передайте email или phone_number — на него придёт код подтверждения. "
+            "Для подтверждения используйте POST /verify-register/."
         ),
         tags=["Users"],
         request=RegisterSerializer,
@@ -187,7 +189,10 @@ class VerifyRegisterView(APIView):
 
     @extend_schema(
         summary="Подтверждение регистрации",
-        description=("Проверка кода подтверждения, отправленного на почту или телефон."),
+        description=(
+            "Второй шаг регистрации. Передайте код из SMS или письма вместе с email или phone_number. "
+            "При успехе возвращаются JWT-токены."
+        ),
         tags=["Users"],
         request=VerifyRegisterSerializer,
         responses={
@@ -236,10 +241,11 @@ class LoginView(APIView):
     permission_classes = []
 
     @extend_schema(
-        summary="Вход пользователя",
+        summary="Вход",
         description=(
             "Аутентификация по email или phone_number и паролю. "
-            "При успехе возвращаются JWT токены."
+            "После 5 неудачных попыток с одного контакта вход блокируется на 5 минут. "
+            "При успехе возвращаются access и refresh токены."
         ),
         tags=["Users"],
         request=LoginSerializer,
@@ -291,7 +297,9 @@ class RefreshTokenView(APIView):
 
     @extend_schema(
         summary="Обновление токенов",
-        description=("Выдаёт новую пару access и refresh токенов по действующему refresh_token."),
+        description=(
+            "Принимает действующий refresh_token и выдаёт новую пару access/refresh токенов."
+        ),
         tags=["Users"],
         request=RefreshTokenRequestSerializer,
         responses={
@@ -315,7 +323,7 @@ class RefreshTokenView(APIView):
             return Response(get_tokens_for_user(user), status=status.HTTP_200_OK)
         except Exception:
             return Response(
-                {"detail": "Невалидный или истекший refresh_token"},
+                {"detail": "Невалидный или истёкший refresh_token"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
@@ -324,11 +332,12 @@ class ResetPasswordView(APIView):
     permission_classes = []
 
     @extend_schema(
-        summary="Сброс пароля",
+        summary="Запрос на сброс пароля",
         description=(
-            "Запрос на сброс пароля. "
             "Передайте email или phone_number. "
-            "На email отправляется ссылка, на телефон SMS код."
+            "На email отправляется ссылка для сброса, на телефон — SMS-код. "
+            "Для завершения сброса через email используйте PATCH /recover/, "
+            "через телефон — сначала POST /recover-phone/, затем PATCH /recover/."
         ),
         tags=["Users"],
         request=ResetPasswordRequestSerializer,
@@ -404,7 +413,10 @@ class RecoverPasswordView(APIView):
 
     @extend_schema(
         summary="Установка нового пароля",
-        description=("Завершение сброса пароля. " "При успехе возвращаются JWT токены. "),
+        description=(
+            "Завершение сброса пароля по токену из письма или из POST /recover-phone/. "
+            "При успехе возвращаются JWT-токены — пользователь сразу авторизован."
+        ),
         tags=["Users"],
         request=RecoverPasswordRequestSerializer,
         responses={
@@ -417,7 +429,7 @@ class RecoverPasswordView(APIView):
         password = request.data.get("password")
         if not token or not password:
             return Response(
-                {"detail": "token и password_hash обязательны"},
+                {"detail": "token и password обязательны"},
                 status=status.HTTP_403_FORBIDDEN,
             )
         user = User.objects.filter(
@@ -440,17 +452,17 @@ class RecoverPasswordPhoneView(APIView):
     permission_classes = []
 
     @extend_schema(
-        summary="Проверка SMS кода для сброса пароля",
+        summary="Проверка SMS-кода для сброса пароля",
         description=(
-            "Передайте phone_number и 6 значный код из SMS. "
-            "При успехе возвращается reset_token для установки нового пароля."
+            "Передайте phone_number и 6-значный код из SMS. "
+            "При успехе возвращается reset_token, который нужно передать в PATCH /recover/."
         ),
         tags=["Users"],
         request=RecoverPasswordPhoneSerializer,
         responses={
             200: ResetPasswordPhoneTokenResponseSerializer,
             400: {
-                "description": 'Неверный код — **{ "error", "detail" }**; иначе ошибки полей DRF.',
+                "description": "Неверный код — { error, detail }; иначе ошибки полей.",
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
             403: {
@@ -496,8 +508,8 @@ class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        summary="Получение профиля",
-        description="Возвращает профиль текущего пользователя.",
+        summary="Получить профиль",
+        description="Возвращает профиль текущего авторизованного пользователя.",
         tags=["Users"],
         responses={
             200: UserProfileSerializer,
@@ -522,8 +534,12 @@ class ProfileView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
-        summary="Обновление профиля",
-        description=("Частичное обновление профиля пользователя."),
+        summary="Обновить профиль",
+        description=(
+            "Частичное обновление профиля. "
+            "При смене email или phone_number на указанный контакт отправляется код подтверждения — "
+            "изменение применяется только после верификации через POST /verify-email/ или /verify-phone/."
+        ),
         tags=["Users"],
         request=UpdateProfileSerializer,
         responses={
@@ -604,7 +620,6 @@ class ProfileView(APIView):
             except AssetError as exc:
                 return process_error_response(exc)
 
-            # Fail fast if binding was not applied for the requested asset.
             bound = AssetUsage.objects.filter(
                 content_type=ContentType.objects.get_for_model(profile),
                 object_id=str(profile.pk),
@@ -632,17 +647,15 @@ class VerifyEmailChangeView(APIView):
     @extend_schema(
         summary="Подтверждение смены email",
         description=(
-            "После PATCH профиля с новым email на почту уходит код. "
-            "Передайте 6-значный код из письма."
+            "После PATCH /profile/ с новым email на почту отправляется 6-значный код. "
+            "Передайте его сюда — email будет обновлён."
         ),
         tags=["Users"],
         request=VerifyCodeSerializer,
         responses={
             200: SimpleStatusResponseSerializer,
             400: {
-                "description": (
-                    "Неверный/дублирующий код, ошибки формата **или** объект **{ «error», «detail» }** после verify_code."
-                ),
+                "description": "Неверный или дублирующий код — { error, detail } или ошибки полей.",
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
             401: {
@@ -692,18 +705,15 @@ class VerifyPhoneChangeView(APIView):
     @extend_schema(
         summary="Подтверждение смены телефона",
         description=(
-            "После PATCH профиля с новым номером на телефон уходит SMS с кодом. "
-            "Передайте 6-значный код из сообщения."
+            "После PATCH /profile/ с новым номером на телефон приходит SMS с кодом. "
+            "Передайте 6-значный код — номер будет обновлён."
         ),
         tags=["Users"],
         request=VerifyCodeSerializer,
         responses={
             200: SimpleStatusResponseSerializer,
             400: {
-                "description": (
-                    "Неверный/дублирующий код или **{ «error», «detail» }** после verify_code; "
-                    "также объект с **«detail»** при дубликате телефона."
-                ),
+                "description": "Неверный или дублирующий код — { error, detail } или ошибки полей.",
                 "schema": SCHEMA_VALIDATION_ERROR,
             },
             401: {
@@ -780,6 +790,70 @@ class YandexOauth2APIView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
+    @extend_schema(
+        summary="Авторизация через Яндекс",
+        description=(
+            "Обменивает code+state от Яндекс OAuth на JWT-токены платформы. "
+            "Если пользователь с таким email/телефоном не найден — создаётся автоматически."
+        ),
+        tags=["Users"],
+        responses={
+            200: TokenResponseSerializer,
+            400: SCHEMA_VALIDATION_ERROR,
+        },
+    )
+    def post(self, request):
+        code = request.data.get("code")
+        state = request.data.get("state")
+
+        if not code or not state:
+            return Response(
+                {"error": "invalid_request", "detail": "Code and state are required."},
+                status=400,
+            )
+
+        if not self._validate_state(state):
+            return Response(
+                {
+                    "error": "invalid_state",
+                    "detail": "OAuth state is invalid or expired.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        yandex_tokens = self._exchange_code_for_token(code)
+        if not yandex_tokens:
+            return Response({"error": "invalid_code"}, status=400)
+
+        user_info = self._get_yandex_user_info(yandex_tokens["access_token"])
+        email = user_info.get("default_email")
+        default_phone = user_info.get("default_phone") or {}
+        phone = default_phone.get("number") if isinstance(default_phone, dict) else None
+
+        if not email and not phone:
+            return Response({"error": "missing_required_profile_data"}, status=400)
+
+        email_enc = encrypt_data(str(email)) if email else None
+        phone_enc = encrypt_data(str(phone)) if phone else None
+
+        user = None
+        if email_enc:
+            user = User.objects.filter(email_cipher=email_enc).first()
+        if not user and phone_enc:
+            user = User.objects.filter(phone_cipher=phone_enc).first()
+
+        is_new = user is None
+        if is_new:
+            user = User.objects.create(
+                email_cipher=email_enc,
+                phone_cipher=phone_enc,
+                role="student",
+            )
+
+        self._sync_user_profile(user, user_info, is_new=is_new)
+
+        return Response(get_tokens_for_user(user), status=200)
+
     def _validate_state(self, state):
         key = f"oauth:yandex:state:{state}"
         return bool(cache.delete(key))
@@ -851,58 +925,6 @@ class YandexOauth2APIView(APIView):
         if profile_fields_changed:
             profile.save(update_fields=profile_fields_changed)
 
-    def post(self, request):
-        code = request.data.get("code")
-        state = request.data.get("state")
-
-        if not code or not state:
-            return Response(
-                {"error": "invalid_request", "detail": "Code and state are required."},
-                status=400,
-            )
-
-        if not self._validate_state(state):
-            return Response(
-                {
-                    "error": "invalid_state",
-                    "detail": "OAuth state is invalid or expired.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        yandex_tokens = self._exchange_code_for_token(code)
-        if not yandex_tokens:
-            return Response({"error": "invalid_code"}, status=400)
-
-        user_info = self._get_yandex_user_info(yandex_tokens["access_token"])
-        email = user_info.get("default_email")
-        default_phone = user_info.get("default_phone") or {}
-        phone = default_phone.get("number") if isinstance(default_phone, dict) else None
-
-        if not email and not phone:
-            return Response({"error": "missing_required_profile_data"}, status=400)
-
-        email_enc = encrypt_data(str(email)) if email else None
-        phone_enc = encrypt_data(str(phone)) if phone else None
-
-        user = None
-        if email_enc:
-            user = User.objects.filter(email_cipher=email_enc).first()
-        if not user and phone_enc:
-            user = User.objects.filter(phone_cipher=phone_enc).first()
-
-        is_new = user is None
-        if is_new:
-            user = User.objects.create(
-                email_cipher=email_enc,
-                phone_cipher=phone_enc,
-                role="student",
-            )
-
-        self._sync_user_profile(user, user_info, is_new=is_new)
-
-        return Response(get_tokens_for_user(user), status=200)
-
 
 class VKCallbackAPIView(APIView):
     permission_classes = [AllowAny]
@@ -938,6 +960,64 @@ class VKCallbackAPIView(APIView):
 class VKOAauth2APIView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
+
+    @extend_schema(
+        summary="Авторизация через ВКонтакте",
+        description=(
+            "Обменивает code, state, code_verifier и device_id от VK OAuth на JWT-токены платформы. "
+            "Если пользователь не найден — создаётся автоматически."
+        ),
+        tags=["Users"],
+        responses={
+            200: TokenResponseSerializer,
+            400: SCHEMA_VALIDATION_ERROR,
+        },
+    )
+    def post(self, request):
+        code = request.data.get("code")
+        state = request.data.get("state")
+        code_verifier = request.data.get("code_verifier")
+        device_id = request.data.get("device_id")
+
+        if not all([code, state, code_verifier, device_id]):
+            return Response({"error": "invalid_request"}, status=400)
+
+        if not self._validate_state(state):
+            return Response({"error": "invalid_state"}, status=400)
+
+        vk_tokens = self._exchange_code_for_tokens(code, code_verifier, device_id)
+        if not vk_tokens or "access_token" not in vk_tokens:
+            return Response({"error": "invalid_code"}, status=400)
+
+        user_info = self._get_vk_user_info(vk_tokens["access_token"])
+        vk_user = user_info.get("user", {})
+        email = vk_user.get("email")
+        phone = vk_user.get("phone")
+
+        if not email and not phone:
+            return Response(
+                {"error": "missing_required_profile_data", "details": user_info},
+                status=400,
+            )
+
+        email_enc = encrypt_data(str(email)) if email else None
+        phone_enc = encrypt_data(str(phone)) if phone else None
+
+        user = None
+        if email_enc:
+            user = User.objects.filter(email_cipher=email_enc).first()
+        if not user and phone_enc:
+            user = User.objects.filter(phone_cipher=phone_enc).first()
+
+        is_new = user is None
+        if is_new:
+            user = User.objects.create_user(
+                email_cipher=email_enc, phone_cipher=phone_enc, role="student"
+            )
+
+        self._sync_vk_profile(user, vk_user, is_new=is_new)
+
+        return Response(get_tokens_for_user(user), status=200)
 
     def _validate_state(self, state):
         key = f"oauth:vk:state:{state}"
@@ -1020,49 +1100,3 @@ class VKOAauth2APIView(APIView):
         except httpx.RequestError as e:
             logger.exception(f"VK UserInfo Connection Error: {str(e)}")
             return {}
-
-    def post(self, request):
-        code = request.data.get("code")
-        state = request.data.get("state")
-        code_verifier = request.data.get("code_verifier")
-        device_id = request.data.get("device_id")
-
-        if not all([code, state, code_verifier, device_id]):
-            return Response({"error": "invalid_request"}, status=400)
-
-        if not self._validate_state(state):
-            return Response({"error": "invalid_state"}, status=400)
-
-        vk_tokens = self._exchange_code_for_tokens(code, code_verifier, device_id)
-        if not vk_tokens or "access_token" not in vk_tokens:
-            return Response({"error": "invalid_code"}, status=400)
-
-        user_info = self._get_vk_user_info(vk_tokens["access_token"])
-        vk_user = user_info.get("user", {})
-        email = vk_user.get("email")
-        phone = vk_user.get("phone")
-
-        if not email and not phone:
-            return Response(
-                {"error": "missing_required_profile_data", "details": user_info},
-                status=400,
-            )
-
-        email_enc = encrypt_data(str(email)) if email else None
-        phone_enc = encrypt_data(str(phone)) if phone else None
-
-        user = None
-        if email_enc:
-            user = User.objects.filter(email_cipher=email_enc).first()
-        if not user and phone_enc:
-            user = User.objects.filter(phone_cipher=phone_enc).first()
-
-        is_new = user is None
-        if is_new:
-            user = User.objects.create_user(
-                email_cipher=email_enc, phone_cipher=phone_enc, role="student"
-            )
-
-        self._sync_vk_profile(user, vk_user, is_new=is_new)
-
-        return Response(get_tokens_for_user(user), status=200)

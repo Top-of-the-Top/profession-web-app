@@ -19,25 +19,34 @@ from .serializers import ApplicationReviewedSerializer, CourseApplicationSeriali
 
 SCHEMA_DETAIL = {"type": "object", "properties": {"detail": {"type": "string"}}}
 
+_PATH_COURSE = OpenApiParameter(
+    "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+)
+_PATH_APPLICATION = OpenApiParameter(
+    "application_id", OpenApiTypes.UUID, OpenApiParameter.PATH, description="UUID заявки"
+)
+
 
 class CourseApplicationListView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         summary="Список заявок на курс",
+        description=(
+            "Возвращает заявки на специальный курс. "
+            "Можно отфильтровать по статусу через query-параметр status. "
+            "Доступно автору курса и модератору."
+        ),
         tags=["Applications"],
         parameters=[
+            _PATH_COURSE,
             OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="status",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
+                "status",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 required=False,
                 enum=["pending", "approved", "rejected"],
+                description="Фильтр по статусу заявки",
             ),
         ],
         responses={
@@ -69,14 +78,12 @@ class CourseApplyView(APIView):
 
     @extend_schema(
         summary="Подать заявку на курс",
+        description=(
+            "Создаёт заявку на зачисление на специальный курс. "
+            "На обычные курсы заявки не принимаются — используйте покупку через корзину."
+        ),
         tags=["Applications"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE],
         responses={
             201: None,
             400: {"schema": SCHEMA_DETAIL},
@@ -114,15 +121,10 @@ class CourseWithdrawApplicationView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Отозвать заявку на курс",
+        summary="Отозвать заявку",
+        description="Удаляет заявку в статусе pending. Рассмотренную заявку отозвать нельзя.",
         tags=["Applications"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE],
         responses={
             204: None,
             401: {"schema": SCHEMA_DETAIL},
@@ -155,19 +157,12 @@ class CourseApplicationApproveView(APIView):
 
     @extend_schema(
         summary="Одобрить заявку",
+        description=(
+            "Одобряет заявку и зачисляет студента на курс на 365 дней. "
+            "Студент получает уведомление. Доступно автору курса и модератору."
+        ),
         tags=["Applications"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="application_id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_APPLICATION],
         responses={
             200: ApplicationReviewedSerializer,
             401: {"schema": SCHEMA_DETAIL},
@@ -221,19 +216,12 @@ class CourseApplicationRejectView(APIView):
 
     @extend_schema(
         summary="Отклонить заявку",
+        description=(
+            "Отклоняет заявку студента. "
+            "Студент получает уведомление об отказе. Доступно автору курса и модератору."
+        ),
         tags=["Applications"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="application_id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_APPLICATION],
         responses={
             200: ApplicationReviewedSerializer,
             401: {"schema": SCHEMA_DETAIL},

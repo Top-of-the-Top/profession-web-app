@@ -46,6 +46,16 @@ from .utils.agora_utils import (
 
 logger = logging.getLogger(__name__)
 
+_PATH_COURSE = OpenApiParameter(
+    "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+)
+_PATH_LESSON = OpenApiParameter(
+    "lesson_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug урока"
+)
+_PATH_RECORDING = OpenApiParameter(
+    "recording_id", OpenApiTypes.UUID, OpenApiParameter.PATH, description="UUID записи"
+)
+
 
 def _pick_filename(file_entry):
     if isinstance(file_entry, dict):
@@ -157,19 +167,13 @@ def _stop_recording(recording):
 @extend_schema_view(
     post=extend_schema(
         summary="Запустить вебинар",
+        description=(
+            "Переводит вебинар в статус live и создаёт новую комнату доски. "
+            "Если вебинар уже запущен — запрос игнорируется. "
+            "Доступно автору курса и модератору."
+        ),
         tags=["Webinar"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_LESSON],
         responses={
             200: WebinarStartResponseSerializer,
             400: {"schema": SCHEMA_DETAIL},
@@ -245,19 +249,12 @@ class WebinarStartView(APIView):
 @extend_schema_view(
     post=extend_schema(
         summary="Остановить вебинар",
+        description=(
+            "Завершает вебинар: останавливает активную запись (если идёт) и закрывает комнату доски. "
+            "Доступно автору курса и модератору."
+        ),
         tags=["Webinar"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_LESSON],
         responses={
             200: DetailResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
@@ -317,25 +314,20 @@ class WebinarStopView(APIView):
             },
         )
 
-        return Response({"detail": "Вебинар завершен"})
+        return Response({"detail": "Вебинар завершён"})
 
 
 @extend_schema_view(
     patch=extend_schema(
-        summary="Запланировать или изменить время начала вебинара",
+        summary="Назначить или изменить время вебинара",
+        description=(
+            "Устанавливает дату и время начала вебинара. "
+            "Передайте scheduled_at=null, чтобы снять расписание. "
+            "Нельзя изменить расписание вебинара, который сейчас идёт. "
+            "Доступно автору курса и модератору."
+        ),
         tags=["Webinar"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_LESSON],
         request=WebinarScheduleRequestSerializer,
         responses={
             200: WebinarScheduleResponseSerializer,
@@ -445,19 +437,13 @@ class WebinarScheduleView(APIView):
 @extend_schema_view(
     get=extend_schema(
         summary="Подключиться к вебинару",
+        description=(
+            "Возвращает токены Agora RTC/RTM и параметры комнаты доски для входа в вебинар. "
+            "Вебинар должен быть в статусе live. "
+            "Требует записи на курс."
+        ),
         tags=["Webinar"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_LESSON],
         responses={
             200: WebinarTokenSerializer,
             401: {"schema": SCHEMA_DETAIL},
@@ -537,23 +523,21 @@ class WebinarJoinView(APIView):
 @extend_schema_view(
     get=extend_schema(
         summary="Подключение рекордера к вебинару",
+        description=(
+            "Внутренний эндпоинт для сервиса записи. "
+            "Аутентификация по одноразовому токену рекордера (query-параметр token). "
+            "Возвращает токены Agora с ролью subscriber и права reader на доску."
+        ),
         tags=["Webinar"],
         parameters=[
+            _PATH_COURSE,
+            _PATH_LESSON,
             OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="token",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
+                "token",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 required=True,
+                description="Одноразовый токен рекордера",
             ),
         ],
         responses={
@@ -615,19 +599,13 @@ class WebinarRecorderJoinView(APIView):
 @extend_schema_view(
     post=extend_schema(
         summary="Начать запись вебинара",
+        description=(
+            "Запускает запись через Agora Cloud Recording. "
+            "Нельзя начать новую запись, пока уже идёт другая. "
+            "Доступно автору курса и модератору."
+        ),
         tags=["Webinar"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_LESSON],
         responses={
             200: WebinarRecordingStartResponseSerializer,
             400: {"schema": SCHEMA_DETAIL},
@@ -652,7 +630,7 @@ class WebinarRecordingStartView(APIView):
         webinar = get_object_or_404(Webinar, lesson=lesson, status=Webinar.LIVE_STATUS)
 
         if webinar.recordings.filter(status=Recording.RECORDING_STATUS).exists():
-            return Response({"detail": "Запись уже идет"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Запись уже идёт"}, status=status.HTTP_400_BAD_REQUEST)
 
         recording = Recording.objects.create(
             webinar=webinar,
@@ -699,19 +677,12 @@ class WebinarRecordingStartView(APIView):
 @extend_schema_view(
     post=extend_schema(
         summary="Остановить запись вебинара",
+        description=(
+            "Останавливает активную запись и запускает загрузку видео в Kinescope. "
+            "Доступно автору курса и модератору."
+        ),
         tags=["Webinar"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_LESSON],
         responses={
             200: WebinarRecordingStartResponseSerializer,
             400: {"schema": SCHEMA_DETAIL},
@@ -736,7 +707,7 @@ class WebinarRecordingStopView(APIView):
         webinar = get_object_or_404(Webinar, lesson=lesson, status=Webinar.LIVE_STATUS)
         recording = webinar.recordings.filter(status=Recording.RECORDING_STATUS).first()
         if not recording:
-            return Response({"detail": "Запись не идет"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Запись не идёт"}, status=status.HTTP_400_BAD_REQUEST)
 
         _stop_recording(recording)
 
@@ -750,25 +721,14 @@ class WebinarRecordingStopView(APIView):
 
 @extend_schema_view(
     post=extend_schema(
-        summary="Сохранить PDF доски записи",
+        summary="Сохранить PDF доски для записи",
+        description=(
+            "Принимает скриншоты (multipart/form-data, поле screenshots), "
+            "конвертирует их в PDF и привязывает к записи. "
+            "Доступно автору курса и модератору."
+        ),
         tags=["Webinar"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="recording_id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_LESSON, _PATH_RECORDING],
         responses={
             200: DetailResponseSerializer,
             400: {"schema": SCHEMA_DETAIL},
@@ -779,25 +739,10 @@ class WebinarRecordingStopView(APIView):
         },
     ),
     delete=extend_schema(
-        summary="Удалить PDF доски записи",
+        summary="Удалить PDF доски для записи",
+        description="Открепляет PDF доски от записи. Доступно автору курса и модератору.",
         tags=["Webinar"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="recording_id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_LESSON, _PATH_RECORDING],
         responses={
             204: DetailResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
@@ -829,7 +774,7 @@ class RecordingPdfView(APIView):
         screenshots = request.FILES.getlist("screenshots")
         if not screenshots:
             return Response(
-                {"detail": "Нет скриншотов"},
+                {"detail": "Скриншоты не переданы"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -862,7 +807,7 @@ class RecordingPdfView(APIView):
 
         invalidate_lesson_detail_cache(course_slug, lesson_slug)
 
-        return Response({"detail": "pdf доски сохранен"})
+        return Response({"detail": "PDF доски сохранён"})
 
     @require_course_author
     def delete(self, request, course_slug, lesson_slug, recording_id):
@@ -896,30 +841,19 @@ class RecordingPdfView(APIView):
 
         invalidate_lesson_detail_cache(course_slug, lesson_slug)
 
-        return Response({"detail": "pdf доски удален"}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"detail": "PDF доски удалён"}, status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema_view(
     post=extend_schema(
-        summary="Сохранить финальный PDF доски при завершении вебинара",
+        summary="Сохранить финальный PDF доски",
         description=(
-            "Создает служебную Recording (status=ready, без видео) "
-            "с PDF доски, отражающим ее состояние на момент завершения вебинара. "
-            "Вызывается фронтом ПЕРЕД POST /webinar/stop/."
+            "Создаёт служебную запись (status=ready, без видео) с финальным состоянием доски. "
+            "Вызывать перед остановкой вебинара (POST /webinar/stop/). "
+            "Доступно автору курса и модератору."
         ),
         tags=["Webinar"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_LESSON],
         responses={
             200: DetailResponseSerializer,
             400: {"schema": SCHEMA_DETAIL},
@@ -946,7 +880,7 @@ class WebinarFinalPdfView(APIView):
         screenshots = request.FILES.getlist("screenshots")
         if not screenshots:
             return Response(
-                {"detail": "Нет скриншотов"},
+                {"detail": "Скриншоты не переданы"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -994,14 +928,14 @@ class WebinarFinalPdfView(APIView):
             return process_error_response(exc)
 
         logger.info(
-            "Финальный PDF доски сохранен для вебинара %s, recording %s",
+            "Финальный PDF доски сохранён для вебинара %s, запись %s",
             webinar.webinar_id,
             recording.recording_id,
         )
 
         return Response(
             {
-                "detail": "Финальный PDF доски сохранен",
+                "detail": "Финальный PDF доски сохранён",
                 "recording_id": str(recording.recording_id),
             }
         )
@@ -1010,24 +944,11 @@ class WebinarFinalPdfView(APIView):
 @extend_schema_view(
     delete=extend_schema(
         summary="Удалить запись вебинара",
+        description=(
+            "Мягкое удаление записи (is_deleted=true). " "Доступно автору курса и модератору."
+        ),
         tags=["Webinar"],
-        parameters=[
-            OpenApiParameter(
-                name="course_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="lesson_slug",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-            ),
-            OpenApiParameter(
-                name="recording_id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
-            ),
-        ],
+        parameters=[_PATH_COURSE, _PATH_LESSON, _PATH_RECORDING],
         responses={
             204: DetailResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
@@ -1059,12 +980,17 @@ class RecordingDeleteView(APIView):
         recording.deleted_by = request.user
         recording.save(update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_at"])
 
-        return Response({"detail": "запись удалена"}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"detail": "Запись удалена"}, status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema_view(
     post=extend_schema(
         summary="DRM-авторизация Kinescope",
+        description=(
+            "Внутренний webhook Kinescope для проверки прав на просмотр защищённого видео. "
+            "Аутентификация по Basic Auth; credentials задаются переменными окружения. "
+            "Возвращает 200 если у пользователя есть доступ к курсу, иначе 403."
+        ),
         tags=["Webinar"],
         responses={
             200: None,

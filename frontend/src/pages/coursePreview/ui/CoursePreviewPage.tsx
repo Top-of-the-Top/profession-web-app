@@ -241,7 +241,7 @@ export default function CoursePreviewPage() {
           <div className={styles.priceCard}>
             {isSpecial ? (
               <>
-                <div className={styles.specialCourseLabel}>курс по записи</div>
+                <div className={styles.sectionTitle}>Курс по записи</div>
                 <SpecialCourseBlock
                   courseSlug={slug!}
                   isEnrolled={course.is_enrolled ?? false}

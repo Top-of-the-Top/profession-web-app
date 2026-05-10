@@ -139,6 +139,7 @@
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
   padding: 14px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.14);
 }
 
 @keyframes recordingCardExitDown {

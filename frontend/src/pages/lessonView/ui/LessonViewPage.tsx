@@ -593,7 +593,7 @@ const WebinarScheduleWidget: React.FC<{
         </div>
         <div className={styles.scheduleActions}>
           <button type="button" className={styles.scheduleBtn} onClick={openModal}>
-            {scheduledAt ? 'Изменить время' : 'Назначить вебинар'}
+            {scheduledAt ? 'Изменить' : 'Назначить вебинар'}
           </button>
           {scheduledAt && (
             <button

@@ -62,6 +62,34 @@ class ApplicationSubmitHttpTests(BaseTestCase):
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r.data["code"], "APPLICATION_NOT_SPECIAL_COURSE")
 
+    def test_apply_forbidden_for_teacher(self):
+        self._auth(self.teacher)
+        r = self.client.post(self._apply_url())
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(r.data["code"], "APPLICATION_SELF_SERVICE_FORBIDDEN_FOR_STAFF")
+
+    def test_apply_forbidden_for_moderator(self):
+        mod = create_test_user(email="submit_http_mod@test.com", role="moderator")
+        self._auth(mod)
+        r = self.client.post(self._apply_url())
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(r.data["code"], "APPLICATION_SELF_SERVICE_FORBIDDEN_FOR_STAFF")
+
+    def test_withdraw_forbidden_for_teacher(self):
+        CourseApplication.objects.create(user=self.teacher, course=self.course)
+        self._auth(self.teacher)
+        r = self.client.delete(self._my_url())
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(r.data["code"], "APPLICATION_SELF_SERVICE_FORBIDDEN_FOR_STAFF")
+
+    def test_withdraw_forbidden_for_moderator(self):
+        mod = create_test_user(email="submit_http_mod2@test.com", role="moderator")
+        CourseApplication.objects.create(user=mod, course=self.course)
+        self._auth(mod)
+        r = self.client.delete(self._my_url())
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(r.data["code"], "APPLICATION_SELF_SERVICE_FORBIDDEN_FOR_STAFF")
+
     def test_apply_creates_pending_application(self):
         self._auth(self.student)
         r = self.client.post(self._apply_url())

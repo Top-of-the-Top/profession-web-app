@@ -1,7 +1,14 @@
-import { useState } from 'react';
-import { BookOpen, Users, Mail, Plus, Trash2, Eye, EyeOff, UserPlus, UserMinus, Pencil, X, Check } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { BookOpen, Users, Mail, Plus, Trash2, Eye, EyeOff, UserPlus, UserMinus, Pencil, X, Check, ImagePlus } from 'lucide-react';
 import { Spinner } from '@shared/ui';
 import { cn } from '@shared/lib/utils';
+import { notifyError } from '@shared/lib/sileo/notify';
+import {
+  uploadMediaAsset,
+  MediaUploadError,
+} from '@shared/lib/uploads/uploadMediaAsset';
+import { IntentValidationError } from '@shared/lib/uploads/intentLimits';
+import type { CoursePatchPayload } from '@shared/api/courseApi/types';
 import { useAdminCourses, useAdminTeachers, useAdminInvites, type AdminCourse, type AdminTeacher } from '@shared/api/queries/adminPanel';
 import {
   useCreateCourse,
@@ -68,9 +75,48 @@ function CoursesTab() {
   const unpublishCourse = useUnpublishCourse();
 
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ title: '', sub_title: '', description: '', price: '', starts_at: '', duration_weeks: '', min_age: '' });
+  const [createForm, setCreateForm] = useState({ title: '', sub_title: '', description: '', price: '', starts_at: '', duration_weeks: '', min_age: '', is_special: false });
+  const [coverAssetId, setCoverAssetId] = useState<string | null>(null);
+  const [coverFileLabel, setCoverFileLabel] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [coverProgressPct, setCoverProgressPct] = useState<number | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [managingSlug, setManagingSlug] = useState<string | null>(null);
+
+  function resetCreateCover() {
+    setCoverAssetId(null);
+    setCoverFileLabel(null);
+    setCoverUploading(false);
+    setCoverProgressPct(null);
+    if (coverInputRef.current) coverInputRef.current.value = '';
+  }
+
+  async function handleCoverFileChange(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+    setCoverUploading(true);
+    setCoverProgressPct(null);
+    try {
+      const { assetId } = await uploadMediaAsset('course_cover', file, {
+        onProgress: (ev) => {
+          if (ev.progressPercent != null) setCoverProgressPct(ev.progressPercent);
+        },
+      });
+      setCoverAssetId(assetId);
+      setCoverFileLabel(file.name);
+    } catch (err) {
+      if (err instanceof IntentValidationError || err instanceof MediaUploadError) {
+        notifyError({ title: 'Обложка не загружена', description: err.message });
+      } else {
+        notifyError({ title: 'Ошибка', description: 'Не удалось загрузить обложку.' });
+      }
+      resetCreateCover();
+    } finally {
+      setCoverUploading(false);
+      setCoverProgressPct(null);
+    }
+  }
 
   function handleCreate() {
     createCourse.mutate(
@@ -78,15 +124,18 @@ function CoursesTab() {
         title: createForm.title,
         sub_title: createForm.sub_title,
         description: createForm.description,
-        price: Number(createForm.price),
+        price: createForm.is_special ? 0 : Number(createForm.price),
+        is_special: createForm.is_special,
         starts_at: createForm.starts_at || null,
         duration_weeks: createForm.duration_weeks ? Number(createForm.duration_weeks) : null,
         min_age: createForm.min_age ? Number(createForm.min_age) : null,
+        course_cover_asset_id: coverAssetId,
       },
       {
         onSuccess: () => {
           setShowCreate(false);
-          setCreateForm({ title: '', sub_title: '', description: '', price: '', starts_at: '', duration_weeks: '', min_age: '' });
+          setCreateForm({ title: '', sub_title: '', description: '', price: '', starts_at: '', duration_weeks: '', min_age: '', is_special: false });
+          resetCreateCover();
         },
       },
     );
@@ -126,18 +175,29 @@ function CoursesTab() {
                 placeholder="Краткое описание"
               />
             </label>
-            <label className={styles.formLabel}>
-              Цена (₽)
+            <label className={cn(styles.formLabel, styles.formLabelFull, styles.formLabelCheckbox)}>
               <input
-                className={styles.formInput}
-                type="number"
-                min="0"
-                value={createForm.price}
-                onChange={(e) => setCreateForm((p) => ({ ...p, price: e.target.value }))}
-                placeholder="0"
+                type="checkbox"
+                className={styles.formCheckbox}
+                checked={createForm.is_special}
+                onChange={(e) => setCreateForm((p) => ({ ...p, is_special: e.target.checked }))}
               />
+              Курс по записи (особый)
             </label>
-            <label className={styles.formLabel}>
+            {!createForm.is_special && (
+              <label className={cn(styles.formLabel, styles.formLabelFull)}>
+                Цена (₽)
+                <input
+                  className={styles.formInput}
+                  type="number"
+                  min="0"
+                  value={createForm.price}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, price: e.target.value }))}
+                  placeholder="0"
+                />
+              </label>
+            )}
+            <label className={cn(styles.formLabel, styles.formLabelFull)}>
               Дата старта
               <input
                 className={styles.formInput}
@@ -146,7 +206,7 @@ function CoursesTab() {
                 onChange={(e) => setCreateForm((p) => ({ ...p, starts_at: e.target.value }))}
               />
             </label>
-            <label className={styles.formLabel}>
+            <label className={cn(styles.formLabel, styles.formLabelFull)}>
               Длительность (недели)
               <input
                 className={styles.formInput}
@@ -157,7 +217,7 @@ function CoursesTab() {
                 placeholder="—"
               />
             </label>
-            <label className={styles.formLabel}>
+            <label className={cn(styles.formLabel, styles.formLabelFull)}>
               Мин. возраст
               <input
                 className={styles.formInput}
@@ -178,12 +238,46 @@ function CoursesTab() {
                 rows={3}
               />
             </label>
+            <div className={cn(styles.formLabel, styles.formLabelFull, styles.coverRow)}>
+              Обложка
+              <span className={styles.coverHint}>PNG, JPEG, WebP, до 10 МБ</span>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className={styles.coverInputHidden}
+                onChange={(e) => void handleCoverFileChange(e.target.files)}
+              />
+              <div className={styles.coverActions}>
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={coverUploading}
+                >
+                  <ImagePlus size={16} />
+                  {coverUploading ? 'Загрузка…' : 'Выбрать файл'}
+                </button>
+                {coverAssetId && (
+                  <button type="button" className={styles.btnGhost} onClick={resetCreateCover} disabled={coverUploading}>
+                    Убрать
+                  </button>
+                )}
+                {coverUploading && <Spinner size="sm" />}
+                {coverProgressPct != null && coverUploading && (
+                  <span className={styles.coverProgress}>{Math.round(coverProgressPct)}%</span>
+                )}
+              </div>
+              {coverFileLabel && coverAssetId && !coverUploading && (
+                <span className={styles.coverFileName}>{coverFileLabel}</span>
+              )}
+            </div>
           </div>
           <div className={styles.formActions}>
             <button
               className={styles.btnPrimary}
               onClick={handleCreate}
-              disabled={createCourse.isPending || !createForm.title.trim()}
+              disabled={createCourse.isPending || coverUploading || !createForm.title.trim()}
             >
               {createCourse.isPending ? <Spinner size="sm" /> : 'Создать'}
             </button>
@@ -224,14 +318,16 @@ function CoursesTab() {
                   <td className={styles.tdNum}>{course.price.toLocaleString('ru')} ₽</td>
                   <td className={styles.td}>
                     <div className={styles.authorsList}>
-                      {(course.authors as unknown as AdminTeacher[]).map((a) => (
-                        <span key={a.id} className={styles.authorChip}>
-                          {a.first_name} {a.last_name}
-                        </span>
-                      ))}
-                      {!(course.authors as unknown as AdminTeacher[]).length && (
-                        <span className={styles.noAuthors}>—</span>
-                      )}
+                      {(Array.isArray(course.authors) && course.authors.length > 0)
+                        ? course.authors.map((a) => {
+                            const id = typeof a === 'object' && a !== null ? (a as AdminTeacher).id : (a as number);
+                            const teacher = teachers?.find((t) => t.id === id);
+                            const label = teacher
+                              ? `${teacher.first_name} ${teacher.last_name}`.trim()
+                              : String(id);
+                            return <span key={id} className={styles.authorChip}>{label}</span>;
+                          })
+                        : <span className={styles.noAuthors}>—</span>}
                     </div>
                   </td>
                   <td className={styles.tdActions}>
@@ -247,11 +343,11 @@ function CoursesTab() {
                         type="button"
                         className={cn(styles.publishToggle, course.type === 'published' && styles.publishToggleOn)}
                         title={course.type === 'published' ? 'Снять с публикации' : 'Опубликовать'}
-                        onClick={() =>
-                          course.type === 'draft'
-                            ? publishCourse.mutate(course.slug)
-                            : unpublishCourse.mutate(course.slug)
-                        }
+                        onClick={() => {
+                          if (publishCourse.isPending || unpublishCourse.isPending) return;
+                          if (course.type === 'draft') publishCourse.mutate(course.slug);
+                          else if (course.type === 'published') unpublishCourse.mutate(course.slug);
+                        }}
                         disabled={publishCourse.isPending || unpublishCourse.isPending}
                       >
                         <span className={styles.publishToggleThumb}>
@@ -299,19 +395,87 @@ function CoursesTab() {
   );
 }
 
+function courseDateToInput(value: unknown): string {
+  if (typeof value !== 'string' || !value) return '';
+  return value.slice(0, 10);
+}
+
 function EditCourseForm({ course, onClose }: { course: AdminCourse; onClose: () => void }) {
   const [form, setForm] = useState({
     title: course.title,
     sub_title: course.sub_title,
-    price: String(course.price),
+    description: course.description ?? '',
+    price: String(course.price ?? 0),
+    starts_at: courseDateToInput(course.starts_at),
+    duration_weeks: course.duration_weeks != null ? String(course.duration_weeks) : '',
+    min_age: course.min_age != null ? String(course.min_age) : '',
+    is_special: Boolean(course.is_special),
   });
+  const [coverPatch, setCoverPatch] = useState<string | null | undefined>(undefined);
+  const [coverFileLabel, setCoverFileLabel] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [coverProgressPct, setCoverProgressPct] = useState<number | null>(null);
+  const editCoverInputRef = useRef<HTMLInputElement>(null);
   const patch = usePatchAdminCourse(course.slug);
 
+  function resetEditCoverInput() {
+    setCoverFileLabel(null);
+    setCoverUploading(false);
+    setCoverProgressPct(null);
+    if (editCoverInputRef.current) editCoverInputRef.current.value = '';
+  }
+
+  function scheduleCoverRemoval() {
+    setCoverPatch(null);
+    resetEditCoverInput();
+  }
+
+  function cancelNewCoverUpload() {
+    setCoverPatch(undefined);
+    resetEditCoverInput();
+  }
+
+  async function handleEditCoverFile(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+    setCoverUploading(true);
+    setCoverProgressPct(null);
+    try {
+      const { assetId } = await uploadMediaAsset('course_cover', file, {
+        onProgress: (ev) => {
+          if (ev.progressPercent != null) setCoverProgressPct(ev.progressPercent);
+        },
+      });
+      setCoverPatch(assetId);
+      setCoverFileLabel(file.name);
+    } catch (err) {
+      if (err instanceof IntentValidationError || err instanceof MediaUploadError) {
+        notifyError({ title: 'Обложка не загружена', description: err.message });
+      } else {
+        notifyError({ title: 'Ошибка', description: 'Не удалось загрузить обложку.' });
+      }
+      resetEditCoverInput();
+    } finally {
+      setCoverUploading(false);
+      setCoverProgressPct(null);
+    }
+  }
+
   function handleSave() {
-    patch.mutate(
-      { title: form.title, sub_title: form.sub_title, price: Number(form.price) },
-      { onSuccess: onClose },
-    );
+    const payload: CoursePatchPayload = {
+      title: form.title.trim(),
+      sub_title: form.sub_title,
+      description: form.description,
+      price: form.is_special ? 0 : Number(form.price),
+      is_special: form.is_special,
+      starts_at: form.starts_at || null,
+      duration_weeks: form.duration_weeks ? Number(form.duration_weeks) : null,
+      min_age: form.min_age ? Number(form.min_age) : null,
+    };
+    if (coverPatch !== undefined) {
+      payload.course_cover_asset_id = coverPatch;
+    }
+    patch.mutate(payload, { onSuccess: onClose });
   }
 
   return (
@@ -333,22 +497,126 @@ function EditCourseForm({ course, onClose }: { course: AdminCourse; onClose: () 
             onChange={(e) => setForm((p) => ({ ...p, sub_title: e.target.value }))}
           />
         </label>
-        <label className={styles.formLabel}>
-          Цена (₽)
+        <label className={cn(styles.formLabel, styles.formLabelFull, styles.formLabelCheckbox)}>
+          <input
+            type="checkbox"
+            className={styles.formCheckbox}
+            checked={form.is_special}
+            onChange={(e) => setForm((p) => ({ ...p, is_special: e.target.checked }))}
+          />
+          Курс по записи (особый)
+        </label>
+        {!form.is_special && (
+          <label className={cn(styles.formLabel, styles.formLabelFull)}>
+            Цена (₽)
+            <input
+              className={styles.formInput}
+              type="number"
+              min="0"
+              value={form.price}
+              onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
+            />
+          </label>
+        )}
+        <label className={cn(styles.formLabel, styles.formLabelFull)}>
+          Дата старта
+          <input
+            className={styles.formInput}
+            type="date"
+            value={form.starts_at}
+            onChange={(e) => setForm((p) => ({ ...p, starts_at: e.target.value }))}
+          />
+        </label>
+        <label className={cn(styles.formLabel, styles.formLabelFull)}>
+          Длительность (недели)
+          <input
+            className={styles.formInput}
+            type="number"
+            min="1"
+            value={form.duration_weeks}
+            onChange={(e) => setForm((p) => ({ ...p, duration_weeks: e.target.value }))}
+            placeholder="—"
+          />
+        </label>
+        <label className={cn(styles.formLabel, styles.formLabelFull)}>
+          Мин. возраст
           <input
             className={styles.formInput}
             type="number"
             min="0"
-            value={form.price}
-            onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
+            value={form.min_age}
+            onChange={(e) => setForm((p) => ({ ...p, min_age: e.target.value }))}
+            placeholder="—"
           />
         </label>
+        <label className={cn(styles.formLabel, styles.formLabelFull)}>
+          Описание
+          <textarea
+            className={styles.formTextarea}
+            value={form.description}
+            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            rows={3}
+          />
+        </label>
+        <div className={cn(styles.formLabel, styles.formLabelFull, styles.coverRow)}>
+          Обложка
+          <span className={styles.coverHint}>PNG, JPEG, WebP, до 10 МБ</span>
+          {course.image_url && coverPatch === undefined && (
+            <img src={course.image_url} alt="" className={styles.coverThumb} />
+          )}
+          {coverPatch === null && <span className={styles.coverRemovedHint}>Текущая обложка будет снята после сохранения</span>}
+          <input
+            ref={editCoverInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className={styles.coverInputHidden}
+            onChange={(e) => void handleEditCoverFile(e.target.files)}
+          />
+          <div className={styles.coverActions}>
+            <button
+              type="button"
+              className={styles.btnSecondary}
+              onClick={() => editCoverInputRef.current?.click()}
+              disabled={coverUploading}
+            >
+              <ImagePlus size={16} />
+              {coverUploading ? 'Загрузка…' : 'Новый файл'}
+            </button>
+            {typeof coverPatch === 'string' && (
+              <button type="button" className={styles.btnGhost} onClick={cancelNewCoverUpload} disabled={coverUploading}>
+                Отменить новую обложку
+              </button>
+            )}
+            {course.image_url && coverPatch === undefined && (
+              <button type="button" className={styles.btnGhost} onClick={scheduleCoverRemoval} disabled={coverUploading}>
+                Удалить обложку
+              </button>
+            )}
+            {coverPatch === null && (
+              <button type="button" className={styles.btnGhost} onClick={cancelNewCoverUpload} disabled={coverUploading}>
+                Отменить удаление
+              </button>
+            )}
+            {coverUploading && <Spinner size="sm" />}
+            {coverProgressPct != null && coverUploading && (
+              <span className={styles.coverProgress}>{Math.round(coverProgressPct)}%</span>
+            )}
+          </div>
+          {coverFileLabel && typeof coverPatch === 'string' && !coverUploading && (
+            <span className={styles.coverFileName}>Новая обложка: {coverFileLabel}</span>
+          )}
+        </div>
       </div>
       <div className={styles.formActions}>
-        <button className={styles.btnPrimary} onClick={handleSave} disabled={patch.isPending || !form.title.trim()}>
+        <button
+          type="button"
+          className={styles.btnPrimary}
+          onClick={handleSave}
+          disabled={patch.isPending || coverUploading || !form.title.trim()}
+        >
           {patch.isPending ? <Spinner size="sm" /> : <><Check size={14} /> Сохранить</>}
         </button>
-        <button className={styles.btnSecondary} onClick={onClose}>
+        <button type="button" className={styles.btnSecondary} onClick={onClose}>
           <X size={14} /> Отмена
         </button>
       </div>
@@ -367,8 +635,11 @@ function ManageAuthorsPanel({
 }) {
   const addAuthor = useAddCourseAuthor(course.slug);
   const removeAuthor = useRemoveCourseAuthor(course.slug);
-  const courseAuthors = course.authors as unknown as AdminTeacher[];
-  const courseAuthorIds = new Set(courseAuthors.map((a) => a.id));
+  const courseAuthorIds = new Set(
+    (course.authors as (number | AdminTeacher)[]).map((a) =>
+      typeof a === 'object' && a !== null ? (a as AdminTeacher).id : (a as number),
+    ),
+  );
 
   return (
     <div className={styles.expandedForm}>

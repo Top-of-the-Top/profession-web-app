@@ -1,7 +1,27 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../interceptor';
+import { courseApi } from '../courseApi/client';
+import type { CoursePatchPayload } from '../courseApi/types';
 import { adminKeys, type AdminCourse, type AdminTeacher, type AdminTeacherInvite } from '../queries/adminPanel';
+import { courseKeys } from '../queries/courses';
 import { notifySuccess, notifyError } from '@shared/lib/sileo/notify';
+
+function adminCourseTypeFromApiStatus(status: unknown): AdminCourse['type'] {
+  return typeof status === 'string' && status.trim().toLowerCase() === 'published'
+    ? 'published'
+    : 'draft';
+}
+
+function patchAdminCoursesCache(
+  qc: ReturnType<typeof useQueryClient>,
+  slug: string,
+  nextType: AdminCourse['type'],
+) {
+  qc.setQueryData<AdminCourse[]>(adminKeys.courses(), (old) => {
+    if (!old) return old;
+    return old.map((c) => (c.slug === slug ? { ...c, type: nextType } : c));
+  });
+}
 
 function errMsg(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -16,9 +36,11 @@ export function useCreateCourse() {
       sub_title: string;
       description: string;
       price: number;
+      is_special?: boolean;
       starts_at?: string | null;
       duration_weeks?: number | null;
       min_age?: number | null;
+      course_cover_asset_id?: string | null;
     }) =>
       apiClient.request<AdminCourse>('/api/v1/courses/', {
         method: 'POST',
@@ -37,14 +59,12 @@ export function useCreateCourse() {
 export function usePatchAdminCourse(slug: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<{ title: string; sub_title: string; description: string; price: number }>) =>
-      apiClient.request<AdminCourse>(`/api/v1/courses/${slug}/`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      }),
+    mutationFn: (payload: Partial<CoursePatchPayload>) => courseApi.patchCourse(slug, payload),
     onSuccess: () => {
       notifySuccess({ title: 'Курс обновлён' });
       void qc.invalidateQueries({ queryKey: adminKeys.courses() });
+      void qc.invalidateQueries({ queryKey: courseKeys.bySlug(slug) });
+      void qc.invalidateQueries({ queryKey: courseKeys.courseHome(slug) });
     },
     onError: (err) => {
       notifyError({ title: 'Не удалось обновить курс', description: errMsg(err) });
@@ -74,12 +94,14 @@ export function usePublishCourse() {
       apiClient.request<{ status: string }>(`/api/v1/admin-panel/courses/${slug}/publish/`, {
         method: 'POST',
       }),
-    onSuccess: () => {
+    onSuccess: (data, slug) => {
       notifySuccess({ title: 'Курс опубликован' });
+      patchAdminCoursesCache(qc, slug, adminCourseTypeFromApiStatus(data?.status));
       void qc.invalidateQueries({ queryKey: adminKeys.courses() });
     },
     onError: (err) => {
       notifyError({ title: 'Не удалось опубликовать курс', description: errMsg(err) });
+      void qc.invalidateQueries({ queryKey: adminKeys.courses() });
     },
   });
 }
@@ -91,12 +113,14 @@ export function useUnpublishCourse() {
       apiClient.request<{ status: string }>(`/api/v1/admin-panel/courses/${slug}/unpublish/`, {
         method: 'POST',
       }),
-    onSuccess: () => {
+    onSuccess: (data, slug) => {
       notifySuccess({ title: 'Курс снят с публикации' });
+      patchAdminCoursesCache(qc, slug, adminCourseTypeFromApiStatus(data?.status));
       void qc.invalidateQueries({ queryKey: adminKeys.courses() });
     },
     onError: (err) => {
       notifyError({ title: 'Не удалось снять курс с публикации', description: errMsg(err) });
+      void qc.invalidateQueries({ queryKey: adminKeys.courses() });
     },
   });
 }

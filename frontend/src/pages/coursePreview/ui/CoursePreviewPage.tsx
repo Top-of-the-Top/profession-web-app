@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, PageFrame, Skeleton } from '@shared/ui';
 import { parseApiError } from '@shared/lib/api/parseApiError';
@@ -5,16 +6,118 @@ import {
   messageForApiFailure,
   notifyCartCourseAdded,
   notifyError,
+  notifySuccess,
   notifyWarning,
 } from '@shared/lib/sileo/notify';
 import { useCourseBySlug } from '@shared/api/queries/courses';
 import { useCart } from '@shared/api/queries/cart';
 import { useAddToCart } from '@shared/api/mutations/cart';
+import { useApplyToCourse, useWithdrawApplication } from '@shared/api/mutations/applications';
+import { useProfile } from '@shared/api/queries/profile';
 import styles from './CoursePreviewPage.module.css';
 
 function isAuthLike(err: unknown) {
   const msg = err instanceof Error ? err.message : '';
   return msg === 'AUTH_EXPIRED' || msg.includes('API_ERROR_401');
+}
+
+function SpecialCourseBlock({
+  courseSlug,
+  isEnrolled,
+  applicationStatus,
+  prefillEmail,
+}: {
+  courseSlug: string;
+  isEnrolled: boolean;
+  applicationStatus: 'pending' | 'approved' | 'rejected' | null;
+  prefillEmail: string;
+}) {
+  const [email, setEmail] = useState(prefillEmail);
+  const apply = useApplyToCourse(courseSlug);
+  const withdraw = useWithdrawApplication(courseSlug);
+
+  if (isEnrolled) {
+    return (
+      <div className={styles.specialBlock}>
+        <Button type="button" className={styles.selectButton} disabled>
+          Вы записаны
+        </Button>
+      </div>
+    );
+  }
+
+  if (applicationStatus === 'pending') {
+    return (
+      <div className={styles.specialBlock}>
+        <Button
+          type="button"
+          className={styles.selectButton}
+          disabled
+        >
+          Заявка подана
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className={styles.selectButton}
+          disabled={withdraw.isPending}
+          onClick={() => withdraw.mutate()}
+        >
+          {withdraw.isPending ? 'Отзываем...' : 'Отозвать заявку'}
+        </Button>
+      </div>
+    );
+  }
+
+  if (applicationStatus === 'rejected') {
+    return (
+      <div className={styles.specialBlock}>
+        <Button type="button" className={styles.selectButton} disabled>
+          Заявка отклонена
+        </Button>
+      </div>
+    );
+  }
+
+  if (applicationStatus === 'approved') {
+    return (
+      <div className={styles.specialBlock}>
+        <Button type="button" className={styles.selectButton} disabled>
+          Вы записаны
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.specialBlock}>
+      <p className={styles.specialLabel}>Запись по заявке</p>
+      <input
+        className={styles.emailInput}
+        type="email"
+        placeholder="Ваш email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <Button
+        type="button"
+        className={styles.selectButton}
+        disabled={apply.isPending || !email.trim()}
+        onClick={() => {
+          apply.mutate(undefined, {
+            onSuccess: () => {
+              notifySuccess({
+                title: 'Заявка отправлена',
+                description: 'Преподаватель рассмотрит её в ближайшее время.',
+              });
+            },
+          });
+        }}
+      >
+        {apply.isPending ? 'Отправляем...' : 'Подать заявку'}
+      </Button>
+    </div>
+  );
 }
 
 export default function CoursePreviewPage() {
@@ -23,6 +126,7 @@ export default function CoursePreviewPage() {
 
   const { data: courseData, isLoading, error } = useCourseBySlug(slug);
   const { data: cart, isLoading: cartLoading } = useCart();
+  const { data: profile } = useProfile();
   const addToCart = useAddToCart();
 
   const course = courseData ?? null;
@@ -111,6 +215,8 @@ export default function CoursePreviewPage() {
     );
   }
 
+  const isSpecial = course.is_special ?? false;
+
   return (
     <PageFrame>
       <h1 className={styles.pageTitle}>{course.title}</h1>
@@ -133,33 +239,49 @@ export default function CoursePreviewPage() {
 
         <aside className={styles.sidebar}>
           <div className={styles.priceCard}>
-            <div className={styles.priceBadge}>СТОИМОСТЬ КУРСА</div>
-            <div className={styles.priceBlock}>
-              <span className={styles.priceLabel}>Сумма</span>
-              <span className={styles.price}>{course.price.toLocaleString('ru-RU')} ₽</span>
-            </div>
-            <div className={styles.priceDivider} />
-            <div className={styles.priceDetails}>
-              <div className={styles.priceDetailRow}>
-                <span className={styles.priceDetailKey}>Длительность</span>
-                <span className={styles.priceDetailValue}>3 месяца</span>
-              </div>
-              <div className={styles.priceDetailRow}>
-                <span className={styles.priceDetailKey}>Формат</span>
-                <span className={styles.priceDetailValue}>Онлайн</span>
-              </div>
-            </div>
-            <Button
-              className={styles.selectButton}
-              disabled={addToCart.isPending || inCart || cartLoading}
-              onClick={handleAddToCart}
-            >
-              {inCart
-                ? 'В корзине'
-                : addToCart.isPending
-                  ? 'Добавляем...'
-                  : 'Выбрать'}
-            </Button>
+            {isSpecial ? (
+              <>
+                <div className={styles.sectionTitle}>Курс по записи</div>
+                <SpecialCourseBlock
+                  courseSlug={slug!}
+                  isEnrolled={course.is_enrolled ?? false}
+                  applicationStatus={course.application_status ?? null}
+                  prefillEmail={profile?.email ?? ''}
+                />
+              </>
+            ) : (
+              <>
+                <div className={styles.priceBadge}>СТОИМОСТЬ КУРСА</div>
+                <div className={styles.priceBlock}>
+                  <span className={styles.priceLabel}>Сумма</span>
+                  <span className={styles.price}>{course.price.toLocaleString('ru-RU')} ₽</span>
+                </div>
+                <div className={styles.priceDivider} />
+                <div className={styles.priceDetails}>
+                  <div className={styles.priceDetailRow}>
+                    <span className={styles.priceDetailKey}>Длительность</span>
+                    <span className={styles.priceDetailValue}>3 месяца</span>
+                  </div>
+                  <div className={styles.priceDetailRow}>
+                    <span className={styles.priceDetailKey}>Формат</span>
+                    <span className={styles.priceDetailValue}>Онлайн</span>
+                  </div>
+                </div>
+                <Button
+                  className={styles.selectButton}
+                  disabled={addToCart.isPending || inCart || cartLoading || (course.is_enrolled ?? false)}
+                  onClick={handleAddToCart}
+                >
+                  {(course.is_enrolled ?? false)
+                    ? 'Вы записаны'
+                    : inCart
+                      ? 'В корзине'
+                      : addToCart.isPending
+                        ? 'Добавляем...'
+                        : 'Выбрать'}
+                </Button>
+              </>
+            )}
           </div>
         </aside>
       </div>

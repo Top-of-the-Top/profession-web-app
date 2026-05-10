@@ -14,7 +14,7 @@ from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.webinars.models import Webinar
 
 from ..api.utils.cache_utils import course_list_cache_key, landing_courses_cache_key
-from ..models import Course, Homework, Lesson, PurchasedCourse, Question, Task
+from ..models import Course, CourseEnrollment, Homework, Lesson, Question, Task
 from .test_models import (
     BaseTestCase,
     create_test_course,
@@ -35,7 +35,7 @@ class ViewTestMixin:
     def create_enrolled_student(self, course):
         student = create_test_user(email=f"student_{course.course_id}@test.com", role="student")
         payment = Payment.objects.create(user=student, total_sum=5000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=student,
             course=course,
             payment=payment,
@@ -147,6 +147,39 @@ class CoursesCatalogHttpTests(BaseTestCase, ViewTestMixin):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_course_detail_is_enrolled_false_for_non_enrolled_student(self):
+        course = create_test_course(title="Not Enrolled", sub_title="Sub", price=5000)
+        publish_course_tree(course)
+        self.authenticate_user(self.student)
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["is_enrolled"])
+
+    def test_course_detail_is_enrolled_true_for_enrolled_student(self):
+        course = create_test_course(title="Enrolled Course", sub_title="Sub", price=5000)
+        publish_course_tree(course)
+        student = self.create_enrolled_student(course)
+        self.authenticate_user(student)
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_enrolled"])
+
+    def test_course_detail_is_enrolled_true_for_teacher(self):
+        course = create_test_course(title="Teacher Course", sub_title="Sub", price=5000)
+        publish_course_tree(course)
+        self.authenticate_user(self.teacher)
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_enrolled"])
+
+    def test_course_detail_is_enrolled_true_for_moderator(self):
+        course = create_test_course(title="Mod Course", sub_title="Sub", price=5000)
+        publish_course_tree(course)
+        self.authenticate_user(self.moderator)
+        response = self.client.get(f"/api/v1/courses/{course.slug}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_enrolled"])
+
     def test_get_catalog_and_my_courses_anonymous_returns_401(self):
         self.assertEqual(
             self.client.get("/api/v1/courses/").status_code, status.HTTP_401_UNAUTHORIZED
@@ -174,7 +207,7 @@ class MyCoursesHttpTests(BaseTestCase, ViewTestMixin):
 
     def test_get_my_courses_returns_single_purchase(self):
         payment = Payment.objects.create(user=self.user, total_sum=5000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.user,
             course=self.course,
             payment=payment,
@@ -502,7 +535,7 @@ class CourseContentNestedHttpTests(BaseTestCase, ViewTestMixin):
     def test_non_enrolled_student_cannot_access(self):
         other_student = create_test_user(email="other@test.com", role="student")
         self.assertFalse(
-            PurchasedCourse.objects.filter(user=other_student, course=self.course).exists()
+            CourseEnrollment.objects.filter(user=other_student, course=self.course).exists()
         )
         self.authenticate_user(other_student)
         response = self.client.get(

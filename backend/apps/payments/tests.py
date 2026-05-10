@@ -12,7 +12,7 @@ from rest_framework.test import APIClient
 from apps.carts.api.views import cart_hot_cache_key
 from apps.carts.models import Cart, CartItem
 from apps.courses.api.utils.cache_utils import purchased_courses_cache_key
-from apps.courses.models import PurchasedCourse
+from apps.courses.models import CourseEnrollment
 from apps.courses.tests.test_models import create_test_course, create_test_user, publish_course_tree
 from apps.payments.models import Payment, PaymentItem
 from apps.payments.tasks import _handle_failure, process_payment_task
@@ -146,7 +146,7 @@ class PaymentsApiHttpTests(TestCase):
             total_sum=Decimal(str(self.course.price)),
             status="success",
         )
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.user,
             course=self.course,
             payment=payment,
@@ -174,7 +174,9 @@ class PaymentsApiHttpTests(TestCase):
         self.assertEqual(payment.total_sum, Decimal(str(self.course.price)))
         self.assertTrue(payment.mock_payment_url)
         self.assertEqual(PaymentItem.objects.filter(payment=payment).count(), 1)
-        self.assertTrue(PurchasedCourse.objects.filter(user=self.user, course=self.course).exists())
+        self.assertTrue(
+            CourseEnrollment.objects.filter(user=self.user, course=self.course).exists()
+        )
         cart = Cart.objects.get(user=self.user)
         self.assertFalse(CartItem.objects.filter(cart=cart).exists())
 

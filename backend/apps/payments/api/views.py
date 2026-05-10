@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ...carts.models import Cart, CartItem
-from ...courses.models import PurchasedCourse
+from ...courses.models import CourseEnrollment
 from ..models import Payment, PaymentItem
 from ..services import MockYooKassaService
 from ..tasks import process_payment_task
@@ -74,16 +74,26 @@ class CartPayView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        already_purchased = PurchasedCourse.objects.filter(
+        special_course_ids = [item.course_id for item in cart_items if item.course.is_special]
+        if special_course_ids:
+            return Response(
+                {
+                    "error": "Специальные курсы нельзя купить.",
+                    "course_ids": special_course_ids,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        already_enrolled = CourseEnrollment.objects.filter(
             user=request.user,
             course__in=[item.course_id for item in cart_items],
         ).values_list("course_id", flat=True)
 
-        if already_purchased:
+        if already_enrolled:
             return Response(
                 {
                     "error": "Некоторые курсы уже куплены.",
-                    "course_ids": list(already_purchased),
+                    "course_ids": list(already_enrolled),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -114,12 +124,13 @@ class CartPayView(APIView):
             )
 
             access_expires = timezone.now() + timedelta(days=365)
-            PurchasedCourse.objects.bulk_create(
+            CourseEnrollment.objects.bulk_create(
                 [
-                    PurchasedCourse(
+                    CourseEnrollment(
                         user=request.user,
                         course=item.course,
                         payment=payment,
+                        source=CourseEnrollment.SOURCE_PAYMENT,
                         access_expires_at=access_expires,
                     )
                     for item in cart_items

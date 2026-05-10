@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.courses.models import PurchasedCourse, Question, Task
+from apps.courses.models import CourseEnrollment, Question, Task
 from apps.courses.tests.test_models import (
     create_test_course,
     create_test_homework,
@@ -84,7 +84,7 @@ class HomeworkFullFlowE2ETests(TestCase):
         self.task = Task.objects.create(homework=self.homework, text="Задача", max_points=5)
         publish_course_tree(course)
         payment = Payment.objects.create(user=self.student, total_sum=1000, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.student,
             course=course,
             payment=payment,

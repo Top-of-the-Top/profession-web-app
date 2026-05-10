@@ -29,8 +29,12 @@ def course_detail_cache_key(slug):
     return f"default:courses:detail:{slug}"
 
 
+def enrolled_courses_cache_key(user_id):
+    return f"default:courses:enrolled:{int(user_id)}"
+
+
 def purchased_courses_cache_key(user_id):
-    return f"default:courses:purchased:{int(user_id)}"
+    return enrolled_courses_cache_key(user_id)
 
 
 def section_list_cache_key(course_slug):

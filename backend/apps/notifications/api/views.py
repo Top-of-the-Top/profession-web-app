@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import AccessToken
 
-from apps.courses.models import PurchasedCourse
+from apps.courses.models import CourseEnrollment
 from apps.users.models import User
 
 from ..models import Notification
@@ -112,7 +112,7 @@ def mark_all_read(request):
 
 
 async def _get_user_course_ids(user_id: int) -> list:
-    qs = PurchasedCourse.objects.filter(
+    qs = CourseEnrollment.objects.filter(
         user_id=user_id,
         access_expires_at__gt=timezone.now(),
     ).values_list("course_id", flat=True)

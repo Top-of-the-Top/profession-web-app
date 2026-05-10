@@ -26,6 +26,7 @@ interface CourseCardProps {
   disabled?: boolean;
   inCart?: boolean;
   isAdding?: boolean;
+  isEnrolled?: boolean;
 }
 
 const CourseCard = ({
@@ -36,6 +37,7 @@ const CourseCard = ({
   disabled,
   inCart,
   isAdding,
+  isEnrolled,
 }: CourseCardProps) => {
   return (
     <div
@@ -88,13 +90,13 @@ const CourseCard = ({
 
         <Button
           className={styles.selectButton}
-          disabled={disabled || inCart}
+          disabled={disabled || inCart || isEnrolled}
           onClick={(e) => {
             e.stopPropagation();
             onAddToCart();
           }}
         >
-          {inCart ? 'В корзине' : isAdding ? 'Добавляем...' : 'В корзину'}
+          {isEnrolled ? 'Вы записаны' : inCart ? 'В корзине' : isAdding ? 'Добавляем...' : 'В корзину'}
         </Button>
       </div>
     </div>
@@ -215,6 +217,7 @@ export default function CourseStorePage() {
               disabled={addToCart.isPending && addToCart.variables === course.slug}
               isAdding={addToCart.isPending && addToCart.variables === course.slug}
               inCart={inCartSlugs.has(course.slug)}
+              isEnrolled={course.is_enrolled}
             />
           ))}
         </div>

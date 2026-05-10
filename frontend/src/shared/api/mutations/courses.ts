@@ -522,7 +522,7 @@ export function useBindCourseCover(slug: string) {
 
   return useMutation({
     mutationFn: (assetId: string) =>
-      courseApi.patchCourse(slug, { cover_asset_id: assetId }),
+      courseApi.patchCourse(slug, { course_cover_asset_id: assetId }),
     onSuccess: () => {
       notifySuccess({ title: 'Обложка курса обновлена' });
       void qc.invalidateQueries({ queryKey: courseKeys.bySlug(slug) });

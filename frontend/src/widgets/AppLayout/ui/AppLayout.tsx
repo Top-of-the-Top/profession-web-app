@@ -185,7 +185,7 @@ export default function AppLayout() {
         <main
           className={cn(
             styles.main,
-            lessonEditorLayout && styles.mainLessonEditor
+            lessonEditorLayout && styles.mainLessonEditor,
           )}
         >
           <div

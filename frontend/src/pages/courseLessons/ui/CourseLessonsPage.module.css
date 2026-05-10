@@ -156,9 +156,8 @@
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #86efac;
+  background: #CDE8CB;
   flex-shrink: 0;
-  box-shadow: 0 0 0 2px #ecfdf5;
 }
 
 .progressCardTitle {
@@ -735,6 +734,195 @@
 .inlineAddLessonInput {
   flex: 1;
   min-width: 160px;
+}
+
+/* ── Staff tabs ── */
+.tabBar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #e4e7ec;
+  margin-bottom: 20px;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #667085;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  border-radius: 8px 8px 0 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  font-family: inherit;
+}
+
+.tabBtn:hover {
+  color: #1d2939;
+  background-color: #d2dff0;
+}
+
+.tabBtnActive {
+  color: #211c84;
+  border-bottom-color: #211c84;
+  background: transparent;
+}
+
+/* ── Applications table ── */
+.appsTableActions {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e4e7ec;
+}
+
+.appsCopyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  background: #f4f4f4;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #344054;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.appsCopyBtn:hover {
+  background: #eef1fa;
+  color: #211c84;
+  border-color: #c7d7fd;
+}
+
+.appsTable {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e4e7ec;
+  overflow: hidden;
+}
+
+.appsTableHeader {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto 72px;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e4e7ec;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #667085;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.appsTableRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto 72px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f2f4f7;
+  font-size: 0.9375rem;
+}
+
+.appsTableRow:last-child {
+  border-bottom: none;
+}
+
+.appsName {
+  font-weight: 500;
+  color: #1d2939;
+}
+
+.appsEmail {
+  color: #667085;
+  font-size: 0.875rem;
+}
+
+.appsDate {
+  color: #667085;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.appsStatus {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.appsStatus_pending {
+  background: #fffde7;
+  color: #7a6200;
+}
+
+.appsStatus_approved {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.appsStatus_rejected {
+  background: #fff1f3;
+  color: #c01048;
+}
+
+.appsActions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.appsActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.appsActionBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.appsActionApprove {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.appsActionApprove:hover:not(:disabled) {
+  background: #bbf7d0;
+}
+
+.appsActionReject {
+  background: #fff1f3;
+  color: #c01048;
+}
+
+.appsActionReject:hover:not(:disabled) {
+  background: #fecdd3;
+}
+
+.appsPanelEmpty {
+  padding: 48px;
+  text-align: center;
+  color: #667085;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e4e7ec;
 }
 
 .centered {

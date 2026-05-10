@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import display
 
-from .models import Course, Homework, Lesson, PurchasedCourse, Question, Section, Task
+from .models import Course, CourseEnrollment, Homework, Lesson, Question, Section, Task
 
 
 class SectionInline(TabularInline):
@@ -337,18 +337,19 @@ class TaskAdmin(ModelAdmin):
         return format_html('<a href="{}">{}</a>', url, obj.homework.title)
 
 
-@admin.register(PurchasedCourse)
-class PurchasedCourseAdmin(ModelAdmin):
+@admin.register(CourseEnrollment)
+class CourseEnrollmentAdmin(ModelAdmin):
     list_display = (
         "user_link",
         "course_link",
+        "source",
         "payment_link",
         "access_expires_at",
         "is_active_badge",
     )
-    list_filter = ("access_expires_at", "course")
+    list_filter = ("source", "access_expires_at", "course")
     search_fields = ("user__email_cipher", "user__first_name", "course__title")
-    readonly_fields = ("user", "course", "payment", "access_expires_at")
+    readonly_fields = ("user", "course", "payment", "source", "access_expires_at", "created_at")
 
     @display(description="Пользователь")
     def user_link(self, obj):
@@ -362,6 +363,8 @@ class PurchasedCourseAdmin(ModelAdmin):
 
     @display(description="Платёж")
     def payment_link(self, obj):
+        if not obj.payment_id:
+            return "—"
         url = reverse("admin:payments_payment_change", args=[obj.payment_id])
         return format_html('<a href="{}">#{}</a>', url, obj.payment_id)
 

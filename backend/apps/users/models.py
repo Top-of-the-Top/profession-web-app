@@ -123,17 +123,20 @@ class User(AbstractUser):
 
     objects = UserManager()
 
-    def get_purchased_courses_ids(self):
+    def get_enrolled_course_ids(self):
         from django.utils import timezone
 
         return list(
-            self.purchased_courses.filter(access_expires_at__gt=timezone.now()).values_list(
+            self.enrollments.filter(access_expires_at__gt=timezone.now()).values_list(
                 "course_id", flat=True
             )
         )
 
+    def get_purchased_courses_ids(self):
+        return self.get_enrolled_course_ids()
+
     async def aget_purchased_course_ids(self):
-        return await sync_to_async(self.get_purchased_courses_ids)()
+        return await sync_to_async(self.get_enrolled_course_ids)()
 
     def is_student(self):
         return self.role == self.ROLE_STUDENT
@@ -148,7 +151,7 @@ class User(AbstractUser):
         return self in course.authors.all()
 
     def is_enrolled(self, course):
-        return course.course_id in self.get_purchased_courses_ids()
+        return course.course_id in self.get_enrolled_course_ids()
 
     class Meta:
         verbose_name = "Пользователь"

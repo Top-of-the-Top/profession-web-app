@@ -12,9 +12,9 @@ from apps.users.models import User
 
 from ..models import (
     Course,
+    CourseEnrollment,
     Homework,
     Lesson,
-    PurchasedCourse,
     Section,
     course_image_path,
     generate_unique_slug,
@@ -341,7 +341,7 @@ class HomeworkSaveTest(BaseTestCase):
         self.assertEqual(homework.slug, original_slug)
 
 
-class PurchasedCourseIsActiveTest(BaseTestCase):
+class CourseEnrollmentIsActiveTest(BaseTestCase):
 
     def setUp(self):
         super().setUp()
@@ -351,24 +351,24 @@ class PurchasedCourseIsActiveTest(BaseTestCase):
 
     def test_is_active_returns_true_when_not_expired(self):
         future_date = timezone.now() + timedelta(days=30)
-        purchased = PurchasedCourse.objects.create(
+        enrollment = CourseEnrollment.objects.create(
             user=self.user, course=self.course, payment=self.payment, access_expires_at=future_date
         )
-        self.assertTrue(purchased.is_active)
+        self.assertTrue(enrollment.is_active)
 
     def test_is_active_returns_false_when_expired(self):
         past_date = timezone.now() - timedelta(days=1)
-        purchased = PurchasedCourse.objects.create(
+        enrollment = CourseEnrollment.objects.create(
             user=self.user, course=self.course, payment=self.payment, access_expires_at=past_date
         )
-        self.assertFalse(purchased.is_active)
+        self.assertFalse(enrollment.is_active)
 
     def test_is_active_edge_case_expires_now(self):
         now = timezone.now()
-        purchased = PurchasedCourse.objects.create(
+        enrollment = CourseEnrollment.objects.create(
             user=self.user, course=self.course, payment=self.payment, access_expires_at=now
         )
-        self.assertFalse(purchased.is_active)
+        self.assertFalse(enrollment.is_active)
 
 
 class CoursePriceValidationTest(BaseTestCase):

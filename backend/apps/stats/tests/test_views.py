@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.courses.models import Course, Lesson, PublishableMixin, PurchasedCourse, Section
+from apps.courses.models import Course, CourseEnrollment, Lesson, PublishableMixin, Section
 from apps.payments.models import Payment
 from apps.stats.models import RecordingView, WebinarAttendance
 from apps.users.models import User
@@ -63,7 +63,7 @@ class CourseHomeMetaTest(APITestCase):
         section = Section.objects.create(course=self.course, title="С1", type=pub)
         self.lesson = Lesson.objects.create(section=section, title="У1", type=pub)
         payment = Payment.objects.create(user=self.student, total_sum=0, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.student,
             course=self.course,
             payment=payment,
@@ -132,7 +132,7 @@ class LessonDetailMetaTest(APITestCase):
         section = Section.objects.create(course=self.course, title="С", type=pub)
         self.lesson = Lesson.objects.create(section=section, title="У", type=pub)
         payment = Payment.objects.create(user=self.student, total_sum=0, status="success")
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=self.student,
             course=self.course,
             payment=payment,

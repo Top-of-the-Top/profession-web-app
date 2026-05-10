@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "apps.ai_chat_bot.apps.AiChatBotConfig",
     "apps.admin_panel.apps.AdminPanelConfig",
     "apps.stats",
+    "apps.applications.apps.ApplicationsConfig",
 ]
 
 USE_S3 = os.environ.get("USE_S3", "False") == "True"
@@ -91,6 +92,9 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
 }
 
 SIMPLE_JWT = {

@@ -6,7 +6,7 @@ from django.core import mail
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from apps.courses.models import PurchasedCourse
+from apps.courses.models import CourseEnrollment
 from apps.courses.tests.test_models import create_test_course, create_test_user
 from apps.notifications import tasks as notification_tasks
 from apps.notifications.models import Notification
@@ -78,13 +78,13 @@ class SendMassCourseEmailTaskTests(TestCase):
         u1 = create_test_user(email=plain_a, role="student")
         u2 = create_test_user(email=plain_b, role="student")
         exp = timezone.now() + timedelta(days=10)
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=u1,
             course=course,
             payment=Payment.objects.create(user=u1, total_sum=1, status="success"),
             access_expires_at=exp,
         )
-        PurchasedCourse.objects.create(
+        CourseEnrollment.objects.create(
             user=u2,
             course=course,
             payment=Payment.objects.create(user=u2, total_sum=1, status="success"),

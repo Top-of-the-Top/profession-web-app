@@ -102,7 +102,7 @@ def send_single_email(user_id, subject, message):
 @shared_task
 def send_mass_course_email(course_id, subject, message):
     user_ids = (
-        User.objects.filter(purchased_courses__course_id=course_id)
+        User.objects.filter(enrollments__course_id=course_id)
         .distinct()
         .values_list("id", flat=True)
     )
@@ -186,7 +186,7 @@ def send_webinar_started_notification(
     )
 
     user_ids = (
-        User.objects.filter(purchased_courses__course_id=course_id)
+        User.objects.filter(enrollments__course_id=course_id)
         .distinct()
         .values_list("id", flat=True)
     )

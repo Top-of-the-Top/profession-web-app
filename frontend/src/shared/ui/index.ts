@@ -129,4 +129,4 @@ export { AutoSubmitVerificationCode } from './AutoSubmitVerificationCode'
 
 	export { Modal, type ModalProps } from './Modal'
 
-	export { RootErrorFallback, ContentErrorFallback } from './ErrorFallback'
+	export { RootErrorFallback, ContentErrorFallback, RouterErrorFallback } from './ErrorFallback'

@@ -191,9 +191,6 @@ class CourseDetailView(APIView):
         if course.type != Course.PUBLISHED_STATUS and not can_see_unpublished:
             return Response({"detail": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
 
-        if course.is_special and not user.is_authenticated:
-            return Response({"detail": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
-
         cache = caches["default"]
         key = course_detail_cache_key(slug)
         cacheable = course.type == Course.PUBLISHED_STATUS and not course.is_special

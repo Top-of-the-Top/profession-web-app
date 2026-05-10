@@ -199,7 +199,7 @@ class AiChatWebSocketService {
           break;
         }
         case AI_CHAT_SERVER_MESSAGE_TYPES.CHAT_CREATED: {
-          const title = deriveChatTitle(store.chats);
+          const title = message.content?.title || deriveChatTitle(store.chats);
           store.addChat({
             chat_id: message.chat_id,
             title,

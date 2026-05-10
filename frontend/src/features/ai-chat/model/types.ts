@@ -79,7 +79,7 @@ export type AiChatServerMessage =
   | {
       type: typeof AI_CHAT_SERVER_MESSAGE_TYPES.CHAT_CREATED;
       chat_id: string;
-      content: Record<string, never>;
+      content: { title?: string };
     }
   | {
       type: typeof AI_CHAT_SERVER_MESSAGE_TYPES.CHAT_DELETED;

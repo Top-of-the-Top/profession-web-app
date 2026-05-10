@@ -54,7 +54,7 @@ def _get_course_from_kwargs(kwargs):
     slug = kwargs.get("course_slug") or kwargs.get("slug") or kwargs.get("pk")
     if slug:
         try:
-            return Course.objects.get(slug=slug), None
+            return Course.objects.get(slug=slug, is_deleted=False), None
         except Course.DoesNotExist:
             return None, Response(
                 {"detail": "Курс не найден"},
@@ -63,7 +63,7 @@ def _get_course_from_kwargs(kwargs):
     course_id = kwargs.get("course_id")
     if course_id:
         try:
-            return Course.objects.get(course_id=course_id), None
+            return Course.objects.get(course_id=course_id, is_deleted=False), None
         except Course.DoesNotExist:
             return None, Response(
                 {"detail": "Курс не найден"},
@@ -119,7 +119,7 @@ def require_course_enrollment(view_func):
             return Response({"detail": "Не указан slug курса"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            course = Course.objects.get(slug=course_slug)
+            course = Course.objects.get(slug=course_slug, is_deleted=False)
         except Course.DoesNotExist:
             return Response({"detail": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
 

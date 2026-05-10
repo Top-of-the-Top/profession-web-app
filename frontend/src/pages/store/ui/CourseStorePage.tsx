@@ -96,7 +96,7 @@ const CourseCard = ({
             onAddToCart();
           }}
         >
-          {isEnrolled ? 'Вы записаны' : inCart ? 'В корзине' : isAdding ? 'Добавляем...' : 'В корзину'}
+          {isEnrolled ? 'Приобретено' : inCart ? 'В корзине' : isAdding ? 'Добавляем...' : 'В корзину'}
         </Button>
       </div>
     </div>

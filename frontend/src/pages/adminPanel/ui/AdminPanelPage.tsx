@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BookOpen, Users, Mail, Plus, Trash2, Eye, EyeOff, UserPlus, UserMinus, Pencil, X, Check, ImagePlus } from 'lucide-react';
-import { Spinner } from '@shared/ui';
+import { Skeleton, Spinner } from '@shared/ui';
 import { cn } from '@shared/lib/utils';
 import { notifyError } from '@shared/lib/sileo/notify';
 import {
@@ -9,7 +9,7 @@ import {
 } from '@shared/lib/uploads/uploadMediaAsset';
 import { IntentValidationError } from '@shared/lib/uploads/intentLimits';
 import type { CoursePatchPayload } from '@shared/api/courseApi/types';
-import { useAdminCourses, useAdminTeachers, useAdminInvites, type AdminCourse, type AdminTeacher } from '@shared/api/queries/adminPanel';
+import { useAdminCourses, useAdminCourseBySlug, useAdminTeachers, useAdminInvites, type AdminCourse, type AdminTeacher } from '@shared/api/queries/adminPanel';
 import {
   useCreateCourse,
   usePatchAdminCourse,
@@ -400,7 +400,10 @@ function courseDateToInput(value: unknown): string {
   return value.slice(0, 10);
 }
 
-function EditCourseForm({ course, onClose }: { course: AdminCourse; onClose: () => void }) {
+function EditCourseForm({ course: listCourse, onClose }: { course: AdminCourse; onClose: () => void }) {
+  const { data: fetchedCourse } = useAdminCourseBySlug(listCourse.slug);
+  const course = fetchedCourse ?? listCourse;
+
   const [form, setForm] = useState({
     title: course.title,
     sub_title: course.sub_title,
@@ -411,12 +414,27 @@ function EditCourseForm({ course, onClose }: { course: AdminCourse; onClose: () 
     min_age: course.min_age != null ? String(course.min_age) : '',
     is_special: Boolean(course.is_special),
   });
+
+  useEffect(() => {
+    if (!fetchedCourse) return;
+    setForm({
+      title: fetchedCourse.title,
+      sub_title: fetchedCourse.sub_title,
+      description: fetchedCourse.description ?? '',
+      price: String(fetchedCourse.price ?? 0),
+      starts_at: courseDateToInput(fetchedCourse.starts_at),
+      duration_weeks: fetchedCourse.duration_weeks != null ? String(fetchedCourse.duration_weeks) : '',
+      min_age: fetchedCourse.min_age != null ? String(fetchedCourse.min_age) : '',
+      is_special: Boolean(fetchedCourse.is_special),
+    });
+  }, [fetchedCourse]);
+
   const [coverPatch, setCoverPatch] = useState<string | null | undefined>(undefined);
   const [coverFileLabel, setCoverFileLabel] = useState<string | null>(null);
   const [coverUploading, setCoverUploading] = useState(false);
   const [coverProgressPct, setCoverProgressPct] = useState<number | null>(null);
   const editCoverInputRef = useRef<HTMLInputElement>(null);
-  const patch = usePatchAdminCourse(course.slug);
+  const patch = usePatchAdminCourse(listCourse.slug);
 
   function resetEditCoverInput() {
     setCoverFileLabel(null);
@@ -520,43 +538,59 @@ function EditCourseForm({ course, onClose }: { course: AdminCourse; onClose: () 
         )}
         <label className={cn(styles.formLabel, styles.formLabelFull)}>
           Дата старта
-          <input
-            className={styles.formInput}
-            type="date"
-            value={form.starts_at}
-            onChange={(e) => setForm((p) => ({ ...p, starts_at: e.target.value }))}
-          />
+          {!fetchedCourse ? (
+            <Skeleton style={{ height: 36, borderRadius: 6 }} />
+          ) : (
+            <input
+              className={styles.formInput}
+              type="date"
+              value={form.starts_at}
+              onChange={(e) => setForm((p) => ({ ...p, starts_at: e.target.value }))}
+            />
+          )}
         </label>
         <label className={cn(styles.formLabel, styles.formLabelFull)}>
           Длительность (недели)
-          <input
-            className={styles.formInput}
-            type="number"
-            min="1"
-            value={form.duration_weeks}
-            onChange={(e) => setForm((p) => ({ ...p, duration_weeks: e.target.value }))}
-            placeholder="—"
-          />
+          {!fetchedCourse ? (
+            <Skeleton style={{ height: 36, borderRadius: 6 }} />
+          ) : (
+            <input
+              className={styles.formInput}
+              type="number"
+              min="1"
+              value={form.duration_weeks}
+              onChange={(e) => setForm((p) => ({ ...p, duration_weeks: e.target.value }))}
+              placeholder="—"
+            />
+          )}
         </label>
         <label className={cn(styles.formLabel, styles.formLabelFull)}>
           Мин. возраст
-          <input
-            className={styles.formInput}
-            type="number"
-            min="0"
-            value={form.min_age}
-            onChange={(e) => setForm((p) => ({ ...p, min_age: e.target.value }))}
-            placeholder="—"
-          />
+          {!fetchedCourse ? (
+            <Skeleton style={{ height: 36, borderRadius: 6 }} />
+          ) : (
+            <input
+              className={styles.formInput}
+              type="number"
+              min="0"
+              value={form.min_age}
+              onChange={(e) => setForm((p) => ({ ...p, min_age: e.target.value }))}
+              placeholder="—"
+            />
+          )}
         </label>
         <label className={cn(styles.formLabel, styles.formLabelFull)}>
           Описание
-          <textarea
-            className={styles.formTextarea}
-            value={form.description}
-            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-            rows={3}
-          />
+          {!fetchedCourse ? (
+            <Skeleton style={{ height: 72, borderRadius: 6 }} />
+          ) : (
+            <textarea
+              className={styles.formTextarea}
+              value={form.description}
+              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+              rows={3}
+            />
+          )}
         </label>
         <div className={cn(styles.formLabel, styles.formLabelFull, styles.coverRow)}>
           Обложка

@@ -148,6 +148,7 @@
   border: none;
   background: transparent;
   flex: 1;
+  min-width: 0;
   text-align: left;
   display: flex;
   flex-direction: column;

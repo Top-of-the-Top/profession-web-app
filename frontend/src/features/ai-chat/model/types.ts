@@ -134,6 +134,7 @@ export interface AiChatState {
   setLegacyProtocol: (isLegacyProtocol: boolean) => void;
   setChats: (chats: AiChatSummary[]) => void;
   addChat: (chat: AiChatSummary) => void;
+  updateChatTitle: (chatId: string, title: string) => void;
   removeChat: (chatId: string) => void;
   setActiveChatId: (chatId: string | null) => void;
   setHistory: (chatId: string, history: AiChatMessage[]) => void;

@@ -81,7 +81,14 @@ export function useAdminCourseBySlug(slug: string) {
       const c = ((raw as { course?: unknown })?.course ?? raw ?? {}) as Record<string, unknown>;
       const rawType = c.type ?? c.status ?? c.course_status;
       const typeStr = typeof rawType === 'string' ? rawType.trim().toLowerCase() : '';
-      const type: AdminCourse['type'] = typeStr === 'published' ? 'published' : 'draft';
+      const type: AdminCourse['type'] =
+        typeStr === 'published'
+          ? 'published'
+          : typeStr === 'draft'
+            ? 'draft'
+            : c.is_published === true
+              ? 'published'
+              : 'draft';
       const imageRaw = c.image_url;
       const imageUrl = imageRaw != null && String(imageRaw).trim() !== '' ? String(imageRaw) : null;
       return {
@@ -122,7 +129,13 @@ export function useAdminCourses() {
         const typeStr =
           typeof rawType === 'string' ? rawType.trim().toLowerCase() : '';
         const type: AdminCourse['type'] =
-          typeStr === 'published' ? 'published' : 'draft';
+          typeStr === 'published'
+            ? 'published'
+            : typeStr === 'draft'
+              ? 'draft'
+              : c.is_published === true
+                ? 'published'
+                : 'draft';
         const imageRaw = c.image_url;
         const imageUrl =
           imageRaw != null && String(imageRaw).trim() !== ''

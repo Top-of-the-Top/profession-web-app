@@ -57,7 +57,7 @@ export function useRecordingHeartbeat({
         return factory.create(container, {
           url: embedUrl,
           size: { width: '100%', height: '100%' },
-          playlist: [{ poster: `${window.location.origin}/poster.png` }],
+          playlist: [{ poster: `${window.location.origin}/video-poster.svg` }],
         });
       })
       .then((player) => {

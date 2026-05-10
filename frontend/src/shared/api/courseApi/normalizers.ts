@@ -95,7 +95,7 @@ export function normalizeCoursesResponse(raw: RawCoursesResponse): CourseApiAnsw
 
 function toCourseDTOFromRecord(c: Record<string, unknown>): CourseDTO | null {
   if (typeof c.slug !== 'string' || typeof c.title !== 'string') return null;
-  return {
+  const dto: CourseDTO = {
     course_id: String(c.course_id ?? ''),
     title: c.title,
     sub_title: String(c.sub_title ?? ''),
@@ -103,6 +103,10 @@ function toCourseDTOFromRecord(c: Record<string, unknown>): CourseDTO | null {
     price: Number(c.price ?? 0),
     slug: c.slug,
   };
+  if (typeof c.is_published === 'boolean') {
+    dto.is_published = c.is_published;
+  }
+  return dto;
 }
 
 export function normalizeMyCoursesList(raw: unknown): CourseDTO[] {

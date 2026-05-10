@@ -24,6 +24,7 @@ from .test_models import (
     create_test_lesson,
     create_test_section,
     create_test_user,
+    publish_course_tree,
 )
 
 
@@ -39,9 +40,12 @@ class CoursesSerializerContractsTests(SimpleTestCase):
     def test_course_dto_fields_and_read_only_image_url(self):
         self.assertEqual(
             sorted(CourseDTOSerializer.Meta.fields),
-            sorted(["course_id", "title", "sub_title", "slug", "image_url", "price"]),
+            sorted(
+                ["course_id", "title", "sub_title", "slug", "image_url", "price", "is_published"]
+            ),
         )
         self.assertTrue(CourseDTOSerializer().fields["image_url"].read_only)
+        self.assertTrue(CourseDTOSerializer().fields["is_published"].read_only)
 
     def test_purchased_course_homework_and_item_list_shapes(self):
         self.assertEqual(
@@ -100,6 +104,8 @@ class CourseSerializerIntegrationTest(BaseTestCase):
         self.assertEqual(data["price"], 5000)
         self.assertIn("image_url", data)
         self.assertIn("slug", data)
+        self.assertIn("is_published", data)
+        self.assertFalse(data["is_published"])
 
     def test_deserialize_and_create_course(self):
         data = {
@@ -162,7 +168,16 @@ class CourseDTOSerializerIntegrationTest(BaseTestCase):
         self.assertIn("slug", data)
         self.assertIn("price", data)
         self.assertEqual(data["price"], 8000)
+        self.assertIn("is_published", data)
+        self.assertFalse(data["is_published"])
         self.assertNotIn("description", data)
+
+    def test_serialize_course_dto_published(self):
+        course = create_test_course()
+        publish_course_tree(course)
+        course.refresh_from_db()
+        data = CourseDTOSerializer(course).data
+        self.assertTrue(data["is_published"])
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

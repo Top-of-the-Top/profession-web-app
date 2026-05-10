@@ -24,6 +24,10 @@ from ..models import (
 from .permissions import filter_homework_queryset_for_visibility
 
 
+def _course_is_published(course) -> bool:
+    return course.type == Course.PUBLISHED_STATUS
+
+
 class CourseAuthorSerializer(serializers.ModelSerializer):
     email = serializers.SerializerMethodField()
 
@@ -46,6 +50,7 @@ class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
     authors = CourseAuthorSerializer(many=True, read_only=True)
     image_url = serializers.SerializerMethodField()
     is_enrolled = serializers.SerializerMethodField()
+    is_published = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -68,11 +73,16 @@ class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
             return True
         return user.is_enrolled(obj)
 
+    @extend_schema_field(serializers.BooleanField())
+    def get_is_published(self, obj):
+        return _course_is_published(obj)
+
 
 class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
     asset_roles = ["course_cover"]
 
     image_url = serializers.SerializerMethodField()
+    is_published = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -83,6 +93,7 @@ class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
             "slug",
             "image_url",
             "price",
+            "is_published",
         ]
 
     def get_image_url(self, obj):
@@ -91,6 +102,10 @@ class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
         if covers:
             return covers[0].get("url")
         return obj.image_url
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_is_published(self, obj):
+        return _course_is_published(obj)
 
 
 class CourseStoreDTOSerializer(CourseDTOSerializer):
@@ -819,10 +834,15 @@ class MyContentLessonSerializer(serializers.ModelSerializer):
 
 class MyContentCourseSerializer(serializers.ModelSerializer):
     lessons = serializers.SerializerMethodField()
+    is_published = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
-        fields = ["course_id", "slug", "title", "lessons"]
+        fields = ["course_id", "slug", "title", "lessons", "is_published"]
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_is_published(self, obj):
+        return _course_is_published(obj)
 
     @extend_schema_field(MyContentLessonSerializer(many=True))
     def get_lessons(self, obj):

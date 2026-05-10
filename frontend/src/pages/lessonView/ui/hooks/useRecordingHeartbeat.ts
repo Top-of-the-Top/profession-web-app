@@ -54,7 +54,11 @@ export function useRecordingHeartbeat({
     load()
       .then((factory) => {
         if (destroyed) return;
-        return factory.create(container, { url: embedUrl });
+        return factory.create(container, {
+          url: embedUrl,
+          size: { width: '100%', height: '100%' },
+          playlist: [{ poster: `${window.location.origin}/poster.png` }],
+        });
       })
       .then((player) => {
         if (!player || destroyed) {

@@ -708,6 +708,9 @@ const LessonRecordingCard: React.FC<{
   const pdfLink = recording.whiteboard_pdf_url?.trim();
   const hasPdf = !!pdfLink && /^https?:\/\//i.test(pdfLink);
   const isWhiteboardOnly = recording.kind === 'whiteboard_only';
+
+  if (isWhiteboardOnly && !hasPdf) return null;
+
   const dateLabel = recording.started_at
     ? new Intl.DateTimeFormat('ru-RU', {
         day: 'numeric',

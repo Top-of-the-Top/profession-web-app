@@ -40,7 +40,7 @@ export function useCreateCourse() {
       starts_at?: string | null;
       duration_weeks?: number | null;
       min_age?: number | null;
-      cover_asset_id?: string | null;
+      course_cover_asset_id?: string | null;
     }) =>
       apiClient.request<AdminCourse>('/api/v1/courses/', {
         method: 'POST',

@@ -129,7 +129,7 @@ function CoursesTab() {
         starts_at: createForm.starts_at || null,
         duration_weeks: createForm.duration_weeks ? Number(createForm.duration_weeks) : null,
         min_age: createForm.min_age ? Number(createForm.min_age) : null,
-        cover_asset_id: coverAssetId,
+        course_cover_asset_id: coverAssetId,
       },
       {
         onSuccess: () => {
@@ -473,7 +473,7 @@ function EditCourseForm({ course, onClose }: { course: AdminCourse; onClose: () 
       min_age: form.min_age ? Number(form.min_age) : null,
     };
     if (coverPatch !== undefined) {
-      payload.cover_asset_id = coverPatch;
+      payload.course_cover_asset_id = coverPatch;
     }
     patch.mutate(payload, { onSuccess: onClose });
   }

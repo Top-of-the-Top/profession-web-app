@@ -431,7 +431,7 @@ export interface CoursePatchPayload {
   starts_at?: string | null;
   duration_weeks?: number | null;
   min_age?: number | null;
-  cover_asset_id?: string | null;
+  course_cover_asset_id?: string | null;
 }
 
 export interface CourseItemWriteResponse {

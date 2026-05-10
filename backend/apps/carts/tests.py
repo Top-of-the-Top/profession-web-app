@@ -195,7 +195,7 @@ class CartAuthUnitTests(SimpleTestCase):
             mock_course_filter.return_value.first.return_value = None
             response = AddToCartView.as_view()(request, slug="non-existent")
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-            self.assertIn("detail", response.data)
+            self.assertIn("code", response.data)
 
     def test_add_to_cart_view_with_auth_success(self):
         request = self.factory.post("/api/v1/carts/add/test-course/")
@@ -234,8 +234,8 @@ class CartAuthUnitTests(SimpleTestCase):
             mock_item_filter.return_value.exists.return_value = True
             response = AddToCartView.as_view()(request, slug="test-course")
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertIn("error", response.data)
-            self.assertEqual(response.data["error"], "Курс уже в корзине")
+            self.assertIn("code", response.data)
+            self.assertEqual(response.data["code"], "COURSE_ALREADY_IN_CART")
 
     def test_cart_item_view_without_auth(self):
         request = self.factory.delete("/api/v1/carts/remove/test-course/")
@@ -255,8 +255,8 @@ class CartAuthUnitTests(SimpleTestCase):
             mock_item_filter.return_value.first.return_value = None
             response = CartItemView.as_view()(request, slug="test-course")
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-            self.assertIn("detail", response.data)
-            self.assertIn("корзине", response.data["detail"])
+            self.assertIn("code", response.data)
+            self.assertEqual(response.data["code"], "COURSE_NOT_IN_CART")
 
     def test_cart_item_view_with_auth_success(self):
         request = self.factory.delete("/api/v1/carts/remove/test-course/")
@@ -386,7 +386,7 @@ class CartApiHttpTests(TestCase):
         self.client.post(f"/api/v1/carts/add/{self.published.slug}/")
         r = self.client.post(f"/api/v1/carts/add/{self.published.slug}/")
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(r.data["error"], "Курс уже в корзине")
+        self.assertEqual(r.data["code"], "COURSE_ALREADY_IN_CART")
 
     def test_remove_course_returns_204_and_list_updates(self):
         self._auth()
@@ -400,10 +400,10 @@ class CartApiHttpTests(TestCase):
         self._auth()
         r = self.client.delete(f"/api/v1/carts/remove/{self.published.slug}/")
         self.assertEqual(r.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn("корзине", r.data["detail"])
+        self.assertEqual(r.data["code"], "COURSE_NOT_IN_CART")
 
     def test_remove_unknown_slug_returns_404_catalog_message(self):
         self._auth()
         r = self.client.delete("/api/v1/carts/remove/no-such-slug-zzz/")
         self.assertEqual(r.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn("списке курсов", r.data["detail"])
+        self.assertEqual(r.data["code"], "COURSE_NOT_AVAILABLE")

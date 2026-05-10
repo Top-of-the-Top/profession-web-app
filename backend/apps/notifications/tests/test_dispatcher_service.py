@@ -25,12 +25,12 @@ class DispatcherEnqueueTasksTests(SimpleTestCase):
 
     def _patch_delays(self):
         targets = (
-            "apps.notifications.tasks.send_course_notification.delay",
-            "apps.notifications.tasks.send_mass_course_email.delay",
-            "apps.notifications.tasks.send_personal_notification.delay",
-            "apps.notifications.tasks.send_single_email.delay",
-            "apps.notifications.tasks.send_webinar_scheduled_notification.delay",
-            "apps.notifications.tasks.send_webinar_started_notification.delay",
+            "apps.notifications.dispatcher.send_course_notification.delay",
+            "apps.notifications.dispatcher.send_mass_course_email.delay",
+            "apps.notifications.dispatcher.send_personal_notification.delay",
+            "apps.notifications.dispatcher.send_single_email.delay",
+            "apps.notifications.dispatcher.send_webinar_scheduled_notification.delay",
+            "apps.notifications.dispatcher.send_webinar_started_notification.delay",
         )
         mocks = {}
         patchers = []

@@ -137,7 +137,7 @@ class PaymentsApiHttpTests(TestCase):
         self._auth()
         r = self.client.post("/api/v1/carts/pay/")
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Корзина пуста", r.data["error"])
+        self.assertEqual(r.data["code"], "CART_EMPTY")
 
     @patch("apps.payments.api.views.process_payment_task.apply_async")
     def test_cart_pay_already_purchased_returns_400(self, mock_apply):
@@ -156,9 +156,9 @@ class PaymentsApiHttpTests(TestCase):
         self._add_to_cart(self.course.slug)
         r = self.client.post("/api/v1/carts/pay/")
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("уже куплены", r.data["error"])
+        self.assertEqual(r.data["code"], "COURSES_ALREADY_PURCHASED")
         cid_str = str(self.course.course_id)
-        self.assertTrue(any(str(x) == cid_str for x in r.data["course_ids"]))
+        self.assertTrue(any(str(x) == cid_str for x in r.data["details"]["course_ids"]))
         mock_apply.assert_not_called()
 
     @patch("apps.payments.api.views.process_payment_task.apply_async")

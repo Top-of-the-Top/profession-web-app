@@ -60,7 +60,7 @@ class ApplicationSubmitHttpTests(BaseTestCase):
         self._auth(self.student)
         r = self.client.post(f"/api/v1/courses/{normal_course.slug}/applications/apply/")
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", r.data)
+        self.assertEqual(r.data["code"], "APPLICATION_NOT_SPECIAL_COURSE")
 
     def test_apply_creates_pending_application(self):
         self._auth(self.student)

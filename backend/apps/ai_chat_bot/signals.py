@@ -10,6 +10,6 @@ def update_chat_on_message(sender, instance, **kwargs):
     chat = instance.chat
     chat.updated_at = timezone.now()
     if not chat.title:
-        chat.title = instance.text[:100]
+        chat.title = instance.content[:100]
 
     chat.save(update_fields=["updated_at", "title"])

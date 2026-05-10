@@ -1,5 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Mic, MicOff, Video, VideoOff, Circle, LogOut, PhoneOff, MessageSquare } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Mic, MicOff, Video, VideoOff, LogOut, PhoneOff, MessageSquare } from 'lucide-react';
+
+const StopIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+    <rect x="0" y="0" width="12" height="12" rx="3" />
+  </svg>
+);
+
+const PlayIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor">
+    <polygon points="2,1 12,6.5 2,12" />
+  </svg>
+);
 import { cn } from '@shared/lib/utils';
 import styles from './WebinarControls.module.css';
 
@@ -12,7 +24,6 @@ interface WebinarControlsProps {
   recordingPending: boolean;
   stopRecordingPending: boolean;
   stopWebinarPending: boolean;
-  webinarStartedAt: string | null;
   isChatOpen: boolean;
   onToggleMic: () => void;
   onToggleCamera: () => void;
@@ -32,7 +43,6 @@ export function WebinarControls({
   recordingPending,
   stopRecordingPending,
   stopWebinarPending,
-  webinarStartedAt,
   isChatOpen,
   onToggleMic,
   onToggleCamera,
@@ -42,43 +52,29 @@ export function WebinarControls({
   onLeave,
   onStopWebinar,
 }: WebinarControlsProps) {
-  const webinarStartedAtMs = useMemo(() => {
-    if (!webinarStartedAt) return null;
-    const parsed = new Date(webinarStartedAt).getTime();
-    return Number.isFinite(parsed) ? parsed : null;
-  }, [webinarStartedAt]);
-
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [leaveMenuOpen, setLeaveMenuOpen] = useState(false);
+  const leaveMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!webinarStartedAtMs) return;
-    setNowMs(Date.now());
-    const timerId = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(timerId);
-  }, [webinarStartedAtMs]);
-
-  const webinarDurationLabel = useMemo(() => {
-    if (!webinarStartedAtMs) return null;
-    const elapsedSeconds = Math.max(0, Math.floor((nowMs - webinarStartedAtMs) / 1000));
-    const hours = Math.floor(elapsedSeconds / 3600);
-    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
-    const seconds = elapsedSeconds % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }, [nowMs, webinarStartedAtMs]);
+    if (!leaveMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (leaveMenuRef.current && !leaveMenuRef.current.contains(e.target as Node)) {
+        setLeaveMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [leaveMenuOpen]);
 
   return (
     <div className={styles.bar}>
-      {webinarDurationLabel ? (
-        <span className={styles.webinarDurationBadge}>В эфире {webinarDurationLabel}</span>
-      ) : null}
-
       <button
         type="button"
         className={cn(styles.btn, micOn && styles.btnActive)}
         onClick={onToggleMic}
       >
         {micOn ? <Mic size={18} /> : <MicOff size={18} />}
-        {micOn ? 'Микрофон' : 'Микрофон выкл'}
+        {/* {micOn ? 'Микрофон' : 'Микрофон выкл'} */}
       </button>
 
       <button
@@ -87,7 +83,7 @@ export function WebinarControls({
         onClick={onToggleCamera}
       >
         {cameraOn ? <Video size={18} /> : <VideoOff size={18} />}
-        {cameraOn ? 'Камера' : 'Камера выкл'}
+        {/* {cameraOn ? 'Камера' : 'Камера выкл'} */}
       </button>
 
       <button
@@ -99,63 +95,72 @@ export function WebinarControls({
         Чат
       </button>
 
-      {canManageWebinar && !teacherRecordingLive && (
+      {canManageWebinar && (
         <button
           type="button"
-          className={styles.btn}
-          onClick={onStartRecording}
-          disabled={recordingPending}
+          className={cn(styles.btn, styles.btnRecord, teacherRecordingLive && styles.btnRecordLive)}
+          onClick={teacherRecordingLive ? onStopRecording : onStartRecording}
+          disabled={recordingPending || stopRecordingPending}
         >
-          <Circle size={16} />
-          {recordingPending ? 'Запуск...' : 'Начать запись'}
+          <span className={styles.recordingDotInline} />
+          <span className={styles.recordIconPlay}><PlayIcon /></span>
+          <span className={styles.recordIconStop}><StopIcon /></span>
+          {stopRecordingPending ? (
+            <span>Остановка...</span>
+          ) : recordingPending ? (
+            <span>Начинаем...</span>
+          ) : (
+            <>
+              <span className={styles.recordLabelDefault}>Запись</span>
+              <span className={styles.recordLabelHover}>
+                {teacherRecordingLive ? 'Остановить' : 'Начать'}
+              </span>
+            </>
+          )}
         </button>
       )}
 
-      {canManageWebinar && teacherRecordingLive && (
-        <>
-          <span className={styles.recordingBadge}>
-            <span className={styles.recordingDot} />
-            Запись идёт
-          </span>
-          <button
-            type="button"
-            className={styles.btn}
-            onClick={onStopRecording}
-            disabled={stopRecordingPending}
-          >
-            {stopRecordingPending ? 'Остановка...' : 'Остановить запись'}
-          </button>
-        </>
-      )}
-
-      {!canManageWebinar && studentRecordingVisible ? (
+      {!canManageWebinar && studentRecordingVisible && (
         <span className={styles.recordingBadge}>
           <span className={styles.recordingDot} />
           Запись идёт
         </span>
-      ) : null}
+      )}
 
       <div className={styles.spacer} />
 
-      <button
-        type="button"
-        className={cn(styles.btn, styles.btnDanger)}
-        onClick={onLeave}
-      >
-        <LogOut size={18} />
-        Покинуть
-      </button>
-      {canManageWebinar && (
+      <div className={styles.leaveMenuWrap} ref={leaveMenuRef}>
+        {leaveMenuOpen && (
+          <div className={styles.leaveMenu}>
+            <button
+              type="button"
+              className={styles.leaveMenuItem}
+              onClick={() => { setLeaveMenuOpen(false); onLeave(); }}
+            >
+              <LogOut size={15} />
+              Выйти
+            </button>
+            {canManageWebinar && (
+              <button
+                type="button"
+                className={cn(styles.leaveMenuItem, styles.leaveMenuItemDanger)}
+                disabled={stopWebinarPending}
+                onClick={() => { setLeaveMenuOpen(false); onStopWebinar(); }}
+              >
+                <PhoneOff size={15} />
+                {stopWebinarPending ? 'Завершение...' : 'Завершить вебинар'}
+              </button>
+            )}
+          </div>
+        )}
         <button
           type="button"
           className={cn(styles.btn, styles.btnDanger)}
-          onClick={onStopWebinar}
-          disabled={stopWebinarPending}
+          onClick={() => setLeaveMenuOpen((v) => !v)}
         >
           <PhoneOff size={18} />
-          {stopWebinarPending ? 'Завершение...' : 'Завершить вебинар'}
         </button>
-      )}
+      </div>
     </div>
   );
 }

@@ -59,3 +59,27 @@ class RecorderTokenInvalid(WebinarError):
     code = "RECORDER_TOKEN_INVALID"
     message = "Токен рекордера недействителен или истёк."
     status = status.HTTP_403_FORBIDDEN
+
+
+class RecorderTokenMissing(WebinarError):
+    code = "RECORDER_TOKEN_MISSING"
+    message = "Токен рекордера обязателен."
+    status = status.HTTP_400_BAD_REQUEST
+
+
+class WebinarNotFound(WebinarError):
+    code = "WEBINAR_NOT_FOUND"
+    message = "Вебинар не найден."
+    status = status.HTTP_404_NOT_FOUND
+
+
+class RecordingNotFound(WebinarError):
+    code = "RECORDING_NOT_FOUND"
+    message = "Запись не найдена."
+    status = status.HTTP_404_NOT_FOUND
+
+
+class ScreenshotsConversionFailed(WebinarError):
+    code = "SCREENSHOTS_CONVERSION_FAILED"
+    message = "Не удалось обработать скриншоты."
+    status = status.HTTP_500_INTERNAL_SERVER_ERROR

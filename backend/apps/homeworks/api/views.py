@@ -7,7 +7,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.processors.error_processor import process_error_response as _process_error
+from apps.core.api.serializers import ServiceErrorResponseSerializer
+from apps.core.processors.error_processor import process_error_response
 from apps.courses.api.permissions import require_course_author, require_course_enrollment
 from apps.courses.api.schema import SCHEMA_DETAIL, SCHEMA_VALIDATION
 from apps.courses.api.utils.cache_utils import (
@@ -27,7 +28,6 @@ from .serializers import (
     AttemptReviewSerializer,
     AttemptSerializer,
     AttemptSubmitSerializer,
-    ErrorResponseSerializer,
     MyAttemptSerializer,
     StudentAttemptSerializer,
 )
@@ -57,17 +57,6 @@ ATTEMPT_ID_PARAM = OpenApiParameter(
 )
 
 
-def _error_response(exc):
-    payload = {
-        "status": "error",
-        "code": exc.code,
-        "message": exc.message,
-        "details": exc.details or {},
-    }
-
-    return Response(payload, status=exc.status)
-
-
 class HomeworkAttemptView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -82,11 +71,11 @@ class HomeworkAttemptView(APIView):
         parameters=[COURSE_SLUG_PARAM, HOMEWORK_SLUG_PARAM],
         responses={
             200: AttemptSerializer,
-            400: ErrorResponseSerializer,
-            401: ErrorResponseSerializer,
-            403: ErrorResponseSerializer,
+            400: ServiceErrorResponseSerializer,
+            401: ServiceErrorResponseSerializer,
+            403: ServiceErrorResponseSerializer,
             404: SCHEMA_DETAIL,
-            500: ErrorResponseSerializer,
+            500: ServiceErrorResponseSerializer,
         },
     )
     @require_course_enrollment
@@ -106,7 +95,7 @@ class HomeworkAttemptView(APIView):
         try:
             attempt = service.get_or_create_draft(user=request.user, homework=homework)
         except HomeworkServiceError as exc:
-            return _error_response(exc)
+            return process_error_response(exc)
 
         data = AttemptSerializer(attempt, context={"request": request}).data
         cache.set(cache_key, data)
@@ -187,11 +176,11 @@ class StudentAttemptsView(APIView):
         ],
         responses={
             200: MyAttemptSerializer(many=True),
-            400: ErrorResponseSerializer,
+            400: ServiceErrorResponseSerializer,
             401: SCHEMA_DETAIL,
-            403: ErrorResponseSerializer,
+            403: ServiceErrorResponseSerializer,
             404: SCHEMA_DETAIL,
-            500: ErrorResponseSerializer,
+            500: ServiceErrorResponseSerializer,
         },
     )
     def get(self, request):
@@ -302,11 +291,11 @@ class AttemptDetailView(APIView):
         parameters=[COURSE_SLUG_PARAM, ATTEMPT_ID_PARAM],
         responses={
             200: AttemptSerializer,
-            400: ErrorResponseSerializer,
-            401: ErrorResponseSerializer,
-            403: ErrorResponseSerializer,
+            400: ServiceErrorResponseSerializer,
+            401: ServiceErrorResponseSerializer,
+            403: ServiceErrorResponseSerializer,
             404: SCHEMA_DETAIL,
-            500: ErrorResponseSerializer,
+            500: ServiceErrorResponseSerializer,
         },
     )
     @require_course_author
@@ -347,12 +336,12 @@ class AttemptReviewView(APIView):
         request=AttemptReviewSerializer,
         responses={
             200: AttemptSerializer,
-            400: ErrorResponseSerializer,
-            401: ErrorResponseSerializer,
-            403: ErrorResponseSerializer,
+            400: ServiceErrorResponseSerializer,
+            401: ServiceErrorResponseSerializer,
+            403: ServiceErrorResponseSerializer,
             404: SCHEMA_DETAIL,
-            409: ErrorResponseSerializer,
-            500: ErrorResponseSerializer,
+            409: ServiceErrorResponseSerializer,
+            500: ServiceErrorResponseSerializer,
         },
     )
     @require_course_author
@@ -367,11 +356,13 @@ class AttemptReviewView(APIView):
         try:
             serializer.is_valid(raise_exception=True)
         except DRFValidationError as exc:
-            return _process_error(RequestValidationError(exc.detail))
+            return process_error_response(RequestValidationError(exc.detail))
         payload = serializer.validated_data
 
         if str(attempt.attempt_id) != str(payload["attempt_id"]):
-            return _process_error(RequestValidationError("attempt_id в теле не совпадает с URL."))
+            return process_error_response(
+                RequestValidationError("attempt_id в теле не совпадает с URL.")
+            )
 
         items = [
             TaskReviewItem(
@@ -390,7 +381,7 @@ class AttemptReviewView(APIView):
                 items=items,
             )
         except HomeworkServiceError as exc:
-            return _error_response(exc)
+            return process_error_response(exc)
 
         invalidate_attempt_cache(
             user_id=attempt.user_id,
@@ -421,13 +412,13 @@ class HomeworkAttemptSubmitView(APIView):
         responses={
             201: AttemptSerializer,
             400: SCHEMA_VALIDATION,
-            401: ErrorResponseSerializer,
-            403: ErrorResponseSerializer,
+            401: ServiceErrorResponseSerializer,
+            403: ServiceErrorResponseSerializer,
             404: SCHEMA_DETAIL,
-            409: ErrorResponseSerializer,
-            413: ErrorResponseSerializer,
-            500: ErrorResponseSerializer,
-            503: ErrorResponseSerializer,
+            409: ServiceErrorResponseSerializer,
+            413: ServiceErrorResponseSerializer,
+            500: ServiceErrorResponseSerializer,
+            503: ServiceErrorResponseSerializer,
         },
     )
     @require_course_enrollment
@@ -441,14 +432,14 @@ class HomeworkAttemptSubmitView(APIView):
         try:
             serializer.is_valid(raise_exception=True)
         except DRFValidationError as exc:
-            return _process_error(RequestValidationError(exc.detail))
+            return process_error_response(RequestValidationError(exc.detail))
         payload = serializer.validated_data
 
         service = AttemptService()
         try:
             attempt = service.get_or_create_draft(user=request.user, homework=homework)
         except HomeworkServiceError as exc:
-            return _error_response(exc)
+            return process_error_response(exc)
 
         try:
             attempt = service.submit(
@@ -458,7 +449,7 @@ class HomeworkAttemptSubmitView(APIView):
                 items=payload["items"],
             )
         except HomeworkServiceError as exc:
-            return _error_response(exc)
+            return process_error_response(exc)
 
         invalidate_attempt_cache(
             user_id=request.user.id,

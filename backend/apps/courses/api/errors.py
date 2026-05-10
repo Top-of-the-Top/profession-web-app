@@ -65,3 +65,15 @@ class HomeworkNotFound(CourseError):
     code = "HOMEWORK_NOT_FOUND"
     message = "Домашнее задание не найдено."
     status = status.HTTP_404_NOT_FOUND
+
+
+class ScheduleDateInvalid(CourseError):
+    code = "SCHEDULE_DATE_INVALID"
+    message = "Неверный формат даты. Ожидается ISO 8601."
+    status = status.HTTP_400_BAD_REQUEST
+
+
+class CourseNotPublished(CourseError):
+    code = "COURSE_NOT_PUBLISHED"
+    message = "Курс не опубликован."
+    status = status.HTTP_404_NOT_FOUND

@@ -12,9 +12,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.api.permissions import require_moderator
+from apps.core.api.serializers import ServiceErrorResponseSerializer
+from apps.core.processors.error_processor import process_error_response
 from apps.webinars.models import Webinar
 
 from ..models import Course, Homework, Question, Section, Task
+from .errors import CourseNotPublished, NotEnrolled, ScheduleDateInvalid
 from .permissions import (
     course_content_visibility,
     get_courses_for_user,
@@ -186,7 +189,7 @@ class CourseDetailView(APIView):
         responses={
             200: CourseSerializer,
             401: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
+            404: ServiceErrorResponseSerializer,
             500: {"schema": SCHEMA_DETAIL},
         },
     )
@@ -198,7 +201,7 @@ class CourseDetailView(APIView):
             user.is_moderator() or user.is_course_author(course) or user.is_enrolled(course)
         )
         if course.type != Course.PUBLISHED_STATUS and not can_see_unpublished:
-            return Response({"detail": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
+            return process_error_response(CourseNotPublished())
 
         cache = caches["default"]
         key = course_detail_cache_key(slug)
@@ -320,7 +323,7 @@ class MyScheduleView(APIView):
         ],
         responses={
             200: ScheduleResponseSerializer,
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         },
@@ -333,17 +336,11 @@ class MyScheduleView(APIView):
         if raw_start:
             start_date = parse_datetime(raw_start)
             if start_date is None:
-                return Response(
-                    {"detail": "Неверный формат start_date"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return process_error_response(ScheduleDateInvalid(details={"field": "start_date"}))
         if raw_end:
             end_date = parse_datetime(raw_end)
             if end_date is None:
-                return Response(
-                    {"detail": "Неверный формат end_date"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return process_error_response(ScheduleDateInvalid(details={"field": "end_date"}))
 
         cache = caches["default"]
         key = my_schedule_cache_key(request.user.id, start_date, end_date)
@@ -465,7 +462,7 @@ class CourseHomePageView(APIView):
         responses={
             200: CourseHomeSerializer,
             401: {"schema": SCHEMA_DETAIL},
-            403: {"schema": SCHEMA_DETAIL},
+            403: ServiceErrorResponseSerializer,
             404: {"schema": SCHEMA_DETAIL},
             500: {"schema": SCHEMA_DETAIL},
         },
@@ -476,10 +473,7 @@ class CourseHomePageView(APIView):
         vis = course_content_visibility(user, course)
 
         if not vis.has_course_home_access():
-            return Response(
-                {"detail": "Вы не записаны на этот курс"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            return process_error_response(NotEnrolled())
 
         serializer = CourseHomeSerializer(
             course,

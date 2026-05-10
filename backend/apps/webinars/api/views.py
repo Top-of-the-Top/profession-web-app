@@ -11,6 +11,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.api.serializers import ServiceErrorResponseSerializer
 from apps.core.meta_management.errors import AssetError
 from apps.core.meta_management.factory import build_binding_api, build_upload_api
 from apps.core.processors.error_processor import process_error_response
@@ -19,6 +20,18 @@ from apps.courses.api.utils.cache_utils import invalidate_lesson_detail_cache
 from apps.courses.models import Lesson
 
 from ..models import Recording, Webinar
+from .errors import (
+    RecorderTokenInvalid,
+    RecorderTokenMissing,
+    RecordingAlreadyActive,
+    RecordingNotActive,
+    RecordingScreenshotsMissing,
+    ScreenshotsConversionFailed,
+    WebinarAlreadyLive,
+    WebinarNotLive,
+    WebinarScheduleConflict,
+    WhiteboardCreateFailed,
+)
 from .schema import SCHEMA_DETAIL
 from .serializers import (
     DetailResponseSerializer,
@@ -176,12 +189,11 @@ def _stop_recording(recording):
         parameters=[_PATH_COURSE, _PATH_LESSON],
         responses={
             200: WebinarStartResponseSerializer,
-            400: {"schema": SCHEMA_DETAIL},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
-            502: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
+            409: ServiceErrorResponseSerializer,
+            502: ServiceErrorResponseSerializer,
         },
     ),
 )
@@ -202,21 +214,15 @@ class WebinarStartView(APIView):
         )
 
         if webinar.status == Webinar.LIVE_STATUS:
-            return Response(
-                {
-                    "detail": "Вебинар уже запущен, поэтому запуск проигнорирован",
-                    "webinar_id": str(webinar.webinar_id),
-                }
+            return process_error_response(
+                WebinarAlreadyLive(details={"webinar_id": str(webinar.webinar_id)})
             )
 
         old_room_uuid = webinar.whiteboard_room_uuid
         try:
             webinar.whiteboard_room_uuid = create_whiteboard_room()
         except Exception:
-            return Response(
-                {"detail": "Не удалось создать комнату доски"},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
+            return process_error_response(WhiteboardCreateFailed())
 
         if old_room_uuid:
             try:
@@ -331,11 +337,10 @@ class WebinarStopView(APIView):
         request=WebinarScheduleRequestSerializer,
         responses={
             200: WebinarScheduleResponseSerializer,
-            400: {"schema": SCHEMA_DETAIL},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
-            409: {"schema": SCHEMA_DETAIL},
+            409: ServiceErrorResponseSerializer,
         },
     ),
 )
@@ -360,10 +365,7 @@ class WebinarScheduleView(APIView):
         )
 
         if webinar.status == Webinar.LIVE_STATUS:
-            return Response(
-                {"detail": "Нельзя изменить расписание вебинара, который сейчас идёт"},
-                status=status.HTTP_409_CONFLICT,
-            )
+            return process_error_response(WebinarScheduleConflict())
 
         previous_scheduled_at = webinar.scheduled_at
         webinar.scheduled_at = scheduled_at
@@ -448,8 +450,7 @@ class WebinarScheduleView(APIView):
             200: WebinarTokenSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
+            404: ServiceErrorResponseSerializer,
         },
     ),
 )
@@ -472,10 +473,7 @@ class WebinarJoinView(APIView):
         try:
             webinar = Webinar.objects.get(lesson=lesson, status="live")
         except Webinar.DoesNotExist:
-            return Response(
-                {"detail": "Вебинар не запущен"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return process_error_response(WebinarNotLive())
 
         uid = user_uid_from_uuid(request.user.pk)
         rtc_role = ROLE_PUBLISHER
@@ -542,10 +540,9 @@ class WebinarJoinView(APIView):
         ],
         responses={
             200: WebinarTokenSerializer,
-            400: {"schema": SCHEMA_DETAIL},
-            403: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
+            403: ServiceErrorResponseSerializer,
             404: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
         },
     ),
 )
@@ -555,13 +552,11 @@ class WebinarRecorderJoinView(APIView):
     def get(self, request, course_slug, lesson_slug):
         token = request.query_params.get("token", "")
         if not token:
-            return Response({"detail": "Token required"}, status=status.HTTP_400_BAD_REQUEST)
+            return process_error_response(RecorderTokenMissing())
 
         webinar_id = verify_recorder_token(token)
         if not webinar_id:
-            return Response(
-                {"detail": "Invalid or expired token"}, status=status.HTTP_403_FORBIDDEN
-            )
+            return process_error_response(RecorderTokenInvalid())
 
         webinar = get_object_or_404(
             Webinar,
@@ -608,11 +603,10 @@ class WebinarRecorderJoinView(APIView):
         parameters=[_PATH_COURSE, _PATH_LESSON],
         responses={
             200: WebinarRecordingStartResponseSerializer,
-            400: {"schema": SCHEMA_DETAIL},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
+            409: ServiceErrorResponseSerializer,
         },
     ),
 )
@@ -630,7 +624,7 @@ class WebinarRecordingStartView(APIView):
         webinar = get_object_or_404(Webinar, lesson=lesson, status=Webinar.LIVE_STATUS)
 
         if webinar.recordings.filter(status=Recording.RECORDING_STATUS).exists():
-            return Response({"detail": "Запись уже идёт"}, status=status.HTTP_400_BAD_REQUEST)
+            return process_error_response(RecordingAlreadyActive())
 
         recording = Recording.objects.create(
             webinar=webinar,
@@ -685,11 +679,10 @@ class WebinarRecordingStartView(APIView):
         parameters=[_PATH_COURSE, _PATH_LESSON],
         responses={
             200: WebinarRecordingStartResponseSerializer,
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
         },
     ),
 )
@@ -707,7 +700,7 @@ class WebinarRecordingStopView(APIView):
         webinar = get_object_or_404(Webinar, lesson=lesson, status=Webinar.LIVE_STATUS)
         recording = webinar.recordings.filter(status=Recording.RECORDING_STATUS).first()
         if not recording:
-            return Response({"detail": "Запись не идёт"}, status=status.HTTP_400_BAD_REQUEST)
+            return process_error_response(RecordingNotActive())
 
         _stop_recording(recording)
 
@@ -731,11 +724,10 @@ class WebinarRecordingStopView(APIView):
         parameters=[_PATH_COURSE, _PATH_LESSON, _PATH_RECORDING],
         responses={
             200: DetailResponseSerializer,
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
         },
     ),
     delete=extend_schema(
@@ -748,7 +740,6 @@ class WebinarRecordingStopView(APIView):
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
         },
     ),
 )
@@ -773,10 +764,7 @@ class RecordingPdfView(APIView):
 
         screenshots = request.FILES.getlist("screenshots")
         if not screenshots:
-            return Response(
-                {"detail": "Скриншоты не переданы"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(RecordingScreenshotsMissing())
 
         images = [f.read() for f in screenshots]
         pdf_bytes = img2pdf.convert(images)
@@ -856,10 +844,10 @@ class RecordingPdfView(APIView):
         parameters=[_PATH_COURSE, _PATH_LESSON],
         responses={
             200: DetailResponseSerializer,
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
+            500: ServiceErrorResponseSerializer,
         },
     ),
 )
@@ -879,10 +867,7 @@ class WebinarFinalPdfView(APIView):
 
         screenshots = request.FILES.getlist("screenshots")
         if not screenshots:
-            return Response(
-                {"detail": "Скриншоты не переданы"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(RecordingScreenshotsMissing())
 
         try:
             images = [f.read() for f in screenshots]
@@ -892,10 +877,7 @@ class WebinarFinalPdfView(APIView):
                 "Ошибка конвертации финальных скриншотов в PDF для вебинара %s",
                 webinar.webinar_id,
             )
-            return Response(
-                {"detail": "Не удалось обработать скриншоты"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return process_error_response(ScreenshotsConversionFailed())
 
         now = timezone.now()
         recording = Recording.objects.create(

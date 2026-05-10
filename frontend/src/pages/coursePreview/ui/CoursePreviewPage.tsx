@@ -39,9 +39,9 @@ function SpecialCourseBlock({
   if (isEnrolled) {
     return (
       <div className={styles.specialBlock}>
-        <div className={styles.specialStatus} data-status="enrolled">
-          Вы записаны на курс
-        </div>
+        <Button type="button" className={styles.selectButton} disabled>
+          Вы записаны
+        </Button>
       </div>
     );
   }
@@ -49,9 +49,13 @@ function SpecialCourseBlock({
   if (applicationStatus === 'pending') {
     return (
       <div className={styles.specialBlock}>
-        <div className={styles.specialStatus} data-status="pending">
-          Заявка на рассмотрении
-        </div>
+        <Button
+          type="button"
+          className={styles.selectButton}
+          disabled
+        >
+          Заявка подана
+        </Button>
         <Button
           type="button"
           variant="outline"
@@ -68,9 +72,9 @@ function SpecialCourseBlock({
   if (applicationStatus === 'rejected') {
     return (
       <div className={styles.specialBlock}>
-        <div className={styles.specialStatus} data-status="rejected">
+        <Button type="button" className={styles.selectButton} disabled>
           Заявка отклонена
-        </div>
+        </Button>
       </div>
     );
   }
@@ -78,9 +82,9 @@ function SpecialCourseBlock({
   if (applicationStatus === 'approved') {
     return (
       <div className={styles.specialBlock}>
-        <div className={styles.specialStatus} data-status="enrolled">
-          Заявка одобрена
-        </div>
+        <Button type="button" className={styles.selectButton} disabled>
+          Вы записаны
+        </Button>
       </div>
     );
   }
@@ -237,7 +241,7 @@ export default function CoursePreviewPage() {
           <div className={styles.priceCard}>
             {isSpecial ? (
               <>
-                <div className={styles.priceBadge}>ОСОБЫЙ КУРС</div>
+                <div className={styles.specialCourseLabel}>курс по записи</div>
                 <SpecialCourseBlock
                   courseSlug={slug!}
                   isEnrolled={course.is_enrolled ?? false}
@@ -265,14 +269,16 @@ export default function CoursePreviewPage() {
                 </div>
                 <Button
                   className={styles.selectButton}
-                  disabled={addToCart.isPending || inCart || cartLoading}
+                  disabled={addToCart.isPending || inCart || cartLoading || (course.is_enrolled ?? false)}
                   onClick={handleAddToCart}
                 >
-                  {inCart
-                    ? 'В корзине'
-                    : addToCart.isPending
-                      ? 'Добавляем...'
-                      : 'Выбрать'}
+                  {(course.is_enrolled ?? false)
+                    ? 'Вы записаны'
+                    : inCart
+                      ? 'В корзине'
+                      : addToCart.isPending
+                        ? 'Добавляем...'
+                        : 'Выбрать'}
                 </Button>
               </>
             )}

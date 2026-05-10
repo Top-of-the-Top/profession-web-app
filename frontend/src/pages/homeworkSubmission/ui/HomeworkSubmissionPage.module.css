@@ -217,7 +217,7 @@
 
 .optionLabelCorrect {
   background: #dcfce7;
-  border-color: #86efac;
+  border-color: #CDE8CB;
 }
 
 .optionLabelCorrect input[type='radio'] {
@@ -604,7 +604,7 @@
 
 .statusBannerReviewed {
   background: #f0fdf4;
-  border: 1px solid #86efac;
+  border: 1px solid #CDE8CB;
   color: #166534;
 }
 
@@ -643,7 +643,7 @@
 .sideStatusChip[data-status='reviewed'] {
   background: #f0fdf4;
   color: #166534;
-  border: 1px solid #86efac;
+  border: 1px solid #CDE8CB;
 }
 
 .sideScore {

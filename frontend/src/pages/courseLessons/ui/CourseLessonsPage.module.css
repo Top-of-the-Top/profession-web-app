@@ -156,9 +156,8 @@
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #86efac;
+  background: #CDE8CB;
   flex-shrink: 0;
-  box-shadow: 0 0 0 2px #ecfdf5;
 }
 
 .progressCardTitle {

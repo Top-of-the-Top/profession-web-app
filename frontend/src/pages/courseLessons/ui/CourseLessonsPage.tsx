@@ -128,7 +128,10 @@ function StaffStatsCard({
   const homeworkPct = Math.round(homeworkRate * 100);
   return (
     <div className={styles.sideCard}>
-      <p className={styles.sideCardTitle}>Статистика</p>
+			 <div className={styles.progressCardHead}>
+        <span className={styles.progressLiveDot} aria-hidden />
+        <p className={styles.progressCardTitle}>Статистика</p>
+      </div>
       <div className={styles.progressBlock}>
         <div className={styles.progressHeader}>
           <span>Посещаемость вебинаров</span>

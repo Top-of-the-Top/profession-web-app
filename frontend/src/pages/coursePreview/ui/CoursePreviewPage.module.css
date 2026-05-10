@@ -59,6 +59,12 @@
   gap: 16px;
 }
 
+.specialCourseLabel {
+  font-size: 0.8rem;
+  color: var(--profession-black-primary);
+  font-weight: 400;
+}
+
 .priceBadge {
   display: inline-block;
   align-self: flex-start;

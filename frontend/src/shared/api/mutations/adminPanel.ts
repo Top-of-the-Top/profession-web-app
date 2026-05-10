@@ -1,6 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../interceptor';
+import { courseApi } from '../courseApi/client';
+import type { CoursePatchPayload } from '../courseApi/types';
 import { adminKeys, type AdminCourse, type AdminTeacher, type AdminTeacherInvite } from '../queries/adminPanel';
+import { courseKeys } from '../queries/courses';
 import { notifySuccess, notifyError } from '@shared/lib/sileo/notify';
 
 function adminCourseTypeFromApiStatus(status: unknown): AdminCourse['type'] {
@@ -37,6 +40,7 @@ export function useCreateCourse() {
       starts_at?: string | null;
       duration_weeks?: number | null;
       min_age?: number | null;
+      cover_asset_id?: string | null;
     }) =>
       apiClient.request<AdminCourse>('/api/v1/courses/', {
         method: 'POST',
@@ -55,14 +59,12 @@ export function useCreateCourse() {
 export function usePatchAdminCourse(slug: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<{ title: string; sub_title: string; description: string; price: number }>) =>
-      apiClient.request<AdminCourse>(`/api/v1/courses/${slug}/`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      }),
+    mutationFn: (payload: Partial<CoursePatchPayload>) => courseApi.patchCourse(slug, payload),
     onSuccess: () => {
       notifySuccess({ title: 'Курс обновлён' });
       void qc.invalidateQueries({ queryKey: adminKeys.courses() });
+      void qc.invalidateQueries({ queryKey: courseKeys.bySlug(slug) });
+      void qc.invalidateQueries({ queryKey: courseKeys.courseHome(slug) });
     },
     onError: (err) => {
       notifyError({ title: 'Не удалось обновить курс', description: errMsg(err) });

@@ -150,7 +150,7 @@ class CourseAdmin(ModelAdmin):
 
     @display(description="Покупок")
     def purchases_count(self, obj):
-        return obj.purchases.count()
+        return obj.enrollments.count()
 
     @display(description="Превью")
     def image_preview(self, obj):

@@ -129,6 +129,26 @@ class CourseListView(APIView):
         key = course_list_cache_key(request.user.id)
         cached = cache.get(key)
         if cached is not None:
+            if isinstance(cached, list) and cached and all(
+                isinstance(item, dict) for item in cached
+            ):
+                if any("is_enrolled" not in item for item in cached):
+                    user = request.user
+                    if user.is_moderator() or user.is_teacher():
+                        patched = [{**item, "is_enrolled": True} for item in cached]
+                    else:
+                        purchased_ids = {
+                            str(course_id) for course_id in user.get_purchased_courses_ids()
+                        }
+                        patched = [
+                            {
+                                **item,
+                                "is_enrolled": str(item.get("course_id", "")) in purchased_ids,
+                            }
+                            for item in cached
+                        ]
+                    cache.set(key, patched)
+                    return Response(patched)
             return Response(cached)
 
         user = request.user
@@ -468,7 +488,7 @@ class CourseHomePageView(APIView):
         },
     )
     def get(self, request, course_slug):
-        course = get_object_or_404(Course, slug=course_slug)
+        course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         user = request.user
         vis = course_content_visibility(user, course)
 
@@ -531,7 +551,7 @@ class SectionCreateView(APIView):
     )
     @require_course_author
     def post(self, request, course_slug):
-        course = get_object_or_404(Course, slug=course_slug)
+        course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         payload = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
         payload["course"] = course.course_id
         serializer = SectionSerializer(data=payload)
@@ -630,7 +650,7 @@ class LessonCreateView(APIView):
     )
     @require_course_author
     def post(self, request, course_slug):
-        course = get_object_or_404(Course, slug=course_slug)
+        course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         serializer = LessonSimpleCreateSerializer(
             data=request.data,
             context={"request": request, "course": course},
@@ -673,7 +693,7 @@ class LessonDetailView(APIView):
     )
     @require_course_enrollment
     def get(self, request, course_slug, lesson_slug):
-        course = get_object_or_404(Course, slug=course_slug)
+        course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         vis = course_content_visibility(request.user, course)
         key = lesson_detail_cache_key(
             course_slug,
@@ -716,7 +736,7 @@ class LessonDetailView(APIView):
     )
     @require_course_author
     def put(self, request, course_slug, lesson_slug):
-        course = get_object_or_404(Course, slug=course_slug)
+        course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         lesson = get_lesson_or_404(course_slug, lesson_slug, include_drafts=True)
         serializer = LessonCreateSerializer(
             lesson,
@@ -823,7 +843,7 @@ class HomeworkDetailView(APIView):
     )
     @require_course_enrollment
     def get(self, request, course_slug, lesson_slug, homework_slug):
-        course = get_object_or_404(Course, slug=course_slug)
+        course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         vis = course_content_visibility(request.user, course)
         key = homework_detail_cache_key(course_slug, lesson_slug, homework_slug, vis.cache_scope)
         return cached_detail_response(

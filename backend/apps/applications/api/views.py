@@ -23,6 +23,7 @@ from .errors import (
     ApplicationAlreadySubmitted,
     ApplicationNotFound,
     ApplicationNotSpecialCourse,
+    ApplicationSelfServiceForbiddenForStaff,
     ApplicationWithdrawForbidden,
 )
 from .serializers import ApplicationReviewedSerializer, CourseApplicationSerializer
@@ -35,6 +36,12 @@ _PATH_COURSE = OpenApiParameter(
 _PATH_APPLICATION = OpenApiParameter(
     "application_id", OpenApiTypes.UUID, OpenApiParameter.PATH, description="UUID заявки"
 )
+
+
+def _application_self_service_forbidden_for_request_user(request):
+    if request.user.is_authenticated and (request.user.is_teacher() or request.user.is_moderator()):
+        return process_error_response(ApplicationSelfServiceForbiddenForStaff())
+    return None
 
 
 class CourseApplicationListView(APIView):
@@ -97,11 +104,15 @@ class CourseApplyView(APIView):
             201: None,
             400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
+            403: ServiceErrorResponseSerializer,
             404: {"schema": SCHEMA_DETAIL},
             409: ServiceErrorResponseSerializer,
         },
     )
     def post(self, request, course_slug):
+        denied = _application_self_service_forbidden_for_request_user(request)
+        if denied is not None:
+            return denied
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
 
         if not course.is_special:
@@ -128,11 +139,15 @@ class CourseWithdrawApplicationView(APIView):
         responses={
             204: None,
             401: {"schema": SCHEMA_DETAIL},
+            403: ServiceErrorResponseSerializer,
             404: ServiceErrorResponseSerializer,
             409: ServiceErrorResponseSerializer,
         },
     )
     def delete(self, request, course_slug):
+        denied = _application_self_service_forbidden_for_request_user(request)
+        if denied is not None:
+            return denied
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         application = CourseApplication.objects.filter(user=request.user, course=course).first()
 

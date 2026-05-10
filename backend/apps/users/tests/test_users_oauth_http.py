@@ -127,7 +127,7 @@ class UsersOAuthExchangeHttpTests(TestCase):
             format="json",
         )
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(r.data["error"], "invalid_state")
+        self.assertEqual(r.data["code"], "OAUTH_INVALID_STATE")
 
     def test_yandex_exchange_with_valid_state_and_stub_http_returns_200_and_user(self):
         suf = uuid.uuid4().hex[:10]
@@ -150,7 +150,7 @@ class UsersOAuthExchangeHttpTests(TestCase):
     def test_vk_exchange_requires_all_fields_returns_400_on_empty_body(self):
         r = self.client.post(reverse("users:vk-exchange"), {}, format="json")
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(r.data["error"], "invalid_request")
+        self.assertEqual(r.data["code"], "OAUTH_INVALID_REQUEST")
 
     def test_vk_exchange_rejects_state_not_in_cache_returns_400(self):
         r = self.client.post(
@@ -164,7 +164,7 @@ class UsersOAuthExchangeHttpTests(TestCase):
             format="json",
         )
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(r.data["error"], "invalid_state")
+        self.assertEqual(r.data["code"], "OAUTH_INVALID_STATE")
 
     def test_vk_exchange_success_returns_200_and_creates_user(self):
         suf = uuid.uuid4().hex[:10]

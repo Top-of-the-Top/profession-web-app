@@ -47,3 +47,11 @@ class ApplicationWithdrawForbidden(ApplicationError):
     code = "APPLICATION_WITHDRAW_FORBIDDEN"
     message = "Нельзя отозвать уже рассмотренную заявку."
     status = status.HTTP_409_CONFLICT
+
+
+class ApplicationSelfServiceForbiddenForStaff(ApplicationError):
+    code = "APPLICATION_SELF_SERVICE_FORBIDDEN_FOR_STAFF"
+    message = (
+        "Подача и отзыв заявки на специальный курс доступны только пользователям с ролью «студент»."
+    )
+    status = status.HTTP_403_FORBIDDEN

@@ -25,8 +25,8 @@ class UsersRegisterValidationHttpTests(TestCase):
 
     def test_register_without_contact_returns_403(self):
         r = self.client.post(reverse("users:register"), {}, format="json")
-        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertIn("detail", r.data)
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("code", r.data)
 
     def test_register_short_password_returns_403(self):
         r = self.client.post(
@@ -34,8 +34,8 @@ class UsersRegisterValidationHttpTests(TestCase):
             {"email": "short_pw@test.com", "password": "short"},
             format="json",
         )
-        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertIn("password", r.data)
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("details", r.data)
 
     def test_register_duplicate_email_returns_403(self):
         email = "dup@test.com"
@@ -49,8 +49,8 @@ class UsersRegisterValidationHttpTests(TestCase):
                 {"email": email, "password": "Pass12345!"},
                 format="json",
             )
-        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertIn("email", r.data)
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("details", r.data)
 
     def test_register_when_rate_limited_returns_429(self):
         with (
@@ -69,7 +69,7 @@ class UsersRegisterValidationHttpTests(TestCase):
                 format="json",
             )
         self.assertEqual(r.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-        self.assertEqual(r.data["retry_after"], 44)
+        self.assertEqual(r.data["details"]["retry_after"], 44)
 
 
 class UsersVerifyRegisterValidationHttpTests(TestCase):
@@ -101,7 +101,7 @@ class UsersVerifyRegisterValidationHttpTests(TestCase):
             format="json",
         )
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("error", r.data)
+        self.assertIn("code", r.data)
 
 
 class UsersLoginHttpTests(TestCase):
@@ -168,7 +168,7 @@ class UsersLoginHttpTests(TestCase):
             format="json",
         )
         self.assertEqual(locked.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-        self.assertIn("retry_after", locked.data)
+        self.assertIn("retry_after", locked.data["details"])
 
 
 class UsersRefreshTokenHttpTests(TestCase):
@@ -204,7 +204,7 @@ class UsersResetPasswordHttpTests(TestCase):
 
     def test_reset_without_contact_returns_403(self):
         r = self.client.post(reverse("users:reset"), {}, format="json")
-        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_reset_unknown_email_returns_403(self):
         r = self.client.post(

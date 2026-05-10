@@ -127,8 +127,9 @@ class WebinarStartViewTest(WebinarEndpointsBase):
         )
         self.authenticate(self.teacher)
         response = self.client.post(self.url_start())
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["webinar_id"], str(existing.webinar_id))
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.data["code"], "WEBINAR_ALREADY_LIVE")
+        self.assertEqual(response.data["details"]["webinar_id"], str(existing.webinar_id))
         existing.refresh_from_db()
         self.assertEqual(existing.whiteboard_room_uuid, "live-room")
         mock_create.assert_not_called()
@@ -373,7 +374,7 @@ class WebinarRecordingStartViewTest(WebinarEndpointsBase):
         Recording.objects.create(webinar=webinar, status=Recording.RECORDING_STATUS)
         self.authenticate(self.teacher)
         response = self.client.post(self.url_rec_start())
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
 
     def test_starts_recording_and_stores_sid_and_resource(self, mock_acq, mock_start, *_):
         webinar = Webinar.objects.create(lesson=self.lesson, status=Webinar.LIVE_STATUS)

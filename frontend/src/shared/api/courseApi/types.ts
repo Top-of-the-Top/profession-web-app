@@ -5,6 +5,7 @@ export interface CourseDTO {
   image_url: string;
   price: number;
   slug: string;
+  is_published?: boolean;
   is_special?: boolean;
   is_enrolled?: boolean;
 }

@@ -52,7 +52,7 @@ class Chat(TimestampedMixin):
         related_name="chats",
     )
 
-    title = models.CharField(max_length=100, null=True, blank=True, verbose_name="Заголовок чата")
+    title = models.CharField(max_length=25, null=True, blank=True, verbose_name="Заголовок чата")
 
     class Meta:
         verbose_name = "Чаты"

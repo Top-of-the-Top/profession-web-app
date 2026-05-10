@@ -2,7 +2,7 @@ from django.core.cache import caches
 from django.db.models.signals import pre_delete, pre_save
 from django.dispatch import receiver
 
-from .api.views import cart_hot_cache_key
+from .api.cache_utils import cart_hot_cache_key
 from .models import CartItem
 
 

@@ -180,8 +180,8 @@ SPECTACULAR_SETTINGS = {
         "```json\n"
         "{\n"
         '  "status": "error",\n'
-        '  "code": "COURSE_NOT_FOUND",\n'
-        '  "message": "Курс не найден.",\n'
+        '  "code": "КОД_ОШИБКИ",\n'
+        '  "message": "Сообщение ошибки.",\n'
         '  "details": {}\n'
         "}\n"
         "```"
@@ -198,6 +198,10 @@ SPECTACULAR_SETTINGS = {
                 "Регистрация, вход, сброс пароля, управление профилем. "
                 "Поддерживается авторизация через email, телефон, Яндекс и ВКонтакте."
             ),
+        },
+        {
+            "name": "Home",
+            "description": ("Домашняя страница приложения."),
         },
         {
             "name": "Course",

@@ -1,45 +1,27 @@
 from django.core.cache import caches
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.api.serializers import ServiceErrorResponseSerializer
+from apps.core.processors.error_processor import process_error_response
+
 from ...courses.models import Course
 from ..models import Cart, CartItem
 from .cache_utils import cart_hot_cache_key
+from .errors import CourseAlreadyInCart, CourseNotAvailable, CourseNotInCart
 from .serializers import CartItemSerializer, CartSerializer
 
 SCHEMA_401 = {
     "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Сообщение об ошибке аутентификации.",
-            "example": "Authentication credentials were not provided.",
-        }
-    },
+    "properties": {"detail": {"type": "string"}},
 }
-SCHEMA_404 = {
-    "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Ресурс не найден.",
-            "example": "Курс с таким slug не найден в списке курсов.",
-        }
-    },
-}
-SCHEMA_400_ERROR = {
-    "type": "object",
-    "properties": {
-        "error": {
-            "type": "string",
-            "description": "Ошибка бизнес-логики.",
-            "example": "Курс уже в корзине",
-        }
-    },
-}
+
+_PATH_SLUG = OpenApiParameter(
+    "slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+)
 
 
 class CartView(APIView):
@@ -47,20 +29,12 @@ class CartView(APIView):
     serializer_class = CartSerializer
 
     @extend_schema(
-        summary="Получить корзину пользователя",
-        description=(
-            "Возвращает корзину текущего пользователя со списком добавленных курсов. "
-            "Требуется заголовок Authorization: Bearer <access_token>. "
-            "В ответе: cart_id, user, courses (массив объектов курса с course_id, title, sub_title, image_url, price, slug). "
-            "При отсутствии или невалидности токена — 401 с полем detail."
-        ),
+        summary="Корзина пользователя",
+        description="Возвращает корзину текущего пользователя с добавленными курсами.",
         tags=["Carts"],
         responses={
             200: CartSerializer,
-            401: {
-                "description": "Токен отсутствует или недействителен.",
-                "schema": SCHEMA_401,
-            },
+            401: {"schema": SCHEMA_401},
         },
     )
     def get(self, request):
@@ -85,28 +59,16 @@ class AddToCartView(APIView):
     @extend_schema(
         summary="Добавить курс в корзину",
         description=(
-            "Добавляет курс в корзину текущего пользователя по slug курса (в пути URL). "
-            "Требуется Authorization: Bearer <access_token>. "
-            "При успехе возвращается созданная позиция корзины (cart_id, course_id, вложенный объект course). "
-            "Если курс с таким slug не существует в каталоге — 404 с полем detail. "
-            "Если курс уже добавлен в корзину — 400 с полем error: «Курс уже в корзине». "
-            "При невалидном токене — 401."
+            "Добавляет опубликованный публичный курс в корзину по его slug. "
+            "Специальные (is_special) курсы добавить нельзя."
         ),
         tags=["Carts"],
+        parameters=[_PATH_SLUG],
         responses={
             201: CartItemSerializer,
-            400: {
-                "description": "Тело: { error: 'Курс уже в корзине' }.",
-                "schema": SCHEMA_400_ERROR,
-            },
-            401: {
-                "description": "Токен отсутствует или недействителен.",
-                "schema": SCHEMA_401,
-            },
-            404: {
-                "description": "Тело: { detail: 'Курс с таким slug не найден в списке курсов.' }.",
-                "schema": SCHEMA_404,
-            },
+            400: ServiceErrorResponseSerializer,
+            401: {"schema": SCHEMA_401},
+            404: ServiceErrorResponseSerializer,
         },
     )
     def post(self, request, slug):
@@ -116,16 +78,10 @@ class AddToCartView(APIView):
         ).first()
 
         if course is None:
-            return Response(
-                {"detail": "Курс с таким slug не найден в списке курсов."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return process_error_response(CourseNotAvailable())
 
         if CartItem.objects.filter(cart_id=cart.cart_id, course_id=course.course_id).exists():
-            return Response(
-                {"error": "Курс уже в корзине"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(CourseAlreadyInCart())
 
         cart_item = CartItem.objects.create(
             cart_id=cart.cart_id,
@@ -142,43 +98,25 @@ class CartItemView(APIView):
 
     @extend_schema(
         summary="Удалить курс из корзины",
-        description=(
-            "Удаляет курс из корзины текущего пользователя по slug (в пути URL). "
-            "Требуется Authorization: Bearer <access_token>. "
-            "При успехе возвращается 204 без тела. "
-            "404 возвращается в двух случаях: курс с таким slug не найден в каталоге (detail: «Курс с таким slug не найден в списке курсов.») или курс не в корзине (detail: «Курс с таким slug не найден в корзине.»). "
-            "При невалидном токене — 401."
-        ),
+        description="Удаляет курс из корзины текущего пользователя по slug.",
         tags=["Carts"],
+        parameters=[_PATH_SLUG],
         responses={
-            204: {"description": "Курс удалён из корзины, тело ответа пустое."},
-            401: {
-                "description": "Токен отсутствует или недействителен.",
-                "schema": SCHEMA_401,
-            },
-            404: {
-                "description": "Тело: { detail }. «Курс с таким slug не найден в списке курсов.» или «Курс с таким slug не найден в корзине.»",
-                "schema": SCHEMA_404,
-            },
+            204: None,
+            401: {"schema": SCHEMA_401},
+            404: ServiceErrorResponseSerializer,
         },
     )
     def delete(self, request, slug):
         cart, _ = Cart.objects.get_or_create(user=request.user)
         course = Course.objects.filter(slug=slug).first()
         if course is None:
-            return Response(
-                {"detail": "Курс с таким slug не найден в списке курсов."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        cart_item = CartItem.objects.filter(
-            cart_id=cart,
-            course_id=course,
-        ).first()
+            return process_error_response(CourseNotAvailable())
+
+        cart_item = CartItem.objects.filter(cart_id=cart, course_id=course).first()
         if cart_item is None:
-            return Response(
-                {"detail": "Курс с таким slug не найден в корзине."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return process_error_response(CourseNotInCart())
+
         cart_item.delete()
         caches["hot"].delete(cart_hot_cache_key(request.user.id))
         return Response(status=status.HTTP_204_NO_CONTENT)

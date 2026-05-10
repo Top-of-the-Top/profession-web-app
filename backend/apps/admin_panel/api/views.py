@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -8,6 +8,8 @@ from rest_framework.views import APIView
 
 from apps.admin_panel.models import Invitation
 from apps.core.api.permissions import require_moderator
+from apps.core.api.serializers import ServiceErrorResponseSerializer
+from apps.core.processors.error_processor import process_error_response
 from apps.courses.api.utils.cache_utils import invalidate_on_course_model_change
 from apps.courses.models import Course
 from apps.users.api.utils.crypto_utils import encrypt_data
@@ -15,17 +17,36 @@ from apps.users.api.utils.notification_utils import send_teacher_invite_email
 from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.users.models import Profile, User
 
+from .errors import (
+    AuthorAlreadyOnCourse,
+    AuthorNotOnCourse,
+    CourseAlreadyDraft,
+    CourseAlreadyPublished,
+    InvitationAlreadyUsed,
+    InvitationExpired,
+    InvitationNotFound,
+    InvitationSendFailed,
+    InviteFieldsMissing,
+    InvitePasswordTooShort,
+    UserIdRequired,
+    UserNotTeacher,
+)
 from .serializers import InvitationCreateSerializer, InvitationSerializer, TeacherSerializer
 
 SCHEMA_DETAIL = {"type": "object", "properties": {"detail": {"type": "string"}}}
 SCHEMA_VALIDATION = {"type": "object", "description": "Объект с ошибками валидации по полям."}
+
+_PATH_COURSE = OpenApiParameter(
+    "course_slug", OpenApiTypes.STR, OpenApiParameter.PATH, description="Slug курса"
+)
 
 
 class TeacherListView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Список всех преподавателей платформы",
+        summary="Список преподавателей",
+        description="Возвращает всех пользователей с ролью teacher. Доступно только модератору.",
         tags=["Admin Panel"],
         responses={
             200: TeacherSerializer(many=True),
@@ -44,11 +65,25 @@ class CourseAddAuthorView(APIView):
 
     @extend_schema(
         summary="Добавить преподавателя на курс",
+        description=(
+            "Назначает преподавателя автором курса. "
+            "Query-параметр user_id обязателен. Доступно только модератору."
+        ),
         tags=["Admin Panel"],
+        parameters=[
+            _PATH_COURSE,
+            OpenApiParameter(
+                "user_id",
+                OpenApiTypes.INT,
+                OpenApiParameter.QUERY,
+                required=True,
+                description="ID пользователя с ролью teacher",
+            ),
+        ],
         request=None,
         responses={
             200: TeacherSerializer(many=True),
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -59,20 +94,12 @@ class CourseAddAuthorView(APIView):
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         user_id = request.query_params.get("user_id")
         if not user_id:
-            return Response(
-                {"detail": "Параметр user_id обязателен."}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return process_error_response(UserIdRequired())
         user = get_object_or_404(User, pk=user_id)
         if not user.is_teacher():
-            return Response(
-                {"detail": "Пользователь не является преподавателем."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(UserNotTeacher())
         if course.authors.filter(pk=user.pk).exists():
-            return Response(
-                {"detail": "Пользователь уже является автором этого курса."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(AuthorAlreadyOnCourse())
         course.authors.add(user)
         invalidate_on_course_model_change(course.slug)
         return Response(TeacherSerializer(course.authors.all(), many=True).data)
@@ -83,11 +110,25 @@ class CourseRemoveAuthorView(APIView):
 
     @extend_schema(
         summary="Снять преподавателя с курса",
+        description=(
+            "Убирает преподавателя из авторов курса. "
+            "Query-параметр user_id обязателен. Доступно только модератору."
+        ),
         tags=["Admin Panel"],
+        parameters=[
+            _PATH_COURSE,
+            OpenApiParameter(
+                "user_id",
+                OpenApiTypes.INT,
+                OpenApiParameter.QUERY,
+                required=True,
+                description="ID пользователя",
+            ),
+        ],
         request=None,
         responses={
             200: TeacherSerializer(many=True),
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -98,15 +139,10 @@ class CourseRemoveAuthorView(APIView):
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         user_id = request.query_params.get("user_id")
         if not user_id:
-            return Response(
-                {"detail": "Параметр user_id обязателен."}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return process_error_response(UserIdRequired())
         user = get_object_or_404(User, pk=user_id)
         if not course.authors.filter(pk=user.pk).exists():
-            return Response(
-                {"detail": "Пользователь не является автором этого курса."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(AuthorNotOnCourse())
         course.authors.remove(user)
         invalidate_on_course_model_change(course.slug)
         return Response(TeacherSerializer(course.authors.all(), many=True).data)
@@ -117,11 +153,13 @@ class CoursePublishView(APIView):
 
     @extend_schema(
         summary="Опубликовать курс",
+        description="Переводит курс в статус published. Доступно только модератору.",
         tags=["Admin Panel"],
+        parameters=[_PATH_COURSE],
         request=None,
         responses={
             200: {"type": "object", "properties": {"status": {"type": "string"}}},
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -131,10 +169,7 @@ class CoursePublishView(APIView):
     def post(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         if course.type == Course.PUBLISHED_STATUS:
-            return Response(
-                {"detail": "Курс уже опубликован."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(CourseAlreadyPublished())
         course.type = Course.PUBLISHED_STATUS
         course.last_modified_by = request.user
         course.save(update_fields=["type", "last_modified_by", "updated_at"])
@@ -146,11 +181,13 @@ class CourseUnpublishView(APIView):
 
     @extend_schema(
         summary="Снять курс с публикации",
+        description="Переводит курс обратно в статус draft. Доступно только модератору.",
         tags=["Admin Panel"],
+        parameters=[_PATH_COURSE],
         request=None,
         responses={
             200: {"type": "object", "properties": {"status": {"type": "string"}}},
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -160,10 +197,7 @@ class CourseUnpublishView(APIView):
     def post(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         if course.type == Course.DRAFT_STATUS:
-            return Response(
-                {"detail": "Курс уже в статусе черновика."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(CourseAlreadyDraft())
         course.type = Course.DRAFT_STATUS
         course.last_modified_by = request.user
         course.save(update_fields=["type", "last_modified_by", "updated_at"])
@@ -174,7 +208,8 @@ class InvitationListView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Список инвайтов",
+        summary="Список приглашений",
+        description="Возвращает все активные и использованные приглашения. Доступно только модератору.",
         tags=["Admin Panel"],
         responses={
             200: InvitationSerializer(many=True),
@@ -193,7 +228,11 @@ class InviteTeacherview(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Создать инвайт и отправить письмо",
+        summary="Пригласить преподавателя",
+        description=(
+            "Создаёт инвайт-ссылку и отправляет письмо на указанный email. "
+            "Если письмо не доставлено — инвайт удаляется. Доступно только модератору."
+        ),
         tags=["Admin Panel"],
         request=InvitationCreateSerializer,
         responses={
@@ -201,7 +240,7 @@ class InviteTeacherview(APIView):
             400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
+            500: ServiceErrorResponseSerializer,
         },
     )
     @require_moderator
@@ -220,10 +259,7 @@ class InviteTeacherview(APIView):
         ok, _ = send_teacher_invite_email(invite.email, invite_url)
         if not ok:
             invite.delete()
-            return Response(
-                {"detail": "Не удалось отправить письмо."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return process_error_response(InvitationSendFailed())
 
         return Response(InvitationSerializer(invite).data, status=status.HTTP_201_CREATED)
 
@@ -233,28 +269,35 @@ class InviteValidateView(APIView):
 
     @extend_schema(
         summary="Проверить инвайт-токен",
+        description=(
+            "Проверяет валидность токена из ссылки-приглашения. "
+            "Возвращает email, на который выдан инвайт."
+        ),
         tags=["Admin Panel"],
+        parameters=[
+            OpenApiParameter(
+                "token",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                required=True,
+                description="Токен из ссылки-приглашения",
+            ),
+        ],
         responses={
             200: {"type": "object", "properties": {"email": {"type": "string"}}},
-            400: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
+            404: ServiceErrorResponseSerializer,
         },
     )
     def get(self, request):
         token = request.query_params.get("token", "").strip()
         invite = Invitation.objects.filter(token=token).first()
         if not invite:
-            return Response({"detail": "Приглашение не найдено."}, status=status.HTTP_404_NOT_FOUND)
+            return process_error_response(InvitationNotFound())
         if invite.is_used:
-            return Response(
-                {"error": "used", "detail": "Приглашение уже использовано."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InvitationAlreadyUsed())
         if invite.is_expired:
-            return Response(
-                {"error": "expired", "detail": "Ссылка истекла."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InvitationExpired())
         return Response({"email": invite.email})
 
 
@@ -262,13 +305,17 @@ class RegisterByInviteView(APIView):
     permission_classes = (AllowAny,)
 
     @extend_schema(
-        summary="Регистрация преподавателя по инвайту",
+        summary="Регистрация преподавателя по приглашению",
+        description=(
+            "Создаёт аккаунт преподавателя по одноразовому инвайт-токену. "
+            "После успешной регистрации возвращаются JWT-токены."
+        ),
         tags=["Admin Panel"],
         request={
             "type": "object",
             "properties": {
-                "token": {"type": "string"},
-                "password": {"type": "string"},
+                "token": {"type": "string", "description": "Токен из ссылки-приглашения"},
+                "password": {"type": "string", "description": "Пароль (минимум 8 символов)"},
                 "first_name": {"type": "string"},
                 "last_name": {"type": "string"},
             },
@@ -283,8 +330,8 @@ class RegisterByInviteView(APIView):
                     "role": {"type": "string"},
                 },
             },
-            400: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
+            404: ServiceErrorResponseSerializer,
         },
     )
     def post(self, request):
@@ -294,29 +341,17 @@ class RegisterByInviteView(APIView):
         last_name = (request.data.get("last_name") or "").strip()
 
         if not all([token, password, first_name, last_name]):
-            return Response(
-                {"detail": "Все поля обязательны."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InviteFieldsMissing())
         if len(password) < 8:
-            return Response(
-                {"password": ["Минимум 8 символов."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InvitePasswordTooShort())
 
         invite = Invitation.objects.filter(token=token).first()
         if not invite:
-            return Response({"detail": "Приглашение не найдено."}, status=status.HTTP_404_NOT_FOUND)
+            return process_error_response(InvitationNotFound())
         if invite.is_used:
-            return Response(
-                {"error": "used", "detail": "Приглашение уже использовано."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InvitationAlreadyUsed())
         if invite.is_expired:
-            return Response(
-                {"error": "expired", "detail": "Ссылка истекла."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InvitationExpired())
 
         email_cipher = encrypt_data(invite.email)
         user = User.objects.create_user(
@@ -331,5 +366,4 @@ class RegisterByInviteView(APIView):
         invite.used_at = timezone.now()
         invite.save(update_fields=["used_at"])
 
-        tokens = get_tokens_for_user(user)
-        return Response(tokens, status=status.HTTP_201_CREATED)
+        return Response(get_tokens_for_user(user), status=status.HTTP_201_CREATED)

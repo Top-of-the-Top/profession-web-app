@@ -1,42 +1,26 @@
 from decimal import Decimal
 
 from django.db import transaction
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.core.api.serializers import ServiceErrorResponseSerializer
+from apps.core.processors.error_processor import process_error_response
 
 from ...carts.models import Cart, CartItem
 from ...courses.models import CourseEnrollment
 from ..models import Payment, PaymentItem
 from ..services import MockYooKassaService
 from ..tasks import process_payment_task
+from .errors import CartEmpty, CoursesAlreadyPurchased, PaymentNotFound, SpecialCourseInCart
 from .serializers import PaymentSerializer, PaymentShortSerializer
 
 SCHEMA_401 = {
     "type": "object",
-    "properties": {
-        "detail": {
-            "type": "string",
-            "description": "Токен отсутствует или недействителен.",
-        }
-    },
-}
-SCHEMA_404 = {
-    "type": "object",
-    "properties": {"detail": {"type": "string", "description": "Платёж не найден."}},
-}
-SCHEMA_400 = {
-    "type": "object",
-    "properties": {
-        "error": {"type": "string"},
-        "course_ids": {
-            "type": "array",
-            "items": {"type": "integer"},
-            "description": "Опционально при уже купленных курсах.",
-        },
-    },
+    "properties": {"detail": {"type": "string"}},
 }
 
 
@@ -46,56 +30,38 @@ class CartPayView(APIView):
     @extend_schema(
         summary="Оплатить корзину",
         description=(
-            "Создаёт платёж на основе текущей корзины пользователя."
-            "Корзина должна быть непустой; все курсы в корзине не должны быть уже куплены. "
+            "Создаёт платёж на основе текущей корзины пользователя и зачисляет курсы. "
+            "Корзина должна быть непустой; все курсы в ней не должны быть уже куплены."
         ),
         tags=["Carts"],
         responses={
             204: None,
-            400: {
-                "description": "Тело: { error } или { error, course_ids }. Корзина пуста или курсы уже куплены.",
-                "schema": SCHEMA_400,
-            },
-            401: {
-                "description": "Токен отсутствует или недействителен.",
-                "schema": SCHEMA_401,
-            },
+            400: ServiceErrorResponseSerializer,
+            401: {"schema": SCHEMA_401},
         },
     )
     def post(self, request):
         cart, _ = Cart.objects.get_or_create(user=request.user)
-        cart_items = CartItem.objects.filter(
-            cart_id=cart,
-        ).select_related("course")
+        cart_items = CartItem.objects.filter(cart_id=cart).select_related("course")
 
         if not cart_items.exists():
-            return Response(
-                {"error": "Корзина пуста. Добавьте курсы перед оплатой."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(CartEmpty())
 
         special_course_ids = [item.course_id for item in cart_items if item.course.is_special]
         if special_course_ids:
-            return Response(
-                {
-                    "error": "Специальные курсы нельзя купить.",
-                    "course_ids": special_course_ids,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+            return process_error_response(
+                SpecialCourseInCart(details={"course_ids": special_course_ids})
             )
 
-        already_enrolled = CourseEnrollment.objects.filter(
-            user=request.user,
-            course__in=[item.course_id for item in cart_items],
-        ).values_list("course_id", flat=True)
-
+        already_enrolled = list(
+            CourseEnrollment.objects.filter(
+                user=request.user,
+                course__in=[item.course_id for item in cart_items],
+            ).values_list("course_id", flat=True)
+        )
         if already_enrolled:
-            return Response(
-                {
-                    "error": "Некоторые курсы уже куплены.",
-                    "course_ids": list(already_enrolled),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+            return process_error_response(
+                CoursesAlreadyPurchased(details={"course_ids": already_enrolled})
             )
 
         with transaction.atomic():
@@ -169,21 +135,17 @@ class PaymentListView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Список платежей",
-        description=("Возвращает список всех платежей текущего пользователя."),
+        summary="История платежей",
+        description="Список всех платежей текущего пользователя.",
         tags=["Payments"],
         responses={
             200: PaymentShortSerializer(many=True),
-            401: {
-                "description": "Токен отсутствует или недействителен.",
-                "schema": SCHEMA_401,
-            },
+            401: {"schema": SCHEMA_401},
         },
     )
     def get(self, request):
         payments = Payment.objects.filter(user=request.user)
-        serializer = PaymentShortSerializer(payments, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(PaymentShortSerializer(payments, many=True).data, status=status.HTTP_200_OK)
 
 
 class PaymentDetailView(APIView):
@@ -191,35 +153,32 @@ class PaymentDetailView(APIView):
 
     @extend_schema(
         summary="Детали платежа",
-        description=("Возвращает полную информацию о платеже по payment_id.",),
+        description=(
+            "Возвращает полную информацию о платеже по payment_id. " "Чужие платежи возвращают 404."
+        ),
         tags=["Payments"],
+        parameters=[
+            OpenApiParameter(
+                "payment_id",
+                OpenApiTypes.UUID,
+                OpenApiParameter.PATH,
+                description="UUID платежа",
+            ),
+        ],
         responses={
             200: PaymentSerializer,
-            401: {
-                "description": "Токен отсутствует или недействителен.",
-                "schema": SCHEMA_401,
-            },
-            404: {
-                "description": "Тело: { detail: 'Платёж не найден.' }. Чужие платежи тоже 404.",
-                "schema": SCHEMA_404,
-            },
+            401: {"schema": SCHEMA_401},
+            404: ServiceErrorResponseSerializer,
         },
     )
     def get(self, request, payment_id):
         payment = (
-            Payment.objects.filter(
-                payment_id=payment_id,
-                user=request.user,
-            )
+            Payment.objects.filter(payment_id=payment_id, user=request.user)
             .prefetch_related("items__course")
             .first()
         )
 
         if payment is None:
-            return Response(
-                {"detail": "Платёж не найден."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return process_error_response(PaymentNotFound())
 
-        serializer = PaymentSerializer(payment)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(PaymentSerializer(payment).data, status=status.HTTP_200_OK)

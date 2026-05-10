@@ -53,14 +53,19 @@ PAGE_SIZE = 20
 
 @extend_schema(
     tags=["Notifications"],
-    summary="Список уведомлений пользователя",
+    summary="Список уведомлений",
+    description=(
+        "Возвращает до 20 уведомлений текущего пользователя в порядке убывания id. "
+        "Для постраничной загрузки передайте before_id — будут возвращены записи "
+        "с id строго меньше указанного. Поле has_more сигнализирует о наличии следующей страницы."
+    ),
     parameters=[
         OpenApiParameter(
             name="before_id",
             type=OpenApiTypes.INT,
             location=OpenApiParameter.QUERY,
             required=False,
-            description="Вернуть уведомления с id строго меньше указанного (курсор пагинации)",
+            description="Курсор пагинации: вернуть уведомления с id < before_id",
         ),
     ],
     responses={200: NotificationSerializer(many=True)},
@@ -89,8 +94,9 @@ def get_notifications_for_user(request):
 
 @extend_schema(
     tags=["Notifications"],
-    summary="Пометить все уведомления пользователя как прочитанные",
-    responses={200: {"description": '{"marked": int}', "content": {"application/json": {}}}},
+    summary="Пометить все уведомления как прочитанные",
+    description="Отмечает все непрочитанные уведомления пользователя прочитанными. Возвращает количество обновлённых записей.",
+    responses={200: {"description": '{ "marked": int }', "content": {"application/json": {}}}},
 )
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -122,7 +128,12 @@ async def _get_user_course_ids(user_id: int) -> list:
 @extend_schema(
     tags=["Notifications"],
     summary="Поток уведомлений (SSE)",
-    description="Server-Sent Events; требуется query-параметр token (JWT access).",
+    description=(
+        "Открывает Server-Sent Events поток с уведомлениями в реальном времени. "
+        "Аутентификация через query-параметр token (JWT access). "
+        "Опционально можно передать webinar_id для получения событий вебинара. "
+        "Клиент должен переподключаться при разрыве соединения."
+    ),
     parameters=[
         OpenApiParameter(
             name="token",
@@ -131,13 +142,20 @@ async def _get_user_course_ids(user_id: int) -> list:
             required=True,
             description="JWT access token",
         ),
+        OpenApiParameter(
+            name="webinar_id",
+            type=OpenApiTypes.UUID,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="UUID вебинара для подписки на его события",
+        ),
     ],
     responses={
         200: {
             "description": "Поток text/event-stream",
             "content": {"text/event-stream": {}},
         },
-        401: {"description": "Нет или неверный token"},
+        401: {"description": "Токен отсутствует или недействителен."},
     },
 )
 async def sse_notifications(request):

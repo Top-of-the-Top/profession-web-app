@@ -65,3 +65,21 @@ class InvitationSendFailed(AdminPanelError):
     code = "INVITATION_SEND_FAILED"
     message = "Не удалось отправить письмо с приглашением."
     status = status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+class UserIdRequired(AdminPanelError):
+    code = "USER_ID_REQUIRED"
+    message = "Параметр user_id обязателен."
+    status = status.HTTP_400_BAD_REQUEST
+
+
+class InviteFieldsMissing(AdminPanelError):
+    code = "INVITE_FIELDS_MISSING"
+    message = "Все поля обязательны: token, password, first_name, last_name."
+    status = status.HTTP_400_BAD_REQUEST
+
+
+class InvitePasswordTooShort(AdminPanelError):
+    code = "INVITE_PASSWORD_TOO_SHORT"
+    message = "Пароль должен содержать не менее 8 символов."
+    status = status.HTTP_400_BAD_REQUEST

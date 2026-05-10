@@ -26,6 +26,9 @@ from .errors import (
     InvitationExpired,
     InvitationNotFound,
     InvitationSendFailed,
+    InviteFieldsMissing,
+    InvitePasswordTooShort,
+    UserIdRequired,
     UserNotTeacher,
 )
 from .serializers import InvitationCreateSerializer, InvitationSerializer, TeacherSerializer
@@ -91,9 +94,7 @@ class CourseAddAuthorView(APIView):
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         user_id = request.query_params.get("user_id")
         if not user_id:
-            return Response(
-                {"detail": "Параметр user_id обязателен."}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return process_error_response(UserIdRequired())
         user = get_object_or_404(User, pk=user_id)
         if not user.is_teacher():
             return process_error_response(UserNotTeacher())
@@ -138,9 +139,7 @@ class CourseRemoveAuthorView(APIView):
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         user_id = request.query_params.get("user_id")
         if not user_id:
-            return Response(
-                {"detail": "Параметр user_id обязателен."}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return process_error_response(UserIdRequired())
         user = get_object_or_404(User, pk=user_id)
         if not course.authors.filter(pk=user.pk).exists():
             return process_error_response(AuthorNotOnCourse())
@@ -342,15 +341,9 @@ class RegisterByInviteView(APIView):
         last_name = (request.data.get("last_name") or "").strip()
 
         if not all([token, password, first_name, last_name]):
-            return Response(
-                {"detail": "Все поля обязательны."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InviteFieldsMissing())
         if len(password) < 8:
-            return Response(
-                {"password": ["Минимум 8 символов."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InvitePasswordTooShort())
 
         invite = Invitation.objects.filter(token=token).first()
         if not invite:

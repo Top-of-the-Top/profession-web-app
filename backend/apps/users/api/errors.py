@@ -28,6 +28,27 @@ class ContactRequired(UserError):
     status = status.HTTP_400_BAD_REQUEST
 
 
+class RateLimitExceeded(UserError):
+    code = "RATE_LIMIT_EXCEEDED"
+    message = "Слишком много запросов."
+    status = status.HTTP_429_TOO_MANY_REQUESTS
+
+    def __init__(self, retry_after=None):
+        details = {"retry_after": retry_after} if retry_after is not None else {}
+        super().__init__(details=details)
+        if retry_after is not None:
+            self.message = f"Слишком много запросов. Повторите через {retry_after} сек."
+
+
+class ValidationFailed(UserError):
+    code = "VALIDATION_ERROR"
+    message = "Ошибка валидации данных."
+    status = status.HTTP_400_BAD_REQUEST
+
+    def __init__(self, errors):
+        super().__init__(details=errors if isinstance(errors, dict) else {"errors": errors})
+
+
 class UserNotFound(UserError):
     code = "USER_NOT_FOUND"
     message = "Пользователь не найден."

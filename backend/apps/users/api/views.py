@@ -23,6 +23,7 @@ from apps.core.processors.error_processor import process_error_response
 from ..models import Profile, User
 from .errors import (
     AvatarBindFailed,
+    ContactRequired,
     EmailAlreadyExists,
     EmailSendFailed,
     OAuthInvalidCode,
@@ -31,12 +32,14 @@ from .errors import (
     OAuthMissingProfileData,
     OAuthProviderUnavailable,
     PhoneAlreadyExists,
+    RateLimitExceeded,
     RefreshTokenInvalid,
     RefreshTokenMissing,
     ResetTokenInvalid,
     ResetTokenMissing,
     SmsSendFailed,
     UserNotFound,
+    ValidationFailed,
     VerificationError,
 )
 from .serializers import (
@@ -107,28 +110,19 @@ class RegisterView(APIView):
         phone = (request.data.get("phone_number") or "").strip()
 
         if not email and not phone:
-            return Response(
-                {"detail": "Укажите email или номер телефона."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            return process_error_response(ContactRequired())
 
         if phone and not email:
             serializer = PhoneRegisterSerializer(data=request.data)
             if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
+                return process_error_response(ValidationFailed(serializer.errors))
 
             phone_number = serializer.validated_data["phone_number"]
             password = serializer.validated_data["password"]
 
             is_allowed, retry_after = check_contact_rate_limit(phone_number, "phone")
             if not is_allowed:
-                return Response(
-                    {
-                        "detail": f"Слишком много запросов. Повторите через {retry_after} сек.",
-                        "retry_after": retry_after,
-                    },
-                    status=status.HTTP_429_TOO_MANY_REQUESTS,
-                )
+                return process_error_response(RateLimitExceeded(retry_after))
 
             code = generate_registration_code(phone_number, password, contact_type="phone")
             send_verification_sms(phone_number, code)
@@ -139,20 +133,14 @@ class RegisterView(APIView):
         if email:
             serializer = EmailRegisterSerializer(data=request.data)
             if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
+                return process_error_response(ValidationFailed(serializer.errors))
 
             email_value = serializer.validated_data["email"]
             password = serializer.validated_data["password"]
 
             is_allowed, retry_after = check_contact_rate_limit(email_value, "email")
             if not is_allowed:
-                return Response(
-                    {
-                        "detail": f"Слишком много запросов. Повторите через {retry_after} сек.",
-                        "retry_after": retry_after,
-                    },
-                    status=status.HTTP_429_TOO_MANY_REQUESTS,
-                )
+                return process_error_response(RateLimitExceeded(retry_after))
 
             code = generate_registration_code(email_value, password, contact_type="email")
             send_verification_email(email_value, code)
@@ -180,7 +168,7 @@ class VerifyRegisterView(APIView):
     def post(self, request):
         serializer = VerifyRegisterSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return process_error_response(ValidationFailed(serializer.errors))
 
         phone = (serializer.validated_data.get("phone_number") or "").strip()
         email = (serializer.validated_data.get("email") or "").strip()
@@ -235,13 +223,7 @@ class LoginView(APIView):
 
             if cache.get(lockout_key):
                 ttl = getattr(cache, "ttl", lambda k: LOGIN_LOCKOUT_SECONDS)(lockout_key)
-                return Response(
-                    {
-                        "detail": f"Слишком много попыток. Повторите через {ttl} секунд.",
-                        "retry_after": ttl,
-                    },
-                    status=status.HTTP_429_TOO_MANY_REQUESTS,
-                )
+                return process_error_response(RateLimitExceeded(ttl))
 
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
@@ -251,7 +233,7 @@ class LoginView(APIView):
                 if attempts >= MAX_LOGIN_ATTEMPTS:
                     cache.set(lockout_key, 1, timeout=LOGIN_LOCKOUT_SECONDS)
                     cache.delete(attempts_key)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return process_error_response(ValidationFailed(serializer.errors))
 
         if contact:
             cache.delete(attempts_key)
@@ -311,10 +293,7 @@ class ResetPasswordView(APIView):
         phone = (request.data.get("phone_number") or "").strip()
 
         if not email and not phone:
-            return Response(
-                {"detail": "Укажите email или номер телефона."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            return process_error_response(ContactRequired())
 
         user = None
         if email:
@@ -334,13 +313,7 @@ class ResetPasswordView(APIView):
 
         is_allowed, retry_after = check_contact_rate_limit(phone, "phone")
         if not is_allowed:
-            return Response(
-                {
-                    "detail": f"Слишком много запросов. Повторите через {retry_after} сек.",
-                    "retry_after": retry_after,
-                },
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
+            return process_error_response(RateLimitExceeded(retry_after))
 
         code = generate_verification_code_for_user(
             user_id=user.id, contact_type="reset_phone", new_contact=phone
@@ -410,7 +383,7 @@ class RecoverPasswordPhoneView(APIView):
     def post(self, request):
         serializer = RecoverPasswordPhoneSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return process_error_response(ValidationFailed(serializer.errors))
 
         phone_number = serializer.validated_data["phone_number"].strip()
         user_code = serializer.validated_data["code"]
@@ -480,7 +453,7 @@ class ProfileView(APIView):
         user = request.user
         serializer = UpdateProfileSerializer(data=request.data, context={"user": user})
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return process_error_response(ValidationFailed(serializer.errors))
         data = serializer.validated_data
         profile, _ = Profile.objects.get_or_create(user=user)
 
@@ -493,13 +466,7 @@ class ProfileView(APIView):
         if "phone_number" in data and data["phone_number"]:
             is_allowed, retry_after = check_contact_rate_limit(data["phone_number"], "phone")
             if not is_allowed:
-                return Response(
-                    {
-                        "detail": f"Слишком много запросов. Повторите через {retry_after} сек.",
-                        "retry_after": retry_after,
-                    },
-                    status=status.HTTP_429_TOO_MANY_REQUESTS,
-                )
+                return process_error_response(RateLimitExceeded(retry_after))
             code = generate_verification_code_for_user(
                 user_id=user.id, contact_type="phone", new_contact=data["phone_number"]
             )
@@ -569,7 +536,7 @@ class VerifyEmailChangeView(APIView):
     def post(self, request):
         serializer = VerifyCodeSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return process_error_response(ValidationFailed(serializer.errors))
 
         try:
             new_email = verify_code(
@@ -614,7 +581,7 @@ class VerifyPhoneChangeView(APIView):
     def post(self, request):
         serializer = VerifyCodeSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return process_error_response(ValidationFailed(serializer.errors))
 
         try:
             new_phone = verify_code(

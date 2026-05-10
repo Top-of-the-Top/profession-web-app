@@ -9,7 +9,8 @@ from django.core.cache import cache
 from django.db import IntegrityError
 from django.http import HttpResponseRedirect
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -609,6 +610,25 @@ class YandexCallbackAPIView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
+    @extend_schema(
+        summary="Callback для Яндекс OAuth",
+        description=(
+            "Принимает code и state от Яндекса после авторизации пользователя. "
+            "Сохраняет state в кэш и перенаправляет на фронтенд для завершения входа."
+        ),
+        tags=["Users"],
+        parameters=[
+            OpenApiParameter("code", OpenApiTypes.STR, description="Код авторизации"),
+            OpenApiParameter("state", OpenApiTypes.STR, description="CSRF-токен для валидации"),
+            OpenApiParameter(
+                "error", OpenApiTypes.STR, description="Код ошибки (если авторизация отклонена)"
+            ),
+            OpenApiParameter(
+                "error_description", OpenApiTypes.STR, description="Текстовое описание ошибки"
+            ),
+        ],
+        responses={302: None},
+    )
     def get(self, request):
         code = request.query_params.get("code")
         state = request.query_params.get("state")
@@ -776,6 +796,21 @@ class VKCallbackAPIView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
+    @extend_schema(
+        summary="Callback для ВКонтакте OAuth",
+        description=(
+            "Принимает данные от VK ID после авторизации. "
+            "Пробрасывает code, state и обязательный device_id на фронтенд через редирект."
+        ),
+        tags=["Users"],
+        parameters=[
+            OpenApiParameter("code", OpenApiTypes.STR, description="Код авторизации"),
+            OpenApiParameter("state", OpenApiTypes.STR, description="CSRF-токен"),
+            OpenApiParameter("device_id", OpenApiTypes.STR, description="Идентификатор устройства"),
+            OpenApiParameter("error", OpenApiTypes.STR, description="Код ошибки"),
+        ],
+        responses={302: None},
+    )
     def get(self, request):
         code = request.query_params.get("code")
         state = request.query_params.get("state")

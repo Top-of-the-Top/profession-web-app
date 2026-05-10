@@ -8,6 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.api.serializers import ServiceErrorResponseSerializer
+from apps.core.processors.error_processor import process_error_response
 from apps.stats.api.permissions import IsEnrolledOrCourseStaff, IsTeacherAuthorOrModerator
 from apps.stats.api.serializers import (
     RecordingViewHeartbeatRequestSerializer,
@@ -28,6 +30,8 @@ from apps.stats.services.dashboard_service import (
 )
 from apps.stats.services.progress_service import RecordingViewService, WebinarAttendanceService
 from apps.webinars.models import Recording, Webinar
+
+from .errors import StatsAccessDenied, StudentCardAccessDenied
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +236,7 @@ class StatsStudentCardView(APIView):
         ],
         responses={
             200: StudentCardSerializer,
-            403: {"type": "object", "properties": {"detail": {"type": "string"}}},
+            403: ServiceErrorResponseSerializer,
         },
     )
     def get(self, request, user_id, course_id):
@@ -245,10 +249,7 @@ class StatsStudentCardView(APIView):
             course_slug=course.slug,
         )
         if data is None:
-            return Response(
-                {"detail": "Нет доступа к карточке ученика"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            return process_error_response(StudentCardAccessDenied())
         return Response(StudentCardSerializer(data).data)
 
 
@@ -264,15 +265,12 @@ class StatsSchoolCoursesView(APIView):
         tags=["Statistics"],
         responses={
             200: SchoolCourseRowSerializer(many=True),
-            403: {"type": "object", "properties": {"detail": {"type": "string"}}},
+            403: ServiceErrorResponseSerializer,
         },
     )
     def get(self, request):
         if not request.user.is_moderator():
-            return Response(
-                {"detail": "Доступно только модератору"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            return process_error_response(StatsAccessDenied())
         rows = school_courses_table()
         return Response(SchoolCourseRowSerializer(rows, many=True).data)
 
@@ -289,14 +287,11 @@ class StatsSchoolTeachersView(APIView):
         tags=["Statistics"],
         responses={
             200: SchoolTeacherRowSerializer(many=True),
-            403: {"type": "object", "properties": {"detail": {"type": "string"}}},
+            403: ServiceErrorResponseSerializer,
         },
     )
     def get(self, request):
         if not request.user.is_moderator():
-            return Response(
-                {"detail": "Доступно только модератору"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            return process_error_response(StatsAccessDenied())
         rows = school_teachers_table()
         return Response(SchoolTeacherRowSerializer(rows, many=True).data)

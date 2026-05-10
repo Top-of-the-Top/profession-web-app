@@ -9,12 +9,22 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.api.serializers import ServiceErrorResponseSerializer
+from apps.core.processors.error_processor import process_error_response
 from apps.courses.api.permissions import require_course_author
 from apps.courses.models import Course, CourseEnrollment
 from apps.notifications.dispatcher import dispatcher
 from apps.notifications.events import ApplicationStatusChangedEvent
 
 from ..models import CourseApplication
+from .errors import (
+    ApplicationAlreadyEnrolled,
+    ApplicationAlreadyReviewed,
+    ApplicationAlreadySubmitted,
+    ApplicationNotFound,
+    ApplicationNotSpecialCourse,
+    ApplicationWithdrawForbidden,
+)
 from .serializers import ApplicationReviewedSerializer, CourseApplicationSerializer
 
 SCHEMA_DETAIL = {"type": "object", "properties": {"detail": {"type": "string"}}}
@@ -69,8 +79,7 @@ class CourseApplicationListView(APIView):
         ):
             qs = qs.filter(status=status_filter)
 
-        serializer = CourseApplicationSerializer(qs, many=True)
-        return Response(serializer.data)
+        return Response(CourseApplicationSerializer(qs, many=True).data)
 
 
 class CourseApplyView(APIView):
@@ -86,32 +95,23 @@ class CourseApplyView(APIView):
         parameters=[_PATH_COURSE],
         responses={
             201: None,
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
-            409: {"schema": SCHEMA_DETAIL},
+            409: ServiceErrorResponseSerializer,
         },
     )
     def post(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
 
         if not course.is_special:
-            return Response(
-                {"detail": "На этот курс нельзя подать заявку"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(ApplicationNotSpecialCourse())
 
         if request.user.is_enrolled(course):
-            return Response(
-                {"detail": "Вы уже записаны на этот курс"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(ApplicationAlreadyEnrolled())
 
         if CourseApplication.objects.filter(user=request.user, course=course).exists():
-            return Response(
-                {"detail": "Заявка уже подана"},
-                status=status.HTTP_409_CONFLICT,
-            )
+            return process_error_response(ApplicationAlreadySubmitted())
 
         CourseApplication.objects.create(user=request.user, course=course)
         return Response(status=status.HTTP_201_CREATED)
@@ -128,8 +128,8 @@ class CourseWithdrawApplicationView(APIView):
         responses={
             204: None,
             401: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
-            409: {"schema": SCHEMA_DETAIL},
+            404: ServiceErrorResponseSerializer,
+            409: ServiceErrorResponseSerializer,
         },
     )
     def delete(self, request, course_slug):
@@ -137,16 +137,10 @@ class CourseWithdrawApplicationView(APIView):
         application = CourseApplication.objects.filter(user=request.user, course=course).first()
 
         if application is None:
-            return Response(
-                {"detail": "Заявка не найдена"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return process_error_response(ApplicationNotFound())
 
         if application.status != CourseApplication.PENDING:
-            return Response(
-                {"detail": "Нельзя отозвать рассмотренную заявку"},
-                status=status.HTTP_409_CONFLICT,
-            )
+            return process_error_response(ApplicationWithdrawForbidden())
 
         application.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -168,7 +162,7 @@ class CourseApplicationApproveView(APIView):
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
-            409: {"schema": SCHEMA_DETAIL},
+            409: ServiceErrorResponseSerializer,
         },
     )
     @require_course_author
@@ -179,10 +173,7 @@ class CourseApplicationApproveView(APIView):
         )
 
         if application.status != CourseApplication.PENDING:
-            return Response(
-                {"detail": "Заявка уже рассмотрена"},
-                status=status.HTTP_409_CONFLICT,
-            )
+            return process_error_response(ApplicationAlreadyReviewed())
 
         with transaction.atomic():
             application.status = CourseApplication.APPROVED
@@ -227,7 +218,7 @@ class CourseApplicationRejectView(APIView):
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
-            409: {"schema": SCHEMA_DETAIL},
+            409: ServiceErrorResponseSerializer,
         },
     )
     @require_course_author
@@ -238,10 +229,7 @@ class CourseApplicationRejectView(APIView):
         )
 
         if application.status != CourseApplication.PENDING:
-            return Response(
-                {"detail": "Заявка уже рассмотрена"},
-                status=status.HTTP_409_CONFLICT,
-            )
+            return process_error_response(ApplicationAlreadyReviewed())
 
         application.status = CourseApplication.REJECTED
         application.reviewed_by = request.user

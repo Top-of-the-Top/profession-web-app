@@ -8,6 +8,8 @@ from rest_framework.views import APIView
 
 from apps.admin_panel.models import Invitation
 from apps.core.api.permissions import require_moderator
+from apps.core.api.serializers import ServiceErrorResponseSerializer
+from apps.core.processors.error_processor import process_error_response
 from apps.courses.api.utils.cache_utils import invalidate_on_course_model_change
 from apps.courses.models import Course
 from apps.users.api.utils.crypto_utils import encrypt_data
@@ -15,6 +17,17 @@ from apps.users.api.utils.notification_utils import send_teacher_invite_email
 from apps.users.api.utils.token_utils import get_tokens_for_user
 from apps.users.models import Profile, User
 
+from .errors import (
+    AuthorAlreadyOnCourse,
+    AuthorNotOnCourse,
+    CourseAlreadyDraft,
+    CourseAlreadyPublished,
+    InvitationAlreadyUsed,
+    InvitationExpired,
+    InvitationNotFound,
+    InvitationSendFailed,
+    UserNotTeacher,
+)
 from .serializers import InvitationCreateSerializer, InvitationSerializer, TeacherSerializer
 
 SCHEMA_DETAIL = {"type": "object", "properties": {"detail": {"type": "string"}}}
@@ -67,7 +80,7 @@ class CourseAddAuthorView(APIView):
         request=None,
         responses={
             200: TeacherSerializer(many=True),
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -83,15 +96,9 @@ class CourseAddAuthorView(APIView):
             )
         user = get_object_or_404(User, pk=user_id)
         if not user.is_teacher():
-            return Response(
-                {"detail": "Пользователь не является преподавателем."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(UserNotTeacher())
         if course.authors.filter(pk=user.pk).exists():
-            return Response(
-                {"detail": "Пользователь уже является автором этого курса."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(AuthorAlreadyOnCourse())
         course.authors.add(user)
         invalidate_on_course_model_change(course.slug)
         return Response(TeacherSerializer(course.authors.all(), many=True).data)
@@ -120,7 +127,7 @@ class CourseRemoveAuthorView(APIView):
         request=None,
         responses={
             200: TeacherSerializer(many=True),
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -136,10 +143,7 @@ class CourseRemoveAuthorView(APIView):
             )
         user = get_object_or_404(User, pk=user_id)
         if not course.authors.filter(pk=user.pk).exists():
-            return Response(
-                {"detail": "Пользователь не является автором этого курса."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(AuthorNotOnCourse())
         course.authors.remove(user)
         invalidate_on_course_model_change(course.slug)
         return Response(TeacherSerializer(course.authors.all(), many=True).data)
@@ -156,7 +160,7 @@ class CoursePublishView(APIView):
         request=None,
         responses={
             200: {"type": "object", "properties": {"status": {"type": "string"}}},
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -166,10 +170,7 @@ class CoursePublishView(APIView):
     def post(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         if course.type == Course.PUBLISHED_STATUS:
-            return Response(
-                {"detail": "Курс уже опубликован."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(CourseAlreadyPublished())
         course.type = Course.PUBLISHED_STATUS
         course.last_modified_by = request.user
         course.save(update_fields=["type", "last_modified_by", "updated_at"])
@@ -187,7 +188,7 @@ class CourseUnpublishView(APIView):
         request=None,
         responses={
             200: {"type": "object", "properties": {"status": {"type": "string"}}},
-            400: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
             404: {"schema": SCHEMA_DETAIL},
@@ -197,10 +198,7 @@ class CourseUnpublishView(APIView):
     def post(self, request, course_slug):
         course = get_object_or_404(Course, slug=course_slug, is_deleted=False)
         if course.type == Course.DRAFT_STATUS:
-            return Response(
-                {"detail": "Курс уже в статусе черновика."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(CourseAlreadyDraft())
         course.type = Course.DRAFT_STATUS
         course.last_modified_by = request.user
         course.save(update_fields=["type", "last_modified_by", "updated_at"])
@@ -243,7 +241,7 @@ class InviteTeacherview(APIView):
             400: {"schema": SCHEMA_VALIDATION},
             401: {"schema": SCHEMA_DETAIL},
             403: {"schema": SCHEMA_DETAIL},
-            500: {"schema": SCHEMA_DETAIL},
+            500: ServiceErrorResponseSerializer,
         },
     )
     @require_moderator
@@ -262,10 +260,7 @@ class InviteTeacherview(APIView):
         ok, _ = send_teacher_invite_email(invite.email, invite_url)
         if not ok:
             invite.delete()
-            return Response(
-                {"detail": "Не удалось отправить письмо."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return process_error_response(InvitationSendFailed())
 
         return Response(InvitationSerializer(invite).data, status=status.HTTP_201_CREATED)
 
@@ -291,25 +286,19 @@ class InviteValidateView(APIView):
         ],
         responses={
             200: {"type": "object", "properties": {"email": {"type": "string"}}},
-            400: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
+            404: ServiceErrorResponseSerializer,
         },
     )
     def get(self, request):
         token = request.query_params.get("token", "").strip()
         invite = Invitation.objects.filter(token=token).first()
         if not invite:
-            return Response({"detail": "Приглашение не найдено."}, status=status.HTTP_404_NOT_FOUND)
+            return process_error_response(InvitationNotFound())
         if invite.is_used:
-            return Response(
-                {"error": "used", "detail": "Приглашение уже использовано."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InvitationAlreadyUsed())
         if invite.is_expired:
-            return Response(
-                {"error": "expired", "detail": "Ссылка истекла."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InvitationExpired())
         return Response({"email": invite.email})
 
 
@@ -342,8 +331,8 @@ class RegisterByInviteView(APIView):
                     "role": {"type": "string"},
                 },
             },
-            400: {"schema": SCHEMA_DETAIL},
-            404: {"schema": SCHEMA_DETAIL},
+            400: ServiceErrorResponseSerializer,
+            404: ServiceErrorResponseSerializer,
         },
     )
     def post(self, request):
@@ -365,17 +354,11 @@ class RegisterByInviteView(APIView):
 
         invite = Invitation.objects.filter(token=token).first()
         if not invite:
-            return Response({"detail": "Приглашение не найдено."}, status=status.HTTP_404_NOT_FOUND)
+            return process_error_response(InvitationNotFound())
         if invite.is_used:
-            return Response(
-                {"error": "used", "detail": "Приглашение уже использовано."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InvitationAlreadyUsed())
         if invite.is_expired:
-            return Response(
-                {"error": "expired", "detail": "Ссылка истекла."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return process_error_response(InvitationExpired())
 
         email_cipher = encrypt_data(invite.email)
         user = User.objects.create_user(
@@ -390,5 +373,4 @@ class RegisterByInviteView(APIView):
         invite.used_at = timezone.now()
         invite.save(update_fields=["used_at"])
 
-        tokens = get_tokens_for_user(user)
-        return Response(tokens, status=status.HTTP_201_CREATED)
+        return Response(get_tokens_for_user(user), status=status.HTTP_201_CREATED)

@@ -158,7 +158,7 @@ function ApplicationsPanel({ courseSlug }: { courseSlug: string }) {
   const [copied, setCopied] = useState(false);
 
   function copyLink() {
-    void navigator.clipboard.writeText(`${window.location.origin}/courses/${courseSlug}`).then(() => {
+    void navigator.clipboard.writeText(`${window.location.origin}/app/store/${courseSlug}`).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });

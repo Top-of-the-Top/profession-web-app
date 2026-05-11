@@ -39,6 +39,7 @@ from .serializers import (
     LessonSerializer,
     LessonSimpleCreateSerializer,
     MyContentCourseSerializer,
+    MyCoursesDTOSerializer,
     QuestionSerializer,
     ScheduleItemSerializer,
     ScheduleResponseSerializer,
@@ -50,6 +51,7 @@ from .utils.cache_utils import (
     course_detail_cache_key,
     course_list_cache_key,
     homework_detail_cache_key,
+    invalidate_on_course_model_change,
     landing_courses_cache_key,
     lesson_detail_cache_key,
     my_schedule_cache_key,
@@ -129,8 +131,10 @@ class CourseListView(APIView):
         key = course_list_cache_key(request.user.id)
         cached = cache.get(key)
         if cached is not None:
-            if isinstance(cached, list) and cached and all(
-                isinstance(item, dict) for item in cached
+            if (
+                isinstance(cached, list)
+                and cached
+                and all(isinstance(item, dict) for item in cached)
             ):
                 if any("is_enrolled" not in item for item in cached):
                     user = request.user
@@ -186,7 +190,8 @@ class CourseListView(APIView):
     def post(self, request):
         serializer = CourseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(last_modified_by=request.user)
+        course = serializer.save(last_modified_by=request.user)
+        invalidate_on_course_model_change(course.slug)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -309,7 +314,7 @@ class MyCourses(APIView):
         cached = cache.get(key)
         if cached is not None:
             return Response(cached, status=status.HTTP_200_OK)
-        serializer = CourseDTOSerializer(get_courses_for_user(request.user), many=True)
+        serializer = MyCoursesDTOSerializer(get_courses_for_user(request.user), many=True)
         cache.set(key, serializer.data)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

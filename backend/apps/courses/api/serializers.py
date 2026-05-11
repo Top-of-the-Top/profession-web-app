@@ -51,6 +51,7 @@ class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     is_enrolled = serializers.SerializerMethodField()
     is_published = serializers.SerializerMethodField()
+    application_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -77,8 +78,20 @@ class CourseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
     def get_is_published(self, obj):
         return _course_is_published(obj)
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_application_status(self, obj):
+        from apps.applications.models import CourseApplication
 
-class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return None
+        if not obj.is_special:
+            return None
+        application = CourseApplication.objects.filter(user=request.user, course=obj).first()
+        return application.status if application else None
+
+
+class _CourseBaseSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
     asset_roles = ["course_cover"]
 
     image_url = serializers.SerializerMethodField()
@@ -108,11 +121,31 @@ class CourseDTOSerializer(AssetsSerializerMixin, serializers.ModelSerializer):
         return _course_is_published(obj)
 
 
-class CourseStoreDTOSerializer(CourseDTOSerializer):
+class CourseDTOSerializer(_CourseBaseSerializer):
+    """Лендинг — публичный список, без специальных курсов."""
+
+    class Meta(_CourseBaseSerializer.Meta):
+        fields = _CourseBaseSerializer.Meta.fields
+
+
+class MyCoursesDTOSerializer(_CourseBaseSerializer):
+    """My Courses — курсы студента, включая специальные."""
+
+    class Meta(_CourseBaseSerializer.Meta):
+        fields = _CourseBaseSerializer.Meta.fields + ["is_special"]
+
+
+class CourseStoreDTOSerializer(_CourseBaseSerializer):
+    """Магазин и админ-панель — единая ручка /courses/."""
+
     is_enrolled = serializers.SerializerMethodField()
 
-    class Meta(CourseDTOSerializer.Meta):
-        fields = CourseDTOSerializer.Meta.fields + ["is_enrolled"]
+    class Meta(_CourseBaseSerializer.Meta):
+        fields = _CourseBaseSerializer.Meta.fields + [
+            "is_special",
+            "is_enrolled",
+            "type",
+        ]
 
     def get_is_enrolled(self, obj):
         request = self.context.get("request")

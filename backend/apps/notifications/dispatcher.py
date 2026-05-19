@@ -1,6 +1,9 @@
+from datetime import datetime
 from typing import Callable
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
+from django.utils import timezone as djtz
 
 from .events import (
     ApplicationStatusChangedEvent,
@@ -21,6 +24,15 @@ from .tasks import (
     send_webinar_scheduled_notification,
     send_webinar_started_notification,
 )
+
+ZONE = ZoneInfo("Europe/Moscow")
+
+
+def _format_deadline(value: datetime) -> str:
+    if djtz.is_aware(value):
+        value = value.astimezone(ZONE)
+    return value.strftime("%d.%m %H:%M")
+
 
 _APPLICATION_STATUS_TITLES = {
     "approved": "Заявка на курс одобрена",
@@ -74,7 +86,7 @@ def _(event: AuthorActionEvent) -> None:
 
 @dispatcher.register(NewHomeworkEvent)
 def _(event: NewHomeworkEvent) -> None:
-    deadline_str = event.deadline.strftime("%d.%m %H:%M")
+    deadline_str = _format_deadline(event.deadline)
     title = f"Новое домашнее задание: {event.homework_title}"
     message = (
         f'По курсу "{event.course_title}" добавлено новое задание.\n'
@@ -88,7 +100,7 @@ def _(event: NewHomeworkEvent) -> None:
 
 @dispatcher.register(DeadlineChangedEvent)
 def _(event: DeadlineChangedEvent) -> None:
-    deadline_str = event.deadline.strftime("%d.%m %H:%M")
+    deadline_str = _format_deadline(event.deadline)
     title = f"Дедлайн домашнего задания перенесён: {event.homework_title}"
     message = (
         f'В курсе "{event.course_title}" обновлен дедлайн домашнего задания "{event.homework_title}"\n'
@@ -106,7 +118,7 @@ def _(event: DeadlineReminderEvent) -> None:
     message = (
         f"{event.label}.\n"
         f'Задание: "{event.homework_title}"\n'
-        f"Дедлайн: {event.deadline.strftime('%d.%m %H:%M')}"
+        f"Дедлайн: {_format_deadline(event.deadline)}"
     )
     send_course_notification.delay(event.course_id, title, message)
     if event.with_email:

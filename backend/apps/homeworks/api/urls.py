@@ -6,6 +6,7 @@ from .views import (
     HomeworkAttemptSubmitView,
     HomeworkAttemptView,
     StudentAttemptsView,
+    TaskReviewUpdateView,
 )
 
 app_name = "homeworks"
@@ -30,6 +31,11 @@ urlpatterns = [
         "courses/<slug:course_slug>/attempts/<uuid:attempt_id>/review/",
         AttemptReviewView.as_view(),
         name="attempt-review",
+    ),
+    path(
+        "courses/<slug:course_slug>/attempts/<uuid:attempt_id>/review/<uuid:task_answer_id>/",
+        TaskReviewUpdateView.as_view(),
+        name="task-review-update",
     ),
     path(
         "my-homeworks/",

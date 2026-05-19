@@ -55,6 +55,18 @@ class ReviewPointsExceeded(HomeworkServiceError):
     status = status.HTTP_400_BAD_REQUEST
 
 
+class AttemptNotReviewed(HomeworkServiceError):
+    code = "ATTEMPT_NOT_REVIEWED"
+    message = "Попытка ещё не проверена."
+    status = status.HTTP_409_CONFLICT
+
+
+class TaskReviewNotFound(HomeworkServiceError):
+    code = "TASK_REVIEW_NOT_FOUND"
+    message = "Ревью для данного ответа не найдено."
+    status = status.HTTP_404_NOT_FOUND
+
+
 class RequestValidationError(HomeworkServiceError):
     code = "VALIDATION_ERROR"
     status = status.HTTP_400_BAD_REQUEST

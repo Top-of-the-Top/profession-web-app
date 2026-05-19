@@ -12,6 +12,7 @@ from .events import (
     DeadlineChangedEvent,
     DeadlineReminderEvent,
     HomeworkReviewedEvent,
+    HomeworkReviewUpdatedEvent,
     NewHomeworkEvent,
     WebinarScheduledEvent,
     WebinarStartedEvent,
@@ -132,6 +133,21 @@ def _(event: HomeworkReviewedEvent) -> None:
     message = (
         f"Ваше домашнее задание «{event.homework_title}» проверено.\n\n"
         f"Оценка: {grade_text}\n\n"
+        f"Комментарии к заданиям смотрите в личном кабинете.\n"
+        f"{settings.FRONTEND_HOST.rstrip('/')}/homeworks/{event.attempt_id}"
+    )
+    send_personal_notification.delay(event.user_id, title, message)
+    if event.with_email:
+        send_single_email.delay(event.user_id, title, message)
+
+
+@dispatcher.register(HomeworkReviewUpdatedEvent)
+def _(event: HomeworkReviewUpdatedEvent) -> None:
+    grade_text = event.grade if event.grade is not None else "—"
+    title = f"Оценка за «{event.homework_title}» обновлена"
+    message = (
+        f"Преподаватель обновил оценку за домашнее задание «{event.homework_title}».\n\n"
+        f"Новая оценка: {grade_text}\n\n"
         f"Комментарии к заданиям смотрите в личном кабинете.\n"
         f"{settings.FRONTEND_HOST.rstrip('/')}/homeworks/{event.attempt_id}"
     )

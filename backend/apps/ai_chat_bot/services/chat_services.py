@@ -33,15 +33,19 @@ class YandexChatAIService(YandexAIBase):
         logger.info("Saving message %s", content)
         return await sync_to_async(Message.objects.create)(chat=chat, role=role, content=content)
 
-    async def ask_question_stream(self, text):
+    async def ask_question_stream(self, text, vs_id: str | None = None):
         logger.info("Create response stream for session %s", self.session.session_id)
         try:
             async with self._semaphore:
-                response_stream = await self.client.responses.create(
+                kwargs = dict(
                     model=settings.YANDEX_MODEL or settings.YANDEX_ASSISTANT_ID,
                     input=text,
                     stream=True,
                 )
+                if vs_id:
+                    kwargs["tools"] = [{"type": "file_search", "vector_store_ids": [vs_id]}]
+
+                response_stream = await self.client.responses.create(**kwargs)
 
                 async for event in response_stream:
                     if event.type == "response.output_text.delta":

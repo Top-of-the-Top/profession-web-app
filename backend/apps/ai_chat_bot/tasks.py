@@ -38,3 +38,18 @@ def synchronize_course_context(course_id):
         logger.error(f"Course with id {course_id} not found")
     except Exception as e:
         logger.error(f"Error syncing course {course_id}: {e}")
+
+
+@shared_task(name="rebuild_all_courses_vs")
+def rebuild_all_courses_vs():
+    courses = Course.objects.filter(
+        is_deleted=False,
+        section__isnull=False,
+    ).distinct()
+
+    for course in courses:
+        try:
+            synchronize_course_context.delay(course.pk)
+            logger.info(f"Queued VS rebuild for course: {course.title} (id={course.pk})")
+        except Exception as e:
+            logger.error(f"Failed to queue VS rebuild for course {course.pk}: {e}")

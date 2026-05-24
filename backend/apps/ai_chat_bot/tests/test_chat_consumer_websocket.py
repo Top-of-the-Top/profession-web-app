@@ -68,6 +68,12 @@ class StubYandexChatAIService:
 
         return await sync_to_async(_save)()
 
+    async def update_chat_summary(self, chat_id, summary):
+        def _upd():
+            Chat.objects.filter(chat_id=chat_id).update(context_summary=summary)
+
+        await sync_to_async(_upd)()
+
     async def ask_question_stream(self, text, vs_id=None):
         yield "Ок"
 

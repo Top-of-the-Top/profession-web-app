@@ -13,26 +13,11 @@ SUMMARY_SENTENCES = 2
 
 
 class BaseContextCompressor(ABC):
-    """Сжимает батч сообщений чата в краткое текстовое резюме."""
-
     @abstractmethod
-    def compress(self, current_summary: str, messages: Sequence[ChatMessage]) -> str:
-        """
-        Принимает текущее резюме и новый батч сообщений.
-        Возвращает обновлённое резюме не длиннее MAX_SUMMARY_CHARS символов.
-        """
+    def compress(self, current_summary: str, messages: Sequence[ChatMessage]) -> str: ...
 
 
 class TextRankContextCompressor(BaseContextCompressor):
-    """
-    Извлекающая суммаризация на основе TextRank (sumy).
-
-    Стратегия:
-    - Сообщения пользователя сохраняются целиком — они короткие и содержат суть вопросов.
-    - Ответы ассистента сжимаются через TextRank до SUMMARY_SENTENCES предложений.
-    - Старое резюме объединяется с новым и обрезается до MAX_SUMMARY_CHARS.
-    """
-
     def compress(self, current_summary: str, messages: Sequence[ChatMessage]) -> str:
         user_lines = [
             f"- {m.content}"
@@ -44,19 +29,15 @@ class TextRankContextCompressor(BaseContextCompressor):
         )
 
         parts: list[str] = []
-
         if current_summary:
             parts.append(current_summary)
-
         if user_lines:
             parts.append("Студент спрашивал:\n" + "\n".join(user_lines))
-
         assistant_summary = self._summarize(assistant_text)
         if assistant_summary:
             parts.append("Ключевые объяснения:\n" + assistant_summary)
 
-        combined = "\n\n".join(parts)
-        return combined[:MAX_SUMMARY_CHARS]
+        return "\n\n".join(parts)[:MAX_SUMMARY_CHARS]
 
     def _summarize(self, text: str) -> str:
         if not text.strip():
@@ -72,5 +53,5 @@ class TextRankContextCompressor(BaseContextCompressor):
             result = " ".join(str(s) for s in sentences)
             return result if result.strip() else text[:200]
         except Exception as exc:
-            logger.warning("TextRank summarization failed, falling back to truncation: %s", exc)
+            logger.warning("TextRank summarization failed: %s", exc)
             return text[:200]

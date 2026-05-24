@@ -5,6 +5,9 @@ from collections import deque
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+from apps.ai_chat_bot.chat_types import ChatMessage
+from apps.ai_chat_bot.context_builder import ChatContextBuilder
+from apps.ai_chat_bot.context_compressor import BaseContextCompressor, TextRankContextCompressor
 from apps.ai_chat_bot.services import YandexChatAIService
 from apps.courses.models import Course
 
@@ -34,11 +37,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
     course_slug: str
     session: Session
     group_name: str
-    session_chat_history: dict[str, deque]
+    _chat_history: dict[str, deque[ChatMessage]]
+    _chat_summaries: dict[str, str]
+    _context_builder: ChatContextBuilder
+    _compressor: BaseContextCompressor
     chat_service: YandexChatAIService
 
     async def connect(self):
-        self.session_chat_history = {}
+        self._chat_history = {}
+        self._chat_summaries = {}
+        self._context_builder = ChatContextBuilder()
+        self._compressor = TextRankContextCompressor()
         self.course_slug = self.scope["url_route"]["kwargs"]["course_slug"]
         self.user = self.scope["user"]
         self.chat_service = YandexChatAIService()
@@ -102,10 +111,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
-        logger.info(f"Socket closed. Event: {close_code}")
+        logger.info("Socket closed. Event: %s", close_code)
 
     async def _send_ws_message(self, ws_message: WsMessage):
         await self.send(text_data=json.dumps(ws_message.to_dict()))
+
+    async def _load_chat_state(self, chat_id: str) -> None:
+        chat = await self.chat_service.get_chat_for_current_session(chat_id)
+        messages = await self.chat_service.get_chat_history(chat_id)
+        self._chat_history[chat_id] = self._context_builder.load_history_from_messages(messages)
+        self._chat_summaries[chat_id] = chat.context_summary
 
     async def _handle_request(self, request: WsRequest):
         match request:
@@ -116,28 +131,36 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.chat_service.delete_chat(chat_id)
                 await self._send_ws_message(ChatDeletedMessage())
             case GetHistoryRequest(chat_id=chat_id):
-                history = await self.chat_service.get_chat_history(chat_id)
-                self.session_chat_history[chat_id] = deque(maxlen=20)
-                for message in history:
-                    self.session_chat_history[chat_id].append(f"{message.role}: {message.content}")
+                messages = await self.chat_service.get_chat_history(chat_id)
+                await self._load_chat_state(chat_id)
                 await self._send_ws_message(
-                    HistoryReceivedMessage(chat_id=chat_id, history=history)
+                    HistoryReceivedMessage(chat_id=chat_id, history=messages)
                 )
             case SendMessageRequest(chat_id=chat_id, content=content):
                 user_message = str(content.get("text", "")).strip()
-                if chat_id not in self.session_chat_history:
-                    self.session_chat_history[chat_id] = deque(maxlen=20)
-                    history = await self.chat_service.get_chat_history(chat_id)
-                    for message in history:
-                        self.session_chat_history[chat_id].append(
-                            f"{message.role}: {message.content}"
-                        )
-                self.session_chat_history[chat_id].append(f"user: {user_message}")
+                if chat_id not in self._chat_history:
+                    await self._load_chat_state(chat_id)
+
+                self._chat_history[chat_id].append(ChatMessage(role="user", content=user_message))
+
+                if self._context_builder.should_compress(self._chat_history[chat_id]):
+                    batch, self._chat_history[chat_id] = self._context_builder.extract_batch_for_compression(
+                        self._chat_history[chat_id]
+                    )
+                    summary = self._compressor.compress(
+                        self._chat_summaries.get(chat_id, ""), batch
+                    )
+                    self._chat_summaries[chat_id] = summary
+                    await self.chat_service.update_chat_summary(chat_id, summary)
+
                 chat = await self.chat_service.get_chat_for_current_session(chat_id)
                 await self._send_ws_message(StartingAnswerMessage(chat_id=chat_id))
                 await self.chat_service.save_message(chat, "user", user_message)
 
-                ai_chat_context = "\n".join(self.session_chat_history[chat_id])
+                ai_chat_context = self._context_builder.build_prompt_context(
+                    self._chat_summaries.get(chat_id, ""),
+                    self._chat_history[chat_id],
+                )
                 vs_id = getattr(self.course, "yandex_vs_id", None) or None
 
                 full_ai_response = ""
@@ -148,7 +171,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         await self._send_ws_message(
                             StreamingResponseMessage(chat_id=chat_id, chunk=chunk)
                         )
-                    self.session_chat_history[chat_id].append(f"assistant: {full_ai_response}")
+                    self._chat_history[chat_id].append(
+                        ChatMessage(role="assistant", content=full_ai_response)
+                    )
                     await self.chat_service.save_message(chat, "assistant", full_ai_response)
                 except Exception as e:
                     await self._send_ws_message(ErrorMessage(message=str(e)))

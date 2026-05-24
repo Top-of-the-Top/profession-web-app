@@ -1,4 +1,4 @@
-COMPOSE    = docker-compose
+COMPOSE    = docker compose
 BACKEND    = $(COMPOSE) exec backend
 MANAGE     = $(BACKEND) python3 manage.py
 CELERY_SVC = celery_worker

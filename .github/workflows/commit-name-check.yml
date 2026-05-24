@@ -50,7 +50,7 @@ jobs:
       - name: Check - english only
         run: |
           MESSAGE="${{ steps.get_commit.outputs.commit_message }}"
-          if [[ "$MESSAGE" =~ ^[a-z0-9[:space:][:punct:]]+$ ]]; then
+          if [[ "$MESSAGE" =~ ^[a-zA-Z0-9[:space:][:punct:]]+$ ]]; then
             echo "✅ Only allowed characters used"
           else
             echo "Message contains disallowed characters (e.g. Cyrillic, emoji, accented letters)"
@@ -61,7 +61,7 @@ jobs:
       - name: Check - valid commit type and format
         run: |
           MESSAGE="${{ steps.get_commit.outputs.commit_message }}"
-          regex='^(add|feature|docs|meetings|guides|fix|hotfix|refactor|style|chore|update)(\([^)]+\))?:[[:space:]].+'
+          regex='^(add|feat|feature|docs|meetings|guides|fix|hotfix|refactor|style|chore|update)(\([^)]+\))?:[[:space:]].+'
           if ! [[ "$MESSAGE" =~ $regex ]]; then
             echo "❌ Invalid format. Expected: <type>(<scope>): <description> or <type>: <description>"
             exit 1

@@ -56,6 +56,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             course = await sync_to_async(Course.objects.get, thread_sensitive=False)(
                 slug=self.course_slug
             )
+            self.course = course
             self.session = await self.chat_service.get_or_create_session(self.user, course)
 
             logger.info(
@@ -137,10 +138,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.chat_service.save_message(chat, "user", user_message)
 
                 ai_chat_context = "\n".join(self.session_chat_history[chat_id])
+                vs_id = getattr(self.course, "yandex_vs_id", None) or None
 
                 full_ai_response = ""
                 try:
-                    stream = self.chat_service.ask_question_stream(ai_chat_context)
+                    stream = self.chat_service.ask_question_stream(ai_chat_context, vs_id=vs_id)
                     async for chunk in stream:
                         full_ai_response += chunk
                         await self._send_ws_message(

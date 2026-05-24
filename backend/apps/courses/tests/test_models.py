@@ -404,3 +404,40 @@ class CourseLastModifiedByTest(BaseTestCase):
         user.delete()
         course.refresh_from_db()
         self.assertIsNone(course.last_modified_by)
+
+
+class PrepareFullContentFileTest(BaseTestCase):
+    import json as _json
+
+    def setUp(self):
+        super().setUp()
+        self.course = create_test_course(title="Тест контент")
+
+    def test_uses_plain_text_not_raw_json(self):
+        import json
+        section = create_test_section(self.course, title="Секция 1")
+        create_test_lesson(
+            section,
+            title="Урок 1",
+            document=json.dumps([
+                {
+                    "type": "paragraph",
+                    "content": [{"type": "text", "text": "Привет студент", "styles": {}}],
+                    "children": [],
+                }
+            ]),
+        )
+        result = self.course.prepare_full_content_file()
+        self.assertIn("Привет студент", result)
+        self.assertNotIn('"type": "paragraph"', result)
+
+    def test_lesson_without_document_included_without_error(self):
+        section = create_test_section(self.course, title="Секция")
+        create_test_lesson(section, title="Урок без контента", document="")
+        result = self.course.prepare_full_content_file()
+        self.assertIn("Урок без контента", result)
+
+    def test_course_meta_always_present(self):
+        result = self.course.prepare_full_content_file()
+        self.assertIn(self.course.title, result)
+        self.assertIn(self.course.description, result)

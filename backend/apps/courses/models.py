@@ -5,6 +5,7 @@ from django.db import models
 from slugify import slugify
 
 from ..users.models import User
+from .lesson_content import extract_plain_text
 
 DEFAULT_COURSE_IMAGE = "courses/default_course.png"
 
@@ -176,7 +177,9 @@ class Course(AbstractComponentModel):
             for lesson in lessons:
                 chunks.append(f"  Урок {lesson.lesson_number}: {lesson.title}")
                 if lesson.document:
-                    chunks.append(f"  Контент урока: {lesson.document}")
+                    plain = extract_plain_text(lesson.document)
+                    if plain:
+                        chunks.append(f"  Контент урока:\n{plain}")
                 homeworks = lesson.homework_set.order_by("homework_number", "created_at")
                 for homework in homeworks:
                     chunks.append(

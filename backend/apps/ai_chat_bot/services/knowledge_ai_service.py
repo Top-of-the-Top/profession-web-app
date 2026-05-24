@@ -1,4 +1,5 @@
 import asyncio
+import io
 import logging
 
 from asgiref.sync import sync_to_async
@@ -52,8 +53,10 @@ class YandexKnowledgeAIService(YandexAIBase):
         async with self._semaphore:
             logger.info("Uploading %s", name)
             try:
+                buf = io.BytesIO(content.encode("utf-8"))
+                buf.name = name
                 return await self.client.files.create(
-                    file=(name, content.encode("utf-8"), "text/plain"),
+                    file=buf,
                     purpose="assistants",
                 )
             except Exception as e:

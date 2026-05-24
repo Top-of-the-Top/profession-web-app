@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 @shared_task(name="synchronize_course_context")
 def synchronize_course_context(course_id):
     try:
-        course = Course.objects.get(id=course_id)
+        course = Course.objects.get(pk=course_id)
         service = YandexKnowledgeAIService()
 
         full_text = course.prepare_full_content_file()

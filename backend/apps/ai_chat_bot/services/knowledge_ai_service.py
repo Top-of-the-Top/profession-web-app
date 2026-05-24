@@ -20,7 +20,7 @@ class YandexKnowledgeAIService(YandexAIBase):
         try:
             new_file_ids = await asyncio.gather(*[self._upload_file(p) for p in file_paths])
 
-            new_vs = await self.client.beta.vector_stores.create(
+            new_vs = await self.client.vector_stores.create(
                 name=f"База знаний для курса {course.title}",
                 file_ids=[f.id for f in new_file_ids],
             )
@@ -53,7 +53,7 @@ class YandexKnowledgeAIService(YandexAIBase):
     async def _wait_for_vector_store(self, vs_id, interval=3):
         logger.info(f"Starting poll for VS: {vs_id}")
         while True:
-            vs = await self.client.beta.vector_stores.retrieve(vs_id)
+            vs = await self.client.vector_stores.retrieve(vs_id)
             if vs.status == "completed":
                 logger.info(f"Vector Store {vs_id} is READY")
                 return vs
@@ -69,11 +69,11 @@ class YandexKnowledgeAIService(YandexAIBase):
         try:
             logger.info(f"Starting full cleanup for Vector Store for course {course_id}")
 
-            vs_files = await self.client.beta.vector_stores.files.list(vector_store_id=vs_id)
+            vs_files = await self.client.vector_stores.files.list(vector_store_id=vs_id)
             file_ids = [f.id for f in vs_files.data]
 
             logger.info("Deleting Vector Store")
-            await self.client.beta.vector_stores.delete(vs_id)
+            await self.client.vector_stores.delete(vs_id)
 
             async def delete_file(f_id):
                 async with self._semaphore:

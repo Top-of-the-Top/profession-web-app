@@ -26,8 +26,7 @@ def synchronize_course_context(course_id):
             temp_path = tf.name
 
         try:
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(service.update_course_context(course, [temp_path]))
+            asyncio.run(service.update_course_context(course, [temp_path]))
             logger.info(f"Successfully synced knowledge base for course: {course.title}")
 
         finally:

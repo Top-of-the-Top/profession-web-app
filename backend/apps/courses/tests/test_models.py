@@ -412,11 +412,17 @@ class PrepareFilesForVsTest(BaseTestCase):
         super().setUp()
         self.course = create_test_course(title="VS Курс")
 
+    def _overview_name(self):
+        return f"course-{self.course.pk}-overview.txt"
+
+    def _lesson_name(self, s, l):
+        return f"course-{self.course.pk}-s{s}-l{l}.txt"
+
     def test_course_without_sections_returns_only_overview(self):
         files = self.course.prepare_files_for_vs()
         self.assertEqual(len(files), 1)
         filename, content = files[0]
-        self.assertEqual(filename, "course_overview.txt")
+        self.assertEqual(filename, self._overview_name())
         self.assertIn("VS Курс", content)
         self.assertIn("Структура курса:", content)
 
@@ -440,17 +446,16 @@ class PrepareFilesForVsTest(BaseTestCase):
         section = create_test_section(self.course, title="Секция 1")
         create_test_lesson(section, title="Урок 1", document="")
         files = self.course.prepare_files_for_vs()
-        # overview + one lesson file
         self.assertEqual(len(files), 2)
         filenames = [f for f, _ in files]
-        self.assertIn("course_overview.txt", filenames)
-        self.assertIn("s1_l1.txt", filenames)
+        self.assertIn(self._overview_name(), filenames)
+        self.assertIn(self._lesson_name(1, 1), filenames)
 
     def test_lesson_file_contains_context_header(self):
         section = create_test_section(self.course, title="Введение")
         create_test_lesson(section, title="Первый урок", document="")
         files = self.course.prepare_files_for_vs()
-        lesson_file = next(c for f, c in files if f == "s1_l1.txt")
+        lesson_file = next(c for f, c in files if f == self._lesson_name(1, 1))
         self.assertIn("VS Курс", lesson_file)
         self.assertIn("Введение", lesson_file)
         self.assertIn("Первый урок", lesson_file)
@@ -470,15 +475,14 @@ class PrepareFilesForVsTest(BaseTestCase):
             ]),
         )
         files = self.course.prepare_files_for_vs()
-        lesson_file = next(c for f, c in files if f == "s1_l1.txt")
+        lesson_file = next(c for f, c in files if f == self._lesson_name(1, 1))
         self.assertIn("Текст урока здесь", lesson_file)
 
     def test_lesson_file_without_document_has_no_content_section(self):
         section = create_test_section(self.course, title="Секция Е")
         create_test_lesson(section, title="Пустой урок", document="")
         files = self.course.prepare_files_for_vs()
-        lesson_file = next(c for f, c in files if f == "s1_l1.txt")
-        # Just the header, no content body crash
+        lesson_file = next(c for f, c in files if f == self._lesson_name(1, 1))
         self.assertIn("Пустой урок", lesson_file)
 
     def test_lesson_file_filename_reflects_section_and_lesson_numbers(self):
@@ -487,8 +491,8 @@ class PrepareFilesForVsTest(BaseTestCase):
         create_test_lesson(section, title="Л2")
         files = self.course.prepare_files_for_vs()
         filenames = {f for f, _ in files}
-        self.assertIn("s1_l1.txt", filenames)
-        self.assertIn("s1_l2.txt", filenames)
+        self.assertIn(self._lesson_name(1, 1), filenames)
+        self.assertIn(self._lesson_name(1, 2), filenames)
 
     def test_multiple_sections_produce_correct_filenames(self):
         s1 = create_test_section(self.course, title="С1")
@@ -497,8 +501,8 @@ class PrepareFilesForVsTest(BaseTestCase):
         create_test_lesson(s2, title="Л2")
         files = self.course.prepare_files_for_vs()
         filenames = {f for f, _ in files}
-        self.assertIn("s1_l1.txt", filenames)
-        self.assertIn("s2_l1.txt", filenames)
+        self.assertIn(self._lesson_name(1, 1), filenames)
+        self.assertIn(self._lesson_name(2, 1), filenames)
 
 
 class PrepareFullContentFileTest(BaseTestCase):

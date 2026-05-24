@@ -215,7 +215,7 @@ class Course(AbstractComponentModel):
             for lesson in lessons:
                 overview_chunks.append(f"    Урок {lesson.lesson_number}: {lesson.title}")
 
-        files = [("course_overview.txt", "\n".join(overview_chunks))]
+        files = [(f"course-{self.pk}-overview.txt", "\n".join(overview_chunks))]
 
         if not sections_list:
             return files
@@ -248,7 +248,7 @@ class Course(AbstractComponentModel):
                     for task in homework.task_set.order_by("task_number", "created_at"):
                         lesson_chunks.append(f"  Задание {task.task_number}: {task.text}")
 
-                filename = f"s{section.section_number}_l{lesson.lesson_number}.txt"
+                filename = f"course-{self.pk}-s{section.section_number}-l{lesson.lesson_number}.txt"
                 files.append((filename, "\n".join(lesson_chunks)))
 
         return files

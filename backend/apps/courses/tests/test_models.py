@@ -406,6 +406,101 @@ class CourseLastModifiedByTest(BaseTestCase):
         self.assertIsNone(course.last_modified_by)
 
 
+class PrepareFilesForVsTest(BaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.course = create_test_course(title="VS Курс")
+
+    def test_course_without_sections_returns_only_overview(self):
+        files = self.course.prepare_files_for_vs()
+        self.assertEqual(len(files), 1)
+        filename, content = files[0]
+        self.assertEqual(filename, "course_overview.txt")
+        self.assertIn("VS Курс", content)
+        self.assertIn("Структура курса:", content)
+
+    def test_overview_contains_course_meta(self):
+        files = self.course.prepare_files_for_vs()
+        _, content = files[0]
+        self.assertIn(self.course.sub_title, content)
+        self.assertIn(self.course.description, content)
+
+    def test_overview_lists_sections_and_lessons(self):
+        section = create_test_section(self.course, title="Секция А")
+        create_test_lesson(section, title="Урок А1")
+        create_test_lesson(section, title="Урок А2")
+        files = self.course.prepare_files_for_vs()
+        _, overview = files[0]
+        self.assertIn("Секция А", overview)
+        self.assertIn("Урок А1", overview)
+        self.assertIn("Урок А2", overview)
+
+    def test_course_with_section_and_lesson_returns_lesson_file(self):
+        section = create_test_section(self.course, title="Секция 1")
+        create_test_lesson(section, title="Урок 1", document="")
+        files = self.course.prepare_files_for_vs()
+        # overview + one lesson file
+        self.assertEqual(len(files), 2)
+        filenames = [f for f, _ in files]
+        self.assertIn("course_overview.txt", filenames)
+        self.assertIn("s1_l1.txt", filenames)
+
+    def test_lesson_file_contains_context_header(self):
+        section = create_test_section(self.course, title="Введение")
+        create_test_lesson(section, title="Первый урок", document="")
+        files = self.course.prepare_files_for_vs()
+        lesson_file = next(c for f, c in files if f == "s1_l1.txt")
+        self.assertIn("VS Курс", lesson_file)
+        self.assertIn("Введение", lesson_file)
+        self.assertIn("Первый урок", lesson_file)
+
+    def test_lesson_file_with_document_contains_plain_text(self):
+        import json
+        section = create_test_section(self.course, title="Секция Д")
+        create_test_lesson(
+            section,
+            title="Урок с контентом",
+            document=json.dumps([
+                {
+                    "type": "paragraph",
+                    "content": [{"type": "text", "text": "Текст урока здесь", "styles": {}}],
+                    "children": [],
+                }
+            ]),
+        )
+        files = self.course.prepare_files_for_vs()
+        lesson_file = next(c for f, c in files if f == "s1_l1.txt")
+        self.assertIn("Текст урока здесь", lesson_file)
+
+    def test_lesson_file_without_document_has_no_content_section(self):
+        section = create_test_section(self.course, title="Секция Е")
+        create_test_lesson(section, title="Пустой урок", document="")
+        files = self.course.prepare_files_for_vs()
+        lesson_file = next(c for f, c in files if f == "s1_l1.txt")
+        # Just the header, no content body crash
+        self.assertIn("Пустой урок", lesson_file)
+
+    def test_lesson_file_filename_reflects_section_and_lesson_numbers(self):
+        section = create_test_section(self.course, title="С1")
+        create_test_lesson(section, title="Л1")
+        create_test_lesson(section, title="Л2")
+        files = self.course.prepare_files_for_vs()
+        filenames = {f for f, _ in files}
+        self.assertIn("s1_l1.txt", filenames)
+        self.assertIn("s1_l2.txt", filenames)
+
+    def test_multiple_sections_produce_correct_filenames(self):
+        s1 = create_test_section(self.course, title="С1")
+        s2 = create_test_section(self.course, title="С2")
+        create_test_lesson(s1, title="Л1")
+        create_test_lesson(s2, title="Л2")
+        files = self.course.prepare_files_for_vs()
+        filenames = {f for f, _ in files}
+        self.assertIn("s1_l1.txt", filenames)
+        self.assertIn("s2_l1.txt", filenames)
+
+
 class PrepareFullContentFileTest(BaseTestCase):
     import json as _json
 

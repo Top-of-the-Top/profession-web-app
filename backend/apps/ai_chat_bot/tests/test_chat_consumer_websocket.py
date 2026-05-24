@@ -74,7 +74,7 @@ class StubYandexChatAIService:
 
         await sync_to_async(_upd)()
 
-    async def ask_question_stream(self, text, vs_id=None):
+    async def ask_question_stream(self, text, vs_id=None, course_title=None):
         yield "Ок"
 
 
@@ -174,7 +174,7 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
         captured_vs_ids = []
 
         class SpyStub(StubYandexChatAIService):
-            async def ask_question_stream(self, text, vs_id=None):
+            async def ask_question_stream(self, text, vs_id=None, course_title=None):
                 captured_vs_ids.append(vs_id)
                 yield "spy-ок"
 

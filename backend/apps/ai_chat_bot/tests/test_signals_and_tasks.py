@@ -68,7 +68,7 @@ class SynchronizeCourseContextTaskTests(TestCase):
         mock_logger.error.assert_called()
 
     @patch("apps.ai_chat_bot.tasks.logger")
-    @patch("apps.courses.models.Course.prepare_full_content_file", side_effect=Exception("boom"))
+    @patch("apps.courses.models.Course.prepare_files_for_vs", side_effect=Exception("boom"))
     def test_task_logs_error_on_exception(self, _mock_content, mock_logger):
         from apps.ai_chat_bot.tasks import synchronize_course_context
 

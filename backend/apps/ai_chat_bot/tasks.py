@@ -17,21 +17,25 @@ def synchronize_course_context(course_id):
         course = Course.objects.get(pk=course_id)
         service = YandexKnowledgeAIService()
 
-        full_text = course.prepare_full_content_file()
+        vs_files = course.prepare_files_for_vs()
 
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=".txt", mode="w", encoding="utf-8"
-        ) as tf:
-            tf.write(full_text)
-            temp_path = tf.name
+        temp_paths = []
+        for filename, content in vs_files:
+            suffix = os.path.splitext(filename)[1] or ".txt"
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=suffix, mode="w", encoding="utf-8"
+            ) as tf:
+                tf.write(content)
+                temp_paths.append(tf.name)
 
         try:
-            asyncio.run(service.update_course_context(course, [temp_path]))
+            asyncio.run(service.update_course_context(course, temp_paths))
             logger.info(f"Successfully synced knowledge base for course: {course.title}")
 
         finally:
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
+            for path in temp_paths:
+                if os.path.exists(path):
+                    os.remove(path)
 
     except Course.DoesNotExist:
         logger.error(f"Course with id {course_id} not found")

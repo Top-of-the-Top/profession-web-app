@@ -192,6 +192,67 @@ class Course(AbstractComponentModel):
 
         return "\n".join(chunks)
 
+    def prepare_files_for_vs(self) -> list[tuple[str, str]]:
+        """Возвращает список (filename, content) для загрузки в Vector Store."""
+        sections = self.section_set.prefetch_related(
+            "lesson_set__homework_set__question_set",
+            "lesson_set__homework_set__task_set",
+        ).order_by("section_number", "created_at")
+
+        sections_list = list(sections)
+
+        # Overview file
+        overview_chunks = [
+            f"Курс: {self.title}",
+            f"Краткое описание: {self.sub_title}",
+            f"Описание: {self.description}",
+            "",
+            "Структура курса:",
+        ]
+        for section in sections_list:
+            overview_chunks.append(f"  Секция {section.section_number}: {section.title}")
+            lessons = section.lesson_set.order_by("lesson_number", "created_at")
+            for lesson in lessons:
+                overview_chunks.append(f"    Урок {lesson.lesson_number}: {lesson.title}")
+
+        files = [("course_overview.txt", "\n".join(overview_chunks))]
+
+        if not sections_list:
+            return files
+
+        # Per-lesson files
+        for section in sections_list:
+            lessons = section.lesson_set.order_by("lesson_number", "created_at")
+            for lesson in lessons:
+                lesson_chunks = [
+                    f"Курс: {self.title}",
+                    f"Секция {section.section_number}: {section.title}",
+                    f"Урок {lesson.lesson_number}: {lesson.title}",
+                    "",
+                ]
+                if lesson.document:
+                    plain = extract_plain_text(lesson.document)
+                    if plain:
+                        lesson_chunks.append(plain)
+                        lesson_chunks.append("")
+
+                homeworks = lesson.homework_set.order_by("homework_number", "created_at")
+                for homework in homeworks:
+                    lesson_chunks.append(
+                        f"Домашнее задание {homework.homework_number}: {homework.title}"
+                    )
+                    for question in homework.question_set.order_by("question_number", "created_at"):
+                        lesson_chunks.append(
+                            f"  Вопрос {question.question_number}: {question.text}"
+                        )
+                    for task in homework.task_set.order_by("task_number", "created_at"):
+                        lesson_chunks.append(f"  Задание {task.task_number}: {task.text}")
+
+                filename = f"s{section.section_number}_l{lesson.lesson_number}.txt"
+                files.append((filename, "\n".join(lesson_chunks)))
+
+        return files
+
     class Meta:
         verbose_name = "Курс"
         verbose_name_plural = "Курсы"

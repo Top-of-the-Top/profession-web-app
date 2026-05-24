@@ -9,6 +9,7 @@ from apps.ai_chat_bot.chat_types import ChatMessage
 from apps.ai_chat_bot.context_builder import ChatContextBuilder
 from apps.ai_chat_bot.context_compressor import BaseContextCompressor, TextRankContextCompressor
 from apps.ai_chat_bot.services import YandexChatAIService
+from apps.ai_chat_bot.tasks import synchronize_course_context
 from apps.courses.models import Course
 
 from ..models import Session
@@ -20,6 +21,7 @@ from .dto import (
     ErrorMessage,
     FinishingAnswerMessage,
     GetHistoryRequest,
+    SearchingContextMessage,
     HistoryReceivedMessage,
     SendMessageRequest,
     StartingAnswerMessage,
@@ -162,10 +164,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     self._chat_history[chat_id],
                 )
                 vs_id = getattr(self.course, "yandex_vs_id", None) or None
+                course_title = getattr(self.course, "title", None)
+                if vs_id:
+                    await self._send_ws_message(SearchingContextMessage(chat_id=chat_id))
+                elif await sync_to_async(lambda: self.course.section_set.exists())():
+                    synchronize_course_context.delay(str(self.course.pk))
 
                 full_ai_response = ""
                 try:
-                    stream = self.chat_service.ask_question_stream(ai_chat_context, vs_id=vs_id)
+                    stream = self.chat_service.ask_question_stream(
+                        ai_chat_context, vs_id=vs_id, course_title=course_title
+                    )
                     async for chunk in stream:
                         full_ai_response += chunk
                         await self._send_ws_message(

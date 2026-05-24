@@ -65,7 +65,7 @@ class YandexChatAIService(YandexAIBase):
         logger.info("Deleting chat_id=%s", chat.chat_id)
         await sync_to_async(Chat.objects.filter(chat_id=chat.chat_id).delete)()
 
-    async def ask_question_stream(self, text, vs_id: str | None = None):
+    async def ask_question_stream(self, text, vs_id: str | None = None, course_title: str | None = None):
         logger.info("Create response stream for session %s", self.session.session_id)
         try:
             async with self._semaphore:
@@ -76,6 +76,12 @@ class YandexChatAIService(YandexAIBase):
                 )
                 if vs_id:
                     kwargs["tools"] = [{"type": "file_search", "vector_store_ids": [vs_id]}]
+                if course_title:
+                    kwargs["instructions"] = (
+                        f"Ты ИИ-ассистент образовательного курса «{course_title}». "
+                        "Помогай студентам разобраться в материалах курса. "
+                        "Отвечай на русском языке, точно и по делу."
+                    )
 
                 response_stream = await self.client.responses.create(**kwargs)
                 async for event in response_stream:

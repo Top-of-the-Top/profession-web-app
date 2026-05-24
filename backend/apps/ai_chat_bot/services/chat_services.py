@@ -76,12 +76,15 @@ class YandexChatAIService(YandexAIBase):
                 )
                 if vs_id:
                     kwargs["tools"] = [{"type": "file_search", "vector_store_ids": [vs_id]}]
-                if course_title:
-                    kwargs["instructions"] = (
-                        f"Ты ИИ-ассистент образовательного курса «{course_title}». "
-                        "Помогай студентам разобраться в материалах курса. "
-                        "Отвечай на русском языке, точно и по делу."
-                    )
+
+                course_name = f"«{course_title}»" if course_title else "курса"
+                kwargs["instructions"] = (
+                    f"Ты ИИ-ассистент образовательного {course_name}. "
+                    "Отвечай на русском языке, точно и по делу. "
+                    "Используй поиск по материалам курса ТОЛЬКО когда студент задаёт "
+                    "содержательный вопрос о темах, уроках или понятиях курса. "
+                    "Приветствия, благодарности и общие фразы — обрабатывай без поиска."
+                )
 
                 response_stream = await self.client.responses.create(**kwargs)
                 async for event in response_stream:

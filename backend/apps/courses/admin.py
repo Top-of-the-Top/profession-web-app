@@ -46,8 +46,20 @@ class TaskInline(TabularInline):
     readonly_fields = ("task_number",)
 
 
+@admin.action(description="Пересобрать Vector Store")
+def sync_vector_store(modeladmin, request, queryset):
+    from apps.ai_chat_bot.tasks import synchronize_course_context
+
+    count = 0
+    for course in queryset:
+        synchronize_course_context.delay(course.pk)
+        count += 1
+    modeladmin.message_user(request, f"Запущена пересборка VS для {count} курс(ов).")
+
+
 @admin.register(Course)
 class CourseAdmin(ModelAdmin):
+    actions = [sync_vector_store]
     list_display = (
         "image_thumb",
         "title_link",

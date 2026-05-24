@@ -10,6 +10,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            sql="UPDATE ai_chat_bot_chat SET title = SUBSTR(title, 1, 25) WHERE LENGTH(title) > 25;",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.AlterField(
             model_name='chat',
             name='title',

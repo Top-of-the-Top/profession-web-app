@@ -1,8 +1,9 @@
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from django.test import TestCase
 
 from apps.ai_chat_bot.models import Chat, Message, Session
+from apps.courses.models import Section
 from apps.courses.tests.test_models import create_test_course, create_test_user
 
 
@@ -67,7 +68,7 @@ class SynchronizeCourseContextTaskTests(TestCase):
         mock_logger.error.assert_called()
 
     @patch("apps.ai_chat_bot.tasks.logger")
-    @patch("apps.courses.models.Course.prepare_full_content_file", side_effect=Exception("boom"))
+    @patch("apps.courses.models.Course.prepare_files_for_vs", side_effect=Exception("boom"))
     def test_task_logs_error_on_exception(self, _mock_content, mock_logger):
         from apps.ai_chat_bot.tasks import synchronize_course_context
 
@@ -139,3 +140,32 @@ class AIChatModelTests(TestCase):
         s2 = Session.objects.create(user=self.user, course=course2)
         sessions = list(Session.objects.filter(user=self.user))
         self.assertEqual(sessions[0], s2)
+
+
+class RebuildAllCoursesVsTests(TestCase):
+
+    @patch("apps.ai_chat_bot.tasks.synchronize_course_context")
+    def test_queues_only_courses_with_sections(self, mock_sync):
+        course_with = create_test_course(title="С секцией")
+        Section.objects.create(course=course_with, title="Секция")
+
+        course_without = create_test_course(title="Без секций")
+
+        from apps.ai_chat_bot.tasks import rebuild_all_courses_vs
+        rebuild_all_courses_vs()
+
+        called_ids = {c.args[0] for c in mock_sync.delay.call_args_list}
+        self.assertIn(course_with.pk, called_ids)
+        self.assertNotIn(course_without.pk, called_ids)
+
+    @patch("apps.ai_chat_bot.tasks.synchronize_course_context")
+    def test_skips_deleted_courses(self, mock_sync):
+        course = create_test_course(title="Удалённый курс")
+        course.is_deleted = True
+        course.save(update_fields=["is_deleted"])
+        Section.objects.create(course=course, title="Секция")
+
+        from apps.ai_chat_bot.tasks import rebuild_all_courses_vs
+        rebuild_all_courses_vs()
+
+        mock_sync.delay.assert_not_called()

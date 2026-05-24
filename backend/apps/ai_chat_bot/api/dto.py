@@ -140,6 +140,23 @@ class StreamingResponseMessage(WsMessage):
 
 
 @dataclass
+class SearchingContextMessage(WsMessage):
+    chat_id: str
+
+    @property
+    def message_type(self) -> str:
+        return "searching context"
+
+    def to_content(self) -> dict[str, Any]:
+        return {}
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = super().to_dict()
+        payload["chat_id"] = self.chat_id
+        return payload
+
+
+@dataclass
 class FinishingAnswerMessage(WsMessage):
     chat_id: str
 

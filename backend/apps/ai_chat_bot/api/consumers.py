@@ -118,11 +118,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def _send_ws_message(self, ws_message: WsMessage):
         await self.send(text_data=json.dumps(ws_message.to_dict()))
 
-    async def _load_chat_state(self, chat_id: str) -> None:
+    async def _load_chat_state(self, chat_id: str) -> list:
         chat = await self.chat_service.get_chat_for_current_session(chat_id)
         messages = await self.chat_service.get_chat_history(chat_id)
         self._chat_history[chat_id] = self._context_builder.load_history_from_messages(messages)
         self._chat_summaries[chat_id] = chat.context_summary
+        return messages
 
     async def _handle_request(self, request: WsRequest):
         match request:
@@ -133,8 +134,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.chat_service.delete_chat(chat_id)
                 await self._send_ws_message(ChatDeletedMessage())
             case GetHistoryRequest(chat_id=chat_id):
-                messages = await self.chat_service.get_chat_history(chat_id)
-                await self._load_chat_state(chat_id)
+                messages = await self._load_chat_state(chat_id)
                 await self._send_ws_message(
                     HistoryReceivedMessage(chat_id=chat_id, history=messages)
                 )

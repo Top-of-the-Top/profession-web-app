@@ -1,266 +1,387 @@
-# Серверная часть приложения Profession Web App
+<div align="center">
 
-Django 6 API для платформы «Профессия»: REST, JWT, WebSocket (ИИ-чат), фоновые задачи Celery, админка Unfold.
+# Profession Web App — Бэкенд
 
-Корневой README и Docker Compose — в [корне монорепы](../README.md).
+**Django 6 ASGI-сервер платформы онлайн-обучения**
 
----
-
-## Стек технологий
+REST API · WebSocket-чат с ИИ · уведомления в реальном времени · фоновые задачи
 
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=python,django,postgres,redis,docker&theme=dark" alt="Python, Django, PostgreSQL, Redis, Docker" />
+  <img src="https://skillicons.dev/icons?i=python,django,postgresql,redis,rabbitmq,docker&theme=dark" alt="Backend Stack" />
 </p>
+
+**Ядро**<br/>
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/Django-6-092E20?style=flat-square&logo=django&logoColor=white" alt="Django" />
-  <img src="https://img.shields.io/badge/DRF-REST-092E20?style=flat-square&logo=django&logoColor=white" alt="DRF" />
+  <img src="https://img.shields.io/badge/DRF-A30000?style=flat-square&logo=django&logoColor=white" alt="DRF" />
   <img src="https://img.shields.io/badge/Daphne-ASGI-092E20?style=flat-square&logo=django&logoColor=white" alt="Daphne" />
   <img src="https://img.shields.io/badge/Channels-WebSocket-092E20?style=flat-square&logo=django&logoColor=white" alt="Channels" />
-  <img src="https://img.shields.io/badge/SimpleJWT-auth-000000?style=flat-square&logo=jsonwebtokens&logoColor=white" alt="JWT" />
-  <img src="https://img.shields.io/badge/Celery-Beat-37814A?style=flat-square&logo=celery&logoColor=white" alt="Celery" />
-  <img src="https://img.shields.io/badge/RabbitMQ-broker-FF6600?style=flat-square&logo=rabbitmq&logoColor=white" alt="RabbitMQ" />
-  <img src="https://img.shields.io/badge/drf--spectacular-OpenAPI-6C63FF?style=flat-square" alt="OpenAPI" />
+  <img src="https://img.shields.io/badge/drf--spectacular-OpenAPI-6BA539?style=flat-square&logo=openapiinitiative&logoColor=white" alt="OpenAPI" />
 </p>
 
-| Слой | Пакеты |
-|------|--------|
-| HTTP / WS | Daphne, Django Channels, `channels-redis` |
-| API | Django REST Framework, `drf-spectacular` |
-| Auth | `rest_framework_simplejwt`, OAuth (Яндекс, ВК) |
-| Очереди | Celery, RabbitMQ, Redis (results) |
-| Файлы | `django-storages`, S3 (Yandex Object Storage) |
-| Admin | `django-unfold` |
-| Dev | `django-orbit` (профилирование при `DEBUG=True`) |
+**Очереди и задачи**<br/>
+<p align="center">
+  <img src="https://img.shields.io/badge/Celery-Beat-37814A?style=flat-square&logo=celery&logoColor=white" alt="Celery" />
+  <img src="https://img.shields.io/badge/Flower-monitoring-37814A?style=flat-square&logo=celery&logoColor=white" alt="Flower" />
+</p>
+
+**Данные и хранилище**<br/>
+<p align="center">
+  <img src="https://img.shields.io/badge/S3-django--storages-5282FF?style=flat-square&logo=yandexcloud&logoColor=white" alt="S3" />
+</p>
+
+**Аутентификация и ИИ**<br/>
+<p align="center">
+  <img src="https://img.shields.io/badge/SimpleJWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white" alt="JWT" />
+  <img src="https://img.shields.io/badge/VK%20ID-0077FF?style=flat-square&logo=vk&logoColor=white" alt="VK ID" />
+  <img src="https://img.shields.io/badge/Яндекс%20ID-FC3F1D?style=flat-square&logo=yandex&logoColor=white" alt="Яндекс ID" />
+  <img src="https://img.shields.io/badge/Yandex%20GPT-Vector%20Store-5282FF?style=flat-square&logo=yandex&logoColor=white" alt="Yandex GPT" />
+  <img src="https://img.shields.io/badge/Unfold-admin-1F2937?style=flat-square&logo=django&logoColor=white" alt="Unfold" />
+</p>
+
+</div>
+
+> Серверная часть платформы «Profession». Корневой README и Docker Compose — в [корне монорепы](../README.md), клиентская часть — в [frontend/README.md](../frontend/README.md).
 
 ---
 
-## Архитектура серверной части
+## Содержание
+
+- [Архитектура](#архитектура)
+- [Доменные модули](#доменные-модули)
+- [Доменная модель данных](#доменная-модель-данных)
+- [Подсистема ИИ-ассистента](#подсистема-ии-ассистента)
+- [Подсистема уведомлений](#подсистема-уведомлений)
+- [Хранилища данных](#хранилища-данных)
+- [API и аутентификация](#api-и-аутентификация)
+- [Фоновые задачи](#фоновые-задачи)
+- [Запуск](#запуск)
+- [Тестирование](#тестирование)
+- [Окружение](#окружение)
+
+---
+
+## Архитектура
+
+Единая точка входа — `project/asgi.py`: HTTP-запросы идут через Django, WebSocket — через `project/routing.py`. Бизнес-логика разнесена по доменным приложениям в `apps/`, тяжёлая и периодическая работа — в Celery.
 
 ```mermaid
 flowchart TB
-  subgraph L1["① Клиенты"]
+  subgraph L1["1 · Клиенты"]
     direction LR
     SPA["React SPA"]
     ADM["Django Admin · Unfold"]
   end
 
-  subgraph L2["② Точка входа · project/asgi.py"]
+  subgraph L2["2 · Точка входа · project/asgi.py"]
     DAPHNE["Daphne ASGI<br/>ProtocolTypeRouter"]
   end
 
-  subgraph L3["③ Конвейер запросов"]
+  subgraph L3["3 · Конвейер запросов"]
     direction LR
     HTTP_PIPE["HTTP<br/>Security · CORS · Session<br/>JWT · Timing · Orbit"]
     WS_PIPE["WebSocket<br/>JWT Auth Middleware"]
   end
 
-  subgraph L4["④ Публичные интерфейсы"]
+  subgraph L4["4 · Публичные интерфейсы"]
     direction TB
-    REST["REST API<br/>/api/v1/ · OpenAPI"]
-    SSE["Server-Sent Events<br/>notifications/sse/"]
-    WS_AI["WebSocket<br/>ai_chat_bot"]
-    META["Health · Swagger<br/>/admin/"]
+    REST["REST API · /api/v1/ · OpenAPI"]
+    SSE["Server-Sent Events · уведомления"]
+    WS_AI["WebSocket · ai_chat_bot"]
+    META["Health · Swagger · /admin/"]
   end
 
-  subgraph L5["⑤ Доменный слой · apps/"]
-    direction TB
-
-    subgraph D_AUTH["Доступ"]
-      users["users<br/>JWT · OAuth · профиль"]
-    end
-
-    subgraph D_LEARN["Обучение"]
-      direction LR
-      courses["courses"]
-      homeworks["homeworks"]
-      webinars["webinars"]
-      applications["applications"]
-    end
-
-    subgraph D_SHOP["Коммерция"]
-      direction LR
-      carts["carts"]
-      payments["payments"]
-    end
-
-    subgraph D_PLATFORM["Платформа"]
-      direction LR
-      core["core<br/>media assets"]
-      notifications["notifications"]
-      ai_chat["ai_chat_bot"]
-      admin_panel["admin_panel"]
-      stats["stats"]
-    end
-  end
-
-  subgraph L6["⑥ Фоновая обработка"]
+  subgraph L5["5 · Доменный слой · apps/"]
     direction LR
-    BEAT["Celery Beat<br/>расписание"]
-    WORKER["Celery Worker<br/>tasks"]
-    TASKS["webinars · core/assets<br/>idle · S3 sweep"]
+    users["users"]
+    courses["courses"]
+    homeworks["homeworks"]
+    webinars["webinars"]
+    carts["carts"]
+    payments["payments"]
+    notifications["notifications"]
+    ai_chat["ai_chat_bot"]
+    core["core"]
+    stats["stats"]
   end
 
-  subgraph L7["⑦ Персистентность"]
+  subgraph L6["6 · Фоновая обработка"]
     direction LR
-    PG[("PostgreSQL<br/>основные данные")]
-    REDIS[("Redis<br/>cache hot/default/cold<br/>Channels · Celery results")]
-    RMQ["RabbitMQ<br/>Celery broker<br/>notifications exchange"]
-    S3[("S3<br/>media · static")]
+    BEAT["Celery Beat"]
+    WORKER["Celery Worker"]
   end
 
-  subgraph L8["⑧ Внешние интеграции"]
+  subgraph L7["7 · Персистентность"]
     direction LR
-    AGORA["Agora<br/>RTC · доска · запись"]
-    KINE["Kinescope<br/>хостинг записей"]
-    YGPT["Yandex GPT<br/>ИИ-ответы"]
-    OAUTH["OAuth<br/>Яндекс · ВК"]
-    COMMS["SMTP · SMS<br/>Notificore"]
+    PG[("PostgreSQL")]
+    REDIS[("Redis<br/>cache · channels")]
+    RMQ["RabbitMQ"]
+    S3[("S3")]
+  end
+
+  subgraph L8["8 · Внешние интеграции"]
+    direction LR
+    AGORA["Agora"]
+    KINE["Kinescope"]
+    YGPT["Yandex GPT"]
+    OAUTH["OAuth · Яндекс · VK"]
+    COMMS["SMTP · SMS"]
   end
 
   SPA --> DAPHNE
   ADM --> DAPHNE
-
-  DAPHNE --> HTTP_PIPE
-  DAPHNE --> WS_PIPE
-
-  HTTP_PIPE --> REST
-  HTTP_PIPE --> SSE
-  HTTP_PIPE --> META
+  DAPHNE --> HTTP_PIPE & WS_PIPE
+  HTTP_PIPE --> REST & SSE & META
   WS_PIPE --> WS_AI
-
-  REST --> D_AUTH
-  REST --> D_LEARN
-  REST --> D_SHOP
-  REST --> D_PLATFORM
+  REST --> L5
   SSE --> notifications
   WS_AI --> ai_chat
 
-  D_AUTH --> PG
-  D_LEARN --> PG
-  D_SHOP --> PG
-  D_PLATFORM --> PG
-
-  D_LEARN --> REDIS
-  D_PLATFORM --> REDIS
+  L5 --> PG
+  courses --> REDIS
   core --> S3
-  webinars --> S3
-
-  users --> OAUTH
-  users --> COMMS
-  notifications --> COMMS
+  webinars --> S3 & AGORA & KINE
   ai_chat --> YGPT
-  webinars --> AGORA
-  webinars --> KINE
+  users --> OAUTH & COMMS
+  notifications --> COMMS
 
   REST -.->|события| RMQ
   notifications -.->|publish| RMQ
+  BEAT -->|cron| RMQ --> WORKER
+  WORKER --> PG & S3 & KINE & REDIS
 
-  BEAT -->|cron| RMQ
-  RMQ --> WORKER
-  WORKER --> TASKS
-  TASKS --> PG
-  TASKS --> S3
-  TASKS --> KINE
-  TASKS --> REDIS
-
-  classDef layerClient fill:#e0f2fe,stroke:#0369a1,stroke-width:2px,color:#0c4a6e
-  classDef layerEntry fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
-  classDef layerPipe fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
-  classDef layerApi fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
-  classDef layerDomain fill:#f5f3ff,stroke:#8b5cf6,stroke-width:1px,color:#3b0764
-  classDef layerAsync fill:#faf5ff,stroke:#a855f7,stroke-width:2px,color:#581c87
-  classDef layerData fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#064e3b
-  classDef layerExt fill:#ffedd5,stroke:#ea580c,stroke-width:2px,color:#7c2d12
-
-  class SPA,ADM layerClient
-  class DAPHNE layerEntry
-  class HTTP_PIPE,WS_PIPE layerPipe
-  class REST,SSE,WS_AI,META layerApi
-  class users,courses,homeworks,webinars,applications,carts,payments,core,notifications,ai_chat,admin_panel,stats layerDomain
-  class BEAT,WORKER,TASKS layerAsync
-  class PG,REDIS,RMQ,S3 layerData
-  class AGORA,KINE,YGPT,OAUTH,COMMS layerExt
+  classDef client fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e
+  classDef entry fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+  classDef pipe fill:#e0e7ff,stroke:#4f46e5,color:#312e81
+  classDef api fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+  classDef domain fill:#f5f3ff,stroke:#8b5cf6,color:#3b0764
+  classDef async fill:#faf5ff,stroke:#a855f7,color:#581c87
+  classDef data fill:#d1fae5,stroke:#059669,color:#064e3b
+  classDef ext fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+  class SPA,ADM client
+  class DAPHNE entry
+  class HTTP_PIPE,WS_PIPE pipe
+  class REST,SSE,WS_AI,META api
+  class users,courses,homeworks,webinars,carts,payments,notifications,ai_chat,core,stats domain
+  class BEAT,WORKER async
+  class PG,REDIS,RMQ,S3 data
+  class AGORA,KINE,YGPT,OAUTH,COMMS ext
 ```
 
-| Слой | Что происходит |
-|------|----------------|
-| ① Клиенты | SPA ходит в API/SSE/WS; админка — в `/admin/` |
-| ② ASGI | `Daphne` маршрутизирует HTTP и WebSocket |
-| ③ Конвейер | HTTP: JWT и middleware; WS: проверка токена |
-| ④ Интерфейсы | REST, поток уведомлений, чат, служебные URL |
-| ⑤ `apps/` | Бизнес-логика и ORM; группы по доменам |
-| ⑥ Celery | Beat ставит задачи в RabbitMQ, Worker исполняет |
-| ⑦ Данные | PG — источник истины; Redis — кэш и real-time; S3 — файлы |
-| ⑧ Интеграции | Видео, записи, ИИ, OAuth, почта и SMS |
-
-**Точка входа** — `project/asgi.py`: HTTP через Django, WebSocket через `project/routing.py` (сейчас — `ai_chat_bot`).
-
-**Конфигурация** — `project/settings.py`, маршруты — `project/urls.py`, Celery — `project/celery.py`.
-
-**Доменные модули** — `apps/<name>/`: модели, `api/` (views, serializers, urls), при необходимости `tasks.py`, `signals.py`, `tests/`.
-
-| Приложение | Назначение |
-|------------|------------|
-| `users` | Регистрация, JWT, профиль, OAuth |
-| `courses` | Курсы, секции, уроки, каталог |
-| `webinars` | Эфиры, Agora, записи, Kinescope |
-| `homeworks` | Попытки, ответы, проверка |
-| `carts` | Корзина |
-| `payments` | Платежи |
-| `applications` | Заявки на спецкурсы |
-| `notifications` | Уведомления, SSE |
-| `ai_chat_bot` | ИИ-чат, WebSocket |
-| `admin_panel` | API модератора |
-| `stats` | Аналитика (`/api/v1/statistics/`) |
-| `core` | Медиа-ассеты, health, общие API |
-
-**Кэш Redis** (не CI): `default`, `hot`, `cold` — разные TTL в `CACHES`.
-
-**Периодические задачи** (`CELERY_BEAT_SCHEDULE`): idle-вебинары, опрос S3-событий ассетов, sweep pending/orphaned.
+**Конфигурация** — `project/settings.py` · **маршруты** — `project/urls.py` · **Celery** — `project/celery.py`. Каждый домен `apps/<name>/` содержит модели, `api/` (views, serializers, urls) и при необходимости `tasks.py`, `signals.py`, `services/`, `tests/`.
 
 ---
 
-## Базы данных
+## Доменные модули
 
-| Хранилище | Когда | Назначение |
-|-----------|--------|------------|
-| **PostgreSQL** | prod / dev | Основные данные (`DB_*` в `.env`) |
-| **SQLite** | `CI=1` или `manage.py test` | Тесты без внешней БД |
-| **Redis** | prod / dev | Кэш, Celery results, channel layers |
-| **FileBasedCache** | тесты | Замена Redis в CI |
-| **S3** | `USE_S3=True` | Медиа и staticfiles |
-| **Локальный диск** | `USE_S3=False`, `DEBUG` | `/media/`, `/static/` |
+Двенадцать приложений сгруппированы по зонам ответственности:
 
-Миграции:
-
-```bash
-python manage.py migrate
-python manage.py makemigrations <app>
+```mermaid
+mindmap
+  root((apps/))
+    Доступ
+      users · JWT · OAuth · профиль
+    Обучение
+      courses · секции · уроки
+      homeworks · попытки · проверка
+      webinars · Agora · Kinescope
+      applications · заявки
+    Коммерция
+      carts · корзина
+      payments · платежи
+    Платформа
+      core · медиа-ассеты · health
+      notifications · SSE · рассылки
+      ai_chat_bot · WebSocket · ИИ
+      admin_panel · API модератора
+      stats · аналитика
 ```
 
 ---
 
-## Структура каталога
+## Доменная модель данных
+
+Ядро предметной области — иерархия учебного контента и попыток сдачи ДЗ. Курс ведёт один или несколько авторов (M2M), внутри — секции, уроки, задания; студент сдаёт попытку, которая разбивается на ответы и ручные ревью.
+
+```mermaid
+erDiagram
+  USER }o--o{ COURSE : "авторство (M2M)"
+  COURSE ||--o{ SECTION : "содержит"
+  SECTION ||--o{ LESSON : "содержит"
+  LESSON ||--o{ HOMEWORK : "содержит"
+  HOMEWORK ||--o{ QUESTION : "тест-вопросы"
+  HOMEWORK ||--o{ TASK : "задания"
+  USER ||--o{ ATTEMPT : "сдаёт"
+  HOMEWORK ||--o{ ATTEMPT : "попытки"
+  ATTEMPT ||--o{ QUESTIONANSWER : "ответы"
+  ATTEMPT ||--o{ TASKANSWER : "решения"
+  TASKANSWER ||--o| TASKREVIEW : "ручная проверка"
+
+  USER {
+    uuid id PK
+    string role "student / teacher / moderator"
+    bytes email_cipher "шифрованный e-mail"
+  }
+  COURSE {
+    uuid course_id PK
+    string title
+    string slug
+    int price
+    string yandex_vs_id "ИИ Vector Store"
+  }
+  SECTION {
+    int section_number
+    string title
+  }
+  LESSON {
+    int lesson_number
+    string title
+    json content "BlockNote"
+  }
+  ATTEMPT {
+    datetime created_at
+    user reviewed_by "проверяющий"
+  }
+```
+
+Параллельная ветка — диалоги с ИИ-ассистентом: одна `Session` на пару «пользователь + курс», внутри независимые чаты с историей и сжатым контекстом.
+
+```mermaid
+erDiagram
+  USER ||--o{ SESSION : ""
+  COURSE ||--o{ SESSION : ""
+  SESSION ||--o{ CHAT : ""
+  CHAT ||--o{ MESSAGE : ""
+  SESSION {
+    uuid id PK
+  }
+  CHAT {
+    uuid id PK
+    string title "автозаголовок"
+    text context_summary "сжатый контекст"
+  }
+  MESSAGE {
+    uuid id PK
+    string role "user / assistant"
+    text content
+  }
+```
+
+---
+
+## Подсистема ИИ-ассистента
+
+`ai_chat_bot` — ИИ-помощник, отвечающий по материалам конкретного курса. Соединение — WebSocket (`?token=JWT` в query-параметре, т.к. браузер не шлёт заголовки при апгрейде), ответы приходят стримингом по токену.
+
+```mermaid
+sequenceDiagram
+  participant U as Клиент
+  participant C as AiChatConsumer
+  participant DB as PostgreSQL
+  participant VS as Yandex Vector Store
+  participant G as Yandex GPT
+  U->>C: send message
+  C->>DB: сохранить вопрос
+  C-->>U: starting answer
+  opt у курса есть Vector Store
+    C->>VS: file_search по материалам
+    C-->>U: searching context
+  end
+  loop генерация
+    G-->>C: chunk
+    C-->>U: streaming response
+  end
+  C-->>U: finishing answer
+```
+
+**Модели** — `Session (user + course) → Chat → Message`. **Vector Store** строится из материалов курса (overview + по файлу на урок) и пересобирается при изменении контента; при его отсутствии бот работает в режиме graceful degradation — отвечает по истории диалога. Длинные диалоги сжимаются компрессором контекста (TextRank), summary хранится в БД для восстановления после переподключения.
+
+---
+
+## Подсистема уведомлений
+
+Доменные события проходят через `NotificationDispatcher`, который по типу события вызывает обработчики: запись в БД + публикация в RabbitMQ (для SSE) и, опционально, отправка e-mail/SMS.
+
+```mermaid
+flowchart LR
+  EV["Событие<br/>view · signal · task"] --> D{NotificationDispatcher}
+  D -->|SSE| T1["Celery task"]
+  T1 --> N[("Notification<br/>PostgreSQL")]
+  T1 --> R["RabbitMQ<br/>topic exchange"]
+  R -->|user.id · course.id · system.all| STREAM["SSE-поток<br/>StreamingHttpResponse"]
+  STREAM --> CLIENT["Клиент · EventSource"]
+  D -->|with_email| T2["Celery task"]
+  T2 -->|decrypt email| SMTP["SMTP / SMS"]
+
+  classDef a fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+  classDef d fill:#d1fae5,stroke:#059669,color:#064e3b
+  classDef x fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+  class EV,D,T1,T2 a
+  class N,R,STREAM d
+  class SMTP,CLIENT x
+```
+
+Уведомления бывают трёх типов: **личные** (конкретному пользователю), **курсовые** (всем записавшимся на курс) и **системные** (всем). Клиент держит один SSE-канал и подписывается на свои routing keys; при разрыве переподключается сам. E-mail отправляется параллельно SSE, если событие помечено `with_email`; адрес хранится в зашифрованном виде и расшифровывается перед отправкой.
+
+---
+
+## Хранилища данных
+
+```mermaid
+flowchart LR
+  APP["Django · Celery"]
+  APP --> PG[("PostgreSQL<br/>источник истины")]
+  APP --> REDIS[("Redis<br/>cache: default · hot · cold<br/>channels · Celery results")]
+  APP --> RMQ["RabbitMQ<br/>брокер · события"]
+  APP --> S3[("S3 · Yandex<br/>media · static")]
+
+  classDef d fill:#d1fae5,stroke:#059669,color:#064e3b
+  classDef a fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+  class PG,REDIS,RMQ,S3 d
+  class APP a
+```
+
+В CI и тестах (`CI=1` или `manage.py test`) внешние зависимости подменяются: PostgreSQL → SQLite, Redis-кэш → `FileBasedCache`, брокер Celery → in-memory с `TASK_ALWAYS_EAGER`. Это позволяет прогонять тесты без поднятого окружения.
+
+---
+
+## API и аутентификация
+
+Все ресурсы — под префиксом `/api/v1/` (модерация, статистика — `/api/v1/statistics/`). Аутентификация — JWT: `Authorization: Bearer <access>`.
+
+| Endpoint | Назначение |
+|----------|------------|
+| `/api/v1/` | REST-ресурсы доменных приложений |
+| `/api/v1/auth/token/refresh/` | Обновление access-токена |
+| `/api/v1/swagger` · `/api/v1/schema/` | Swagger UI · OpenAPI-схема |
+| `/admin/` | Админ-панель (Unfold) |
+| `/health/live/` · `/health/ready/` | Liveness · readiness пробы |
+
+Access-токен живёт 15 минут, refresh — 7 дней с ротацией (`SIMPLE_JWT`). Роли пользователя: **student**, **teacher**, **moderator**.
+
+---
+
+## Фоновые задачи
+
+Celery Beat ставит периодические задачи в RabbitMQ, Worker их исполняет:
 
 ```
-backend/
-├── apps/              # доменные Django-приложения
-├── project/           # settings, urls, asgi, celery, middleware
-├── templates/
-├── manage.py
-├── requirements.txt
-├── Dockerfile
-└── .env.example
+check-idle-webinars        каждые 60с    — закрытие «зависших» эфиров
+assets-poll-s3-events      каждые 30с    — обработка событий загрузки в S3
+assets-sweep-pending       каждые 10мин  — очистка незавершённых ассетов
+assets-sweep-orphaned      каждый час    — удаление осиротевших файлов
 ```
+
+Мониторинг задач — **Flower** (`http://localhost:15666`).
 
 ---
 
 ## Запуск
 
-**Docker** (из корня монорепы, см. [README](../README.md)):
+**Через Docker** (рекомендуется) — из корня монорепы, см. [README](../README.md):
 
-`docker compose up --build`
+```bash
+docker compose up --build
+```
 
 **Локально:**
 
@@ -269,36 +390,55 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 
+# поднять инфраструктуру
 docker compose -f ../docker-compose.yml up redis rabbitmq -d
 
 python manage.py migrate
 daphne -b 0.0.0.0 -p 9000 project.asgi:application
 ```
 
-Celery (отдельные процессы):
+Celery — отдельными процессами:
 
 ```bash
 celery -A project worker -l info
 celery -A project beat -l info
 ```
 
-| Endpoint | URL |
-|----------|-----|
-| API | http://localhost:9000/api/v1/ |
-| Swagger | http://localhost:9000/api/v1/swagger |
-| OpenAPI schema | http://localhost:9000/api/v1/schema/ |
-| Admin | http://localhost:9000/admin/ |
-| Health | `/health/live/`, `/health/ready/` |
+После запуска: API — http://localhost:9000/api/v1/ · Swagger — `/api/v1/swagger` · Admin — `/admin/`.
 
-Авторизация: `Authorization: Bearer <access>`, refresh — `POST /api/v1/auth/token/refresh/`.
+---
+
+## Тестирование
+
+```bash
+# все тесты приложения (SQLite, eager Celery)
+CI=1 python manage.py test apps
+
+# конкретное приложение
+python manage.py test apps.notifications -v 2
+```
+
+Из корня доступны обёртки `make test` (с параметром `APP=apps.<name>`) и сценарные цели вроде `make test-notifications-pipeline`. В CI тесты прогоняются на каждый PR (`.github/workflows/backend-tests.yml`), миграции проверяются отдельным workflow.
 
 ---
 
 ## Окружение
 
-```bash
-cp .env.example .env
+Конфигурация — через `.env` (см. [`.env.example`](.env.example)):
+
+```mermaid
+flowchart LR
+  ENV[".env"] --- DJ["Django<br/>SECRET_KEY · DEBUG · hosts"]
+  ENV --- DB["PostgreSQL<br/>DB_*"]
+  ENV --- Q["Redis · Celery · RabbitMQ"]
+  ENV --- ST["S3<br/>USE_S3 · AWS_*"]
+  ENV --- INT["Интеграции<br/>Agora · Kinescope · Yandex GPT"]
+  ENV --- AU["OAuth · SMTP · SMS"]
+
+  classDef e fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+  classDef g fill:#f5f3ff,stroke:#8b5cf6,color:#3b0764
+  class ENV e
+  class DJ,DB,Q,ST,INT,AU g
 ```
 
-Ключевые группы переменных: Django (`SECRET_KEY`, `DEBUG`), PostgreSQL, Redis/Celery/RabbitMQ, S3, Agora, Kinescope, Yandex GPT, OAuth, почта/SMS. Полный список — в [.env.example](.env.example).
-
+Полный список переменных с пояснениями — в [`.env.example`](.env.example).

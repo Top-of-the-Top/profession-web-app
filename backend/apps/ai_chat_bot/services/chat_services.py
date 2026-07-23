@@ -69,11 +69,11 @@ class YandexChatAIService(YandexAIBase):
         logger.info("Create response stream for session %s", self.session.session_id)
         try:
             async with self._semaphore:
-                kwargs = dict(
-                    model=settings.YANDEX_MODEL or settings.YANDEX_ASSISTANT_ID,
-                    input=text,
-                    stream=True,
-                )
+                kwargs = {
+                    "model": settings.YANDEX_MODEL or settings.YANDEX_ASSISTANT_ID,
+                    "input": text,
+                    "stream": True,
+                }
                 if vs_id:
                     kwargs["tools"] = [{"type": "file_search", "vector_store_ids": [vs_id]}]
 
@@ -91,6 +91,6 @@ class YandexChatAIService(YandexAIBase):
                     if event.type == "response.output_text.delta":
                         yield event.delta
 
-        except Exception as e:
-            logger.error("Error while creating a new response stream: %s", e)
+        except Exception:
+            logger.exception("Error while creating a new response stream")
             raise

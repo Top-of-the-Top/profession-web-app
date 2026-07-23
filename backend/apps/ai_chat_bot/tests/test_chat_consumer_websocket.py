@@ -123,7 +123,7 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
 
     @patch(
         "apps.ai_chat_bot.api.consumers.YandexChatAIService",
-        side_effect=lambda: StubYandexChatAIService(),
+        side_effect=StubYandexChatAIService,
     )
     def test_authenticated_connect_then_send_message_persists_roundtrip(self, _mock_cls):
         captured = {}
@@ -165,7 +165,7 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
 
     @patch(
         "apps.ai_chat_bot.api.consumers.YandexChatAIService",
-        side_effect=lambda: StubYandexChatAIService(),
+        side_effect=StubYandexChatAIService,
     )
     def test_send_message_passes_course_vs_id_to_stream(self, _mock_cls):
         self.course.yandex_vs_id = "vs-test-id-777"
@@ -180,7 +180,7 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
 
         with patch(
             "apps.ai_chat_bot.api.consumers.YandexChatAIService",
-            side_effect=lambda: SpyStub(),
+            side_effect=SpyStub,
         ):
             async def _go():
                 from project.asgi import application
@@ -208,7 +208,7 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
 
     @patch(
         "apps.ai_chat_bot.api.consumers.YandexChatAIService",
-        side_effect=lambda: StubYandexChatAIService(),
+        side_effect=StubYandexChatAIService,
     )
     def test_malformed_client_payload_returns_error_type(self, _mock_cls):
 

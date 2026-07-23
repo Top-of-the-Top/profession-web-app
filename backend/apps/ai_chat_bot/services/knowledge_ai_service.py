@@ -38,8 +38,8 @@ class YandexKnowledgeAIService(YandexAIBase):
             if old_vs_id:
                 await self._delete_vs_and_files(old_vs_id)
 
-        except Exception as e:
-            logger.error("VS sync failed for course %s: %s", course.pk, e)
+        except Exception:
+            logger.exception("VS sync failed for course %s", course.pk)
             if new_vs_id:
                 await self._safe_cleanup_vs(new_vs_id, uploaded_file_ids)
             elif uploaded_file_ids:
@@ -59,8 +59,8 @@ class YandexKnowledgeAIService(YandexAIBase):
                     file=buf,
                     purpose="assistants",
                 )
-            except Exception as e:
-                logger.error("Failed to upload %s: %s", name, e)
+            except Exception:
+                logger.exception("Failed to upload %s", name)
                 raise
 
     async def _wait_for_vector_store(self, vs_id: str, interval: int = 3, timeout: int = 300) -> None:

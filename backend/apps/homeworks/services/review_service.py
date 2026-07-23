@@ -110,11 +110,12 @@ class ReviewService:
             review.reviewer = reviewer
             review.save(update_fields=["points", "comment", "reviewer", "updated_at"])
 
-            ta.status = (
-                TaskAnswer.CORRECT_STATUS
-                if points >= ta.task.max_points
-                else (TaskAnswer.PARTIAL_STATUS if points > 0 else TaskAnswer.INCORRECT_STATUS)
-            )
+            if points >= ta.task.max_points:
+                ta.status = TaskAnswer.CORRECT_STATUS
+            elif points > 0:
+                ta.status = TaskAnswer.PARTIAL_STATUS
+            else:
+                ta.status = TaskAnswer.INCORRECT_STATUS
             ta.save(update_fields=["status"])
 
             attempt.grade = (attempt.grade or 0) - old_points + points

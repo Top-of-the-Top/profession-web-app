@@ -333,7 +333,7 @@
 
 .streamingText {
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   flex: 1;
 }
 
@@ -349,7 +349,6 @@
   min-width: 0;
   width: 100%;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .markdownContent > * {

@@ -14,7 +14,8 @@ SUMMARY_SENTENCES = 2
 
 class BaseContextCompressor(ABC):
     @abstractmethod
-    def compress(self, current_summary: str, messages: Sequence[ChatMessage]) -> str: ...
+    def compress(self, current_summary: str, messages: Sequence[ChatMessage]) -> str:
+        pass
 
 
 class TextRankContextCompressor(BaseContextCompressor):

@@ -1,4 +1,4 @@
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 from django.test import TestCase
 
@@ -73,8 +73,8 @@ class SynchronizeCourseContextTaskTests(TestCase):
         from apps.ai_chat_bot.tasks import synchronize_course_context
 
         synchronize_course_context(str(self.course.course_id))
-        mock_logger.error.assert_called()
-        call_args = mock_logger.error.call_args.args[0]
+        mock_logger.exception.assert_called()
+        call_args = mock_logger.exception.call_args.args[0]
         self.assertIn("Error syncing", call_args)
 
 

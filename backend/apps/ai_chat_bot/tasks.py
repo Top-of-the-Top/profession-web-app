@@ -19,8 +19,8 @@ def synchronize_course_context(course_id):
         logger.info("Successfully synced VS for course: %s", course.title)
     except Course.DoesNotExist:
         logger.error("Course %s not found", course_id)
-    except Exception as e:
-        logger.error("Error syncing course %s: %s", course_id, e)
+    except Exception:
+        logger.exception("Error syncing course %s", course_id)
 
 
 @shared_task(name="rebuild_all_courses_vs")
@@ -34,5 +34,5 @@ def rebuild_all_courses_vs():
         try:
             synchronize_course_context.delay(course.pk)
             logger.info("Queued VS rebuild for course: %s (id=%s)", course.title, course.pk)
-        except Exception as e:
-            logger.error("Failed to queue VS rebuild for course %s: %s", course.pk, e)
+        except Exception:
+            logger.exception("Failed to queue VS rebuild for course %s", course.pk)

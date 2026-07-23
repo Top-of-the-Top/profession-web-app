@@ -173,6 +173,7 @@ class CoursePublishView(APIView):
         course.type = Course.PUBLISHED_STATUS
         course.last_modified_by = request.user
         course.save(update_fields=["type", "last_modified_by", "updated_at"])
+        invalidate_on_course_model_change(course.slug)
         return Response({"status": course.type})
 
 
@@ -201,6 +202,7 @@ class CourseUnpublishView(APIView):
         course.type = Course.DRAFT_STATUS
         course.last_modified_by = request.user
         course.save(update_fields=["type", "last_modified_by", "updated_at"])
+        invalidate_on_course_model_change(course.slug)
         return Response({"status": course.type})
 
 

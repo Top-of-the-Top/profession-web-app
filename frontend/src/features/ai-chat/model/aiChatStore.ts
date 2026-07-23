@@ -52,6 +52,13 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
     });
   },
 
+  updateChatTitle: (chatId, title) =>
+    set((state) => ({
+      chats: state.chats.map((chat) =>
+        chat.chat_id === chatId ? { ...chat, title } : chat
+      ),
+    })),
+
   addChat: (chat) =>
     set((state) => {
       const withoutCurrent = state.chats.filter(

@@ -1,7 +1,5 @@
 import asyncio
 import logging
-import os
-import tempfile
 
 from celery import shared_task
 
@@ -14,27 +12,27 @@ logger = logging.getLogger(__name__)
 @shared_task(name="synchronize_course_context")
 def synchronize_course_context(course_id):
     try:
-        course = Course.objects.get(id=course_id)
+        course = Course.objects.get(pk=course_id)
         service = YandexKnowledgeAIService()
-
-        full_text = course.prepare_full_content_file()
-
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=".txt", mode="w", encoding="utf-8"
-        ) as tf:
-            tf.write(full_text)
-            temp_path = tf.name
-
-        try:
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(service.update_course_context(course, [temp_path]))
-            logger.info(f"Successfully synced knowledge base for course: {course.title}")
-
-        finally:
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-
+        files = course.prepare_files_for_vs()
+        asyncio.run(service.update_course_context(course, files))
+        logger.info("Successfully synced VS for course: %s", course.title)
     except Course.DoesNotExist:
-        logger.error(f"Course with id {course_id} not found")
-    except Exception as e:
-        logger.error(f"Error syncing course {course_id}: {e}")
+        logger.error("Course %s not found", course_id)
+    except Exception:
+        logger.exception("Error syncing course %s", course_id)
+
+
+@shared_task(name="rebuild_all_courses_vs")
+def rebuild_all_courses_vs():
+    courses = Course.objects.filter(
+        is_deleted=False,
+        section__isnull=False,
+    ).distinct()
+
+    for course in courses:
+        try:
+            synchronize_course_context.delay(course.pk)
+            logger.info("Queued VS rebuild for course: %s (id=%s)", course.title, course.pk)
+        except Exception:
+            logger.exception("Failed to queue VS rebuild for course %s", course.pk)

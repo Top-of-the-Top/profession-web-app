@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from apps.core.api.serializers import ServiceErrorResponseSerializer
 from apps.core.processors.error_processor import process_error_response
 from apps.courses.api.permissions import require_course_author
+from apps.courses.api.utils.cache_utils import invalidate_user_role_cache
 from apps.courses.models import Course, CourseEnrollment
 from apps.notifications.dispatcher import dispatcher
 from apps.notifications.events import ApplicationStatusChangedEvent
@@ -205,6 +206,8 @@ class CourseApplicationApproveView(APIView):
                     "access_expires_at": timezone.now() + timedelta(days=365),
                 },
             )
+
+        invalidate_user_role_cache(application.user.id)
 
         dispatcher.dispatch(
             ApplicationStatusChangedEvent(

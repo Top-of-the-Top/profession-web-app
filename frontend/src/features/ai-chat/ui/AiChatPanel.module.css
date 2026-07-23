@@ -148,6 +148,7 @@
   border: none;
   background: transparent;
   flex: 1;
+  min-width: 0;
   text-align: left;
   display: flex;
   flex-direction: column;
@@ -332,7 +333,7 @@
 
 .streamingText {
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   flex: 1;
 }
 
@@ -348,7 +349,6 @@
   min-width: 0;
   width: 100%;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .markdownContent > * {

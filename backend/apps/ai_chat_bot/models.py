@@ -54,6 +54,12 @@ class Chat(TimestampedMixin):
 
     title = models.CharField(max_length=25, null=True, blank=True, verbose_name="Заголовок чата")
 
+    context_summary = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Сжатый контекст разговора",
+    )
+
     class Meta:
         verbose_name = "Чаты"
         verbose_name_plural = "Сообщения чата"

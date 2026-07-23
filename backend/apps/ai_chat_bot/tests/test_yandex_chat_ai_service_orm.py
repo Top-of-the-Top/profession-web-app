@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from asgiref.sync import async_to_sync
 from django.test import TestCase
@@ -59,3 +59,80 @@ class YandexChatAIServiceOrmTests(TestCase):
         async_to_sync(svc.delete_chat)(str(chat.chat_id))
         self.assertFalse(Chat.objects.filter(chat_id=chat.chat_id).exists())
         self.assertEqual(Message.objects.count(), 0)
+
+
+class AskQuestionStreamVsIdTests(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls._openai_patcher = patch("apps.ai_chat_bot.services.base_service.openai.AsyncOpenAI")
+        cls._openai_patcher.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._openai_patcher.stop()
+        super().tearDownClass()
+
+    def setUp(self):
+        super().setUp()
+        self.user = create_test_user(email="vs_stream@test.com", role="student")
+        self.course = create_test_course(title="Курс VS")
+
+    def _make_stream_mock(self):
+        event = MagicMock()
+        event.type = "response.output_text.delta"
+        event.delta = "chunk"
+
+        async def _aiter(self_inner):
+            yield event
+
+        mock_stream = MagicMock()
+        mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+        mock_stream.__aexit__ = AsyncMock(return_value=False)
+        mock_stream.__aiter__ = _aiter
+        return mock_stream
+
+    async def _collect_stream(self, svc, text, vs_id=None):
+        chunks = []
+        async for chunk in svc.ask_question_stream(text, vs_id=vs_id):
+            chunks.append(chunk)
+        return chunks
+
+    def test_without_vs_id_no_tools_sent(self):
+        svc = YandexChatAIService()
+        async_to_sync(svc.get_or_create_session)(self.user, self.course)
+        mock_stream = self._make_stream_mock()
+        svc.client.responses.create = AsyncMock(return_value=mock_stream)
+
+        async_to_sync(self._collect_stream)(svc, "вопрос", vs_id=None)
+
+        call_kwargs = svc.client.responses.create.call_args.kwargs
+        self.assertNotIn("tools", call_kwargs)
+
+    def test_with_vs_id_sends_file_search_tool(self):
+        svc = YandexChatAIService()
+        async_to_sync(svc.get_or_create_session)(self.user, self.course)
+        mock_stream = self._make_stream_mock()
+        svc.client.responses.create = AsyncMock(return_value=mock_stream)
+
+        vs_id = "vs-abc123"
+        async_to_sync(self._collect_stream)(svc, "вопрос", vs_id=vs_id)
+
+        call_kwargs = svc.client.responses.create.call_args.kwargs
+        self.assertIn("tools", call_kwargs)
+        self.assertEqual(
+            call_kwargs["tools"],
+            [{"type": "file_search", "vector_store_ids": [vs_id]}],
+        )
+
+    def test_empty_string_vs_id_treated_as_no_vs(self):
+        svc = YandexChatAIService()
+        async_to_sync(svc.get_or_create_session)(self.user, self.course)
+        mock_stream = self._make_stream_mock()
+        svc.client.responses.create = AsyncMock(return_value=mock_stream)
+
+        async_to_sync(self._collect_stream)(svc, "вопрос", vs_id="")
+
+        call_kwargs = svc.client.responses.create.call_args.kwargs
+        self.assertNotIn("tools", call_kwargs)

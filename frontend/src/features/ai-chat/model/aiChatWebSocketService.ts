@@ -47,6 +47,17 @@ function deriveChatTitle(chats: AiChatSummary[]): string {
   return `Новый чат ${maxIndex}`;
 }
 
+function titleFromMessage(text: string, maxLen = 25): string {
+  const words = text.trim().split(/\s+/);
+  let result = '';
+  for (const word of words) {
+    const next = result ? `${result} ${word}` : word;
+    if (next.length > maxLen) break;
+    result = next;
+  }
+  return result || text.slice(0, maxLen);
+}
+
 class AiChatWebSocketService {
   private socket: WebSocket | null = null;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -165,12 +176,18 @@ class AiChatWebSocketService {
       return;
     }
 
-    useAiChatStore.getState().addMessage(chatId, {
+    const store = useAiChatStore.getState();
+    store.addMessage(chatId, {
       messageId: `local-user-${Date.now()}`,
       role: 'user',
       content: trimmed,
       createdAt: new Date().toISOString(),
     });
+
+    const chat = store.chats.find((c) => c.chat_id === chatId);
+    if (chat && /^Новый чат \d+$/.test(chat.title)) {
+      store.updateChatTitle(chatId, titleFromMessage(trimmed));
+    }
 
     this.send({
       type: AI_CHAT_CLIENT_MESSAGE_TYPES.SEND_MESSAGE,

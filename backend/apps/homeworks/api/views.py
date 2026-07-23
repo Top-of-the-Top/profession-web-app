@@ -30,6 +30,7 @@ from .serializers import (
     AttemptSubmitSerializer,
     MyAttemptSerializer,
     StudentAttemptSerializer,
+    TaskReviewUpdateSerializer,
 )
 
 HOMEWORK_SLUG_PARAM = OpenApiParameter(
@@ -379,6 +380,82 @@ class AttemptReviewView(APIView):
                 attempt=attempt,
                 reviewer=request.user,
                 items=items,
+            )
+        except HomeworkServiceError as exc:
+            return process_error_response(exc)
+
+        invalidate_attempt_cache(
+            user_id=attempt.user_id,
+            homework_slug=attempt.homework.slug,
+            attempt_id=attempt.attempt_id,
+            lesson_slug=attempt.homework.lesson.slug,
+            course_slug=attempt.homework.lesson.section.course.slug,
+        )
+        return Response(
+            AttemptSerializer(attempt, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+TASK_ANSWER_ID_PARAM = OpenApiParameter(
+    name="task_answer_id",
+    type=OpenApiTypes.UUID,
+    location=OpenApiParameter.PATH,
+    required=True,
+    description="UUID ответа на задание",
+)
+
+
+class TaskReviewUpdateView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary="Обновить ревью задания (преподаватель)",
+        description=(
+            "Обновляет баллы и комментарий по одному заданию в уже проверенной попытке. "
+            "Попытка должна быть в статусе reviewed. "
+            "Пересчитывает итоговый балл попытки через дельту. "
+            "Отправляет студенту уведомление об обновлении оценки."
+        ),
+        tags=["Homework"],
+        parameters=[COURSE_SLUG_PARAM, ATTEMPT_ID_PARAM, TASK_ANSWER_ID_PARAM],
+        request=TaskReviewUpdateSerializer,
+        responses={
+            200: AttemptSerializer,
+            400: ServiceErrorResponseSerializer,
+            401: ServiceErrorResponseSerializer,
+            403: ServiceErrorResponseSerializer,
+            404: SCHEMA_DETAIL,
+            409: ServiceErrorResponseSerializer,
+            500: ServiceErrorResponseSerializer,
+        },
+    )
+    @require_course_author
+    def patch(self, request, course_slug, attempt_id, task_answer_id):
+        attempt = get_object_or_404(
+            Attempt.objects.select_related("homework__lesson__section__course").prefetch_related(
+                "task_answers__task",
+                "task_answers__review",
+            ),
+            attempt_id=attempt_id,
+            homework__lesson__section__course__slug=course_slug,
+        )
+
+        serializer = TaskReviewUpdateSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except DRFValidationError as exc:
+            return process_error_response(RequestValidationError(exc.detail))
+        payload = serializer.validated_data
+
+        service = ReviewService()
+        try:
+            attempt = service.update_task_review(
+                attempt=attempt,
+                task_answer_id=str(task_answer_id),
+                points=payload["points"],
+                comment=payload.get("comment"),
+                reviewer=request.user,
             )
         except HomeworkServiceError as exc:
             return process_error_response(exc)

@@ -44,6 +44,12 @@ export interface AdminCourse {
   last_modified_by: number | null;
 }
 
+function resolveAdminCourseType(typeStr: string, isPublished: unknown): AdminCourse['type'] {
+  if (typeStr === 'published') return 'published';
+  if (typeStr === 'draft') return 'draft';
+  return isPublished === true ? 'published' : 'draft';
+}
+
 function normalizeAdminCourseAuthor(entry: unknown): number | AdminTeacher {
   if (typeof entry === 'number' && !Number.isNaN(entry)) return entry;
   if (entry !== null && typeof entry === 'object') {
@@ -81,7 +87,7 @@ export function useAdminCourseBySlug(slug: string) {
       const c = ((raw as { course?: unknown })?.course ?? raw ?? {}) as Record<string, unknown>;
       const rawType = c.type ?? c.status ?? c.course_status;
       const typeStr = typeof rawType === 'string' ? rawType.trim().toLowerCase() : '';
-      const type: AdminCourse['type'] = typeStr === 'published' ? 'published' : 'draft';
+      const type: AdminCourse['type'] = resolveAdminCourseType(typeStr, c.is_published);
       const imageRaw = c.image_url;
       const imageUrl = imageRaw != null && String(imageRaw).trim() !== '' ? String(imageRaw) : null;
       return {
@@ -121,8 +127,7 @@ export function useAdminCourses() {
         const rawType = c.type ?? c.status ?? c.course_status;
         const typeStr =
           typeof rawType === 'string' ? rawType.trim().toLowerCase() : '';
-        const type: AdminCourse['type'] =
-          typeStr === 'published' ? 'published' : 'draft';
+        const type: AdminCourse['type'] = resolveAdminCourseType(typeStr, c.is_published);
         const imageRaw = c.image_url;
         const imageUrl =
           imageRaw != null && String(imageRaw).trim() !== ''

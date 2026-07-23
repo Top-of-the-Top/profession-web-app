@@ -43,3 +43,53 @@ def parse_content_value(raw):
     if isinstance(raw, str):
         return json.loads(raw)
     raise TypeError("content must be object or JSON string")
+
+
+_TEXT_BLOCK_TYPES = frozenset({
+    "paragraph",
+    "heading",
+    "bulletListItem",
+    "numberedListItem",
+    "checkListItem",
+    "quote",
+    "codeBlock",
+})
+
+
+def _collect_inline_text(content_items: list) -> str:
+    parts = []
+    for item in content_items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") == "text":
+            parts.append(item.get("text", ""))
+        elif item.get("type") == "link":
+            parts.append(_collect_inline_text(item.get("content", [])))
+    return "".join(parts)
+
+
+def _extract_blocks(blocks: list, lines: list) -> None:
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") in _TEXT_BLOCK_TYPES:
+            text = _collect_inline_text(block.get("content") or []).strip()
+            if text:
+                lines.append(text)
+        children = block.get("children")
+        if children:
+            _extract_blocks(children, lines)
+
+
+def extract_plain_text(document_str) -> str:
+    if not document_str:
+        return ""
+    try:
+        blocks = json.loads(document_str) if isinstance(document_str, str) else document_str
+    except (json.JSONDecodeError, TypeError):
+        return ""
+    if not isinstance(blocks, list):
+        return ""
+    lines: list[str] = []
+    _extract_blocks(blocks, lines)
+    return "\n".join(lines)

@@ -32,5 +32,5 @@ jobs:
           CI: '1'
           SECRET_KEY: 'ci-secret-key-for-tests'
         run: |
-          python manage.py test apps.users apps.payments apps.courses apps.carts --no-input -v 2
+          python manage.py test --no-input -v 2
 

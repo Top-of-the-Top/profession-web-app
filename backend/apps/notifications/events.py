@@ -57,6 +57,15 @@ class HomeworkReviewedEvent:
 
 
 @dataclass
+class HomeworkReviewUpdatedEvent:
+    user_id: int
+    homework_title: str
+    grade: int | None
+    attempt_id: UUID
+    with_email: bool = True
+
+
+@dataclass
 class WebinarScheduledEvent:
     course_id: UUID
     title: str

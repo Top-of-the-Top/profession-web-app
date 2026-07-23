@@ -4,6 +4,7 @@ import tempfile
 from datetime import timedelta
 from pathlib import Path
 
+from celery.schedules import crontab
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -361,6 +362,10 @@ CELERY_BEAT_SCHEDULE = {
     "assets-sweep-orphaned": {
         "task": "apps.core.meta_management.tasks.sweep_orphaned_assets",
         "schedule": 3600.0,
+    },
+    "rebuild-all-courses-vs-nightly": {
+        "task": "rebuild_all_courses_vs",
+        "schedule": crontab(hour=3, minute=0),
     },
 }
 

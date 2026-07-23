@@ -68,7 +68,13 @@ class StubYandexChatAIService:
 
         return await sync_to_async(_save)()
 
-    async def ask_question_stream(self, text):
+    async def update_chat_summary(self, chat_id, summary):
+        def _upd():
+            Chat.objects.filter(chat_id=chat_id).update(context_summary=summary)
+
+        await sync_to_async(_upd)()
+
+    async def ask_question_stream(self, text, vs_id=None, course_title=None):
         yield "Ок"
 
 
@@ -117,7 +123,7 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
 
     @patch(
         "apps.ai_chat_bot.api.consumers.YandexChatAIService",
-        side_effect=lambda: StubYandexChatAIService(),
+        side_effect=StubYandexChatAIService,
     )
     def test_authenticated_connect_then_send_message_persists_roundtrip(self, _mock_cls):
         captured = {}
@@ -159,7 +165,50 @@ class ChatConsumerWebSocketTests(TransactionTestCase):
 
     @patch(
         "apps.ai_chat_bot.api.consumers.YandexChatAIService",
-        side_effect=lambda: StubYandexChatAIService(),
+        side_effect=StubYandexChatAIService,
+    )
+    def test_send_message_passes_course_vs_id_to_stream(self, _mock_cls):
+        self.course.yandex_vs_id = "vs-test-id-777"
+        self.course.save(update_fields=["yandex_vs_id"])
+
+        captured_vs_ids = []
+
+        class SpyStub(StubYandexChatAIService):
+            async def ask_question_stream(self, text, vs_id=None, course_title=None):
+                captured_vs_ids.append(vs_id)
+                yield "spy-ок"
+
+        with patch(
+            "apps.ai_chat_bot.api.consumers.YandexChatAIService",
+            side_effect=SpyStub,
+        ):
+            async def _go():
+                from project.asgi import application
+
+                comm = WebsocketCommunicator(application, self._path(self.course.slug, self.access))
+                self.assertTrue((await comm.connect())[0])
+                await comm.receive_json_from()
+                await comm.send_json_to({"type": "start new chat"})
+                created = await comm.receive_json_from()
+                await comm.send_json_to(
+                    {
+                        "type": "send message",
+                        "chat_id": created["chat_id"],
+                        "content": {"text": "проверка"},
+                    }
+                )
+                await comm.receive_json_from()
+                await comm.receive_json_from()
+                await comm.receive_json_from()
+                await comm.disconnect()
+
+            self._run_async(_go)
+
+        self.assertEqual(captured_vs_ids, ["vs-test-id-777"])
+
+    @patch(
+        "apps.ai_chat_bot.api.consumers.YandexChatAIService",
+        side_effect=StubYandexChatAIService,
     )
     def test_malformed_client_payload_returns_error_type(self, _mock_cls):
 

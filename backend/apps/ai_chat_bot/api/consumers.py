@@ -52,7 +52,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self._compressor = TextRankContextCompressor()
         self.course_slug = self.scope["url_route"]["kwargs"]["course_slug"]
         self.user = self.scope["user"]
-        self.chat_service = YandexChatAIService()
         logger.info("WS connect attempt: course_slug=%s", self.course_slug)
 
         if self.user.is_anonymous:
@@ -68,6 +67,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 slug=self.course_slug
             )
             self.course = course
+            self.chat_service = YandexChatAIService()
             self.session = await self.chat_service.get_or_create_session(self.user, course)
 
             logger.info(

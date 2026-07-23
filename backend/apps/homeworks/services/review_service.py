@@ -5,11 +5,16 @@ from django.utils import timezone
 
 from apps.homeworks.models import Attempt, TaskAnswer, TaskReview
 from apps.homeworks.services.errors import (
+    AttemptNotReviewed,
     AttemptNotSubmitted,
     ReviewItemNotFound,
     ReviewPointsExceeded,
+    TaskReviewNotFound,
 )
-from apps.homeworks.services.review_notify import schedule_attempt_reviewed_notification
+from apps.homeworks.services.review_notify import (
+    schedule_attempt_review_updated_notification,
+    schedule_attempt_reviewed_notification,
+)
 
 
 @dataclass(frozen=True)
@@ -64,6 +69,60 @@ class ReviewService:
             attempt.save(update_fields=["grade", "status", "reviewed_by", "reviewed_at"])
 
         schedule_attempt_reviewed_notification(attempt.attempt_id)
+        attempt.refresh_from_db()
+        return attempt
+
+    def update_task_review(
+        self,
+        *,
+        attempt: Attempt,
+        task_answer_id: str,
+        points: int,
+        comment: str | None,
+        reviewer,
+    ) -> Attempt:
+        if attempt.status != Attempt.REVIEWED_STATUS:
+            raise AttemptNotReviewed(
+                details={"attempt_id": str(attempt.attempt_id), "status": attempt.status}
+            )
+
+        ta = attempt.task_answers.select_related("task").filter(answer_id=task_answer_id).first()
+        if ta is None:
+            raise ReviewItemNotFound(details={"task_answer_id": task_answer_id})
+
+        review = getattr(ta, "review", None)
+        if review is None:
+            raise TaskReviewNotFound(details={"task_answer_id": task_answer_id})
+
+        if points > ta.task.max_points:
+            raise ReviewPointsExceeded(
+                details={
+                    "task_answer_id": task_answer_id,
+                    "points": points,
+                    "max_points": ta.task.max_points,
+                }
+            )
+
+        with transaction.atomic():
+            old_points = review.points
+            review.points = points
+            review.comment = comment
+            review.reviewer = reviewer
+            review.save(update_fields=["points", "comment", "reviewer", "updated_at"])
+
+            ta.status = (
+                TaskAnswer.CORRECT_STATUS
+                if points >= ta.task.max_points
+                else (TaskAnswer.PARTIAL_STATUS if points > 0 else TaskAnswer.INCORRECT_STATUS)
+            )
+            ta.save(update_fields=["status"])
+
+            attempt.grade = (attempt.grade or 0) - old_points + points
+            attempt.reviewed_by = reviewer
+            attempt.reviewed_at = timezone.now()
+            attempt.save(update_fields=["grade", "reviewed_by", "reviewed_at"])
+
+        schedule_attempt_review_updated_notification(attempt.attempt_id)
         attempt.refresh_from_db()
         return attempt
 

@@ -1,6 +1,6 @@
 import asyncio
+import io
 import logging
-import os
 
 from asgiref.sync import sync_to_async
 
@@ -11,85 +11,101 @@ logger = logging.getLogger(__name__)
 
 
 class YandexKnowledgeAIService(YandexAIBase):
-    async def update_course_context(self, course, file_paths):
-        logger.info(f"Starting huge context update for course {course.title}")
-
-        old_vs_id = course.yandex_vs_id
+    async def update_course_context(self, course, files: list[tuple[str, str]]) -> None:
+        old_vs_id = course.yandex_vs_id or None
         new_vs_id = None
+        uploaded_file_ids: list[str] = []
 
         try:
-            new_file_ids = await asyncio.gather(*[self._upload_file(p) for p in file_paths])
+            upload_results = await asyncio.gather(
+                *[self._upload_named_file(name, content) for name, content in files]
+            )
+            uploaded_file_ids = [r.id for r in upload_results]
+            logger.info("Uploaded %d files for course %s", len(uploaded_file_ids), course.pk)
 
-            new_vs = await self.client.beta.vector_stores.create(
-                name=f"База знаний для курса {course.title}",
-                file_ids=[f.id for f in new_file_ids],
+            new_vs = await self.client.vector_stores.create(
+                name=f"course-{course.pk}",
+                file_ids=uploaded_file_ids,
             )
             new_vs_id = new_vs.id
+            logger.info("Created VS %s for course %s", new_vs_id, course.pk)
 
             await self._wait_for_vector_store(new_vs_id)
 
             await sync_to_async(Course.objects.filter(pk=course.pk).update)(yandex_vs_id=new_vs_id)
-            course.yandex_vs_id = new_vs_id
+            logger.info("Saved VS %s to course %s", new_vs_id, course.pk)
 
             if old_vs_id:
-                asyncio.create_task(self._delete_vector_store_by_id(old_vs_id, course.pk))
+                await self._delete_vs_and_files(old_vs_id)
 
         except Exception as e:
-            logger.error(f"Error during context update for {course.pk}: {e}")
+            logger.error("VS sync failed for course %s: %s", course.pk, e)
             if new_vs_id:
-                await self._delete_vector_store_by_id(new_vs_id, course.pk)
+                await self._safe_cleanup_vs(new_vs_id, uploaded_file_ids)
+            elif uploaded_file_ids:
+                await asyncio.gather(
+                    *[self._safe_delete_file(fid) for fid in uploaded_file_ids],
+                    return_exceptions=True,
+                )
             raise
 
-    async def _upload_file(self, file_path):
+    async def _upload_named_file(self, name: str, content: str):
         async with self._semaphore:
-            logger.info(f"Uploading file {os.path.basename(file_path)}")
+            logger.info("Uploading %s", name)
             try:
-                with open(file_path, "rb") as f:
-                    return await self.client.files.create(file=f, purpose="assistants")
+                buf = io.BytesIO(content.encode("utf-8"))
+                buf.name = name
+                return await self.client.files.create(
+                    file=buf,
+                    purpose="assistants",
+                )
             except Exception as e:
-                logger.error(f"Failed to upload file {file_path}: {e}")
+                logger.error("Failed to upload %s: %s", name, e)
                 raise
 
-    async def _wait_for_vector_store(self, vs_id, interval=3):
-        logger.info(f"Starting poll for VS: {vs_id}")
+    async def _wait_for_vector_store(self, vs_id: str, interval: int = 3, timeout: int = 300) -> None:
+        logger.info("Polling VS %s until ready", vs_id)
+        elapsed = 0
         while True:
-            vs = await self.client.beta.vector_stores.retrieve(vs_id)
+            vs = await self.client.vector_stores.retrieve(vs_id)
             if vs.status == "completed":
-                logger.info(f"Vector Store {vs_id} is READY")
-                return vs
+                logger.info("VS %s is READY", vs_id)
+                return
             if vs.status == "failed":
-                logger.error(
-                    f"Vector Store {vs_id} FAILED. Error: {getattr(vs, 'last_error', 'Unknown')}"
-                )
-                raise Exception(f"Vector Store {vs_id} creation failed")
-
+                raise RuntimeError(f"Vector Store {vs_id} failed: {getattr(vs, 'last_error', 'unknown')}")
+            if elapsed >= timeout:
+                raise TimeoutError(f"Vector Store {vs_id} did not become ready in {timeout}s")
             await asyncio.sleep(interval)
+            elapsed += interval
 
-    async def _delete_vector_store_by_id(self, vs_id, course_id):
+    async def _delete_vs_and_files(self, vs_id: str) -> None:
         try:
-            logger.info(f"Starting full cleanup for Vector Store for course {course_id}")
-
-            vs_files = await self.client.beta.vector_stores.files.list(vector_store_id=vs_id)
+            vs_files = await self.client.vector_stores.files.list(vector_store_id=vs_id)
             file_ids = [f.id for f in vs_files.data]
-
-            logger.info("Deleting Vector Store")
-            await self.client.beta.vector_stores.delete(vs_id)
-
-            async def delete_file(f_id):
-                async with self._semaphore:
-                    try:
-                        await self.client.files.delete(f_id)
-                        return True
-                    except Exception as e:
-                        logger.warning(f"Failed to delete file {f_id}: {e}")
-                        return False
-
-            deleted = await asyncio.gather(*(delete_file(f_id) for f_id in file_ids))
-            success_count = sum(1 for i in deleted if i)
-            logger.info(
-                f"Cleanup finished. Deleted VS {vs_id} and {success_count}/{len(file_ids)} files"
+            await self.client.vector_stores.delete(vs_id)
+            await asyncio.gather(
+                *[self._safe_delete_file(fid) for fid in file_ids],
+                return_exceptions=True,
             )
-
+            logger.info("Deleted VS %s and %d files", vs_id, len(file_ids))
         except Exception as e:
-            logger.error(f"Critical error during VS deletion {vs_id}: {e}")
-            raise
+            logger.warning("Failed to fully delete VS %s: %s", vs_id, e)
+
+    async def _safe_cleanup_vs(self, vs_id: str, file_ids: list[str]) -> None:
+        await asyncio.gather(
+            self._safe_delete_vs(vs_id),
+            *[self._safe_delete_file(fid) for fid in file_ids],
+            return_exceptions=True,
+        )
+
+    async def _safe_delete_vs(self, vs_id: str) -> None:
+        try:
+            await self.client.vector_stores.delete(vs_id)
+        except Exception as e:
+            logger.warning("Failed to delete VS %s: %s", vs_id, e)
+
+    async def _safe_delete_file(self, file_id: str) -> None:
+        try:
+            await self.client.files.delete(file_id)
+        except Exception as e:
+            logger.warning("Failed to delete file %s: %s", file_id, e)

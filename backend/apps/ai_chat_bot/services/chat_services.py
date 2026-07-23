@@ -18,71 +18,79 @@ class YandexChatAIService(YandexAIBase):
             course.pk,
             user.pk,
         )
-
         session, created = await sync_to_async(Session.objects.get_or_create)(
             course=course, user=user
         )
         self.session = session
-
         if created:
             logger.info("Created new chat session %s", session.session_id)
-
         return session
-
-    async def save_message(self, chat, role, content):
-        logger.info("Saving message %s", content)
-        return await sync_to_async(Message.objects.create)(chat=chat, role=role, content=content)
-
-    async def ask_question_stream(self, text):
-        logger.info("Create response stream for session %s", self.session.session_id)
-        try:
-            async with self._semaphore:
-                response_stream = await self.client.responses.create(
-                    model=settings.YANDEX_MODEL or settings.YANDEX_ASSISTANT_ID,
-                    input=text,
-                    stream=True,
-                )
-
-                async for event in response_stream:
-                    if event.type == "response.output_text.delta":
-                        yield event.delta
-
-        except Exception as e:
-            logger.error(f"Error while creating a new response stream: {e}")
-            raise
 
     async def get_chats(self):
         logger.info("Getting all chats for session_id=%s", self.session.session_id)
-        get_chats_for_session = lambda x: list(x.chats.all().order_by("-updated_at"))
-        chats = await sync_to_async(get_chats_for_session)(self.session)
-        return chats
+        return await sync_to_async(
+            lambda: list(self.session.chats.all().order_by("-updated_at"))
+        )()
 
-    async def _get_chat_for_current_session(self, chat_id):
+    async def get_chat_for_current_session(self, chat_id):
         return await sync_to_async(Chat.objects.get)(
             chat_id=chat_id,
             session=self.session,
         )
 
-    async def get_chat_for_current_session(self, chat_id):
-        return await self._get_chat_for_current_session(chat_id)
-
     async def get_chat_history(self, chat_id):
-        chat = await self._get_chat_for_current_session(chat_id)
+        chat = await self.get_chat_for_current_session(chat_id)
         logger.info("Getting chat history for chat_id=%s", chat.chat_id)
-        get_chat_messages = lambda x: list(x.messages.all().order_by("updated_at"))
-        messages = await sync_to_async(get_chat_messages)(chat)
-        return messages
+        return await sync_to_async(
+            lambda: list(chat.messages.all().order_by("updated_at"))
+        )()
 
-    async def delete_chat(self, chat_id):
-        chat = await self._get_chat_for_current_session(chat_id)
-        logger.info("Deleting chat_id=%s", chat.chat_id)
-        del_chat = lambda x: Chat.objects.filter(chat_id=x.chat_id).delete()
-        await sync_to_async(del_chat)(chat)
+    async def save_message(self, chat, role, content):
+        logger.info("Saving message %s", content)
+        return await sync_to_async(Message.objects.create)(chat=chat, role=role, content=content)
+
+    async def update_chat_summary(self, chat_id: str, summary: str) -> None:
+        await sync_to_async(Chat.objects.filter(chat_id=chat_id).update)(
+            context_summary=summary
+        )
 
     async def create_new_chat(self):
         logger.info("Creating new chat for session_id=%s", self.session.session_id)
-        create_fun = lambda x: Chat.objects.create(session=self.session)
-        chat = await sync_to_async(create_fun)(self.session)
-        logger.info("Successfully created new chat_id=%s", chat.chat_id)
-
+        chat = await sync_to_async(Chat.objects.create)(session=self.session)
+        logger.info("Created new chat_id=%s", chat.chat_id)
         return chat
+
+    async def delete_chat(self, chat_id):
+        chat = await self.get_chat_for_current_session(chat_id)
+        logger.info("Deleting chat_id=%s", chat.chat_id)
+        await sync_to_async(Chat.objects.filter(chat_id=chat.chat_id).delete)()
+
+    async def ask_question_stream(self, text, vs_id: str | None = None, course_title: str | None = None):
+        logger.info("Create response stream for session %s", self.session.session_id)
+        try:
+            async with self._semaphore:
+                kwargs = dict(
+                    model=settings.YANDEX_MODEL or settings.YANDEX_ASSISTANT_ID,
+                    input=text,
+                    stream=True,
+                )
+                if vs_id:
+                    kwargs["tools"] = [{"type": "file_search", "vector_store_ids": [vs_id]}]
+
+                course_name = f"«{course_title}»" if course_title else "курса"
+                kwargs["instructions"] = (
+                    f"Ты ИИ-ассистент образовательного {course_name}. "
+                    "Отвечай на русском языке, точно и по делу. "
+                    "Используй поиск по материалам курса ТОЛЬКО когда студент задаёт "
+                    "содержательный вопрос о темах, уроках или понятиях курса. "
+                    "Приветствия, благодарности и общие фразы — обрабатывай без поиска."
+                )
+
+                response_stream = await self.client.responses.create(**kwargs)
+                async for event in response_stream:
+                    if event.type == "response.output_text.delta":
+                        yield event.delta
+
+        except Exception as e:
+            logger.error("Error while creating a new response stream: %s", e)
+            raise

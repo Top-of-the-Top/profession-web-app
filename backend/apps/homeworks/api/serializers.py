@@ -337,6 +337,13 @@ class AttemptReviewSerializer(serializers.Serializer):
     items = serializers.ListField(child=TaskReviewItemSerializer(), allow_empty=False)
 
 
+class TaskReviewUpdateSerializer(serializers.Serializer):
+    points = serializers.IntegerField(min_value=0)
+    comment = serializers.CharField(
+        max_length=1500, allow_blank=True, allow_null=True, required=False, default=None
+    )
+
+
 class ErrorResponseSerializer(serializers.Serializer):
     status = serializers.CharField(default="error")
     code = serializers.CharField()

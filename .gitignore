@@ -35,7 +35,7 @@ __pycache__/
 
 .cursor/
 .claude/
-docs/
+docs/superpowers/
 
 celerybeat-schedule-wal
 celerybeat-schedule
